@@ -150,9 +150,16 @@ To keep formulas readable, we use these symbols:
 ### 3.1.3 Tuning Affinity (Persistence Tags)
 To keep resets consistent, every major object/system is classified by how it behaves on Tuning:
 * `untuned`: Persists across Tunings unchanged (e.g., Hero, map knowledge, `P`, `F_unspent`, most Hero gear).
-* `detuned`: Persists as a physical shell but becomes inert on Tuning; upgrades reset and it must be re-attuned via a one-time payment to become operational again (e.g., most Base stations).
+* `detuned`: Persists as a physical shell but becomes inert on Tuning; it resets to its default constructed level (upgrades wiped) and must be re-attuned via a one-time payment (and any conditions) to become operational again (e.g., most Base stations).
 * `tuned`: Run-scoped; reset/destroyed on Tuning (e.g., crew, stored pools, temporary boosts, safe spots, active expeditions).
 * Optional later: `crystal_bound`: A subtype of gear/items that are `tuned` (destroyed or detuned on Tuning).
+
+Runtime state (separate from Tuning affinity):
+* **Attuned:** The object is calibrated to the current Crystal phase and can function (subject to Chorus power).
+* **Inactive:** The object cannot do anything (no effects, no crafting/research/production, no upkeep).
+    * After a Tuning, most `detuned` objects start **Inactive** until re-attuned.
+    * Only **Attuned** objects have upkeep costs.
+    * When a building becomes Attuned, it attempts to power automatically if Chorus budget allows.
 
 Some buildings can be `untuned`:
 * They persist across Tunings.
@@ -176,7 +183,7 @@ High-level shape (placeholder):
 
 Draft factors:
 * **Frontier (Reach):** Derived from the maximum exploration tier reached this run (based on max Amplitude / unlocked map zones).
-* **Depth (Combat):** Derived from the deepest dungeon/boss tier cleared this run.
+* **Depth (Combat):** Derived from the highest boss level cleared this run.
 * **Time (Session):** A logarithmic factor based on time since last Tuning (so it still works for multi-day runs). Suggested shape:
     * Base (log) term: `Time_log(t) = log(1 + t_minutes) / log(1 + 60)` (so 60 minutes ~= 1.0, shorter runs < 1.0, longer runs grow slowly > 1.0).
     * Short-run penalty (step): `Time_penalty(t)`:
@@ -207,7 +214,7 @@ Draft factors:
         * `active_minutes = active_seconds_total / 60`
     * `Active(active_minutes) = 1 + a * log(1 + active_minutes)` with small `a` (diminishing returns).
     * Use `Active_pair = sqrt(Active_now * Active_prev)` to bake in prior-run terms.
-* **Harmonics Investment:** Resonance contribution driven by specific buildings/perks that consume Harmonics (one-time and/or upkeep) and convert it into a persistent “mastering” effect within the run.
+* **Harmonics Investment:** Resonance contribution driven by specific buildings/perks that consume Harmonics as **one-time investments** and convert it into a persistent “mastering” effect within the run.
     * This replaces the earlier idea of a generic `Mastering_now` stat.
 * **Fragment legacy:** A bonus-only factor derived from unspent Harmonic Fragments (`F_unspent`) with diminishing returns, amplified by Refinement (`P`).
     * Draft shape: `Fragment_legacy(F_unspent, P) = f(F_unspent) * g(P)` where:
@@ -314,6 +321,8 @@ Aftermath (new run state):
 * **Huge Base boost:** Resonance provides a large multiplicative boost to Base generation and many Base-side effects (exact formulas TBD).
 * **Unlocks:** Resonance can unlock new tech tiers/perks/content at thresholds (details TBD).
 * **Restart staffing:** The Base begins with no crew; the Hero must recruit/rescue new staff over time.
+* **Detuned defaults:** Most Base buildings/tech/perks persist as `detuned` shells and start **Inactive**; they require a re-attunement payment (and any conditions) to become Attuned and operational again.
+    * **Critical freebies:** Some essential objects can have `re_attune_cost = 0` so they can be re-attuned immediately after Tuning (e.g., a minimal starter loop).
 
 Phase shift justification (why things “reset”):
 * **Crystal phase shift:** Tuning changes the Crystal’s resonance phase. Existing tuned infrastructure becomes incompatible.
@@ -326,24 +335,28 @@ Phase shift justification (why things “reset”):
     * Optional later feature: “Crystal-bound” gear exists and is destroyed/de-tuned by Tuning.
 
 Re-attunement cost scaling (draft):
-* Each building/tech/perk has:
-    * `base_cost` (its baseline price at `Resonance = 1`)
-    * `fixed_factor` (always paid; keeps early staples affordable)
-    * `cost_multiplier` (how strongly it scales with Resonance)
-* Let `R` be the current `Resonance` multiplier (NGU-style, recalculated on Tuning). Let `F` be total Harmonic Fragments (persistent). Exact formula for `R` TBD, but `F` has a small weight.
-* Cost formula: `cost = base_cost * (fixed_factor + cost_multiplier * R)`
-    * Example (early staple): Fire Pit `base_cost=10`, `fixed_factor=1`, `cost_multiplier=0` => cost stays `10` for every Tuning regardless of Resonance.
+Costs can be denominated in any mix of the three base resources (and later: crafted tiers/items). Each cost line item specifies weights per resource.
+
+Tier-based Resonance cost scaling:
+* Every building/upgrade/tech/perk has a **cost tier** that defines how strongly Resonance affects its cost.
+    * Tier 1: `k = 0.0` (no Resonance scaling; cost stays the same across Tunings)
+    * Higher tiers: larger `k` values (TBD ladder)
+* Let `R` be the current `Resonance` multiplier (recomputed on Tuning).
+* Recommended shape: `cost = base_cost * (1 + k * R)`
+    * If `k = 0`, cost is constant.
+    * If `k > 0`, cost scales linearly with Resonance.
+    * Example (early staple): Fire Pit `base_cost=10`, Tier 1 `k=0` => cost stays `10` for every Tuning regardless of Resonance.
 
 Scaling principle:
-* Buildings, upgrades, tech, and perks use the same scheme: they can have both **cost scaling** and **effect scaling** driven by `R`.
-* Effect formula (draft): `effect = base_effect * (fixed_factor + effect_multiplier * R)`
+* Resonance is used in both **production** and **cost scaling** (Base-side).
+* Buildings, upgrades, tech, and perks use the same tier scheme for costs; effect scaling is handled separately.
 * Harmonic Fragments are not consumed by Tuning; they remain stacked on the Crystal and contribute to Resonance permanently.
 
 Tuning cadence (anti-spam):
 * Track `N = tuning_count` (lifetime number of Tunings performed).
 * Allow Tuning at any time, but enforce a short real-time cooldown between Tunings (currently **3 minutes**).
  * To discourage “too-frequent” Tuning, let some costs scale with `N` in addition to `R`, so that increasing `N` without enough run progress becomes counterproductive.
-    * Draft: `cost = base_cost * (fixed_factor + cost_multiplier * (R + spam_factor(N)))`
+    * Draft: `cost = base_cost * (1 + k * (R + spam_factor(N)))`
     * Example: `spam_factor(N) = s * N^p` (with small `s` and `p > 1`), tuned so optimal play is “Tune after meaningful progress” rather than spamming.
 * Spam protection affects **costs only** (not effect strength).
 
