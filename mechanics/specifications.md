@@ -162,7 +162,8 @@ World scale + time scale (draft):
 * **1 minute real time = 1 hour in-world time** (default simulation scale for travel and timers).
 
 Tick system (draft):
-* The game uses a single global simulation **tick** with duration `tick_seconds` (real seconds; TBD).
+* The game uses a single global simulation **tick** with duration `tick_seconds` (real seconds).
+    * Default: `tick_seconds = 1.0`.
 * In-world time advances at `60x` real time, so:
     * `in_world_seconds_per_tick = tick_seconds * 60`
 * Any mechanic described as “per tick” uses this global tick (including Vibes and recruitment timers).
@@ -645,6 +646,7 @@ Recruiting costs and control:
             * `f(n) = (n / k4)^p4` for `n >= 500`
             * with `p1 < p2 < p3 < p4`
             * `n` is total recruited this run so far (before this recruit).
+        * Current tuning anchor: `cost(30) = 600` (interpretation: the cost when `n = 30`; additional anchors TBD).
     * This means the player can recruit even when `Vibes_rate` is negative, as long as they have enough Vibes stock to pay the one-time cost.
 * Negative Vibes consequences are limited to the crew efficiency penalty (no desertion/death purely from low Vibes).
 * The player can choose to send crew back to the Survivor Cave (mechanic TBD) to reduce capacity pressure and Vibes drain.
