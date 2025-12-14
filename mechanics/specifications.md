@@ -166,7 +166,7 @@ Draft factors:
         * else => `1.00`
     * Combined: `Time(t) = Time_log(t) * Time_penalty(t)`
     * `t_minutes` is real-world elapsed time since last Tuning (not paused by focus/minimize/menus).
-    * Use `Time_pair = sqrt(Time_now * Time_prev)` to bake in prior-run terms.
+    * Apply the penalty per-run: compute `Time_now` and `Time_prev` individually, then use `Time_pair = sqrt(Time_now * Time_prev)` to bake in prior-run terms.
 * **Active Playtime (Engagement):** Rewards actually playing (manual exploration/combat/enigmas) in addition to idle time. Suggested shape:
     * Track `active_seconds` via a **gameplay-action heartbeat** (session-bound; stops when paused or unfocused).
     * Track activity per category (seconds):
