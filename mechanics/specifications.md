@@ -189,6 +189,7 @@ Draft factors:
     * Map representation:
         * Zones have a `zone_tier` derived from **distance-to-Base**, and this tier is stored in the map data.
         * Amplitude tiers are based on **absolute radius thresholds** (e.g., meters/tiles).
+            * Prefer formula-driven thresholds (draft): `amp_threshold[t] = A0 * (g^t)` for tier `t >= 0` (parameters tuned later).
     * Hybrid shape (draft):
         * Track `zone_tier_unfog_max` = highest zone tier that became unfogged this run.
         * Track `amp_tier_max` = highest Amplitude tier achieved this run (Amplitude thresholds define tiers).
@@ -196,10 +197,10 @@ Draft factors:
             * `ZoneScore = 1 + z * ln(1 + zone_tier_unfog_max)`
             * `AmpScore = 1 + a * ln(1 + amp_tier_max)`
         * Combine as a geometric mean: `Frontier_raw = sqrt(ZoneScore * AmpScore)`
-        * Allow Frontier to be < 1.0 by normalizing against an expected “par” that scales with current progression:
-            * `Frontier_par = 1 + p * ln(1 + R_current)` (placeholder)
-            * `Frontier_now = Frontier_raw / Frontier_par`
-        * Then bake in prior-run smoothing as usual: `Frontier_pair = sqrt(Frontier_now * Frontier_prev)`
+        * Allow Frontier to be < 1.0 by normalizing against the prior run’s raw reach (acts as a moving “par”):
+            * Track `Frontier_prev_raw` from the prior run.
+            * `ratio = Frontier_raw / max(epsilon, Frontier_prev_raw)`
+            * `Frontier_pair = ratio^w` with `w in (0, 1)` (smoothing exponent; draft `w = 0.5`)
     * UI note: show “Frontier” as one multiplier and optionally show the two sub-scores, but the exact internal math does not need to be fully explained to the player.
 * **Depth (Combat):** Derived from the highest boss level cleared this run.
 * **Time (Session):** A logarithmic factor based on time since last Tuning (so it still works for multi-day runs). Suggested shape:
@@ -362,11 +363,10 @@ Tier-based Resonance cost scaling:
 * Let `R` be the current `Resonance` multiplier (recomputed on Tuning).
 * For cost stability (and to keep midgame affordable), costs can use an effective Resonance:
     * `R_eff = log10(1 + R)` (so `R=100` => `R_eff ~ 2.0`)
-* Recommended shape: `cost = base_cost * (1 + k * R)`
+* Standard cost shape: `cost = base_cost * (1 + k * R_eff)`
     * If `k = 0`, cost is constant.
     * If `k > 0`, cost scales linearly with Resonance.
     * Example (early staple): Fire Pit `base_cost=10`, Tier 1 `k=0` => cost stays `10` for every Tuning regardless of Resonance.
-* If using `R_eff`, substitute it: `cost = base_cost * (1 + k * R_eff)`
 
 Scaling principle:
 * Resonance is used in both **production** and **cost scaling** (Base-side).
@@ -377,7 +377,7 @@ Tuning cadence (anti-spam):
 * Track `N = tuning_count` (lifetime number of Tunings performed).
 * Allow Tuning at any time, but enforce a short real-time cooldown between Tunings (currently **3 minutes**).
  * To discourage “too-frequent” Tuning, let some costs scale with `N` in addition to `R`, so that increasing `N` without enough run progress becomes counterproductive.
-    * Draft: `cost = base_cost * (1 + k * (R + spam_factor(N)))`
+    * Draft: `cost = base_cost * (1 + k * (R_eff + spam_factor(N)))`
     * Example: `spam_factor(N) = s * N^p` (with small `s` and `p > 1`), tuned so optimal play is “Tune after meaningful progress” rather than spamming.
 * Spam protection affects **costs only** (not effect strength).
 
