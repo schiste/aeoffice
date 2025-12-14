@@ -142,13 +142,26 @@ Draft factors:
 * **Depth (Combat):** Derived from the deepest dungeon/boss tier cleared this run.
 * **Time (Session):** A logarithmic factor based on time since last Tuning (so it still works for multi-day runs). Suggested shape:
     * `Time(t) = log(1 + t_minutes) / log(1 + 60)` (so 60 minutes ~= 1.0, shorter runs < 1.0, longer runs grow slowly > 1.0).
+    * `t_minutes` is real-world elapsed time since last Tuning (not paused by focus/minimize/menus).
     * Use `Time_pair = sqrt(Time_now * Time_prev)` to bake in prior-run terms.
 * **Active Playtime (Engagement):** Rewards actually playing (manual exploration/combat/enigmas) in addition to idle time. Suggested shape:
-    * Track `active_minutes` via a **gameplay-action heartbeat**:
-        * On meaningful gameplay actions (move/skill/use/interact/puzzle progress), update `last_action_time`.
-        * While in manual gameplay (exploration/combat/enigma screens; excluding menus/pauses), count time as active as long as `now - last_action_time <= 30 minutes` (inclusive “grace” window for thinking/reading).
+    * Track `active_seconds` via a **gameplay-action heartbeat** (session-bound; stops when paused or unfocused).
+    * Track activity per category (seconds):
+        * `exploration`, `combat`, `enigmas`, `hero` (inventory/skills/items), `base_management` (staffing/expedition planning), `crafting`
+        * Add new categories only if needed.
+    * Heartbeat model:
+        * Maintain a single `last_action_time` and `last_action_category`.
+        * On meaningful gameplay actions, update both (the “current action” defines the category):
+            * Examples: movement, combat actions, interactions, puzzle progress, opening Hero/enigma screens, changing assignments, starting/recalling expeditions, crafting confirmations.
+        * Category switches occur only when the next meaningful action happens (screen changes alone do not switch the category).
+        * While the game is on an eligible gameplay screen (not paused, not settings/system menus) and focused:
+            * If `now - last_action_time <= 30 minutes`, add `delta_seconds` to `active_seconds[last_action_category]`.
+            * Otherwise, do not count time as active.
         * If the game loses focus/minimizes, stop counting active time immediately (grace period applies only while focused).
         * If the game is paused, stop counting active time (pause suspends session time).
+    * Aggregation:
+        * `active_seconds_total = sum(active_seconds_by_category)`
+        * `active_minutes = active_seconds_total / 60`
     * `Active(active_minutes) = 1 + a * log(1 + active_minutes)` with small `a` (diminishing returns).
     * Use `Active_pair = sqrt(Active_now * Active_prev)` to bake in prior-run terms.
 * **Mastering (Harmonics):** Derived from “banked Harmonics” during the run (e.g., integrated Harmonics output and/or key Harmonics milestones).
