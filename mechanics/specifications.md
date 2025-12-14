@@ -56,7 +56,10 @@ Later in progression, the player can create forward safe spots outside the Base.
     * **Permanent safe spot:** Unlocks a destination forever.
 * **Power model:** Safe spots are powered by **Chorus** (not Bassline/Amplitude). They consume Chorus like stations do.
     * If Chorus cannot sustain them, they collapse immediately (no inertia).
+    * Temporary safe spots also collapse when their duration ends, regardless of power state.
+    * Permanent safe spots do not expire, but they can still go offline if Chorus cannot sustain them (destination relocks until power returns).
     * If a safe spot collapses, its unlocked destination becomes locked immediately and any active expeditions to that destination are automatically recalled using the Recall rules.
+    * Destination locks apply to **auto expeditions only**; the Hero can still travel/quest outside safe spots.
 
 ### 1.6 Combat (Real-Time, Cooldown-Based)
 Encounters are real-time. Actions recharge over time (cooldowns), enabling both manual play and automation.
@@ -141,7 +144,7 @@ Recovery:
 * **Non-lethal:** Silence Stupor does not directly harm staff.
 
 Expedition impact:
-* **Expeditions never fail:** If expedition crew become inactive, the expedition continues.
+* **Expeditions never fail:** If expedition crew are incapacitated, the expedition continues.
 * **Handicap factor:** Apply `H = 1 - (incapacitated_expedition_crew / initial_expedition_crew)` as an additional penalty on top of losing that crew’s bonuses.
 * **Duration + rewards:** `H` scales both expedition progress rate (remaining duration) and rewards.
 * **Hard stall at H=0:** If all expedition crew are incapacitated (`H = 0`), the expedition makes no progress until capacity returns and crew wake up.
@@ -152,6 +155,7 @@ Expedition impact:
     * **Partial loot:** On recall, loot quantity/volume is reduced by `loot_multiplier = 0.66 * p` (floored down per item type when discrete items require it); rarity is unchanged.
     * **Frozen state:** If an expedition is stalled (`H = 0`), its progress is frozen (no regression); the crew is treated as unconscious and remains where they are with what they found.
     * **Auto-recall:** Some world events (e.g., destination relocking due to safe spot collapse) can force an automatic recall using the same rules.
+        * **Progress snapshot:** Auto-recall uses `p` at the moment the event occurs, even if the expedition was stalled (`H = 0`).
 
 ### 3.3 Crafting Tiers (Compositions)
 The three base resources can be refined into craftable tiers.
