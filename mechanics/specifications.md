@@ -89,6 +89,25 @@ The Crystal field is affected by the three resources in different ways:
 * **Chorus -> Power:** Powers Base stations and “life support” inside the field (how many systems can run, and how many people can be actively sustained as staff).
 * **Harmonics -> Efficiency (Tuning):** Improves Crystal conversion efficiency, increasing the effective value of both Bassline and Chorus, and unlocking advanced upgrades/capabilities.
 
+#### 3.2.1 Chorus Budget (Soft Cap)
+Chorus acts as a soft power budget with competing demands:
+* **Field Core:** Minimum power to keep the Crystal stable and provide Viral Load recovery.
+* **Stations:** Workshops, research, crafting, safe-spot fabricators, etc.
+* **Population Load:** Supporting staff activity (comfort, food systems, medical, comms).
+
+#### 3.2.2 Overload and Inefficiency (Brownout)
+When Chorus supply is lower than Chorus demand, the Base enters a “brownout” state instead of hard-stopping:
+* **Station penalties:** Station throughput scales down and/or some stations go offline.
+* **Recovery penalties:** Viral Load recovery inside the bubble slows and may stop at severe overload.
+* **Field penalties:** The Crystal loses efficiency: **effective Bassline and effective Harmonics are reduced**, shrinking Amplitude and making safe spots less reliable.
+
+The intended feel is a cascading failure: sending too much crew out (or powering too many stations) weakens the Base, which makes exploration riskier.
+
+#### 3.2.3 Harmonics: Continuous + Milestones
+Harmonics contributes in two ways:
+* **Continuous tuning:** Even small Harmonics output improves conversion efficiency (a multiplier to effective Bassline/Chorus).
+* **Tuning tiers (milestones):** Reaching Harmonics thresholds unlocks discrete upgrades (e.g., improved automation reliability, longer-lasting safe spots, better brownout tolerance, higher max station tiers).
+
 ### 3.3 Crafting Tiers (Compositions)
 The three base resources can be refined into craftable tiers.
 
