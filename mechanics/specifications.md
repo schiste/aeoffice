@@ -25,6 +25,7 @@ Map progression is physically tied to volume.
 * **Primary driver:** **Bassline** output (low-band production).
 * **Modifier:** **Harmonics** improves Crystal efficiency (tuning), increasing how much Amplitude you get from the same Bassline.
 * **Formula (placeholder):** `Amplitude = f(Bassline) * Tuning(Harmonics)`.
+* **Inertia:** If Base generation drops sharply (or to 0), the field does not collapse instantly; it decays over a short inertia window (duration TBD).
 * **Effect:** Expanding Amplitude automatically "un-fogs" the map, revealing new dungeons and resource nodes.
 
 ### 1.4 Exploration, Quests, Enigmas, Expeditions
@@ -40,6 +41,7 @@ Expeditions are a primary way to acquire resources over time:
 * **Crew slots:** Expedition composition uses up to **16** crew slots.
 * **Shared staffing:** Expedition crew comes from the same pool that powers Base sound output; sending crew out reduces Base output accordingly.
 * **Parallel runs:** Multiple expeditions can run in parallel; each consumes its assigned crew for the full duration.
+* **Coordination fiction:** Expeditions are supported/managed from the Base (planning, comms, remote operation), so Base brownouts can slow or stall them.
 
 ### 1.5 Forward Safe Spots
 Later in progression, the player can create forward safe spots outside the Base.
@@ -124,7 +126,7 @@ When staff must be pushed into inactivity, the game resolves it automatically us
 
 Assignment resolution details:
 * **Stations first:** Staff assigned to stations are removed first (LIFO).
-* **Then expeditions:** If no one is assigned to stations, expedition crew are removed next (LIFO).
+* **Then expeditions:** If no one is assigned to stations, expedition crew are incapacitated next (LIFO). (They remain assigned/locked, but contribute 0 until they wake.)
 * **The Crystal is a station:** “Playing around the Crystal” to generate Bassline/Chorus/Harmonics counts as a station assignment.
 
 Recovery:
@@ -132,10 +134,15 @@ Recovery:
 * **Non-lethal:** Silence Stupor does not directly harm staff.
 
 Expedition impact:
-* **Expeditions never fail:** If expedition crew become inactive and are removed, the expedition continues.
+* **Expeditions never fail:** If expedition crew become inactive, the expedition continues.
 * **Handicap factor:** Apply `H = 1 - (incapacitated_expedition_crew / initial_expedition_crew)` as an additional penalty on top of losing that crew’s bonuses.
 * **Duration + rewards:** `H` scales both expedition progress rate (remaining duration) and rewards.
-* **Hard stall at H=0:** If all expedition crew are removed (`H = 0`), the expedition makes no progress until capacity returns and crew can be assigned again.
+* **Hard stall at H=0:** If all expedition crew are incapacitated (`H = 0`), the expedition makes no progress until capacity returns and crew wake up.
+* **Automatic resume:** When capacity returns and crew wake up, stalled expeditions automatically resume with the same crew assignment.
+* **Crew locking:** Expedition crew are locked for the duration of the expedition (unless recalled).
+* **Recall (Call Back):** An expedition can be recalled mid-run to free its crew.
+    * **Return lag:** If the expedition is `p` complete (`0..1`), return time is `p * 120s`.
+    * **Partial loot:** On recall, loot volume is reduced by `loot_multiplier = 0.66 * p` (floored down when discrete items require it).
 
 ### 3.3 Crafting Tiers (Compositions)
 The three base resources can be refined into craftable tiers.
