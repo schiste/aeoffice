@@ -22,18 +22,20 @@ Replaces traditional HP.
 ### 1.3 Amplitude (Exploration)
 Map progression is physically tied to volume.
 * **Amplitude:** The radius of the safe zone around the Base Crystal.
-* **Minimum radius:** The Base (Crystal) provides a small minimum safe radius by default (enough room to support at least one additional station).
-* **Primary driver:** **Bassline** output (low-band production).
+* **Minimum radius:** Default is `0` tiles (Base tile only).
+* **Primary driver:** **Bassline stored pool** (low-band stored resource), not just current output rate.
 * **Modifier:** **Harmonics** improves Crystal efficiency (tuning), increasing how much Amplitude you get from the same Bassline.
 * **Formula (parametric; default):**
-    * Let `Bassline_raw` be the current low-band production rate (per second) from crew + gear + stations (derived from tick contributions).
+    * Let `Bassline_pool` be the current stored Bassline.
     * Let `Harmonics_raw` be the current high-band production rate (per second) (derived from tick contributions).
-    * Let `η_B(Harmonics_raw)` be the Harmonics efficiency multiplier applied to Bassline conversion (shape TBD).
-    * Define effective Bassline: `Bassline_eff = Bassline_raw * η_B(Harmonics_raw)`.
-    * Define radius (tiles): `Amplitude_radius = base_min_radius_tiles + C_r * (Bassline_eff)^α`
+    * Let `η_B(Harmonics_raw)` be the Harmonics efficiency multiplier applied to Bassline-to-field conversion (hybrid: smooth + milestones; shape TBD).
+    * Define “field charge”: `Bassline_field = Bassline_pool * η_B(Harmonics_raw)`
+        * Intuition: Harmonics increases how much *reach* you can get out of the same stored Bassline.
+    * Define radius (tiles): `Amplitude_radius = base_min_radius_tiles + C_r * (Bassline_field)^α`
         * Default: `α = 0.5` (sqrt-ish feel; easy to rebalance via `C_r` and `α`).
-        * `C_r` is a tuning constant (units: tiles per `(Bassline_eff^α)`).
-    * This structure maximizes balancing flexibility: changing `C_r` and `α` adjusts the entire reach curve without touching upstream systems.
+        * `C_r` is a tuning constant (units: tiles per `(Bassline_field^α)`).
+    * Player control: because Bassline is a stored pool used for many things, the player can effectively choose to grow/shrink Amplitude by choosing when to accumulate Bassline versus spending it elsewhere.
+    * Later tech/perk: allow setting a **Bassline storage floor** > 0 so Amplitude cannot collapse fully (stability tool).
 * **Inertia (2-phase):** If Base generation drops sharply (or to 0), the field does not collapse instantly:
     * **Hold:** 60s with no change.
     * **Degrade:** then decays over the next 60s (curve TBD; default linear).
@@ -69,7 +71,8 @@ Later in progression, the player can create forward safe spots outside the Base.
     * Permanent safe spots do not expire, but they can still go offline if Chorus cannot sustain them (destination relocks until power returns); they come back online automatically when Chorus returns.
     * If a safe spot collapses, its unlocked destination becomes locked immediately and any active expeditions to that destination are automatically recalled using the Recall rules.
     * Destination locks apply to **auto expeditions only**; the Hero can still travel/quest outside safe spots.
-* **Tuning:** Safe spots are `tuned` objects and always collapse on Tuning (even “permanent” ones).
+    * **Tuning:** Safe spots are `tuned` objects and always collapse on Tuning (even “permanent” ones).
+    * **Bubble dependency:** Safe spots require Chorus access; if a safe spot falls outside the Base bubble (Amplitude shrinks), it loses Chorus access and goes offline (treated as a collapse for destination/unlock purposes).
 * **Hero rest:** Safe spots serve as rest points for the Hero during manual exploration.
     * **Baseline effect:** Rest reduces Viral Load to **0% over time**.
     * **Rest rate:** Viral Load recovery rate during rest is derived from character stats (TBD; likely influenced by **Sustain**).
@@ -145,7 +148,7 @@ Implementation-friendly representation (discrete “music ticks”):
     * `amount_per_tick` (how much resource is contributed on each tick).
 * The effective per-second production rate used by economy math is derived as:
     * `rate_per_second = amount_per_tick / tick_interval_seconds`
-* Internally, resources can be accumulated by simulating ticks (seconds-level granularity) while the UI can still present smooth “per second” rates computed from the above.
+* For safety and simplicity, simulation can update pools using continuous rates (`pool += rate_per_second * delta_seconds`) while still keeping ticks as the “authoring” representation for cadence/UI/VFX.
 
 Rules:
 * If production would exceed storage capacity, the overflow is **lost** (unless a later perk changes this behavior).
@@ -284,9 +287,9 @@ Design goals:
 ### 3.2 The Field as Three Axes
 The Crystal field is affected by the three resources in different ways:
 
-* **Bassline -> Reach:** Sets and grows safe radius (Amplitude).
+* **Bassline -> Reach:** Stored Bassline drives safe radius (Amplitude).
 * **Chorus -> Power:** Powers Base stations and “life support” inside the field (how many systems can run, and how many people can be actively sustained as staff).
-* **Harmonics -> Efficiency (Tuning):** Improves Crystal conversion efficiency, increasing the effective value of both Bassline and Chorus, and unlocking advanced upgrades/capabilities.
+* **Harmonics -> Efficiency (Tuning):** Improves Crystal conversion efficiency for all three resources (hybrid: smooth + milestones), unlocking advanced upgrades/capabilities.
 
 #### 3.2.1 Chorus Budget (Soft Cap)
 Chorus is the Base’s primary “power” resource.
@@ -426,6 +429,7 @@ Every living person you gain becomes Base staff ("crew"). Crew members are sound
 
 Special case:
 * **The Hero:** The Hero can be assigned to the Crystal Circle, but is unavailable while exploring manually (Base generation can drop to 0).
+    * Early-game default: at the start of a fresh run, Base production can be `0` until the player assigns crew (or the Hero) to the Crystal Circle.
 
 Progression model:
 * **Experience (XP):** Crew gains XP from Base work and expeditions (expeditions grant much more).
