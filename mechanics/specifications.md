@@ -197,21 +197,19 @@ The Crystal field is affected by the three resources in different ways:
 * **Harmonics -> Efficiency (Tuning):** Improves Crystal conversion efficiency, increasing the effective value of both Bassline and Chorus, and unlocking advanced upgrades/capabilities.
 
 #### 3.2.1 Chorus Budget (Soft Cap)
-Chorus acts as a soft power budget with competing demands:
-* **Field Core:** Minimum power to keep the Crystal stable and provide Viral Load recovery.
-* **Stations:** Workshops, research, crafting, safe-spot fabricators, etc.
-* **Population Load (Active Staff):** Supporting *active* staff (comfort, food systems, medical, comms). Staff beyond Chorus capacity remain present but become **inactive** (cannot work) until capacity increases.
+Chorus is the Base’s primary “power” resource.
+
+* Buildings/stations have a **Chorus upkeep** cost (per second) when powered.
+* Chorus upkeep is covered first by **current generation**, then by the **stored Chorus pool**.
+* If the pool reaches 0 and upkeep still exceeds generation, the Base enters brownout behavior (buildings lose power).
 
 #### 3.2.2 Overload and Inefficiency (Brownout)
-When Chorus supply is lower than Chorus demand, the Base enters a “brownout” state instead of hard-stopping:
-* **Station penalties:** Station throughput scales down and/or some stations go offline.
-* **Staff inactivity:** If population load exceeds what Chorus can sustain, some staff become inactive. Inactive staff are **unavailable for everything** (no station work, no expeditions) until Chorus capacity increases.
-* **Recovery penalties:** Viral Load recovery inside the bubble slows and may stop at severe overload.
+When the Chorus pool is drained and upkeep exceeds generation, the Base enters a “brownout” state instead of hard-stopping:
+* **Power loss (unpowered buildings):** Some buildings/stations become unpowered, reducing throughput and disabling their effects until power returns.
+* **Recovery penalties:** Viral Load recovery inside the bubble slows and may stop at severe brownouts.
 * **Field penalties:** The Crystal loses efficiency: **effective Bassline and effective Harmonics are reduced**, shrinking Amplitude and making safe spots less reliable.
 
 The intended feel is a cascading failure: sending too much crew out (or powering too many stations) weakens the Base, which makes exploration riskier.
-
-Inactive staff are explained in-world as **Silence Stupor**: without enough mid-band stimulation (Chorus), the nervous system “drops out” into a protected, semi-catatonic state. They are alive, but cannot function until the field is properly powered again.
 
 #### 3.2.3 Harmonics: Continuous + Milestones
 Harmonics contributes in two ways:
@@ -219,31 +217,21 @@ Harmonics contributes in two ways:
 * **Tuning tiers (milestones):** Reaching Harmonics thresholds unlocks discrete upgrades (e.g., improved automation reliability, longer-lasting safe spots, better brownout tolerance, higher max station tiers).
 
 #### 3.2.4 Brownout Resolution (Automatic)
-Brownout behavior is automatic (no player-set priorities). A simple, readable rule of thumb:
-1. **Crystal Core first:** Tries to preserve the minimum needed for “safe” status and recovery.
-2. **Population load next:** Keeps staff functional as long as possible.
-3. **Stations last:** Station throughput is the first to degrade and/or shut down.
+Brownout behavior is driven by what remains powered. A simple, readable rule of thumb:
+1. **Upkeep first:** The system attempts to pay building upkeep from generation, then from the pool.
+2. **Auto-unpower (LIFO):** If still in deficit, buildings are unpowered automatically using **last powered, first unpowered**.
 
 At extreme deficit, all three suffer, and the field penalties compound (smaller Amplitude, unstable safe spots).
 
-When staff must be pushed into inactivity, the game resolves it automatically using a player-controllable rule:
-* **Last assigned, first inactive:** The most recently assigned staff are the first to become inactive as Chorus capacity drops. This makes staffing order a meaningful lever even without explicit priority controls.
-
-Assignment resolution details:
-* **Stations first:** Staff assigned to stations are removed first (LIFO).
-* **Then expeditions:** If no one is assigned to stations, expedition crew are incapacitated next (LIFO). (They remain assigned/locked, but contribute 0 until they wake.)
-* **The Crystal is a station:** “Playing around the Crystal” to generate Bassline/Chorus/Harmonics counts as a station assignment.
-
-Recovery:
-* **Instant wake:** When Chorus capacity returns, inactive staff become active immediately (no warm-up timer).
-* **Non-lethal:** Silence Stupor does not directly harm staff.
+Player control:
+* The player can manually unpower any buildings to reduce upkeep and keep the desired set powered (as long as total upkeep can be sustained).
+* Powered state is a strategic lever: powering order matters because the automatic shutdown is LIFO.
 
 Expedition impact:
 * **Expeditions never fail:** If expedition crew are incapacitated, the expedition continues.
 * **Handicap factor:** Apply `E = 1 - (incapacitated_expedition_crew / initial_expedition_crew)` as an additional penalty on top of losing that crew’s bonuses.
 * **Duration + rewards:** `E` scales both expedition progress rate (remaining duration) and rewards (exact mapping TBD).
-* **Hard stall at E=0:** If all expedition crew are incapacitated (`E = 0`), the expedition makes no progress until capacity returns and crew wake up. (TBD: whether incapacitation is temporary or permanent.)
-* **Automatic resume:** When capacity returns and crew wake up, stalled expeditions automatically resume with the same crew assignment. (TBD: whether this applies if incapacitation is permanent.)
+* **Hard stall at E=0:** If all expedition crew are incapacitated (`E = 0`), the expedition makes no progress.
 * **Crew locking:** Expedition crew are locked for the duration of the expedition (unless recalled).
 * **Recall (Call Back):** An expedition can be recalled mid-run to free its crew.
     * **Return lag:** `return_time_seconds = 60 + (p_round * planned_duration_seconds)`, where:
@@ -326,7 +314,7 @@ Every living person you gain becomes Base staff ("crew"). Crew members are sound
 * **Synth (Harmonics):** High-band output.
 
 Special case:
-* **The Hero:** The Hero can be assigned to the Crystal Circle and cannot be forced into Silence Stupor, but is unavailable while exploring manually (Base generation can drop to 0).
+* **The Hero:** The Hero can be assigned to the Crystal Circle, but is unavailable while exploring manually (Base generation can drop to 0).
 
 Progression model:
 * **Experience (XP):** Crew gains XP from Base work and expeditions (expeditions grant much more).

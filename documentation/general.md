@@ -17,7 +17,7 @@ Outside the Base, you explore the world through **map exploration, quests, enigm
 * **Expand the Bubble:** `Bassline` grows the safe radius (Amplitude), revealing more of the map over time; a 2-phase inertia prevents instant collapse when output drops.
 * **Explore Manually:** The Hero pushes beyond safety (real-time cooldown combat + enigmas) and uses safe spots (including the Base) to rest and reduce Viral Load.
 * **Run Auto Expeditions:** Expeditions are crew-only, parallel, time-based resource runs that never fail, but can slow/stall during brownouts and can be recalled for partial loot.
-* **Manage Tradeoffs:** Sending staff out reduces Base output; exceeding `Chorus` capacity causes brownouts, station penalties, and staff inactivity, which can cascade into smaller reach and unstable safe spots.
+* **Manage Tradeoffs:** Sending staff out reduces Base output; if Chorus upkeep can’t be sustained, buildings lose power (LIFO brownouts), which can cascade into smaller reach and unstable safe spots.
 * **Tune (Reset):** Cash in accumulated Harmonics (incl. Harmonic Fragments carried back by the Hero) to recalculate `Resonance` for the next run at the cost of a hard reset (Crystal shutdown + all crew die); buildings remain but lose upgrades and are detuned until re-attuned, and you restart with no crew but big generation bonuses and new unlocks.
 
 ## 🛠️ Tech Stack
