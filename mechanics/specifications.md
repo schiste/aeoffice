@@ -135,6 +135,9 @@ Rules:
 * Costs come in two forms:
     * **One-time costs:** Require enough stored pool; if you don’t have the stock, the action cannot be taken.
     * **Upkeep costs (per second):** Power/maintenance drains a resource pool over time (e.g., `x Chorus / sec` to keep a safe spot online).
+* Upkeep vs storage behavior:
+    * If `generation > upkeep`, pay upkeep and store the surplus (up to cap).
+    * If `upkeep > generation`, the pool is drained to cover the deficit; if the pool hits 0, the system enters brownout behavior (see `3.2.2`).
 
 ### 3.1.1 Key Multipliers (Draft)
 To keep formulas readable, we use these symbols:
@@ -145,7 +148,9 @@ To keep formulas readable, we use these symbols:
 Resonance is **recomputed on every Tuning** as a product of multiple factors. Some factors use the current run, and some use the prior run to reduce volatility (NGU-style “current” and “prior” terms).
 
 High-level shape (placeholder):
-* `R_next = clamp_min(R_floor, R_base * Frontier_pair * Depth_pair * Time_pair * Active_pair * Mastering_now * Fragment_legacy * Stability_now)`
+* `R_floor = 1.0`
+* Resonance is replaced on Tuning: the next run starts at `R = R_next` (no accumulation).
+* `R_next = clamp_min(R_floor, Baseline(R_current) * Frontier_pair * Depth_pair * Time_pair * Active_pair * Mastering_now * Fragment_legacy * Stability_now)`
 * Pair factors are typically geometric means, e.g. `Time_pair = sqrt(Time_now * Time_prev)`.
 
 Draft factors:
