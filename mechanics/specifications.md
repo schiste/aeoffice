@@ -31,9 +31,18 @@ Map progression is physically tied to volume.
     * Let `η_B(Harmonics_raw)` be the Harmonics efficiency multiplier applied to Bassline-to-field conversion (hybrid: smooth + milestones; shape TBD).
     * Define “field charge”: `Bassline_field = Bassline_pool * η_B(Harmonics_raw)`
         * Intuition: Harmonics increases how much *reach* you can get out of the same stored Bassline.
-    * Each map hex has a `terrain_impedance` that determines how much field charge is required to include it (examples: water `0.1`, plains `1.0`; mountains may be forbidden until research).
+    * Each map hex has a `terrain_impedance` that determines how much field charge is required to include it.
+        * `terrain_impedance = base_terrain_impedance * feature_modifiers * tech_modifiers * building_modifiers`
+        * Examples (placeholders): water `0.1`, plains `1.0`.
+        * Some terrains (e.g., mountains) are **hard blockers** with `terrain_impedance = ∞` until specific research/buildings are unlocked.
     * Compute ring costs by hex distance from Base (`d = hex_distance(base, tile)`):
-        * `ring_cost[d] = Σ terrain_impedance(tile)` for all tiles at distance `d`.
+        * **Acoustic shadowing (no bending):** blockers do not just exclude themselves; they also cast a “shadow” behind them that the ripple cannot pass through.
+            * Define `is_blocker(tile) := terrain_impedance(tile) = ∞` (until mitigated).
+            * Define `is_shadowed(tile)` using hex line-of-sight from Base:
+                * Draw the hex line from `base` to `tile` (cube-coordinate line; details TBD).
+                * If any intermediate hex on that line is a blocker, then `tile` is shadowed.
+            * Blockers and shadowed tiles are excluded from field inclusion until mitigation.
+        * `ring_cost[d] = Σ terrain_impedance(tile)` for all tiles at distance `d` where `!is_blocker(tile) && !is_shadowed(tile)`.
         * `cumulative_cost[r] = Σ_{d=1..r} ring_cost[d]`
     * The bubble unfogs as a perfect ripple (no bending): it expands by complete rings.
     * Define radius (tiles) as: `Amplitude_radius = max r such that cumulative_cost[r] <= Bassline_field * K_field`
@@ -53,6 +62,7 @@ Map progression is physically tied to volume.
         * Otherwise, Amplitude decays toward the new equilibrium.
 * **Effect:** Expanding Amplitude automatically "un-fogs" the map, revealing new dungeons and resource nodes.
     * **Reveal pacing:** newly eligible hexes are revealed gradually at `reveal_rate_hexes_per_second` (tuned later), rather than instantly revealing the entire radius in one frame.
+    * **Eligibility:** even if a hex is within `Amplitude_radius`, it is not revealed if it is a blocker or shadowed (until the relevant mitigation is unlocked).
 
 ### 1.4 Exploration, Quests, Enigmas, Expeditions
 Outside the Base, the player explores the map to discover locations, complete quests, solve enigmas, and run expeditions.
