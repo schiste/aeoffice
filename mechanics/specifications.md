@@ -150,7 +150,8 @@ Resonance is **recomputed on every Tuning** as a product of multiple factors. So
 High-level shape (placeholder):
 * `R_floor = 1.0`
 * Resonance is replaced on Tuning: the next run starts at `R = R_next` (no accumulation).
-* `R_next = clamp_min(R_floor, Baseline(R_current) * Frontier_pair * Depth_pair * Time_pair * Active_pair * Harmonics_investment * Fragment_legacy * Stability_now)`
+* Baseline model: `R_current` is used as the baseline for computing the next run.
+* `R_next = clamp_min(R_floor, R_current * Frontier_pair * Depth_pair * Time_pair * Active_pair * Harmonics_investment * Fragment_legacy * Stability_now)`
 * Pair factors are typically geometric means, e.g. `Time_pair = sqrt(Time_now * Time_prev)`.
 
 Draft factors:
@@ -189,6 +190,7 @@ Design goals:
 * Tuning “too early” can reduce `R_next` (Resonance is recomputed, not strictly increasing).
 * Different playstyles can emphasize different factors (reach vs depth vs mastery).
 * Factors should be readable in UI as separate “track ratings” that multiply into the final Resonance.
+* Factors can be < 1.0, so short/poor runs can reduce Resonance (floored at `R_floor = 1.0`).
 
 ### 3.2 The Field as Three Axes
 The Crystal field is affected by the three resources in different ways:
@@ -239,6 +241,7 @@ Expedition impact:
 * **Duration + rewards:** `progress_rate = E` and `reward_multiplier = E`.
 * **Hard stall at E=0:** If all expedition crew are incapacitated (`E = 0`), the expedition makes no progress.
     * **24h timer start:** The 24-hour permanent-loss timer starts when the expedition reaches `E = 0` (i.e., the last remaining crew becomes incapacitated).
+    * **Partial incapacitation:** If `E > 0`, the expedition continues (slowly) and does not start the 24-hour permanent-loss timer.
 * **Crew locking:** Expedition crew are locked for the duration of the expedition (unless recalled).
 * **Recall (Call Back):** An expedition can be recalled mid-run to free its crew.
     * **Return lag:** `return_time_seconds = 60 + (p_round * planned_duration_seconds)`, where:
