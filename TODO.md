@@ -34,6 +34,7 @@ Single source checklist for what must exist for a playable vertical slice.
 - [ ] Define “send crew back to Cave” mechanic (done: instant, no refund, removed for run; confirm UI/limits)
 - [ ] Define manual recruiting UI + later automation unlocks
 - [ ] Pick parameters for `BadVibes_rate = U * (1 + β * r^p)` (β, p)
+- [ ] Define Vibes tick interval (units for Vibes rates/costs)
 
 ## Combat + Enemies
 - [ ] Define combat actions/skills (cooldowns, resource use, targeting, statuses)
