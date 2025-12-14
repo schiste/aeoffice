@@ -122,6 +122,15 @@ At extreme deficit, all three suffer, and the field penalties compound (smaller 
 When staff must be pushed into inactivity, the game resolves it automatically using a player-controllable rule:
 * **Last assigned, first inactive:** The most recently assigned staff are the first to become inactive as Chorus capacity drops. This makes staffing order a meaningful lever even without explicit priority controls.
 
+Assignment resolution details:
+* **Stations first:** Staff assigned to stations are removed first (LIFO).
+* **Then expeditions:** If no one is assigned to stations, expedition crew are removed next (LIFO).
+* **The Crystal is a station:** “Playing around the Crystal” to generate Bassline/Chorus/Harmonics counts as a station assignment.
+
+Recovery:
+* **Instant wake:** When Chorus capacity returns, inactive staff become active immediately (no warm-up timer).
+* **Non-lethal:** Silence Stupor does not directly harm staff.
+
 ### 3.3 Crafting Tiers (Compositions)
 The three base resources can be refined into craftable tiers.
 
@@ -148,6 +157,7 @@ Progression model:
 Stations consume Chorus while active and convert time + resources into progression.
 
 Candidates:
+* **Crystal Circle:** Staff “play” to generate Bassline/Chorus/Harmonics for the Crystal.
 * **Resonance Chamber:** Improves Bassline conversion into Amplitude (reach growth).
 * **Mix Console:** Improves efficiency and brownout tolerance (Harmonics-facing upgrades).
 * **Workshop:** Crafts Beats/Bars/Tracks/Albums and basic gear parts.
