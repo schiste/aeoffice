@@ -27,7 +27,9 @@ Map progression is physically tied to volume.
 * **Formula (placeholder):** `Amplitude = f(Bassline) * Tuning(Harmonics)`.
 * **Inertia (2-phase):** If Base generation drops sharply (or to 0), the field does not collapse instantly:
     * **Hold:** 60s with no change.
-    * **Degrade:** then decays toward the new equilibrium over the next 60s (curve TBD; default linear).
+    * **Degrade:** then decays over the next 60s (curve TBD; default linear).
+        * If Base generation is **0**, Amplitude decays to **0**.
+        * Otherwise, Amplitude decays toward the new equilibrium.
 * **Effect:** Expanding Amplitude automatically "un-fogs" the map, revealing new dungeons and resource nodes.
 
 ### 1.4 Exploration, Quests, Enigmas, Expeditions
@@ -52,7 +54,9 @@ Later in progression, the player can create forward safe spots outside the Base.
 * **Destination unlock:** Safe spots are the mechanism to unlock expedition destinations.
     * **Temporary safe spot:** Unlocks a destination for a limited time.
     * **Permanent safe spot:** Unlocks a destination forever.
-* **Power model:** Safe spots are powered by **Chorus** (not Bassline/Amplitude). If Chorus cannot sustain them, they collapse immediately (no inertia).
+* **Power model:** Safe spots are powered by **Chorus** (not Bassline/Amplitude). They consume Chorus like stations do.
+    * If Chorus cannot sustain them, they collapse immediately (no inertia).
+    * If a safe spot collapses, its unlocked destination becomes locked immediately and any active expeditions to that destination are automatically recalled using the Recall rules.
 
 ### 1.6 Combat (Real-Time, Cooldown-Based)
 Encounters are real-time. Actions recharge over time (cooldowns), enabling both manual play and automation.
@@ -147,6 +151,7 @@ Expedition impact:
     * **Return lag:** If the expedition is `p` complete (`0..1`), return time is `p * 120s`.
     * **Partial loot:** On recall, loot quantity/volume is reduced by `loot_multiplier = 0.66 * p` (floored down per item type when discrete items require it); rarity is unchanged.
     * **Frozen state:** If an expedition is stalled (`H = 0`), its progress is frozen (no regression); the crew is treated as unconscious and remains where they are with what they found.
+    * **Auto-recall:** Some world events (e.g., destination relocking due to safe spot collapse) can force an automatic recall using the same rules.
 
 ### 3.3 Crafting Tiers (Compositions)
 The three base resources can be refined into craftable tiers.
