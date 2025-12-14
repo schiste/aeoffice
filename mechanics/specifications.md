@@ -130,6 +130,25 @@ To keep formulas readable, we use these symbols:
 * `Resonance` (`R`): The primary (and only) cross-run multiplier (NGU-style `NUMBER`). It is recalculated on each Tuning from multiple factors and applies to Base-side generation, costs, and effects. Exact factor breakdown TBD.
 * `Fragments` (`F`): Total Harmonic Fragments permanently stacked on the Crystal (persistent across Tunings). Used as a weighted factor in the Resonance formula.
 
+### 3.1.2 Resonance Calculation (Draft)
+Resonance is **recomputed on every Tuning** as a product of multiple factors. Some factors use the current run, and some use the prior run to reduce volatility (NGU-style “current” and “prior” terms).
+
+High-level shape (placeholder):
+* `R_next = clamp_min(R_floor, R_base * Frontier_now * Frontier_prev * Depth_now * Depth_prev * Time_now * Time_prev * Mastering_now * Fragment_legacy * Stability_now)`
+
+Draft factors:
+* **Frontier (Reach):** Derived from the maximum exploration tier reached this run (based on max Amplitude / unlocked map zones).
+* **Depth (Combat):** Derived from the deepest dungeon/boss tier cleared this run.
+* **Time (Session):** A piecewise/breakpoint factor based on time since last Tuning (e.g., 3/4/5/7/10/12/15/30/60 minutes), typically `< 1` for very short runs and slowly increasing afterward.
+* **Mastering (Harmonics):** Derived from “banked Harmonics” during the run (e.g., integrated Harmonics output and/or key Harmonics milestones).
+* **Fragment legacy:** A small-weight factor derived from total stacked Harmonic Fragments (`F`), e.g. `1 + w * F` with small `w`.
+* **Stability (Optional):** Mild factor based on Base stability this run (e.g., time spent in “safe” vs brownout), intended as a small optimization reward rather than a punishment.
+
+Design goals:
+* Tuning “too early” can reduce `R_next` (Resonance is recomputed, not strictly increasing).
+* Different playstyles can emphasize different factors (reach vs depth vs mastery).
+* Factors should be readable in UI as separate “track ratings” that multiply into the final Resonance.
+
 ### 3.2 The Field as Three Axes
 The Crystal field is affected by the three resources in different ways:
 
