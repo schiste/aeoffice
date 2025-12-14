@@ -158,7 +158,13 @@ Draft factors:
 * **Frontier (Reach):** Derived from the maximum exploration tier reached this run (based on max Amplitude / unlocked map zones).
 * **Depth (Combat):** Derived from the deepest dungeon/boss tier cleared this run.
 * **Time (Session):** A logarithmic factor based on time since last Tuning (so it still works for multi-day runs). Suggested shape:
-    * `Time(t) = log(1 + t_minutes) / log(1 + 60)` (so 60 minutes ~= 1.0, shorter runs < 1.0, longer runs grow slowly > 1.0).
+    * Base (log) term: `Time_log(t) = log(1 + t_minutes) / log(1 + 60)` (so 60 minutes ~= 1.0, shorter runs < 1.0, longer runs grow slowly > 1.0).
+    * Short-run penalty (step): `Time_penalty(t)`:
+        * if `t_minutes < 15` => `0.25`
+        * else if `t_minutes < 30` => `0.50`
+        * else if `t_minutes < 45` => `0.75`
+        * else => `1.00`
+    * Combined: `Time(t) = Time_log(t) * Time_penalty(t)`
     * `t_minutes` is real-world elapsed time since last Tuning (not paused by focus/minimize/menus).
     * Use `Time_pair = sqrt(Time_now * Time_prev)` to bake in prior-run terms.
 * **Active Playtime (Engagement):** Rewards actually playing (manual exploration/combat/enigmas) in addition to idle time. Suggested shape:
