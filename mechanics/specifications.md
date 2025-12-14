@@ -56,11 +56,14 @@ Later in progression, the player can create forward safe spots outside the Base.
     * **Permanent safe spot:** Unlocks a destination forever.
 * **Power model:** Safe spots are powered by **Chorus** (not Bassline/Amplitude). They consume Chorus like stations do.
     * If Chorus cannot sustain them, they collapse immediately (no inertia).
-    * Temporary safe spots also collapse when their duration ends, regardless of power state.
+    * Temporary safe spots also collapse when their duration ends, regardless of power state (vanish immediately).
     * Permanent safe spots do not expire, but they can still go offline if Chorus cannot sustain them (destination relocks until power returns); they come back online automatically when Chorus returns.
     * If a safe spot collapses, its unlocked destination becomes locked immediately and any active expeditions to that destination are automatically recalled using the Recall rules.
     * Destination locks apply to **auto expeditions only**; the Hero can still travel/quest outside safe spots.
-* **Hero rest:** Safe spots also serve as rest points for the Hero during manual exploration (recovery effects TBD).
+* **Hero rest:** Safe spots serve as rest points for the Hero during manual exploration.
+    * **Baseline effect:** Rest sets Viral Load to **0%**.
+    * **Cost model:** Rest is “free”; the only upkeep is the safe spot’s normal Chorus consumption as a station.
+    * Buffs/secondary effects TBD.
 
 ### 1.6 Combat (Real-Time, Cooldown-Based)
 Encounters are real-time. Actions recharge over time (cooldowns), enabling both manual play and automation.
