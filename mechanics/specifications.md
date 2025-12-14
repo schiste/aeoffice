@@ -32,14 +32,17 @@ Outside the Base, the player explores the map to discover locations, complete qu
 * **Auto Mode:** The game plays on behalf of the player using the same real-time combat/action systems.
 
 Expeditions are a primary way to acquire resources over time:
-* **Player choices:** Select a destination and an expedition composition.
-* **No failure:** Expeditions always complete; the cost is time and crew availability.
+* **Player choices:** Select a destination and an expedition composition (**crew only**).
+* **No failure:** Expeditions always complete; the only limiting factor is **real-time duration**.
 * **Composition effects:** Changes expedition duration, loot amount, and loot rarity.
 
 ### 1.5 Forward Safe Spots
 Later in progression, the player can create forward safe spots outside the Base.
 * **Purpose:** Reduce Viral Load pressure during long pushes and act as staging points for exploration.
 * **Unlock model:** Gated behind upgrades, crafting, or quest milestones (to be defined).
+* **Destination unlock:** Safe spots are the mechanism to unlock expedition destinations.
+    * **Temporary safe spot:** Unlocks a destination for a limited time.
+    * **Permanent safe spot:** Unlocks a destination forever.
 
 ### 1.6 Combat (Real-Time, Cooldown-Based)
 Encounters are real-time. Actions recharge over time (cooldowns), enabling both manual play and automation.
