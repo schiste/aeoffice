@@ -85,23 +85,29 @@ To keep the system focused, the Hero starts with 3 primary stats. Damage and pro
 * **Theory:** Enigma support (hints/spots/clues), utility skill effectiveness, small damage multiplier, and potential Base-related perks/unlocks (TBD).
 
 ### 2.1 Theory as a “Multiplier Multiplier”
-To keep Theory’s damage impact very small early and more relevant later, it primarily amplifies **bonuses** rather than base damage.
+To keep Theory’s impact very small early and more relevant later, it primarily amplifies **multipliers** rather than base values.
 
 Design principle:
 * Early game bonuses are small, so Theory does almost nothing.
 * Late game gear/skill bonuses are larger, so Theory meaningfully amplifies them.
 
 Example mapping (placeholder):
-* Let `M` be a multiplicative damage bonus from gear/skills/buffs (e.g., `M = 1.20` for +20%).
+* Let `M` be a multiplicative bonus from gear/skills/buffs (e.g., damage, loot quantity, loot rarity).
 * Let `T` be the Hero’s Theory value.
 * Compute `theory_bonus = k * T` (with a small `k`, tuned later).
 * Then make the bonus portion stronger: `M' = 1 + (M - 1) * (1 + theory_bonus)`.
+
+Scope:
+* **Applies to all multipliers** (not just damage), including loot multipliers.
+* **Does not apply** to safe spot duration (and other hard time-gates; TBD).
 
 ### 2.2 Enigma Support (Passive Thresholds)
 Theory unlocks exploration/enigma assistance via passive thresholds (values TBD), such as:
 * Reveal an additional clue “layer” on the map.
 * Highlight suspicious tiles/objects (“spots”).
 * Unlock optional hint text or a limited “analysis” overlay.
+
+These thresholds are global and fixed. Harmonics tuning tiers can optionally provide a “catch-up” effect that helps reach early thresholds faster (implementation TBD).
 
 Additional stats (e.g., crit/luck/social) can be added later if the game needs more build variety.
 
