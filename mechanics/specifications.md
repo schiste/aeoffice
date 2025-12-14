@@ -37,10 +37,17 @@ Map progression is physically tied to volume.
         * Some terrains (e.g., mountains) are **hard blockers** with `terrain_impedance = ∞` until specific research/buildings are unlocked.
     * Compute ring costs by hex distance from Base (`d = hex_distance(base, tile)`):
         * **Acoustic shadowing (no bending):** blockers do not just exclude themselves; they also cast a “shadow” behind them that the ripple cannot pass through.
+            * Split “difficulty” vs “occlusion”:
+                * `terrain_impedance(tile)` controls how expensive the tile is.
+                * `occludes_ripple(tile)` controls whether it blocks propagation (casts a shadow).
+                * Example: mountains are `occludes_ripple = true` and often start as `terrain_impedance = ∞`, but even after mitigation reduces impedance they can still occlude (until separate “over/around” solutions exist).
             * Define `is_blocker(tile) := terrain_impedance(tile) = ∞` (until mitigated).
             * Define `is_shadowed(tile)` using hex line-of-sight from Base:
                 * Draw the hex line from `base` to `tile` (cube-coordinate line; details TBD).
-                * If any intermediate hex on that line is a blocker, then `tile` is shadowed.
+                * If any intermediate hex on that line has `occludes_ripple = true`, then `tile` is shadowed.
+                * Shadow “widening” (real-ripple feel): blockers cast a slightly wider cone farther away.
+                    * Draft: allow a small angular/lateral tolerance that increases with distance beyond the blocker (parameters tuned later).
+                    * Implementation hint (cube coords): treat shadow as a cone behind an occluder; a tile is shadowed if it lies roughly “behind” the occluder direction and within a widening lateral band.
             * Blockers and shadowed tiles are excluded from field inclusion until mitigation.
         * `ring_cost[d] = Σ terrain_impedance(tile)` for all tiles at distance `d` where `!is_blocker(tile) && !is_shadowed(tile)`.
         * `cumulative_cost[r] = Σ_{d=1..r} ring_cost[d]`
@@ -48,6 +55,11 @@ Map progression is physically tied to volume.
     * Define radius (tiles) as: `Amplitude_radius = max r such that cumulative_cost[r] <= Bassline_field * K_field`
         * `K_field` is a tuning constant (unit conversion / balance knob).
         * In mostly-uniform terrain, this produces a natural `sqrt` feel (`r ~ sqrt(Bassline_field)`), matching the desired early-game curve.
+    * **Mitigation via new emitters (Loudspeakers):**
+        * Some buildings can act as additional **Bassline emitters** (new spawning points for the ripple).
+        * Each emitter produces its own circular ripple (no bending) from its location; the revealed/safe region is the union of emitter ripples.
+        * Emitters let the player “go around” occlusion shadows by placing a source on the near side of an obstacle (or later: “above” it).
+        * Exact Bassline allocation across multiple emitters is TBD (manual split vs automatic).
 * **Formula (approximation for tuning/UI; optional):**
     * When a full ring-cost inversion is undesirable (e.g., early prototype), approximate with:
         * `Amplitude_radius ≈ base_min_radius_tiles + C_r * (Bassline_field)^α` with default `α = 0.5`.
@@ -70,6 +82,9 @@ Outside the Base, the player explores the map to discover locations, complete qu
 Map representation:
 * The world map uses a **hex grid**.
 * Distance and rings are computed using hex distance (implementation details TBD; recommend **cube coordinates**).
+* Terrain:
+    * Base terrain types (draft list): plain, forest, water, river, bridge, hills, mountains, city, village.
+    * Tiles can also carry style/modifier tags (e.g., desert as a “sandy hills/plain” modifier) rather than requiring a separate base terrain type.
 
 * **Manual Mode:** Direct control for exploration and encounters; best for puzzles/enigmas and high-risk pushes.
 * **Auto Mode:** The game plays on behalf of the player using the same real-time combat/action systems.
