@@ -66,6 +66,7 @@ Map progression is physically tied to volume.
         * For UI/tiering, define `Amplitude_radius_max = max hex_distance(base, tile)` over all tiles currently in the bubble.
     * Budget note (balancing TBD):
         * Loudspeakers are relays; they do not create a separate Bassline pool.
+        * Adding new active sources can redistribute the same total `Bassline_field` across more wavefronts; this can expand new sectors while shrinking coverage elsewhere (intended tradeoff).
         * Exact allocation of `Bassline_field` across multiple sources (Base + relays) is to be defined and balanced later.
     * **Mitigation via new emitters (Loudspeakers):**
         * Some buildings can act as additional **Bassline emitters** (new spawning points for the ripple).
@@ -110,6 +111,16 @@ Map representation:
     * Tiles can also carry style/modifier tags (e.g., desert as a “sandy hills/plain” modifier) rather than requiring a separate base terrain type.
     * Every terrain supports `occludes_ripple` and per-tile occlusion parameters, but for now **only mountains** are occluders.
         * Rivers are not occluders; they only affect impedance.
+    * Base terrain impedance (placeholders; before modifiers/tech/buildings):
+        * `plain = 1.0`
+        * `forest = 5.0`
+        * `water = 0.1`
+        * `river = 0.5`
+        * `hills = 1.5`
+        * `village = 3.0`
+        * `city = 10.0`
+        * `mountains = ∞`
+        * `bridge = TBD`
 
 * **Manual Mode:** Direct control for exploration and encounters; best for puzzles/enigmas and high-risk pushes.
 * **Auto Mode:** The game plays on behalf of the player using the same real-time combat/action systems.
