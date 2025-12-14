@@ -144,7 +144,9 @@ Draft factors:
     * `Time(t) = log(1 + t_minutes) / log(1 + 60)` (so 60 minutes ~= 1.0, shorter runs < 1.0, longer runs grow slowly > 1.0).
     * Use `Time_pair = sqrt(Time_now * Time_prev)` to bake in prior-run terms.
 * **Active Playtime (Engagement):** Rewards actually playing (manual exploration/combat/enigmas) in addition to idle time. Suggested shape:
-    * Track `active_minutes` as “engaged time” (manual mode time excluding menus/pauses; definition TBD).
+    * Track `active_minutes` via a **gameplay-action heartbeat**:
+        * On meaningful gameplay actions (move/skill/use/interact/puzzle progress), update `last_action_time`.
+        * While in manual gameplay (exploration/combat/enigma screens; excluding menus/pauses), count time as active as long as `now - last_action_time <= 30 minutes` (inclusive “grace” window for thinking/reading).
     * `Active(active_minutes) = 1 + a * log(1 + active_minutes)` with small `a` (diminishing returns).
     * Use `Active_pair = sqrt(Active_now * Active_prev)` to bake in prior-run terms.
 * **Mastering (Harmonics):** Derived from “banked Harmonics” during the run (e.g., integrated Harmonics output and/or key Harmonics milestones).
