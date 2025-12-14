@@ -182,7 +182,19 @@ High-level shape (placeholder):
 * Pair factors are typically geometric means, e.g. `Time_pair = sqrt(Time_now * Time_prev)`.
 
 Draft factors:
-* **Frontier (Reach):** Derived from the maximum exploration tier reached this run (based on max Amplitude / unlocked map zones).
+* **Frontier (Reach):** A hybrid reach factor derived from what the Crystal field reveals (unfog) and the maximum Amplitude achieved this run.
+    * Frontier is **based on max reached** (peak), not “confirmed”.
+    * Frontier is **unfog-based** (Amplitude reveal), not dependent on the Hero entering the area.
+    * Frontier is independent from **Depth** (no capping).
+    * Hybrid shape (draft):
+        * Track `zone_tier_unfog_max` = highest zone tier that became unfogged this run.
+        * Track `amp_tier_max` = highest Amplitude tier achieved this run (Amplitude thresholds define tiers).
+        * Map each tier to a scalar score (exact mapping tuned later), e.g.:
+            * `ZoneScore = 1 + z * ln(1 + zone_tier_unfog_max)`
+            * `AmpScore = 1 + a * ln(1 + amp_tier_max)`
+        * Combine as a geometric mean: `Frontier_now = sqrt(ZoneScore * AmpScore)`
+        * Then bake in prior-run smoothing as usual: `Frontier_pair = sqrt(Frontier_now * Frontier_prev)`
+    * UI note: show “Frontier” as one multiplier and optionally show the two sub-scores, but the exact internal math does not need to be fully explained to the player.
 * **Depth (Combat):** Derived from the highest boss level cleared this run.
 * **Time (Session):** A logarithmic factor based on time since last Tuning (so it still works for multi-day runs). Suggested shape:
     * Base (log) term: `Time_log(t) = log(1 + t_minutes) / log(1 + 60)` (so 60 minutes ~= 1.0, shorter runs < 1.0, longer runs grow slowly > 1.0).
