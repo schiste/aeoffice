@@ -615,10 +615,13 @@ Capacity and penalties:
 
 Recruiting costs and control:
 * Recruiting a crew member has a **one-time Vibes cost** paid from the current Vibes pool.
-    * The one-time cost scales with the lifetime total recruited crew count (exact curve TBD).
+    * The one-time cost scales with the total recruited crew count **this run** (exact curve TBD).
     * This means the player can recruit even when `Vibes_rate` is negative, as long as they have enough Vibes stock to pay the one-time cost.
 * Negative Vibes consequences are limited to the crew efficiency penalty (no desertion/death purely from low Vibes).
 * The player can choose to send crew back to the Survivor Cave (mechanic TBD) to reduce capacity pressure and Vibes drain.
+    * Sending crew back is **instant** and has no gating limitations.
+    * There is no refund of the one-time Vibes recruit cost.
+    * Sent-back crew are removed for the rest of the run (not re-recruitable unless a later system adds it).
 
 ### 3.5 Base Stations (Draft List)
 Stations consume Chorus while active and convert time + resources into progression.
