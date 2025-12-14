@@ -13,6 +13,7 @@ Outside the Base, you explore the world through **map exploration, quests, enigm
 
 ## 🧭 Game Dynamics (Core Loops)
 * **Staff the Base:** Assign staff to the Crystal Circle and stations to generate and spend `Bassline` (reach), `Chorus` (power), and `Harmonics` (efficiency), all boosted by `Resonance` (Base-only multiplier).
+* **Store and Spend:** Base resources are produced per-second and can be stored up to a cap; overflow is lost; some costs are one-time while others are ongoing upkeep.
 * **Expand the Bubble:** `Bassline` grows the safe radius (Amplitude), revealing more of the map over time; a 2-phase inertia prevents instant collapse when output drops.
 * **Explore Manually:** The Hero pushes beyond safety (real-time cooldown combat + enigmas) and uses safe spots (including the Base) to rest and reduce Viral Load.
 * **Run Auto Expeditions:** Expeditions are crew-only, parallel, time-based resource runs that never fail, but can slow/stall during brownouts and can be recalled for partial loot.
