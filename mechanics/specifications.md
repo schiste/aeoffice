@@ -142,7 +142,8 @@ Rules:
 ### 3.1.1 Key Multipliers (Draft)
 To keep formulas readable, we use these symbols:
 * `Resonance` (`R`): The primary (and only) cross-run multiplier (NGU-style `NUMBER`). It is recalculated on each Tuning from multiple factors and applies to Base-side generation, costs, and effects. Exact factor breakdown TBD.
-* `Fragments` (`F`): Total Harmonic Fragments permanently stacked on the Crystal (persistent across Tunings). Used as a weighted factor in the Resonance formula.
+* `Fragments` (`F_unspent`): Unspent Harmonic Fragments currently held by the Crystal (persistent across Tunings). Used in `Fragment_legacy` with diminishing returns.
+* `Refinement` (`P`): A single global Polishing grade (persistent across Tunings). Grants a generation multiplier and is also used for gating/unlocks (exact effects TBD).
 
 ### 3.1.2 Resonance Calculation (Draft)
 Resonance is **recomputed on every Tuning** as a product of multiple factors. Some factors use the current run, and some use the prior run to reduce volatility (NGU-style “current” and “prior” terms).
@@ -189,12 +190,14 @@ Draft factors:
     * Use `Active_pair = sqrt(Active_now * Active_prev)` to bake in prior-run terms.
 * **Harmonics Investment:** Resonance contribution driven by specific buildings/perks that consume Harmonics (one-time and/or upkeep) and convert it into a persistent “mastering” effect within the run.
     * This replaces the earlier idea of a generic `Mastering_now` stat.
-* **Fragment legacy:** A small-weight, bonus-only factor derived from total stacked Harmonic Fragments (`F`) with diminishing returns.
-    * Draft shape: `Fragment_legacy(F) = 1 + w * log(1 + F)` (with small `w`).
+* **Fragment legacy:** A bonus-only factor derived from unspent Harmonic Fragments (`F_unspent`) with diminishing returns, amplified by Refinement (`P`).
+    * Draft shape: `Fragment_legacy(F_unspent, P) = f(F_unspent) * g(P)` where:
+        * `f(F_unspent)` has diminishing returns (e.g., logarithmic),
+        * `g(P)` is a nominal multiplier from Refinement (exact mapping TBD).
     * Optional: instead of automatic step tiers, use a dedicated long-term action/perk like **Polishing**:
-        * The player spends Harmonic Fragments to gain discrete **Refinement** levels (instant action).
-        * Immediate impact (A): Refinement increases `Fragment_legacy` (fragments “count for more”; exact mapping TBD).
-        * Progression gates (C): Refinement levels can also unlock tech/content tiers and raise caps (details TBD).
+        * Polishing is an instant action that permanently consumes Harmonic Fragments to increase the single global Refinement grade (`P`).
+        * Immediate impact (A): Refinement increases `Fragment_legacy`.
+        * Progression gates (C): Refinement levels can unlock tech/content tiers and raise caps (details TBD).
         * Polishing costs scale with diminishing returns (e.g., logarithmic or tier-based).
 * **Stability (Optional):** Mild factor based on Base stability this run (e.g., time spent in “safe” vs brownout), intended as a small optimization reward rather than a punishment.
 
@@ -278,7 +281,7 @@ Terminology:
 * **Harmonics output:** The current run’s generated high-band resource.
 * **Tuning tiers:** Milestone thresholds within a run that unlock upgrades as Harmonics output increases.
 * **Resonance:** Cross-run multiplier recalculated on Tuning (see above).
-* **Harmonic Fragments:** Rare physical fragments carried by the Hero and delivered to the Crystal; they permanently stack on the Crystal and contribute to Resonance (details TBD).
+* **Harmonic Fragments:** Rare physical fragments carried by the Hero and delivered to the Crystal; unspent fragments contribute to `Fragment_legacy`, and fragments can also be permanently consumed via Polishing to increase Refinement (`P`) (details TBD).
 
 Immediate consequences (Tuning event):
 * **Crystal shutdown:** Base generation drops to 0.
