@@ -36,6 +36,8 @@ Map progression is physically tied to volume.
         * `C_r` is a tuning constant (units: tiles per `(Bassline_field^α)`).
     * Player control: because Bassline is a stored pool used for many things, the player can effectively choose to grow/shrink Amplitude by choosing when to accumulate Bassline versus spending it elsewhere.
     * Later tech/perk: allow setting a **Bassline storage floor** > 0 so Amplitude cannot collapse fully (stability tool).
+        * Early-game default: spending Bassline for other actions can immediately shrink the bubble (intended as a meaningful tradeoff).
+        * “Field reserve” is a later tech: the player can lock some stored Bassline as bubble-reserved so it cannot be spent accidentally.
 * **Inertia (2-phase):** If Base generation drops sharply (or to 0), the field does not collapse instantly:
     * **Hold:** 60s with no change.
     * **Degrade:** then decays over the next 60s (curve TBD; default linear).
@@ -45,6 +47,10 @@ Map progression is physically tied to volume.
 
 ### 1.4 Exploration, Quests, Enigmas, Expeditions
 Outside the Base, the player explores the map to discover locations, complete quests, solve enigmas, and run expeditions.
+
+Map representation:
+* The world map uses a **hex grid**.
+* Distance and rings are computed using hex distance (implementation details TBD; recommend axial coordinates).
 
 * **Manual Mode:** Direct control for exploration and encounters; best for puzzles/enigmas and high-risk pushes.
 * **Auto Mode:** The game plays on behalf of the player using the same real-time combat/action systems.
@@ -73,6 +79,7 @@ Later in progression, the player can create forward safe spots outside the Base.
     * Destination locks apply to **auto expeditions only**; the Hero can still travel/quest outside safe spots.
     * **Tuning:** Safe spots are `tuned` objects and always collapse on Tuning (even “permanent” ones).
     * **Bubble dependency:** Safe spots require Chorus access; if a safe spot falls outside the Base bubble (Amplitude shrinks), it loses Chorus access and goes offline (treated as a collapse for destination/unlock purposes).
+        * This is immediate (no inertia), like a light turning off.
 * **Hero rest:** Safe spots serve as rest points for the Hero during manual exploration.
     * **Baseline effect:** Rest reduces Viral Load to **0% over time**.
     * **Rest rate:** Viral Load recovery rate during rest is derived from character stats (TBD; likely influenced by **Sustain**).
@@ -214,9 +221,10 @@ Draft factors:
             * Define ring boundaries (outer radius in tiles) as:
                 * `ring_radius[t] = round(D0 * phi^(t-1))` for `t >= 1`
                 * This yields a starting ladder close to: `1, 2, 4, 6, 10, 16, 26, 42, ...`
-            * `zone_tier(tile)` is:
-                * `0` if `distance_tiles(tile, base) == 0`
-                * otherwise the smallest `t >= 1` such that `distance_tiles(tile, base) <= ring_radius[t]`.
+                * `zone_tier(tile)` is:
+                    * `0` if `distance_tiles(tile, base) == 0`
+                    * otherwise the smallest `t >= 1` such that `distance_tiles(tile, base) <= ring_radius[t]`.
+            * For a hex grid, `distance_tiles` refers to hex distance.
         * Amplitude tiers are based on **absolute radius thresholds** (tiles).
             * Draft linking rule: **every 5 zone rings define one Amplitude tier threshold**, so:
                 * `amp_threshold[0] = base_min_radius_tiles` (baseline tier at the Base minimum radius)
