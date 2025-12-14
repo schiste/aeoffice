@@ -192,8 +192,9 @@ Draft factors:
 * **Fragment legacy:** A small-weight, bonus-only factor derived from total stacked Harmonic Fragments (`F`) with diminishing returns.
     * Draft shape: `Fragment_legacy(F) = 1 + w * log(1 + F)` (with small `w`).
     * Optional: instead of automatic step tiers, use a dedicated long-term action/perk like **Polishing**:
-        * The player spends fragments (or a fragment-linked currency) to gain discrete **Refinement** levels.
-        * Refinement grants “chunky” nominal bumps to Resonance (exact mapping TBD).
+        * The player spends Harmonic Fragments to gain discrete **Refinement** levels (instant action).
+        * Immediate impact (A): Refinement increases `Fragment_legacy` (fragments “count for more”; exact mapping TBD).
+        * Progression gates (C): Refinement levels can also unlock tech/content tiers and raise caps (details TBD).
         * Polishing costs scale with diminishing returns (e.g., logarithmic or tier-based).
 * **Stability (Optional):** Mild factor based on Base stability this run (e.g., time spent in “safe” vs brownout), intended as a small optimization reward rather than a punishment.
 
