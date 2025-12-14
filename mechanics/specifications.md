@@ -189,7 +189,9 @@ Draft factors:
     * Use `Active_pair = sqrt(Active_now * Active_prev)` to bake in prior-run terms.
 * **Harmonics Investment:** Resonance contribution driven by specific buildings/perks that consume Harmonics (one-time and/or upkeep) and convert it into a persistent “mastering” effect within the run.
     * This replaces the earlier idea of a generic `Mastering_now` stat.
-* **Fragment legacy:** A small-weight factor derived from total stacked Harmonic Fragments (`F`), e.g. `1 + w * F` with small `w`.
+* **Fragment legacy:** A small-weight, bonus-only factor derived from total stacked Harmonic Fragments (`F`) with diminishing returns.
+    * Draft shape: `Fragment_legacy(F) = 1 + w * log(1 + F)` (with small `w`).
+    * Optional: add step tiers on top (threshold bonuses) to make progression feel “chunkier” than pure log (exact thresholds/values TBD).
 * **Stability (Optional):** Mild factor based on Base stability this run (e.g., time spent in “safe” vs brownout), intended as a small optimization reward rather than a punishment.
 
 Design goals:
