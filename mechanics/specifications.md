@@ -187,9 +187,17 @@ Draft factors:
     * Frontier is **unfog-based** (Amplitude reveal), not dependent on the Hero entering the area.
     * Frontier is independent from **Depth** (no capping).
     * Map representation:
-        * Zones have a `zone_tier` derived from **distance-to-Base**, and this tier is stored in the map data.
-        * Amplitude tiers are based on **absolute radius thresholds** (e.g., meters/tiles).
-            * Prefer formula-driven thresholds (draft): `amp_threshold[t] = A0 * (g^t)` for tier `t >= 0` (parameters tuned later).
+        * Zones have a `zone_tier` derived from **distance-to-Base** (in tiles), and this tier is stored in the map data.
+        * Zone tiers use **exponential rings** (rings get wider as you go out), matching the intuition that pushing a circular field outward gets harder as the perimeter/area grows.
+            * Let `phi = 1.618...` (golden ratio).
+            * Let `D0 = 1.4` (starter scale; tune later).
+            * Define ring boundaries (outer radius in tiles) as:
+                * `ring_radius[t] = round(D0 * phi^(t-1))` for `t >= 1`
+                * This yields a starting ladder close to: `1, 2, 4, 6, 10, 16, 26, 42, ...`
+            * `zone_tier(tile)` is the smallest `t` such that `distance_tiles(tile, base) <= ring_radius[t]`.
+        * Amplitude tiers are based on **absolute radius thresholds** (tiles).
+            * Draft linking rule: **every 5 zone rings define one Amplitude tier threshold**, so:
+                * `amp_threshold[k] = ring_radius[5 * k]` for `k >= 1`
     * Hybrid shape (draft):
         * Track `zone_tier_unfog_max` = highest zone tier that became unfogged this run.
         * Track `amp_tier_max` = highest Amplitude tier achieved this run (Amplitude thresholds define tiers).
