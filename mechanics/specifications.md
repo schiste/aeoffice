@@ -201,7 +201,7 @@ Terminology:
 * **Harmonics output:** The current run’s generated high-band resource.
 * **Tuning tiers:** Milestone thresholds within a run that unlock upgrades as Harmonics output increases.
 * **Harmonics Level:** Permanent meta-progression gained via Ascension.
-* **Harmonic Fragments:** Rare physical fragments carried by the Hero and delivered to the Crystal; they contribute to the run’s “cash-in” readiness (details TBD).
+* **Harmonic Fragments:** Rare physical fragments carried by the Hero and delivered to the Crystal; they permanently stack on the Crystal and contribute to “cash-in” readiness and/or meta multipliers (details TBD).
 
 Immediate consequences (Ascension event):
 * **Crystal shutdown:** Base generation drops to 0.
@@ -216,10 +216,20 @@ Aftermath (new run state):
 
 Phase shift justification (why things “reset”):
 * **Crystal phase shift:** Ascension changes the Crystal’s resonance phase. Existing tuned infrastructure becomes incompatible.
-* **Detuned stations:** Physical buildings can remain, but their calibrated components are “neutered” until re-attuned to the new phase (reactivation costs/resources TBD).
-* **Tech re-attunement:** Knowledge/blueprints can persist, but implementations must be rebuilt/recalibrated against the new phase to regain their effects.
+* **Detuned stations:** Physical buildings can remain as shells, but their calibrated components are “neutered” until re-attuned to the new phase.
+    * **Upgrade reset:** Buildings lose all upgrades on Ascension; reactivated upgrades benefit from the new Harmonics bonuses.
+* **Tech re-attunement:** Knowledge/blueprints can persist, but perks/tech effects must be re-implemented/recalibrated against the new phase to become active again.
 * **Hero independence:** The Hero and most gear are not phase-linked to the Crystal and persist normally.
     * Optional later feature: “Crystal-bound” gear exists and is destroyed/de-tuned by Ascension.
+
+Re-attunement cost scaling (draft):
+* Each building/tech/perk has:
+    * `base_cost` (its baseline price at Harmonics Level 0)
+    * `fixed_factor` (always paid; keeps early staples affordable)
+    * `cost_multiplier` (how strongly it scales with Harmonics meta progression)
+* Let `H` be the current Harmonics meta multiplier (derived from Harmonics Level and potentially total Harmonic Fragments; exact formula TBD).
+* Cost formula: `cost = base_cost * (fixed_factor + cost_multiplier * H)`
+    * Example (early staple): Fire Pit `base_cost=10`, `fixed_factor=1`, `cost_multiplier=0` => cost stays `10` for every Ascension.
 
 ### 3.3 Crafting Tiers (Compositions)
 The three base resources can be refined into craftable tiers.
