@@ -12,6 +12,10 @@ The game world is defined by **Signal-to-Noise Ratio (SNR)** instead of HP.
     * **> 0dB:** Safe. Viral Load decreases.
     * **< 0dB:** Danger. Viral Load increases.
 
+World constraint (grounded fiction):
+* The Filter primarily destroys long-range airborne propagation; local vibration near sources can still exist.
+* The Crystal’s bubble is modeled as a localized region where this vibration can be sustained for suppression purposes.
+
 ### 1.2 Viral Load (Health)
 Replaces traditional HP.
 * **Viral Load:** 0% (Healthy) to 100% (Death).
@@ -112,6 +116,11 @@ Map progression is physically tied to the Crystal’s expanding soundfield.
     * **Degrade:** then decays over the next 10s (curve TBD; default linear).
         * If `Bassline_field` is **0**, the bubble decays to the **minimum bubble** (Base tile only).
         * Otherwise, the bubble decays toward the new equilibrium.
+    * Inertia scope:
+        * Bubble changes driven by **Bassline spending** use inertia.
+        * Bubble changes driven by **relay/source set changes** (e.g., loudspeakers turning off due to Chorus deficit) use inertia.
+        * **Chorus** changes depower buildings instantly (LIFO), but the resulting bubble coverage change still follows inertia.
+        * **Harmonics efficiency** changes apply immediately (no inertia).
 * **Effect:** Expanding the bubble gradually "un-fogs" the map, revealing new dungeons and resource nodes.
     * **Reveal pacing:** newly eligible hexes are revealed gradually at `reveal_rate_hexes_per_second` (tuned later), rather than instantly revealing the entire radius in one frame.
     * **Eligibility:** a hex becomes eligible for reveal if it is in the current bubble coverage set (union of active-source ripples; see above).

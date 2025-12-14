@@ -4,6 +4,11 @@
 * **Event:** "The Filter." Unknown satellites activated simultaneously, massively attenuating most audible sound globally (approx. 20Hz–15kHz).
 * **Result:** Global silence. Communication collapse. Mass panic.
 
+Working model (grounded fiction):
+* The Filter is best understood as an atmospheric/field-scale **acoustic damping system**: it doesn't “delete” vibration at the source, it destroys **propagation** through open air over distance.
+* **Near-field vibration still exists** close to any strong source (speakers, machinery, the Crystal). You can still *feel* pressure and structure-borne vibration even if you can't hear it travel.
+* The Crystal exploits this: it couples local mechanical vibration into a stable, localized “bubble” where suppression is possible, even though long-range hearing/communication has collapsed.
+
 ## 2. The Sickness (Viral Mechanics)
 A dormant pathogen exists in all human tissue. It is suppressed by auditory vibration.
 * **Symptoms:** Hallucinations -> Motor Control Loss -> Coma -> Death.

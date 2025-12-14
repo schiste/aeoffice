@@ -1,13 +1,13 @@
-# Dungeons & Drum Machines
+# Advanced Drummers and Dungeons (AD&D)
 
 > **"In the Silence, music isn't art. It's oxygen."**
 
-**Dungeons & Drum Machines** is a Dystopian Idle-RPG built with **Godot 4** and **Rust**. It combines the addictive progression of incremental games (*NGU Idle*, *Candy Box*) with the survival tension of *Darkest Dungeon*, wrapped in a unique "Acoustic Survival" narrative.
+**Advanced Drummers and Dungeons (AD&D)** is a Dystopian Idle-RPG built with **Godot 4** and **Rust**. It combines the addictive progression of incremental games (*NGU Idle*, *Candy Box*) with the survival tension of *Darkest Dungeon*, wrapped in a unique "Acoustic Survival" narrative.
 
 ## 🎵 The Concept
-The world didn't end with a bang—it ended with a filter. Satellites dampen most audible sound on Earth (approx. 20Hz–15kHz). A "Silence Virus" kills anyone exposed to absolute quiet for more than 4 hours.
+The world didn't end with a bang—it ended with a filter. Satellites dampen most audible sound on Earth (approx. 20Hz–15kHz), collapsing long-range propagation. A "Silence Virus" kills anyone exposed to absolute quiet for more than 4 hours.
 
-You play a survivor with a genetic resistance (24-hour tolerance). You must build a **Base (The Studio)** centered around a Crystal that amplifies sound, pushing back the Silence to reveal the map.
+You play a survivor with a genetic resistance (24-hour tolerance). You must build a **Base (The Studio)** centered around a Crystal that couples local vibration into a stable safe bubble, pushing back the Silence to reveal the map.
 
 Outside the Base, you explore the world through **map exploration, quests, enigmas, and expeditions** (with both **manual** and **auto** play modes). Combat is **real-time** and **cooldown-based** (actions recharge over time). The Base is the primary source of sound output, produced by the crew, their equipment, and artifacts. This sound is treated as three base resources (low/mid/high band) that affect the Crystal field differently. Later progression unlocks **forward safe spots** during exploration, which are also used to unlock expedition destinations (temporarily or permanently). Expeditions can run in parallel, and they use the same crew pool as the Base (a tradeoff between exploration progress and Base output); expeditions bring back loot that is processed at the Base.
 
