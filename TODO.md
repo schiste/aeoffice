@@ -32,6 +32,7 @@ Single source checklist for what must exist for a playable vertical slice.
 - [ ] Finalize instant recruit stock `X` function (how it is earned/refreshes)
 - [ ] Define recruit one-time Vibes cost curve (scales with total recruited count)
 - [ ] Define “send crew back to Cave” mechanic (done: instant, no refund, removed for run; confirm UI/limits)
+- [ ] Define manual recruiting UI + later automation unlocks
 
 ## Combat + Enemies
 - [ ] Define combat actions/skills (cooldowns, resource use, targeting, statuses)
