@@ -128,6 +128,9 @@ Map representation:
 * Distance and rings are computed using hex distance (implementation details TBD; recommend **cube coordinates**).
 * **Reveal vs safety:** fog-of-war reveal is permanent (map knowledge persists), but safety/Chorus access depends on current bubble coverage.
 * World size (draft): finite but intended to be extremely large; the map is hand-authored (not procedurally generated at runtime) and can be streamed/loaded in chunks as the player expands.
+* Regions:
+    * The map is organized into **authored regions** (named areas) that can span many technical streaming chunks.
+    * Regions can drive quest arcs, UI labels, ambience/music themes, and difficulty/content banding.
 * Terrain:
     * Base terrain types (draft list): plain, forest, water, river, bridge, hills, mountains, city, village.
     * Tiles can also carry style/modifier tags (e.g., desert as a “sandy hills/plain” modifier) rather than requiring a separate base terrain type.
