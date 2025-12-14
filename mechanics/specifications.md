@@ -157,11 +157,12 @@ To keep resets consistent, every major object/system is classified by how it beh
 Some buildings can be `untuned`:
 * They persist across Tunings.
 * They do not require Chorus power (or are otherwise exempt from brownout auto-unpower), unless explicitly designed to.
-* By default, building upgrade levels persist across Tunings, but may become detuned/inactive until re-attuned (see `3.2.5`).
+* `untuned` buildings keep their upgrade levels across Tunings.
 
-Upgrade reset flag (draft):
-* `tuned_upgrades`: If set on a building/feature (or on specific upgrade nodes), those upgrades are reset on Tuning.
-* Default: upgrades persist on Tuning unless marked `tuned_upgrades`.
+Upgrade reset rule (draft):
+* `tuned` buildings lose upgrade levels on Tuning.
+* `untuned` buildings keep upgrade levels on Tuning.
+* `detuned` building behavior is intended to be “kept as shells”; whether their upgrade levels persist or reset is TBD (choose a default later for consistency).
 
 ### 3.1.2 Resonance Calculation (Draft)
 Resonance is **recomputed on every Tuning** as a product of multiple factors. Some factors use the current run, and some use the prior run to reduce volatility (NGU-style “current” and “prior” terms).
@@ -317,8 +318,8 @@ Aftermath (new run state):
 Phase shift justification (why things “reset”):
 * **Crystal phase shift:** Tuning changes the Crystal’s resonance phase. Existing tuned infrastructure becomes incompatible.
 * **Detuned stations:** Physical buildings can remain as shells, but their calibrated components are “neutered” until re-attuned to the new phase.
-    * **Detuned upgrades:** Building upgrade levels can persist, but their effects are inactive until re-attuned to the new phase.
-    * **Tuned upgrades:** Some upgrades can be marked `tuned_upgrades` and are reset on Tuning (design lever for balancing).
+    * **Tuned buildings:** Any building marked `tuned` loses its upgrades on Tuning.
+    * **Untuned buildings:** Any building marked `untuned` keeps its upgrades on Tuning.
 * **Tech re-attunement:** Knowledge/blueprints can persist, but perks/tech effects must be re-implemented/recalibrated against the new phase to become active again.
 * **Hero independence:** The Hero and most gear are not phase-linked to the Crystal and persist normally.
     * Optional later feature: “Crystal-bound” gear exists and is destroyed/de-tuned by Tuning.
