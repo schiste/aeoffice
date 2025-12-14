@@ -191,12 +191,16 @@ Draft factors:
         * Zone tiers use **exponential rings** (rings get wider as you go out), matching the intuition that pushing a circular field outward gets harder as the perimeter/area grows.
             * Let `phi = 1.618...` (golden ratio).
             * Let `D0 = 1.4` (starter scale; tune later).
+            * Define `ring_radius[0] = 0` (Base tile / minimum bubble).
             * Define ring boundaries (outer radius in tiles) as:
                 * `ring_radius[t] = round(D0 * phi^(t-1))` for `t >= 1`
                 * This yields a starting ladder close to: `1, 2, 4, 6, 10, 16, 26, 42, ...`
-            * `zone_tier(tile)` is the smallest `t` such that `distance_tiles(tile, base) <= ring_radius[t]`.
+            * `zone_tier(tile)` is:
+                * `0` if `distance_tiles(tile, base) == 0`
+                * otherwise the smallest `t >= 1` such that `distance_tiles(tile, base) <= ring_radius[t]`.
         * Amplitude tiers are based on **absolute radius thresholds** (tiles).
             * Draft linking rule: **every 5 zone rings define one Amplitude tier threshold**, so:
+                * `amp_threshold[0] = base_min_radius_tiles` (baseline tier at the Base minimum radius)
                 * `amp_threshold[k] = ring_radius[5 * k]` for `k >= 1`
     * Hybrid shape (draft):
         * Track `zone_tier_unfog_max` = highest zone tier that became unfogged this run.
