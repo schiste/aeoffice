@@ -30,6 +30,8 @@ Single source checklist for what must exist for a playable vertical slice.
 - [ ] Specify Bunks + Vibes system (capacity, upkeep, overcapacity penalty, tuning reset)
 - [ ] Finalize negative-Vibes penalty scope + formula (crew efficiency multiplier)
 - [ ] Finalize instant recruit stock `X` function (how it is earned/refreshes)
+- [ ] Define recruit one-time Vibes cost curve (scales with total recruited count)
+- [ ] Define “send crew back to Cave” mechanic (rules + consequences)
 
 ## Combat + Enemies
 - [ ] Define combat actions/skills (cooldowns, resource use, targeting, statuses)

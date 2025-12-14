@@ -613,6 +613,13 @@ Capacity and penalties:
 * If `crew_count > bunks_capacity`, Vibes generation is penalized (“bad vibes”).
     * The penalty shape is intended to be exponential with a plateau once “bunkless crew” reaches ~50% of total crew (exact formula TBD).
 
+Recruiting costs and control:
+* Recruiting a crew member has a **one-time Vibes cost** paid from the current Vibes pool.
+    * The one-time cost scales with the lifetime total recruited crew count (exact curve TBD).
+    * This means the player can recruit even when `Vibes_rate` is negative, as long as they have enough Vibes stock to pay the one-time cost.
+* Negative Vibes consequences are limited to the crew efficiency penalty (no desertion/death purely from low Vibes).
+* The player can choose to send crew back to the Survivor Cave (mechanic TBD) to reduce capacity pressure and Vibes drain.
+
 ### 3.5 Base Stations (Draft List)
 Stations consume Chorus while active and convert time + resources into progression.
 
