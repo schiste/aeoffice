@@ -189,38 +189,38 @@ Expedition impact:
         * **Progress snapshot:** Auto-recall uses `p` at the moment the event occurs, even if the expedition was stalled (`H = 0`).
         * **Return lag still applies:** Auto-recall always uses the return lag (even if the crew is unconscious/stalled).
 
-#### 3.2.5 Harmonics Cash-In (Ascension Reset)
-Late game, the Hero can choose to **cash in** accumulated Harmonics to permanently increase the Crystal’s Harmonics level.
+#### 3.2.5 Harmonics Cash-In (Tuning Reset)
+The Hero can choose to **Tune** the Crystal (reset the run) and cash in accumulated Harmonics to permanently increase the Crystal’s long-term progression.
 
 Concept:
-* The player builds up enough Harmonics to perform an **Ascension**.
-* Performing Ascension shuts down the Crystal, triggering a lethal Silence event for the Base.
-* The run continues with **no crew**, but with a permanently increased **Harmonics Level**.
+* The player builds up enough Harmonics to perform a **Tuning**.
+* Tuning shuts down the Crystal, triggering a lethal Silence event for the Base.
+* The run continues with **no crew**, but with permanently increased long-term multipliers and unlocks.
 
 Terminology:
 * **Harmonics output:** The current run’s generated high-band resource.
 * **Tuning tiers:** Milestone thresholds within a run that unlock upgrades as Harmonics output increases.
-* **Harmonics Level:** Permanent meta-progression gained via Ascension.
+* **Harmonics Level:** Permanent meta-progression gained via Tuning.
 * **Harmonic Fragments:** Rare physical fragments carried by the Hero and delivered to the Crystal; they permanently stack on the Crystal and contribute to “cash-in” readiness and/or meta multipliers (details TBD).
 
-Immediate consequences (Ascension event):
+Immediate consequences (Tuning event):
 * **Crystal shutdown:** Base generation drops to 0.
 * **Crew death:** All crew members die from the virus (hard reset of staff progression).
 * **System collapse:** Safe spots collapse (Chorus-powered), destinations relock, and expeditions are auto-recalled using the Recall rules.
 
 Aftermath (new run state):
-* **Harmonics Level +1:** A permanent meta-progression layer.
+* **Harmonics Level:** Permanent meta-progression layer (gain curve TBD; not necessarily +1 every time).
 * **Huge generation bonus:** Harmonics Level grants a large multiplicative bonus to Base generation (exact curve TBD).
-* **Unlocks:** Each Harmonics Level also unlocks new tech tiers/perks/content (details TBD).
+* **Unlocks:** Harmonics Level unlocks new tech tiers/perks/content (details TBD).
 * **Restart staffing:** The Base begins with no crew; the Hero must recruit/rescue new staff over time.
 
 Phase shift justification (why things “reset”):
-* **Crystal phase shift:** Ascension changes the Crystal’s resonance phase. Existing tuned infrastructure becomes incompatible.
+* **Crystal phase shift:** Tuning changes the Crystal’s resonance phase. Existing tuned infrastructure becomes incompatible.
 * **Detuned stations:** Physical buildings can remain as shells, but their calibrated components are “neutered” until re-attuned to the new phase.
-    * **Upgrade reset:** Buildings lose all upgrades on Ascension; reactivated upgrades benefit from the new Harmonics bonuses.
+    * **Upgrade reset:** Buildings lose all upgrades on Tuning; reactivated upgrades benefit from the new Harmonics bonuses.
 * **Tech re-attunement:** Knowledge/blueprints can persist, but perks/tech effects must be re-implemented/recalibrated against the new phase to become active again.
 * **Hero independence:** The Hero and most gear are not phase-linked to the Crystal and persist normally.
-    * Optional later feature: “Crystal-bound” gear exists and is destroyed/de-tuned by Ascension.
+    * Optional later feature: “Crystal-bound” gear exists and is destroyed/de-tuned by Tuning.
 
 Re-attunement cost scaling (draft):
 * Each building/tech/perk has:
@@ -229,19 +229,19 @@ Re-attunement cost scaling (draft):
     * `cost_multiplier` (how strongly it scales with Harmonics meta progression)
 * Let `H` be the current Harmonics meta multiplier (derived from Harmonics Level + a small weight on total Harmonic Fragments; exact formula TBD).
 * Cost formula: `cost = base_cost * (fixed_factor + cost_multiplier * H)`
-    * Example (early staple): Fire Pit `base_cost=10`, `fixed_factor=1`, `cost_multiplier=0` => cost stays `10` for every Ascension.
+    * Example (early staple): Fire Pit `base_cost=10`, `fixed_factor=1`, `cost_multiplier=0` => cost stays `10` for every Tuning.
 
 Scaling principle:
 * Buildings, upgrades, tech, and perks use the same scheme: they can have both **cost scaling** and **effect scaling** driven by `H`.
 * Effect formula (draft): `effect = base_effect * (fixed_factor + effect_multiplier * H)`
-* Harmonic Fragments are not consumed by Ascension; they remain stacked on the Crystal and contribute to `H` permanently.
+* Harmonic Fragments are not consumed by Tuning; they remain stacked on the Crystal and contribute to `H` permanently.
 
-Ascension cadence (anti-spam):
-* Track `N = tuning_count` (lifetime number of Ascensions performed).
-* Allow Ascension at any time, but enforce a short real-time cooldown between Ascensions (currently **3 minutes**).
-* To discourage “too-frequent” Ascension, let some costs scale with `N` in addition to `H`, so that increasing `N` without enough run progress becomes counterproductive.
+Tuning cadence (anti-spam):
+* Track `N = tuning_count` (lifetime number of Tunings performed).
+* Allow Tuning at any time, but enforce a short real-time cooldown between Tunings (currently **3 minutes**).
+* To discourage “too-frequent” Tuning, let some costs scale with `N` in addition to `H`, so that increasing `N` without enough run progress becomes counterproductive.
     * Draft: `cost = base_cost * (fixed_factor + cost_multiplier * (H + spam_factor(N)))`
-    * Example: `spam_factor(N) = s * N^p` (with small `s` and `p > 1`), tuned so optimal play is “Ascend after meaningful progress” rather than spamming.
+    * Example: `spam_factor(N) = s * N^p` (with small `s` and `p > 1`), tuned so optimal play is “Tune after meaningful progress” rather than spamming.
 * Spam protection affects **costs only** (not effect strength).
 
 ### 3.3 Crafting Tiers (Compositions)
