@@ -25,7 +25,7 @@ Map progression is physically tied to volume.
 * **Primary driver:** **Bassline** output (low-band production).
 * **Modifier:** **Harmonics** improves Crystal efficiency (tuning), increasing how much Amplitude you get from the same Bassline.
 * **Formula (placeholder):** `Amplitude = f(Bassline) * Tuning(Harmonics)`.
-* **Inertia:** If Base generation drops sharply (or to 0), the field does not collapse instantly; it decays over a short inertia window (duration TBD).
+* **Inertia:** If Base generation drops sharply (or to 0), the field does not collapse instantly; it decays over a short inertia window (**60s**).
 * **Effect:** Expanding Amplitude automatically "un-fogs" the map, revealing new dungeons and resource nodes.
 
 ### 1.4 Exploration, Quests, Enigmas, Expeditions
@@ -142,7 +142,8 @@ Expedition impact:
 * **Crew locking:** Expedition crew are locked for the duration of the expedition (unless recalled).
 * **Recall (Call Back):** An expedition can be recalled mid-run to free its crew.
     * **Return lag:** If the expedition is `p` complete (`0..1`), return time is `p * 120s`.
-    * **Partial loot:** On recall, loot volume is reduced by `loot_multiplier = 0.66 * p` (floored down when discrete items require it).
+    * **Partial loot:** On recall, loot quantity/volume is reduced by `loot_multiplier = 0.66 * p` (floored down when discrete items require it); rarity is unchanged.
+    * **Frozen state:** If an expedition is stalled (`H = 0`), its progress is frozen (no regression); the crew is treated as unconscious and remains where they are with what they found.
 
 ### 3.3 Crafting Tiers (Compositions)
 The three base resources can be refined into craftable tiers.
