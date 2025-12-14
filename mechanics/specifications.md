@@ -114,6 +114,8 @@ Map progression is physically tied to volume.
     * **Eligibility:** a hex becomes eligible for reveal if it is in the current bubble coverage set (union of active-source ripples; see above).
     * **Persistence:** once a hex is revealed, it remains revealed permanently even if it later becomes unsafe.
     * **Safety rule:** outside current bubble coverage, there is no Chorus access; any Chorus-dependent objects outside go offline immediately.
+    * **Update cadence:** bubble coverage does not need to be recalculated every frame; small latency is acceptable.
+        * Draft: recompute bubble coverage at most once per second (or per authored “tick”), and smooth UI transitions separately.
 
 ### 1.4 Exploration, Quests, Enigmas, Expeditions
 Outside the Base, the player explores the map to discover locations, complete quests, solve enigmas, and run expeditions.
@@ -122,6 +124,7 @@ Map representation:
 * The world map uses a **hex grid**.
 * Distance and rings are computed using hex distance (implementation details TBD; recommend **cube coordinates**).
 * **Reveal vs safety:** fog-of-war reveal is permanent (map knowledge persists), but safety/Chorus access depends on current bubble coverage.
+* World size (draft): finite but intended to be extremely large; content can be streamed/loaded in chunks as the player expands.
 * Terrain:
     * Base terrain types (draft list): plain, forest, water, river, bridge, hills, mountains, city, village.
     * Tiles can also carry style/modifier tags (e.g., desert as a “sandy hills/plain” modifier) rather than requiring a separate base terrain type.
