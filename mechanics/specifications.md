@@ -134,12 +134,19 @@ To keep formulas readable, we use these symbols:
 Resonance is **recomputed on every Tuning** as a product of multiple factors. Some factors use the current run, and some use the prior run to reduce volatility (NGU-style “current” and “prior” terms).
 
 High-level shape (placeholder):
-* `R_next = clamp_min(R_floor, R_base * Frontier_now * Frontier_prev * Depth_now * Depth_prev * Time_now * Time_prev * Mastering_now * Fragment_legacy * Stability_now)`
+* `R_next = clamp_min(R_floor, R_base * Frontier_pair * Depth_pair * Time_pair * Active_pair * Mastering_now * Fragment_legacy * Stability_now)`
+* Pair factors are typically geometric means, e.g. `Time_pair = sqrt(Time_now * Time_prev)`.
 
 Draft factors:
 * **Frontier (Reach):** Derived from the maximum exploration tier reached this run (based on max Amplitude / unlocked map zones).
 * **Depth (Combat):** Derived from the deepest dungeon/boss tier cleared this run.
-* **Time (Session):** A piecewise/breakpoint factor based on time since last Tuning (e.g., 3/4/5/7/10/12/15/30/60 minutes), typically `< 1` for very short runs and slowly increasing afterward.
+* **Time (Session):** A logarithmic factor based on time since last Tuning (so it still works for multi-day runs). Suggested shape:
+    * `Time(t) = log(1 + t_minutes) / log(1 + 60)` (so 60 minutes ~= 1.0, shorter runs < 1.0, longer runs grow slowly > 1.0).
+    * Use `Time_pair = sqrt(Time_now * Time_prev)` to bake in prior-run terms.
+* **Active Playtime (Engagement):** Rewards actually playing (manual exploration/combat/enigmas) in addition to idle time. Suggested shape:
+    * Track `active_minutes` as “engaged time” (manual mode time excluding menus/pauses; definition TBD).
+    * `Active(active_minutes) = 1 + a * log(1 + active_minutes)` with small `a` (diminishing returns).
+    * Use `Active_pair = sqrt(Active_now * Active_prev)` to bake in prior-run terms.
 * **Mastering (Harmonics):** Derived from “banked Harmonics” during the run (e.g., integrated Harmonics output and/or key Harmonics milestones).
 * **Fragment legacy:** A small-weight factor derived from total stacked Harmonic Fragments (`F`), e.g. `1 + w * F` with small `w`.
 * **Stability (Optional):** Mild factor based on Base stability this run (e.g., time spent in “safe” vs brownout), intended as a small optimization reward rather than a punishment.
