@@ -17,6 +17,7 @@ Replaces traditional HP.
 * **Viral Load:** 0% (Healthy) to 100% (Death).
 * **In Silence:** Increases based on `(Time * DecayRate) / Resistance`.
 * **In Sound:** Decreases rapidly (Recovery).
+* **Edge cases:** If the bubble shrinks and the Hero is now outside safe coverage, Viral Load increase applies immediately (no grace).
 * **UI:** Displayed as a "Vitals Monitor" waveform, not a red bar.
 
 ### 1.3 Amplitude (Exploration)
@@ -92,6 +93,7 @@ Map progression is physically tied to volume.
             * If a loudspeaker loses Chorus (e.g., falls outside the bubble due to shrink), it turns off immediately. This can instantly remove access to regions that only existed via that relay (coverage shrinks immediately).
             * Once Chorus returns, the loudspeaker turns back on and the **safety coverage** resumes immediately (no “re-conquer” of previously revealed tiles).
             * A relay being “inside the bubble” is sufficient for Chorus access; it does not need direct line-of-sight to the Base (it can be powered via other relays).
+        * Scale target: up to ~`50` simultaneously active loudspeakers in late game (tuned later).
         * “Over-the-top” tech:
             * Progression can offer both:
                 * a global tech unlock that allows propagation **over** occluders (mountains), and/or
