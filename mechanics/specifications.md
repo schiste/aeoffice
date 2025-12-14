@@ -116,6 +116,7 @@ Map progression is physically tied to volume.
     * **Safety rule:** outside current bubble coverage, there is no Chorus access; any Chorus-dependent objects outside go offline immediately.
     * **Update cadence:** bubble coverage does not need to be recalculated every frame; small latency is acceptable.
         * Draft: recompute bubble coverage at most once per second (or per authored “tick”), and smooth UI transitions separately.
+    * **Scale target (draft):** late-game bubble radius on the order of ~`500` hexes from the Base.
 
 ### 1.4 Exploration, Quests, Enigmas, Expeditions
 Outside the Base, the player explores the map to discover locations, complete quests, solve enigmas, and run expeditions.
@@ -124,7 +125,7 @@ Map representation:
 * The world map uses a **hex grid**.
 * Distance and rings are computed using hex distance (implementation details TBD; recommend **cube coordinates**).
 * **Reveal vs safety:** fog-of-war reveal is permanent (map knowledge persists), but safety/Chorus access depends on current bubble coverage.
-* World size (draft): finite but intended to be extremely large; content can be streamed/loaded in chunks as the player expands.
+* World size (draft): finite but intended to be extremely large; the map is hand-authored (not procedurally generated at runtime) and can be streamed/loaded in chunks as the player expands.
 * Terrain:
     * Base terrain types (draft list): plain, forest, water, river, bridge, hills, mountains, city, village.
     * Tiles can also carry style/modifier tags (e.g., desert as a “sandy hills/plain” modifier) rather than requiring a separate base terrain type.
@@ -152,6 +153,9 @@ Expeditions are a primary way to acquire resources over time:
 * **Shared staffing:** Expedition crew comes from the same pool that powers Base sound output; sending crew out reduces Base output accordingly.
 * **Parallel runs:** Multiple expeditions can run in parallel; each consumes its assigned crew for the full duration.
 * **Coordination fiction:** Expeditions are supported/managed from the Base (planning, comms, remote operation), so Base brownouts can slow or stall them.
+
+Bubble shrink interactions:
+* If bubble shrink removes Chorus access to a required safe spot, the destination relocks and any active auto expeditions are auto-recalled using the normal Recall rules (no extra penalty).
 
 ### 1.5 Forward Safe Spots
 Later in progression, the player can create forward safe spots outside the Base.
