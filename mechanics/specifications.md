@@ -191,7 +191,10 @@ Draft factors:
     * This replaces the earlier idea of a generic `Mastering_now` stat.
 * **Fragment legacy:** A small-weight, bonus-only factor derived from total stacked Harmonic Fragments (`F`) with diminishing returns.
     * Draft shape: `Fragment_legacy(F) = 1 + w * log(1 + F)` (with small `w`).
-    * Optional: add step tiers on top (threshold bonuses) to make progression feel “chunkier” than pure log (exact thresholds/values TBD).
+    * Optional: instead of automatic step tiers, use a dedicated long-term action/perk like **Polishing**:
+        * The player spends fragments (or a fragment-linked currency) to gain discrete **Refinement** levels.
+        * Refinement grants “chunky” nominal bumps to Resonance (exact mapping TBD).
+        * Polishing costs scale with diminishing returns (e.g., logarithmic or tier-based).
 * **Stability (Optional):** Mild factor based on Base stability this run (e.g., time spent in “safe” vs brownout), intended as a small optimization reward rather than a punishment.
 
 Design goals:
