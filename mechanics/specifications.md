@@ -201,6 +201,7 @@ Terminology:
 * **Harmonics output:** The current run’s generated high-band resource.
 * **Tuning tiers:** Milestone thresholds within a run that unlock upgrades as Harmonics output increases.
 * **Harmonics Level:** Permanent meta-progression gained via Ascension.
+* **Harmonic Fragments:** Rare physical fragments carried by the Hero and delivered to the Crystal; they contribute to the run’s “cash-in” readiness (details TBD).
 
 Immediate consequences (Ascension event):
 * **Crystal shutdown:** Base generation drops to 0.
@@ -212,6 +213,13 @@ Aftermath (new run state):
 * **Huge generation bonus:** Harmonics Level grants a large multiplicative bonus to Base generation (exact curve TBD).
 * **Unlocks:** Each Harmonics Level also unlocks new tech tiers/perks/content (details TBD).
 * **Restart staffing:** The Base begins with no crew; the Hero must recruit/rescue new staff over time.
+
+Phase shift justification (why things “reset”):
+* **Crystal phase shift:** Ascension changes the Crystal’s resonance phase. Existing tuned infrastructure becomes incompatible.
+* **Detuned stations:** Physical buildings can remain, but their calibrated components are “neutered” until re-attuned to the new phase (reactivation costs/resources TBD).
+* **Tech re-attunement:** Knowledge/blueprints can persist, but implementations must be rebuilt/recalibrated against the new phase to regain their effects.
+* **Hero independence:** The Hero and most gear are not phase-linked to the Crystal and persist normally.
+    * Optional later feature: “Crystal-bound” gear exists and is destroyed/de-tuned by Ascension.
 
 ### 3.3 Crafting Tiers (Compositions)
 The three base resources can be refined into craftable tiers.
