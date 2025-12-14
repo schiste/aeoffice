@@ -150,7 +150,7 @@ To keep formulas readable, we use these symbols:
 ### 3.1.3 Tuning Affinity (Persistence Tags)
 To keep resets consistent, every major object/system is classified by how it behaves on Tuning:
 * `untuned`: Persists across Tunings unchanged (e.g., Hero, map knowledge, `P`, `F_unspent`, most Hero gear).
-* `detuned`: Persists as a shell but loses functionality/upgrades until re-attuned (e.g., Base building shells and their upgrade state).
+* `detuned`: Persists as a physical shell but becomes inert on Tuning; upgrades reset and it must be re-attuned via a one-time payment to become operational again (e.g., most Base stations).
 * `tuned`: Run-scoped; reset/destroyed on Tuning (e.g., crew, stored pools, temporary boosts, safe spots, active expeditions).
 * Optional later: `crystal_bound`: A subtype of gear/items that are `tuned` (destroyed or detuned on Tuning).
 
@@ -162,7 +162,7 @@ Some buildings can be `untuned`:
 Upgrade reset rule (draft):
 * `tuned` buildings lose upgrade levels on Tuning.
 * `untuned` buildings keep upgrade levels on Tuning.
-* `detuned` building behavior is intended to be “kept as shells”; whether their upgrade levels persist or reset is TBD (choose a default later for consistency).
+* `detuned` buildings reset upgrade levels on Tuning and require a re-attunement payment before they can function again.
 
 ### 3.1.2 Resonance Calculation (Draft)
 Resonance is **recomputed on every Tuning** as a product of multiple factors. Some factors use the current run, and some use the prior run to reduce volatility (NGU-style “current” and “prior” terms).
@@ -318,8 +318,9 @@ Aftermath (new run state):
 Phase shift justification (why things “reset”):
 * **Crystal phase shift:** Tuning changes the Crystal’s resonance phase. Existing tuned infrastructure becomes incompatible.
 * **Detuned stations:** Physical buildings can remain as shells, but their calibrated components are “neutered” until re-attuned to the new phase.
-    * **Tuned buildings:** Any building marked `tuned` loses its upgrades on Tuning.
-    * **Untuned buildings:** Any building marked `untuned` keeps its upgrades on Tuning.
+    * **Tuned objects:** Anything marked `tuned` is reset/destroyed on Tuning (including upgrades).
+    * **Detuned buildings:** Persist placed as shells, but upgrades are reset; they must be re-attuned (one-time payment) to become operational in the new phase.
+    * **Untuned buildings:** Keep upgrades across Tunings and do not require re-attunement unless explicitly designed to.
 * **Tech re-attunement:** Knowledge/blueprints can persist, but perks/tech effects must be re-implemented/recalibrated against the new phase to become active again.
 * **Hero independence:** The Hero and most gear are not phase-linked to the Crystal and persist normally.
     * Optional later feature: “Crystal-bound” gear exists and is destroyed/de-tuned by Tuning.
