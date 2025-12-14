@@ -22,13 +22,14 @@ Replaces traditional HP.
 ### 1.3 Amplitude (Exploration)
 Map progression is physically tied to volume.
 * **Amplitude:** The radius of the safe zone around the Base Crystal.
+* **Minimum radius:** The Base (Crystal) provides a small minimum safe radius by default.
 * **Primary driver:** **Bassline** output (low-band production).
 * **Modifier:** **Harmonics** improves Crystal efficiency (tuning), increasing how much Amplitude you get from the same Bassline.
 * **Formula (placeholder):** `Amplitude = f(Bassline) * Tuning(Harmonics)`.
 * **Inertia (2-phase):** If Base generation drops sharply (or to 0), the field does not collapse instantly:
     * **Hold:** 60s with no change.
     * **Degrade:** then decays over the next 60s (curve TBD; default linear).
-        * If Base generation is **0**, Amplitude decays to **0**.
+        * If Base generation is **0**, Amplitude decays to the **minimum radius**.
         * Otherwise, Amplitude decays toward the new equilibrium.
 * **Effect:** Expanding Amplitude automatically "un-fogs" the map, revealing new dungeons and resource nodes.
 
@@ -61,9 +62,11 @@ Later in progression, the player can create forward safe spots outside the Base.
     * If a safe spot collapses, its unlocked destination becomes locked immediately and any active expeditions to that destination are automatically recalled using the Recall rules.
     * Destination locks apply to **auto expeditions only**; the Hero can still travel/quest outside safe spots.
 * **Hero rest:** Safe spots serve as rest points for the Hero during manual exploration.
-    * **Baseline effect:** Rest sets Viral Load to **0%**.
+    * **Baseline effect:** Rest reduces Viral Load to **0% over time**.
+    * **Rest rate:** Viral Load recovery rate during rest is derived from character stats (TBD; likely influenced by **Sustain**).
     * **Cost model:** Rest is “free”; the only upkeep is the safe spot’s normal Chorus consumption as a station.
     * Buffs/secondary effects TBD.
+    * **No lockout:** The Hero can leave immediately after resting (no cooldown).
 
 ### 1.6 Combat (Real-Time, Cooldown-Based)
 Encounters are real-time. Actions recharge over time (cooldowns), enabling both manual play and automation.
