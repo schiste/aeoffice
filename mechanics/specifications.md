@@ -98,11 +98,13 @@ Chorus acts as a soft power budget with competing demands:
 #### 3.2.2 Overload and Inefficiency (Brownout)
 When Chorus supply is lower than Chorus demand, the Base enters a “brownout” state instead of hard-stopping:
 * **Station penalties:** Station throughput scales down and/or some stations go offline.
-* **Staff inactivity:** If population load exceeds what Chorus can sustain, some staff become inactive (cannot be assigned to stations/expeditions until Chorus capacity increases).
+* **Staff inactivity:** If population load exceeds what Chorus can sustain, some staff become inactive. Inactive staff are **unavailable for everything** (no station work, no expeditions) until Chorus capacity increases.
 * **Recovery penalties:** Viral Load recovery inside the bubble slows and may stop at severe overload.
 * **Field penalties:** The Crystal loses efficiency: **effective Bassline and effective Harmonics are reduced**, shrinking Amplitude and making safe spots less reliable.
 
 The intended feel is a cascading failure: sending too much crew out (or powering too many stations) weakens the Base, which makes exploration riskier.
+
+Inactive staff are explained in-world as **Silence Stupor**: without enough mid-band stimulation (Chorus), the nervous system “drops out” into a protected, semi-catatonic state. They are alive, but cannot function until the field is properly powered again.
 
 #### 3.2.3 Harmonics: Continuous + Milestones
 Harmonics contributes in two ways:
@@ -116,6 +118,9 @@ Brownout behavior is automatic (no player-set priorities). A simple, readable ru
 3. **Stations last:** Station throughput is the first to degrade and/or shut down.
 
 At extreme deficit, all three suffer, and the field penalties compound (smaller Amplitude, unstable safe spots).
+
+When staff must be pushed into inactivity, the game resolves it automatically using a player-controllable rule:
+* **Last assigned, first inactive:** The most recently assigned staff are the first to become inactive as Chorus capacity drops. This makes staffing order a meaningful lever even without explicit priority controls.
 
 ### 3.3 Crafting Tiers (Compositions)
 The three base resources can be refined into craftable tiers.
@@ -156,8 +161,8 @@ Candidates:
 Tuning tiers are Harmonics milestones with music-themed names.
 
 Example ladder:
-1. **Soundcheck:** Basic tuning; improves automation reliability.
-2. **Rehearsal:** Unlocks temporary safe spot construction.
-3. **Live Set:** Increases expedition yield consistency; reduces brownout penalties.
-4. **Studio Take:** Unlocks permanent safe spot construction.
-5. **Mastering:** Major efficiency leap; raises max station tier and improves field stability.
+1. **Soundcheck:** Basic tuning; improves automation reliability and slightly improves conversion efficiency.
+2. **Rehearsal:** Unlocks **temporary safe spots** and improves brownout recovery.
+3. **Live Set:** Unlocks an additional **parallel expedition slot** and reduces brownout penalties.
+4. **Studio Take:** Unlocks **permanent safe spots** and increases safe spot stability/duration.
+5. **Mastering:** Major efficiency leap; raises max station tier, improves field stability, and increases brownout tolerance.
