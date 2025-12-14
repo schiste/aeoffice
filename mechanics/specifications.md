@@ -77,17 +77,14 @@ Encounters are real-time. Actions recharge over time (cooldowns), enabling both 
 
 ---
 
-## 2. Character Stats (The Equalizer)
-Stats primarily describe the **Hero** (combat and exploration). Some stats may also matter when the Hero is assigned to Base stations (especially the Crystal Circle).
+## 2. Hero Stats (Launch Set)
+To keep the system focused, the Hero starts with 3 primary stats. Damage and progression are primarily driven by **gear and skills**, with Theory providing a small multiplier.
 
-| Stat | Name | Active Role | Idle/Base Role |
-| :--- | :--- | :--- | :--- |
-| **STR** | **Gain** | Basic damage, carry capacity | Faster physical work when assigned (repair/build tasks; TBD). |
-| **DEX** | **Tempo** | Faster cooldown recharge, dodge/mobility | Faster station interactions when assigned (craft/research speed; TBD). |
-| **CON** | **Sustain** | Viral Load resistance; faster rest recovery | Improves survival baseline at the Base (rest rate; TBD beyond Hero). |
-| **INT** | **Theory** | Skill/utility effectiveness; puzzle solving tools (TBD) | Boosts research/upgrade efficiency when assigned (TBD). |
-| **WIS** | **Soul** | Crit chance; resistance to Silence effects (TBD) | Improves efficiency/consistency (luck/improvisation; TBD). |
-| **CHA** | **Clout** | Quest rewards and NPC outcomes (TBD) | Improves recruitment/trade/expedition outcomes (TBD). |
+* **Sustain:** Viral Load resistance and rest recovery rate.
+* **Tempo:** Cooldown recharge speed and mobility/avoidance.
+* **Theory:** Enigma support (hints/spots/clues), utility skill effectiveness, small damage multiplier, and potential Base-related perks/unlocks (TBD).
+
+Additional stats (e.g., crit/luck/social) can be added later if the game needs more build variety.
 
 ---
 
