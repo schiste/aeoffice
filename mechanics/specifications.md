@@ -108,6 +108,14 @@ Harmonics contributes in two ways:
 * **Continuous tuning:** Even small Harmonics output improves conversion efficiency (a multiplier to effective Bassline/Chorus).
 * **Tuning tiers (milestones):** Reaching Harmonics thresholds unlocks discrete upgrades (e.g., improved automation reliability, longer-lasting safe spots, better brownout tolerance, higher max station tiers).
 
+#### 3.2.4 Brownout Resolution (Automatic)
+Brownout behavior is automatic (no player-set priorities). A simple, readable rule of thumb:
+1. **Crystal Core first:** Tries to preserve the minimum needed for “safe” status and recovery.
+2. **Population load next:** Keeps staff functional as long as possible.
+3. **Stations last:** Station throughput is the first to degrade and/or shut down.
+
+At extreme deficit, all three suffer, and the field penalties compound (smaller Amplitude, unstable safe spots).
+
 ### 3.3 Crafting Tiers (Compositions)
 The three base resources can be refined into craftable tiers.
 
@@ -129,3 +137,26 @@ Progression model:
 * **Equipped class leveling:** When a crew member levels up, the level is applied to their currently equipped class.
 * **Multi-class:** Switching classes is allowed, but because level-ups get more expensive over time, taking a second/third class from 0 upward is intentionally costly.
 * **Combined performance:** When working at the Base, a crew member contributes using all of their learned class levels (each class level contributes to its band’s generation).
+
+### 3.5 Base Stations (Draft List)
+Stations consume Chorus while active and convert time + resources into progression.
+
+Candidates:
+* **Resonance Chamber:** Improves Bassline conversion into Amplitude (reach growth).
+* **Mix Console:** Improves efficiency and brownout tolerance (Harmonics-facing upgrades).
+* **Workshop:** Crafts Beats/Bars/Tracks/Albums and basic gear parts.
+* **Repair Bench:** Repairs and upgrades expedition equipment.
+* **Research Booth:** Unlocks tech trees (safe spots, automation, new station tiers).
+* **Safe Spot Fabricator:** Produces temporary/permanent safe spot modules.
+* **Infirmary:** Improves Viral Load recovery quality (faster/safer recovery thresholds).
+* **Relay Tower:** Extends map visibility, scanning, and destination discovery logic.
+
+### 3.6 Harmonics Tuning Tiers (Draft)
+Tuning tiers are Harmonics milestones with music-themed names.
+
+Example ladder:
+1. **Soundcheck:** Basic tuning; improves automation reliability.
+2. **Rehearsal:** Unlocks temporary safe spot construction.
+3. **Live Set:** Increases expedition yield consistency; reduces brownout penalties.
+4. **Studio Take:** Unlocks permanent safe spot construction.
+5. **Mastering:** Major efficiency leap; raises max station tier and improves field stability.
