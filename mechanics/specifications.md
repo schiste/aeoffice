@@ -34,6 +34,7 @@ Map progression is physically tied to volume.
     * Each map hex has a `terrain_impedance` that determines how much field charge is required to include it.
         * `terrain_impedance = base_terrain_impedance * feature_modifiers * tech_modifiers * building_modifiers`
         * Examples (placeholders): water `0.1`, plains `1.0`.
+        * Rivers can have very low impedance (sound carries well), but impedance should remain `>= 0` to avoid degenerate “negative-cost” expansions.
     * Some terrains (e.g., mountains) are **hard blockers** with `terrain_impedance = ∞` until specific research/buildings are unlocked.
     * Compute ripple coverage using hex rings, per sound source:
         * The Base Crystal is always a sound source.
@@ -107,6 +108,8 @@ Map representation:
 * Terrain:
     * Base terrain types (draft list): plain, forest, water, river, bridge, hills, mountains, city, village.
     * Tiles can also carry style/modifier tags (e.g., desert as a “sandy hills/plain” modifier) rather than requiring a separate base terrain type.
+    * Every terrain supports `occludes_ripple` and per-tile occlusion parameters, but for now **only mountains** are occluders.
+        * Rivers are not occluders; they only affect impedance.
 
 * **Manual Mode:** Direct control for exploration and encounters; best for puzzles/enigmas and high-risk pushes.
 * **Auto Mode:** The game plays on behalf of the player using the same real-time combat/action systems.
