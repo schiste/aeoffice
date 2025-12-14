@@ -597,14 +597,14 @@ Vibes generation model (draft):
     * The Fire Pit produces a base `1 Vibe per tick` (tick definition TBD).
     * Staffing the Fire Pit adds `+1 Vibe per tick` per basic crew member (multipliers TBD; crew efficiency applies).
     * The Fire Pit also has a minimum GoodVibes contribution `GoodVibes_min = n` that always applies (n TBD).
-* BadVibes:
-    * Overcapacity generates BadVibes as an upkeep-like drain that can exceed GoodVibes (making `Vibes_rate` negative).
-    * BadVibes depends on `missing_bunks = max(0, crew_count - bunks_capacity)`.
-    * Draft shape (matches “each unbunked crew adds 1” + ratio multiplier):
-        * Let `U = missing_bunks` and `C = max(1, crew_count)`.
-        * Let `r = U / C` and optionally clamp for stability: `r_eff = min(r, 0.5)` (cap TBD).
-        * `BadVibes_rate = U * (1 + β * r_eff^p)` (β and p TBD).
-    * Interpretation: each unbunked crew adds a baseline drain of 1, multiplied by how severe unbunking is.
+	* BadVibes:
+	    * Overcapacity generates BadVibes as an upkeep-like drain that can exceed GoodVibes (making `Vibes_rate` negative).
+	    * BadVibes depends on `missing_bunks = max(0, crew_count - bunks_capacity)`.
+	    * Draft shape (matches “each unbunked crew adds 1” + ratio multiplier):
+	        * Let `U = missing_bunks` and `C = max(1, crew_count)`.
+	        * Let `r = U / C`.
+	        * `BadVibes_rate = U * (1 + β * r^p)` (β and p TBD).
+	    * Interpretation: each unbunked crew adds a baseline drain of 1, multiplied by how severe unbunking is.
 
 Travel time:
 * Default travel time from Cave to Base is `6` in-world hours = `6` real minutes (using 1 min = 1 hour).
@@ -621,10 +621,16 @@ Capacity and penalties:
 * If `crew_count > bunks_capacity`, Vibes generation is penalized (“bad vibes”).
     * See `BadVibes_rate` model above.
 
-Recruiting costs and control:
-* Recruiting a crew member has a **one-time Vibes cost** paid from the current Vibes pool.
-    * The one-time cost scales with the total recruited crew count **this run** (exact curve TBD).
-    * This means the player can recruit even when `Vibes_rate` is negative, as long as they have enough Vibes stock to pay the one-time cost.
+	Recruiting costs and control:
+	* Recruiting a crew member has a **one-time Vibes cost** paid from the current Vibes pool.
+	    * The one-time cost scales with the total recruited crew count **this run**.
+	        * Goal: gentle early, steeper later.
+	        * Draft shape: `cost(n) = ceil(C0 * exp((n / k)^p))` where:
+	            * `n` is total recruited this run so far (before this recruit),
+	            * `C0 = 30` (starting cost),
+	            * `k` is a scale constant (TBD),
+	            * `p > 1` controls “accelerating” steepness (TBD).
+	    * This means the player can recruit even when `Vibes_rate` is negative, as long as they have enough Vibes stock to pay the one-time cost.
 * Negative Vibes consequences are limited to the crew efficiency penalty (no desertion/death purely from low Vibes).
 * The player can choose to send crew back to the Survivor Cave (mechanic TBD) to reduce capacity pressure and Vibes drain.
     * Sending crew back is **instant** and has no gating limitations.
