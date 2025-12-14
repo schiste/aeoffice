@@ -154,6 +154,10 @@ To keep resets consistent, every major object/system is classified by how it beh
 * `tuned`: Run-scoped; reset/destroyed on Tuning (e.g., crew, stored pools, temporary boosts, safe spots, active expeditions).
 * Optional later: `crystal_bound`: A subtype of gear/items that are `tuned` (destroyed or detuned on Tuning).
 
+Some buildings can be `untuned`:
+* They persist across Tunings.
+* They do not require Chorus power (or are otherwise exempt from brownout auto-unpower), unless explicitly designed to.
+
 ### 3.1.2 Resonance Calculation (Draft)
 Resonance is **recomputed on every Tuning** as a product of multiple factors. Some factors use the current run, and some use the prior run to reduce volatility (NGU-style “current” and “prior” terms).
 
@@ -254,6 +258,7 @@ At extreme deficit, all three suffer, and the field penalties compound (smaller 
 Player control:
 * The player can manually unpower any buildings to reduce upkeep and keep the desired set powered (as long as total upkeep can be sustained).
 * Powered state is a strategic lever: powering order matters because the automatic shutdown is LIFO.
+* `untuned` buildings are not affected by Chorus power loss unless explicitly defined as requiring Chorus.
 
 Expedition impact:
 * **Expeditions never fail:** If expedition crew are incapacitated, the expedition continues.
