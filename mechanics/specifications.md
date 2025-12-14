@@ -186,13 +186,19 @@ Draft factors:
     * Frontier is **based on max reached** (peak), not “confirmed”.
     * Frontier is **unfog-based** (Amplitude reveal), not dependent on the Hero entering the area.
     * Frontier is independent from **Depth** (no capping).
+    * Map representation:
+        * Zones have a `zone_tier` derived from **distance-to-Base**, and this tier is stored in the map data.
+        * Amplitude tiers are based on **absolute radius thresholds** (e.g., meters/tiles).
     * Hybrid shape (draft):
         * Track `zone_tier_unfog_max` = highest zone tier that became unfogged this run.
         * Track `amp_tier_max` = highest Amplitude tier achieved this run (Amplitude thresholds define tiers).
-        * Map each tier to a scalar score (exact mapping tuned later), e.g.:
+        * Map each tier to a scalar raw score (exact mapping tuned later), e.g.:
             * `ZoneScore = 1 + z * ln(1 + zone_tier_unfog_max)`
             * `AmpScore = 1 + a * ln(1 + amp_tier_max)`
-        * Combine as a geometric mean: `Frontier_now = sqrt(ZoneScore * AmpScore)`
+        * Combine as a geometric mean: `Frontier_raw = sqrt(ZoneScore * AmpScore)`
+        * Allow Frontier to be < 1.0 by normalizing against an expected “par” that scales with current progression:
+            * `Frontier_par = 1 + p * ln(1 + R_current)` (placeholder)
+            * `Frontier_now = Frontier_raw / Frontier_par`
         * Then bake in prior-run smoothing as usual: `Frontier_pair = sqrt(Frontier_now * Frontier_prev)`
     * UI note: show “Frontier” as one multiplier and optionally show the two sub-scores, but the exact internal math does not need to be fully explained to the player.
 * **Depth (Combat):** Derived from the highest boss level cleared this run.
@@ -354,10 +360,13 @@ Tier-based Resonance cost scaling:
     * Tier 1: `k = 0.0` (no Resonance scaling; cost stays the same across Tunings)
     * Higher tiers: larger `k` values (TBD ladder)
 * Let `R` be the current `Resonance` multiplier (recomputed on Tuning).
+* For cost stability (and to keep midgame affordable), costs can use an effective Resonance:
+    * `R_eff = log10(1 + R)` (so `R=100` => `R_eff ~ 2.0`)
 * Recommended shape: `cost = base_cost * (1 + k * R)`
     * If `k = 0`, cost is constant.
     * If `k > 0`, cost scales linearly with Resonance.
     * Example (early staple): Fire Pit `base_cost=10`, Tier 1 `k=0` => cost stays `10` for every Tuning regardless of Resonance.
+* If using `R_eff`, substitute it: `cost = base_cost * (1 + k * R_eff)`
 
 Scaling principle:
 * Resonance is used in both **production** and **cost scaling** (Base-side).
