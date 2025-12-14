@@ -61,6 +61,7 @@ Later in progression, the player can create forward safe spots outside the Base.
     * Permanent safe spots do not expire, but they can still go offline if Chorus cannot sustain them (destination relocks until power returns); they come back online automatically when Chorus returns.
     * If a safe spot collapses, its unlocked destination becomes locked immediately and any active expeditions to that destination are automatically recalled using the Recall rules.
     * Destination locks apply to **auto expeditions only**; the Hero can still travel/quest outside safe spots.
+* **Tuning:** Safe spots are `tuned` objects and always collapse on Tuning (even “permanent” ones).
 * **Hero rest:** Safe spots serve as rest points for the Hero during manual exploration.
     * **Baseline effect:** Rest reduces Viral Load to **0% over time**.
     * **Rest rate:** Viral Load recovery rate during rest is derived from character stats (TBD; likely influenced by **Sustain**).
@@ -138,12 +139,20 @@ Rules:
 * Upkeep vs storage behavior:
     * If `generation > upkeep`, pay upkeep and store the surplus (up to cap).
     * If `upkeep > generation`, the pool is drained to cover the deficit; if the pool hits 0, the system enters brownout behavior (see `3.2.2`).
+* On **Tuning**, all stored pools reset to **0** (run-scoped state).
 
 ### 3.1.1 Key Multipliers (Draft)
 To keep formulas readable, we use these symbols:
 * `Resonance` (`R`): The primary (and only) cross-run multiplier (NGU-style `NUMBER`). It is recalculated on each Tuning from multiple factors and applies to Base-side generation, costs, and effects. Exact factor breakdown TBD.
 * `Fragments` (`F_unspent`): Unspent Harmonic Fragments currently held by the Crystal (persistent across Tunings). Used in `Fragment_legacy` with diminishing returns.
 * `Refinement` (`P`): A single global Polishing grade (persistent across Tunings). Grants a generation multiplier and is also used for gating/unlocks (exact effects TBD).
+
+### 3.1.3 Tuning Affinity (Persistence Tags)
+To keep resets consistent, every major object/system is classified by how it behaves on Tuning:
+* `untuned`: Persists across Tunings unchanged (e.g., Hero, map knowledge, `P`, `F_unspent`, most Hero gear).
+* `detuned`: Persists as a shell but loses functionality/upgrades until re-attuned (e.g., Base building shells and their upgrade state).
+* `tuned`: Run-scoped; reset/destroyed on Tuning (e.g., crew, stored pools, temporary boosts, safe spots, active expeditions).
+* Optional later: `crystal_bound`: A subtype of gear/items that are `tuned` (destroyed or detuned on Tuning).
 
 ### 3.1.2 Resonance Calculation (Draft)
 Resonance is **recomputed on every Tuning** as a product of multiple factors. Some factors use the current run, and some use the prior run to reduce volatility (NGU-style “current” and “prior” terms).
@@ -286,7 +295,8 @@ Terminology:
 Immediate consequences (Tuning event):
 * **Crystal shutdown:** Base generation drops to 0.
 * **Crew death:** All crew members die from the virus (hard reset of staff progression).
-* **System collapse:** Safe spots collapse (Chorus-powered), destinations relock, and expeditions are auto-recalled using the Recall rules.
+* **System collapse:** Safe spots collapse (Chorus-powered), destinations relock.
+* **Expeditions lost:** All active expeditions are terminated (crew dead) and unfinished expeditions yield no loot.
 
 Aftermath (new run state):
 * **Resonance recalculated:** The next run starts with a new `Resonance` multiplier based on the Tuning inputs.
