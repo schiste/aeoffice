@@ -35,6 +35,9 @@ Expeditions are a primary way to acquire resources over time:
 * **Player choices:** Select a destination and an expedition composition (**crew only**).
 * **No failure:** Expeditions always complete; the only limiting factor is **real-time duration**.
 * **Composition effects:** Changes expedition duration, loot amount, and loot rarity.
+* **Crew slots:** Expedition composition uses up to **16** crew slots.
+* **Shared staffing:** Expedition crew comes from the same pool that powers Base sound output; sending crew out reduces Base output accordingly.
+* **Parallel runs:** Multiple expeditions can run in parallel; each consumes its assigned crew for the full duration.
 
 ### 1.5 Forward Safe Spots
 Later in progression, the player can create forward safe spots outside the Base.
@@ -79,3 +82,9 @@ Allocatable fluid resources (ala *NGU Idle*).
 1.  **Stamina (Physical):** Assigned to Mining/Hauling.
 2.  **Inspiration (Mental):** Assigned to Research/Composing.
 3.  **Hype (Social):** Assigned to Recruitment/Trade.
+
+### 3.3 Crew Archetypes and Resource Identity
+Resources are tied to crew archetypes to connect:
+* **Base output:** Who is staffing which sound-producing stations.
+* **Expeditions:** Which crew you send determines the kind/amount/rarity of resources you bring back.
+* **Progression:** Unlocking and upgrading archetypes expands both Base options and expedition outcomes.
