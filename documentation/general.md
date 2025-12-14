@@ -9,7 +9,7 @@ The world didn't end with a bang—it ended with a filter. Satellites dampen all
 
 You play a survivor with a genetic resistance (24-hour tolerance). You must build a **Base (The Studio)** centered around a Crystal that amplifies sound, pushing back the Silence to reveal the map.
 
-Outside the Base, you explore the world through **map exploration, quests, enigmas, and expeditions** (with both **manual** and **auto** play modes). Combat is **real-time** and **cooldown-based** (actions recharge over time). The Base is the primary source of sound output, produced by the crew, their equipment, and artifacts, and later progression unlocks **forward safe spots** during exploration, which are also used to unlock expedition destinations (temporarily or permanently). Expeditions can run in parallel, and they use the same crew pool as the Base (a tradeoff between exploration income and Base output).
+Outside the Base, you explore the world through **map exploration, quests, enigmas, and expeditions** (with both **manual** and **auto** play modes). Combat is **real-time** and **cooldown-based** (actions recharge over time). The Base is the primary source of sound output, produced by the crew, their equipment, and artifacts. This sound is treated as three base resources (low/mid/high band) that affect the Crystal field differently. Later progression unlocks **forward safe spots** during exploration, which are also used to unlock expedition destinations (temporarily or permanently). Expeditions can run in parallel, and they use the same crew pool as the Base (a tradeoff between exploration income and Base output).
 
 ## 🛠️ Tech Stack
 * **Engine:** Godot 4.x (Compatibility Renderer for Web support).
