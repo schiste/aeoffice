@@ -197,6 +197,7 @@ Design goals:
 * Different playstyles can emphasize different factors (reach vs depth vs mastery).
 * Factors should be readable in UI as separate “track ratings” that multiply into the final Resonance.
 * Factors can be < 1.0, so short/poor runs can reduce Resonance (floored at `R_floor = 1.0`).
+* Active playtime is bonus-only (should not penalize Resonance).
 
 ### 3.2 The Field as Three Axes
 The Crystal field is affected by the three resources in different ways:
