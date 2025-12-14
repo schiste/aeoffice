@@ -28,7 +28,7 @@ Single source checklist for what must exist for a playable vertical slice.
 - [ ] Define building caps system (`max_count`, `cap_group`) per building type
 - [ ] Specify detuned → attuned re-attunement costs/conditions per building/tech/perk
 - [ ] Specify Bunks + Vibes system (capacity, upkeep, overcapacity penalty, tuning reset)
-- [ ] Finalize negative-Vibes penalty scope + formula (global multiplier details)
+- [ ] Finalize negative-Vibes penalty scope + formula (crew efficiency multiplier)
 - [ ] Finalize instant recruit stock `X` function (how it is earned/refreshes)
 
 ## Combat + Enemies
