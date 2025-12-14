@@ -622,6 +622,18 @@ Recruiting costs and control:
     * Sending crew back is **instant** and has no gating limitations.
     * There is no refund of the one-time Vibes recruit cost.
     * Sent-back crew are removed for the rest of the run (not re-recruitable unless a later system adds it).
+    * Immediate effects:
+        * They stop consuming Vibes immediately.
+        * They are removed from `crew_count` immediately (so Bunks/BadVibes update immediately).
+    * Restrictions:
+        * Crew cannot be sent back while assigned to expeditions (Base-only activities only).
+
+Recruit spending rule:
+* The player can only recruit if they have enough Vibes in stock to pay the one-time recruit cost (no “going into debt” via recruitment).
+
+Instant vs timed arrivals:
+* Recruitment uses the instant-arrival stock first (if `instant_recruits_available > 0`), then falls back to timed travel arrivals.
+* This behavior is automatic and mandatory (no manual override).
 
 ### 3.5 Base Stations (Draft List)
 Stations consume Chorus while active and convert time + resources into progression.
