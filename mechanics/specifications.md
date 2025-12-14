@@ -25,7 +25,9 @@ Map progression is physically tied to volume.
 * **Primary driver:** **Bassline** output (low-band production).
 * **Modifier:** **Harmonics** improves Crystal efficiency (tuning), increasing how much Amplitude you get from the same Bassline.
 * **Formula (placeholder):** `Amplitude = f(Bassline) * Tuning(Harmonics)`.
-* **Inertia:** If Base generation drops sharply (or to 0), the field does not collapse instantly; it decays over a short inertia window (**60s**).
+* **Inertia (2-phase):** If Base generation drops sharply (or to 0), the field does not collapse instantly:
+    * **Hold:** 60s with no change.
+    * **Degrade:** then decays toward the new equilibrium over the next 60s (curve TBD; default linear).
 * **Effect:** Expanding Amplitude automatically "un-fogs" the map, revealing new dungeons and resource nodes.
 
 ### 1.4 Exploration, Quests, Enigmas, Expeditions
@@ -50,6 +52,7 @@ Later in progression, the player can create forward safe spots outside the Base.
 * **Destination unlock:** Safe spots are the mechanism to unlock expedition destinations.
     * **Temporary safe spot:** Unlocks a destination for a limited time.
     * **Permanent safe spot:** Unlocks a destination forever.
+* **Power model:** Safe spots are powered by **Chorus** (not Bassline/Amplitude). If Chorus cannot sustain them, they collapse immediately (no inertia).
 
 ### 1.6 Combat (Real-Time, Cooldown-Based)
 Encounters are real-time. Actions recharge over time (cooldowns), enabling both manual play and automation.
@@ -142,7 +145,7 @@ Expedition impact:
 * **Crew locking:** Expedition crew are locked for the duration of the expedition (unless recalled).
 * **Recall (Call Back):** An expedition can be recalled mid-run to free its crew.
     * **Return lag:** If the expedition is `p` complete (`0..1`), return time is `p * 120s`.
-    * **Partial loot:** On recall, loot quantity/volume is reduced by `loot_multiplier = 0.66 * p` (floored down when discrete items require it); rarity is unchanged.
+    * **Partial loot:** On recall, loot quantity/volume is reduced by `loot_multiplier = 0.66 * p` (floored down per item type when discrete items require it); rarity is unchanged.
     * **Frozen state:** If an expedition is stalled (`H = 0`), its progress is frozen (no regression); the crew is treated as unconscious and remains where they are with what they found.
 
 ### 3.3 Crafting Tiers (Compositions)
