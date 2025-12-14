@@ -133,7 +133,9 @@ Recovery:
 
 Expedition impact:
 * **Expeditions never fail:** If expedition crew become inactive and are removed, the expedition continues.
-* **Handicap factor:** Apply `H = 1 - (incapacitated_expedition_crew / initial_expedition_crew)` as an additional penalty on top of losing that crew’s bonuses. (Exact mapping to remaining duration and rewards to be finalized.)
+* **Handicap factor:** Apply `H = 1 - (incapacitated_expedition_crew / initial_expedition_crew)` as an additional penalty on top of losing that crew’s bonuses.
+* **Duration + rewards:** `H` scales both expedition progress rate (remaining duration) and rewards.
+* **Hard stall at H=0:** If all expedition crew are removed (`H = 0`), the expedition makes no progress until capacity returns and crew can be assigned again.
 
 ### 3.3 Crafting Tiers (Compositions)
 The three base resources can be refined into craftable tiers.
@@ -151,7 +153,7 @@ Every living person you gain becomes Base staff ("crew"). Crew members are sound
 * **Synth (Harmonics):** High-band output.
 
 Special case:
-* **The Hero:** The Hero can be assigned to the Crystal Circle and cannot be forced into Silence Stupor, ensuring a minimum possible contribution to Base generation.
+* **The Hero:** The Hero can be assigned to the Crystal Circle and cannot be forced into Silence Stupor, but is unavailable while exploring manually (Base generation can drop to 0).
 
 Progression model:
 * **Experience (XP):** Crew gains XP from Base work and expeditions (expeditions grant much more).
