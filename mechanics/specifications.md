@@ -20,12 +20,13 @@ Replaces traditional HP.
 * **Edge cases:** If the bubble shrinks and the Hero is now outside safe coverage, Viral Load increase applies immediately (no grace).
 * **UI:** Displayed as a "Vitals Monitor" waveform, not a red bar.
 
-### 1.3 Amplitude (Exploration)
-Map progression is physically tied to volume.
-* **Amplitude:** The radius of the safe zone around the Base Crystal.
-* **Minimum radius:** Default is `0` tiles (Base tile only).
+### 1.3 Bubble (Coverage & Reach)
+Map progression is physically tied to the Crystal’s expanding soundfield.
+* **Bubble coverage (`Bubble`):** The set of hexes currently considered safe (Chorus-accessible), computed from ripple propagation rules.
+* **Base reach (`ReachFromBase`):** The maximum hex distance from the Base to any hex in `Bubble` (used for progression/tiering).
+* **Minimum bubble:** Default is the Base tile only (`ReachFromBase = 0`).
 * **Primary driver:** **Bassline stored pool** (low-band stored resource), not just current output rate.
-* **Modifier:** **Harmonics** improves Crystal efficiency (tuning), increasing how much Amplitude you get from the same Bassline.
+* **Modifier:** **Harmonics** improves Crystal efficiency (tuning), increasing how much bubble coverage you get from the same stored Bassline.
 * **Formula (preferred physical model: ripple rings):**
     * Let `Bassline_pool` be the current stored Bassline.
     * Let `Harmonics_raw` be the current high-band production rate (per second) (derived from tick contributions).
@@ -82,8 +83,8 @@ Map progression is physically tied to volume.
             * Adding a new loudspeaker adds tiles to many `Ring(k)` sets, increasing `ring_cost[k]`.
             * With a fixed `Bassline_field`, this can open new directions while reducing the reachable layer elsewhere.
         * UI/tiering:
-            * `Amplitude_layer` is the primary bubble expansion metric.
-            * `MaxReachFromBase = max hex_distance(base, tile)` over all tiles currently in `Bubble` can be shown as a secondary stat.
+            * `Amplitude_layer` is the computed ripple expansion layer (wavefront depth).
+            * `ReachFromBase = max hex_distance(base, tile)` over all `tile` currently in `Bubble`.
     * **Mitigation via new emitters (Loudspeakers):**
         * Some buildings can act as additional **Bassline emitters** (new spawning points for the ripple).
         * Loudspeakers are **relays**: they do not get a separate Bassline allocation; they use the same global `Bassline_field` budget and allow propagation into regions that were shadowed from the Base by providing an alternate line-of-sight source.
@@ -102,16 +103,16 @@ Map progression is physically tied to volume.
 * **Formula (approximation for tuning/UI; optional):**
     * When a full ring-cost inversion is undesirable (e.g., early prototype), approximate with:
         * `Amplitude_radius ≈ base_min_radius_tiles + C_r * (Bassline_field)^α` with default `α = 0.5`.
-    * Player control: because Bassline is a stored pool used for many things, the player can effectively choose to grow/shrink Amplitude by choosing when to accumulate Bassline versus spending it elsewhere.
-    * Later tech/perk: allow setting a **Bassline storage floor** > 0 so Amplitude cannot collapse fully (stability tool).
+    * Player control: because Bassline is a stored pool used for many things, the player can effectively choose to grow/shrink bubble coverage by choosing when to accumulate Bassline versus spending it elsewhere.
+    * Later tech/perk: allow setting a **Bassline storage floor** > 0 so the bubble cannot collapse fully (stability tool).
         * Early-game default: spending Bassline for other actions can immediately shrink the bubble (intended as a meaningful tradeoff).
         * “Field reserve” is a later tech: the player can lock some stored Bassline as bubble-reserved so it cannot be spent accidentally.
-* **Inertia (2-phase):** If Base generation drops sharply (or to 0), the field does not collapse instantly:
-    * **Hold:** 60s with no change.
-    * **Degrade:** then decays over the next 60s (curve TBD; default linear).
-        * If Base generation is **0**, Amplitude decays to the **minimum radius**.
-        * Otherwise, Amplitude decays toward the new equilibrium.
-* **Effect:** Expanding Amplitude automatically "un-fogs" the map, revealing new dungeons and resource nodes.
+* **Inertia (2-phase):** If target bubble coverage drops sharply, the bubble does not collapse instantly:
+    * **Hold:** 10s with no change.
+    * **Degrade:** then decays over the next 10s (curve TBD; default linear).
+        * If `Bassline_field` is **0**, the bubble decays to the **minimum bubble** (Base tile only).
+        * Otherwise, the bubble decays toward the new equilibrium.
+* **Effect:** Expanding the bubble gradually "un-fogs" the map, revealing new dungeons and resource nodes.
     * **Reveal pacing:** newly eligible hexes are revealed gradually at `reveal_rate_hexes_per_second` (tuned later), rather than instantly revealing the entire radius in one frame.
     * **Eligibility:** a hex becomes eligible for reveal if it is in the current bubble coverage set (union of active-source ripples; see above).
     * **Persistence:** once a hex is revealed, it remains revealed permanently even if it later becomes unsafe.
@@ -150,7 +151,7 @@ Map representation:
 * **Manual Mode:** Direct control for exploration and encounters; best for puzzles/enigmas and high-risk pushes.
 * **Auto Mode:** The game plays on behalf of the player using the same real-time combat/action systems.
 
-Expeditions are a primary way to acquire resources over time:
+Expeditions are a primary way to acquire loot over time:
 * **Player choices:** Select a destination and an expedition composition (**crew only**).
 * **No failure:** Expeditions always complete; the only limiting factor is **real-time duration**.
 * **Composition effects:** Changes expedition duration, loot amount, and loot rarity.
@@ -169,14 +170,14 @@ Later in progression, the player can create forward safe spots outside the Base.
 * **Destination unlock:** Safe spots are the mechanism to unlock expedition destinations.
     * **Temporary safe spot:** Unlocks a destination for a limited time.
     * **Permanent safe spot:** Unlocks a destination forever.
-* **Power model:** Safe spots are powered by **Chorus** (not Bassline/Amplitude). They consume Chorus like stations do.
+* **Power model:** Safe spots are powered by **Chorus** (not Bassline/bubble reach). They consume Chorus like stations do.
     * If Chorus cannot sustain them, they collapse immediately (no inertia).
     * Temporary safe spots also collapse when their duration ends, regardless of power state (vanish immediately).
     * Permanent safe spots do not expire, but they can still go offline if Chorus cannot sustain them (destination relocks until power returns); they come back online automatically when Chorus returns.
     * If a safe spot collapses, its unlocked destination becomes locked immediately and any active expeditions to that destination are automatically recalled using the Recall rules.
     * Destination locks apply to **auto expeditions only**; the Hero can still travel/quest outside safe spots.
     * **Tuning:** Safe spots are `tuned` objects and always collapse on Tuning (even “permanent” ones).
-    * **Bubble dependency:** Safe spots require Chorus access; if a safe spot falls outside the Base bubble (Amplitude shrinks), it loses Chorus access and goes offline (treated as a collapse for destination/unlock purposes).
+    * **Bubble dependency:** Safe spots require Chorus access; if a safe spot falls outside the Base bubble (bubble shrinks), it loses Chorus access and goes offline (treated as a collapse for destination/unlock purposes).
         * This is immediate (no inertia), like a light turning off.
 * **Hero rest:** Safe spots serve as rest points for the Hero during manual exploration.
     * **Baseline effect:** Rest reduces Viral Load to **0% over time**.
@@ -240,7 +241,7 @@ The economy is powered by three base resources generated through sound productio
 * **Chorus (Mid Band):** Mid-frequency energy (body and presence).
 * **Harmonics (High Band):** High-frequency energy (detail and coherence).
 
-These resources are generated by crew roles (classes) staffing the Base and are also a primary output of expeditions.
+These resources are generated by crew roles (classes) staffing the Base. Expeditions bring back loot/materials that are processed at the Base and converted into these resources (conversion systems TBD).
 
 ### 3.1.0 Resource Model (Rates + Storage)
 Each base resource exists as both:
@@ -310,9 +311,9 @@ High-level shape (placeholder):
 * Pair factors are typically geometric means, e.g. `Time_pair = sqrt(Time_now * Time_prev)`.
 
 Draft factors:
-* **Frontier (Reach):** A hybrid reach factor derived from what the Crystal field reveals (unfog) and the maximum Amplitude achieved this run.
+* **Frontier (Reach):** A hybrid reach factor derived from what the Crystal field reveals (unfog) and the maximum reach achieved from the Base this run.
     * Frontier is **based on max reached** (peak), not “confirmed”.
-    * Frontier is **unfog-based** (Amplitude reveal), not dependent on the Hero entering the area.
+    * Frontier is **unfog-based** (bubble reveal), not dependent on the Hero entering the area.
     * Frontier is independent from **Depth** (no capping).
     * Map representation:
         * Zones have a `zone_tier` derived from **distance-to-Base** (in tiles), and this tier is stored in the map data.
@@ -327,17 +328,17 @@ Draft factors:
                     * `0` if `distance_tiles(tile, base) == 0`
                     * otherwise the smallest `t >= 1` such that `distance_tiles(tile, base) <= ring_radius[t]`.
             * For a hex grid, `distance_tiles` refers to hex distance.
-        * Amplitude tiers are based on **absolute radius thresholds** (tiles).
-            * Draft linking rule: **every 5 zone rings define one Amplitude tier threshold**, so:
-                * `amp_threshold[0] = base_min_radius_tiles` (baseline tier at the Base minimum radius)
-                * `amp_threshold[k] = ring_radius[5 * k]` for `k >= 1`
+        * Reach tiers are based on **absolute distance-from-Base thresholds** (tiles).
+            * Draft linking rule: **every 5 zone rings define one reach tier threshold**, so:
+                * `reach_threshold[0] = base_min_radius_tiles` (baseline tier at the Base minimum radius)
+                * `reach_threshold[k] = ring_radius[5 * k]` for `k >= 1`
     * Hybrid shape (draft):
         * Track `zone_tier_unfog_max` = highest zone tier that became unfogged this run.
-        * Track `amp_tier_max` = highest Amplitude tier achieved this run (Amplitude thresholds define tiers).
+        * Track `reach_tier_max` = highest reach tier achieved this run, defined from `MaxReachFromBase`.
         * Map each tier to a scalar raw score (exact mapping tuned later), e.g.:
             * `ZoneScore = 1 + z * ln(1 + zone_tier_unfog_max)`
-            * `AmpScore = 1 + a * ln(1 + amp_tier_max)`
-        * Combine as a geometric mean: `Frontier_raw = sqrt(ZoneScore * AmpScore)`
+            * `ReachScore = 1 + a * ln(1 + reach_tier_max)`
+        * Combine as a geometric mean: `Frontier_raw = sqrt(ZoneScore * ReachScore)`
         * Allow Frontier to be < 1.0 by normalizing against the prior run’s raw reach (acts as a moving “par”):
             * Track `Frontier_prev_raw` from the prior run.
             * `ratio = Frontier_raw / max(epsilon, Frontier_prev_raw)`
@@ -397,7 +398,7 @@ Design goals:
 ### 3.2 The Field as Three Axes
 The Crystal field is affected by the three resources in different ways:
 
-* **Bassline -> Reach:** Stored Bassline drives safe radius (Amplitude).
+* **Bassline -> Reach:** Stored Bassline drives bubble coverage and Base reach.
 * **Chorus -> Power:** Powers Base stations and “life support” inside the field (how many systems can run, and how many people can be actively sustained as staff).
 * **Harmonics -> Efficiency (Tuning):** Improves Crystal conversion efficiency for all three resources (hybrid: smooth + milestones), unlocking advanced upgrades/capabilities.
 
@@ -412,7 +413,7 @@ Chorus is the Base’s primary “power” resource.
 When the Chorus pool is drained and upkeep exceeds generation, the Base enters a “brownout” state instead of hard-stopping:
 * **Power loss (unpowered buildings):** Some buildings/stations become unpowered, reducing throughput and disabling their effects until power returns.
 * **Recovery penalties:** Viral Load recovery inside the bubble slows and may stop at severe brownouts.
-* **Field penalties:** The Crystal loses efficiency: **effective Bassline and effective Harmonics are reduced**, shrinking Amplitude and making safe spots less reliable.
+* **Field penalties:** The Crystal loses efficiency: **effective Bassline and effective Harmonics are reduced**, shrinking the bubble and making safe spots less reliable.
 
 The intended feel is a cascading failure: sending too much crew out (or powering too many stations) weakens the Base, which makes exploration riskier.
 
@@ -426,7 +427,7 @@ Brownout behavior is driven by what remains powered. A simple, readable rule of 
 1. **Upkeep first:** The system attempts to pay building upkeep from generation, then from the pool.
 2. **Auto-unpower (LIFO):** If still in deficit, buildings are unpowered automatically using **last powered, first unpowered**.
 
-At extreme deficit, all three suffer, and the field penalties compound (smaller Amplitude, unstable safe spots).
+At extreme deficit, all three suffer, and the field penalties compound (smaller bubble, unstable safe spots).
 
 Player control:
 * The player can manually unpower any buildings to reduce upkeep and keep the desired set powered (as long as total upkeep can be sustained).
@@ -553,7 +554,7 @@ Stations consume Chorus while active and convert time + resources into progressi
 
 Candidates:
 * **Crystal Circle:** Staff “play” to generate Bassline/Chorus/Harmonics for the Crystal (producer; does not consume Chorus).
-* **Resonance Chamber:** Improves Bassline conversion into Amplitude (reach growth).
+* **Resonance Chamber:** Improves Bassline conversion into bubble reach.
 * **Mix Console:** Improves efficiency and brownout tolerance (Harmonics-facing upgrades).
 * **Workshop:** Crafts Beats/Bars/Tracks/Albums and basic gear parts.
 * **Repair Bench:** Repairs and upgrades expedition equipment.

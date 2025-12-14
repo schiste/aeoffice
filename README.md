@@ -1,3 +1,7 @@
-# AD&D
+# Advanced Drummers and Dungeons (AD&D)
 
-Private repository for AD&D materials.
+Design documents for **Advanced Drummers and Dungeons (AD&D)**.
+
+- Overview: `documentation/general.md`
+- Mechanics spec: `mechanics/specifications.md`
+- Lore bible: `lore/lore.md`

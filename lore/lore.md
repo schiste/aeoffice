@@ -1,7 +1,7 @@
 # World Bible: The World of Silence
 
 ## 1. The Catastrophe
-* **Event:** "The Filter." Unknown satellites activated simultaneously, dampening all global audio between 20Hz and 15kHz.
+* **Event:** "The Filter." Unknown satellites activated simultaneously, massively attenuating most audible sound globally (approx. 20Hz–15kHz).
 * **Result:** Global silence. Communication collapse. Mass panic.
 
 ## 2. The Sickness (Viral Mechanics)
