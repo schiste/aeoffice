@@ -84,6 +84,25 @@ To keep the system focused, the Hero starts with 3 primary stats. Damage and pro
 * **Tempo:** Cooldown recharge speed and mobility/avoidance.
 * **Theory:** Enigma support (hints/spots/clues), utility skill effectiveness, small damage multiplier, and potential Base-related perks/unlocks (TBD).
 
+### 2.1 Theory as a “Multiplier Multiplier”
+To keep Theory’s damage impact very small early and more relevant later, it primarily amplifies **bonuses** rather than base damage.
+
+Design principle:
+* Early game bonuses are small, so Theory does almost nothing.
+* Late game gear/skill bonuses are larger, so Theory meaningfully amplifies them.
+
+Example mapping (placeholder):
+* Let `M` be a multiplicative damage bonus from gear/skills/buffs (e.g., `M = 1.20` for +20%).
+* Let `T` be the Hero’s Theory value.
+* Compute `theory_bonus = k * T` (with a small `k`, tuned later).
+* Then make the bonus portion stronger: `M' = 1 + (M - 1) * (1 + theory_bonus)`.
+
+### 2.2 Enigma Support (Passive Thresholds)
+Theory unlocks exploration/enigma assistance via passive thresholds (values TBD), such as:
+* Reveal an additional clue “layer” on the map.
+* Highlight suspicious tiles/objects (“spots”).
+* Unlock optional hint text or a limited “analysis” overlay.
+
 Additional stats (e.g., crit/luck/social) can be added later if the game needs more build variety.
 
 ---
