@@ -147,6 +147,7 @@ Draft factors:
     * Track `active_minutes` via a **gameplay-action heartbeat**:
         * On meaningful gameplay actions (move/skill/use/interact/puzzle progress), update `last_action_time`.
         * While in manual gameplay (exploration/combat/enigma screens; excluding menus/pauses), count time as active as long as `now - last_action_time <= 30 minutes` (inclusive “grace” window for thinking/reading).
+        * If the game loses focus/minimizes, stop counting active time immediately (grace period applies only while focused).
     * `Active(active_minutes) = 1 + a * log(1 + active_minutes)` with small `a` (diminishing returns).
     * Use `Active_pair = sqrt(Active_now * Active_prev)` to bake in prior-run terms.
 * **Mastering (Harmonics):** Derived from “banked Harmonics” during the run (e.g., integrated Harmonics output and/or key Harmonics milestones).
