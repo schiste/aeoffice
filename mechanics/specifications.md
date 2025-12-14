@@ -41,19 +41,23 @@ Map progression is physically tied to volume.
                 * `terrain_impedance(tile)` controls how expensive the tile is.
                 * `occludes_ripple(tile)` controls whether it blocks propagation (casts a shadow).
                 * Example: mountains are `occludes_ripple = true` and start as `terrain_impedance = ∞`.
-                * Passing an occluder (mountains or any future blocker) requires dedicated tech/buildings (see Loudspeakers and “over-the-top” tech below).
+                * Occlusion is persistent: even if some tech/buildings reduce a blocker’s impedance later, it can still cast a shadow unless a dedicated “over-the-top” solution is active.
+                * There is no “tunneling/bending” through occluders: you either go around (relays) or over (late tech/buildings).
             * Define `is_blocker(tile) := terrain_impedance(tile) = ∞` (until mitigated).
-            * Define `is_shadowed(tile)` using hex line-of-sight from Base:
-                * Draw the hex line from `base` to `tile` (cube-coordinate line; details TBD).
-                * If any intermediate hex on that line has `occludes_ripple = true`, then `tile` is shadowed.
+            * Define `is_shadowed(source, tile)` using hex line-of-sight:
+                * `source` can be the Base Crystal or an active Loudspeaker relay.
+                * Draw the hex line from `source` to `tile` (cube-coordinate line; details TBD).
+                * If any intermediate hex on that line has `occludes_ripple = true`, then `tile` is shadowed from that source.
                 * Shadow “widening + depth cap” (real-ripple feel):
-                    * Each occluder tile defines `shadow_max_depth_tiles` (how far the shadow extends) and optional width parameters.
+                    * Each occluder tile instance defines `shadow_max_depth_tiles` (how far the shadow extends) and optional width parameters.
                     * The shadow cone widens slightly with distance (“a mountain blocks a bit more far away than close”), but is clamped:
                         * `shadow_width(d) = clamp(width0 + width_slope * d, 0, width_max)`
                         * and does not apply past `shadow_max_depth_tiles`.
                     * Parameters are tuned later; the key rule is: widening is small, clamped, and per-tile-configurable.
-            * Blockers and shadowed tiles are excluded from field inclusion until mitigation.
-        * `ring_cost[d] = Σ terrain_impedance(tile)` for all tiles at distance `d` where `!is_blocker(tile) && !is_shadowed(tile)`.
+            * Ring-cost inclusion rule (for Base ripple boundary):
+                * A tile is excluded if it is a blocker.
+                * Otherwise, a tile is excluded if it is shadowed from the **Base** (relays do not change the Base boundary; they only fill coverage inside it).
+        * `ring_cost[d] = Σ terrain_impedance(tile)` for all tiles at distance `d` that are eligible under the ring-cost inclusion rule.
         * `cumulative_cost[r] = Σ_{d=1..r} ring_cost[d]`
     * The bubble unfogs as a perfect ripple (no bending): it expands by complete rings.
     * Define radius (tiles) as: `Amplitude_radius = max r such that cumulative_cost[r] <= Bassline_field * K_field`
@@ -61,15 +65,18 @@ Map progression is physically tied to volume.
         * In mostly-uniform terrain, this produces a natural `sqrt` feel (`r ~ sqrt(Bassline_field)`), matching the desired early-game curve.
     * **Mitigation via new emitters (Loudspeakers):**
         * Some buildings can act as additional **Bassline emitters** (new spawning points for the ripple).
-        * Each emitter produces its own circular ripple (no bending) from its location; the revealed/safe region is the **union** of emitter ripples.
-        * Emitters are **relays**: they do not get a separate Bassline allocation; they use the same global `Bassline_field` budget and simply allow the ripple to propagate in new directions (by changing line-of-sight against occluders).
+        * Loudspeakers are **relays**: they do not get a separate Bassline allocation; they use the same global `Bassline_field` budget and allow propagation into regions that were shadowed from the Base by providing an alternate line-of-sight source.
+        * The bubble boundary (Amplitude radius) remains the Base-centered ripple; relays only change which tiles *within* that radius are eligible for safety/Chorus and unfog (they fill shadowed sectors).
         * Power/placement rules:
             * Loudspeakers are Chorus-powered stations: they have Chorus upkeep when Attuned.
             * Loudspeakers can only be placed **inside** the current bubble (they require Chorus access).
-            * If a loudspeaker loses Chorus (e.g., falls outside the bubble due to shrink), it turns off immediately. This can instantly remove access to regions that only existed via that relay (the union shrinks immediately).
-            * Once Chorus returns, the loudspeaker turns back on and the field resumes its previous coverage immediately (no “re-conquer” of previously revealed tiles).
+            * If a loudspeaker loses Chorus (e.g., falls outside the bubble due to shrink), it turns off immediately. This can instantly remove access to regions that only existed via that relay (coverage shrinks immediately).
+            * Once Chorus returns, the loudspeaker turns back on and the **safety coverage** resumes immediately (no “re-conquer” of previously revealed tiles).
         * “Over-the-top” tech:
-            * A dedicated late-game tech/building can allow propagation **over** occluders (mountains), reducing or bypassing shadowing rules. (Exact unlock and math TBD.)
+            * Progression can offer both:
+                * a global tech unlock that allows propagation **over** occluders (mountains), and/or
+                * a building-based solution that projects “over the top” for a limited region.
+            * These reduce or bypass shadowing rules. (Exact unlocks and math TBD.)
 * **Formula (approximation for tuning/UI; optional):**
     * When a full ring-cost inversion is undesirable (e.g., early prototype), approximate with:
         * `Amplitude_radius ≈ base_min_radius_tiles + C_r * (Bassline_field)^α` with default `α = 0.5`.
@@ -84,7 +91,12 @@ Map progression is physically tied to volume.
         * Otherwise, Amplitude decays toward the new equilibrium.
 * **Effect:** Expanding Amplitude automatically "un-fogs" the map, revealing new dungeons and resource nodes.
     * **Reveal pacing:** newly eligible hexes are revealed gradually at `reveal_rate_hexes_per_second` (tuned later), rather than instantly revealing the entire radius in one frame.
-    * **Eligibility:** even if a hex is within `Amplitude_radius`, it is not revealed if it is a blocker or shadowed (until the relevant mitigation is unlocked).
+    * **Eligibility:** a hex becomes eligible for reveal if it is inside the Base bubble boundary (`hex_distance(base, tile) <= Amplitude_radius`) and it has ripple access:
+        * It is not a blocker, and either:
+            * it is not shadowed from the Base, or
+            * it is not shadowed from at least one currently active Loudspeaker relay.
+    * **Persistence:** once a hex is revealed, it remains revealed permanently even if it later becomes unsafe.
+    * **Safety rule:** outside current bubble coverage, there is no Chorus access; any Chorus-dependent objects outside go offline immediately.
 
 ### 1.4 Exploration, Quests, Enigmas, Expeditions
 Outside the Base, the player explores the map to discover locations, complete quests, solve enigmas, and run expeditions.
@@ -92,6 +104,7 @@ Outside the Base, the player explores the map to discover locations, complete qu
 Map representation:
 * The world map uses a **hex grid**.
 * Distance and rings are computed using hex distance (implementation details TBD; recommend **cube coordinates**).
+* **Reveal vs safety:** fog-of-war reveal is permanent (map knowledge persists), but safety/Chorus access depends on current bubble coverage.
 * Terrain:
     * Base terrain types (draft list): plain, forest, water, river, bridge, hills, mountains, city, village.
     * Tiles can also carry style/modifier tags (e.g., desert as a “sandy hills/plain” modifier) rather than requiring a separate base terrain type.
