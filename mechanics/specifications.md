@@ -161,6 +161,12 @@ World scale + time scale (draft):
 * **1 tile = 4 km** (~1 hour walk for a person under normal conditions).
 * **1 minute real time = 1 hour in-world time** (default simulation scale for travel and timers).
 
+Tick system (draft):
+* The game uses a single global simulation **tick** with duration `tick_seconds` (real seconds; TBD).
+* In-world time advances at `60x` real time, so:
+    * `in_world_seconds_per_tick = tick_seconds * 60`
+* Any mechanic described as “per tick” uses this global tick (including Vibes and recruitment timers).
+
 * **Manual Mode:** Direct control for exploration and encounters; best for puzzles/enigmas and high-risk pushes.
 * **Auto Mode:** The game plays on behalf of the player using the same real-time combat/action systems.
 
@@ -594,9 +600,9 @@ Vibes generation model (draft):
 * Vibes generation is produced by the Fire Pit and reduced by “bad vibes” pressure:
     * `Vibes_rate = GoodVibes_rate - BadVibes_rate`
 * GoodVibes:
-    * The Fire Pit produces a base `1 Vibe per tick` (tick definition TBD).
+    * The Fire Pit produces a base `1 Vibe per tick`.
     * Staffing the Fire Pit adds `+1 Vibe per tick` per basic crew member (multipliers TBD; crew efficiency applies).
-    * The Fire Pit also has a minimum GoodVibes contribution `GoodVibes_min = n` that always applies (n TBD).
+    * The Fire Pit also has a minimum GoodVibes contribution `GoodVibes_min = n` that always applies (n TBD; do not assume relationship to the base 1/tick).
 * BadVibes:
 	    * Overcapacity generates BadVibes as an upkeep-like drain that can exceed GoodVibes (making `Vibes_rate` negative).
 	    * BadVibes depends on `missing_bunks = max(0, crew_count - bunks_capacity)`.
@@ -605,7 +611,7 @@ Vibes generation model (draft):
 	        * Let `r = U / C`.
         * `BadVibes_rate = U * (1 + β * r^p)` (β and p TBD).
     * Interpretation: each unbunked crew adds a baseline drain of 1, multiplied by how severe unbunking is.
-    * Tuning anchor (current): when `crew_count=20` and `bunks_capacity=10` (`U=10`, `r=0.5`), target `BadVibes_rate ~ 600` (units per tick TBD).
+    * Tuning anchor (current): when `crew_count=20` and `bunks_capacity=10` (`U=10`, `r=0.5`), target `BadVibes_rate ~ 600` (per tick).
 
 Travel time:
 * Default travel time from Cave to Base is `6` in-world hours = `6` real minutes (using 1 min = 1 hour).
@@ -626,12 +632,19 @@ Recruiting costs and control:
 * Recruiting a crew member has a **one-time Vibes cost** paid from the current Vibes pool.
     * The one-time cost scales with the total recruited crew count **this run**.
         * Goal: gentle early, steeper later.
-        * Draft shape: `cost(n) = ceil(C0 * exp((n / k)^p))` where:
-            * `n` is total recruited this run so far (before this recruit),
-            * `C0 = 30` (starting cost),
-            * `k` is a scale constant (TBD),
-            * `p > 1` controls “accelerating” steepness (TBD).
-        * Tuning anchor (current): `cost(30) = 30` (interpretation and curve parameters TBD; do not assume).
+        * Base: `C0 = 30` (starting cost for the first recruit).
+        * Draft shape (piecewise acceleration): `cost(n) = ceil(C0 * exp(f(n)))`, where `f(n)` accelerates in stages:
+            * For `0 <= n < 30`: very gentle growth
+            * For `30 <= n < 100`: moderate growth
+            * For `100 <= n < 500`: stronger acceleration
+            * For `n >= 500`: full exponential growth
+        * One possible family (parameters TBD; do not assume):
+            * `f(n) = (n / k1)^p1` for `n < 30`
+            * `f(n) = (n / k2)^p2` for `30 <= n < 100`
+            * `f(n) = (n / k3)^p3` for `100 <= n < 500`
+            * `f(n) = (n / k4)^p4` for `n >= 500`
+            * with `p1 < p2 < p3 < p4`
+            * `n` is total recruited this run so far (before this recruit).
     * This means the player can recruit even when `Vibes_rate` is negative, as long as they have enough Vibes stock to pay the one-time cost.
 * Negative Vibes consequences are limited to the crew efficiency penalty (no desertion/death purely from low Vibes).
 * The player can choose to send crew back to the Survivor Cave (mechanic TBD) to reduce capacity pressure and Vibes drain.
