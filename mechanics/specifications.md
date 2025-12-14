@@ -227,9 +227,14 @@ Re-attunement cost scaling (draft):
     * `base_cost` (its baseline price at Harmonics Level 0)
     * `fixed_factor` (always paid; keeps early staples affordable)
     * `cost_multiplier` (how strongly it scales with Harmonics meta progression)
-* Let `H` be the current Harmonics meta multiplier (derived from Harmonics Level and potentially total Harmonic Fragments; exact formula TBD).
+* Let `H` be the current Harmonics meta multiplier (derived from Harmonics Level + total Harmonic Fragments; exact formula TBD).
 * Cost formula: `cost = base_cost * (fixed_factor + cost_multiplier * H)`
     * Example (early staple): Fire Pit `base_cost=10`, `fixed_factor=1`, `cost_multiplier=0` => cost stays `10` for every Ascension.
+
+Scaling principle:
+* Buildings, upgrades, tech, and perks use the same scheme: they can have both **cost scaling** and **effect scaling** driven by `H`.
+* Effect formula (draft): `effect = base_effect * (fixed_factor + effect_multiplier * H)`
+* Harmonic Fragments are not consumed by Ascension; they remain stacked on the Crystal and contribute to `H` permanently.
 
 ### 3.3 Crafting Tiers (Compositions)
 The three base resources can be refined into craftable tiers.
