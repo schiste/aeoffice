@@ -17,6 +17,9 @@ A dormant pathogen exists in all human tissue. It is suppressed by auditory vibr
     * *The Resilient (Player):* 24 Hours in silence (Genetic mutation).
 * **Cure:** None. Only suppression via constant sound.
 
+Design note (range realism):
+* Standard humans have a ~4-hour window; early-game mechanics can exploit this (e.g., survivors can risk a short exposed walk to reach the edge of a growing bubble).
+
 ## 3. The World
 * **The Underground:** Where humanity survived. Deep caves insulate against the satellite beams.
 * **The Surface:** A gray, silent wasteland. High risk, high reward (Satellite debris loot).

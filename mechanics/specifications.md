@@ -577,22 +577,27 @@ Recruitment gating:
     * Let `ReachFromBase` be the current bubble reach.
     * Recruitment is enabled if `d - ReachFromBase <= recruitment_range_tiles`.
 * If the bubble shrinks such that the condition fails, recruitment pauses immediately (no new arrivals).
+* Lore-grounding note: this range is chosen to align with the world’s “Silence Virus” lethality window for standard humans (survivors can risk a short exposed traversal to reach the bubble).
 
-Vibes (housing pressure currency):
+Vibes (housing pressure currency / morale pool):
 * **Fire Pit** generates `Vibes` (methods include passive generation, staffing, and consuming loot/items; exact recipes TBD).
 * **Vibes are not persistent across Tuning** (run-scoped).
-* **Each crew member consumes Vibes** over time; higher overall level increases Vibes consumption.
+* `Vibes` is a **pool** that can increase (“good vibes”) or decrease (“bad vibes”).
+* **Each crew member consumes Vibes** over time; higher overall level increases Vibes consumption (exact curve TBD).
 * Recruitment is driven by the Vibes state only (no extra dependencies on bubble size/stability beyond the Cave gate).
+* **Negative Vibes:** if the Vibes pool drops below `0`, it becomes a negative multiplier on “everything” (exact scope and formula TBD; do not assume).
 
 Travel time:
 * Default travel time from Cave to Base is `6` in-world hours = `6` real minutes (using 1 min = 1 hour).
-* The first `X` recruits can arrive immediately the first time recruitment becomes enabled (lore: early “trailblazers” who followed the Hero).
-    * Exact definition of `X` is TBD (example discussion: may relate to the time spent reaching recruitment eligibility).
+* **Instant arrivals stock:** the Cave maintains a stock of `instant_recruits_available = X` (value/function TBD).
+    * These recruits can arrive immediately once recruitment is enabled, but they still require sufficient Vibes (they consume Vibes like any other crew member).
+    * After the stock is exhausted, recruits arrive via the normal travel timer.
 * Later tech/perks can reduce travel time.
 
 Capacity and penalties:
 * Crew capacity is governed by **Bunks** (a building providing housing capacity).
 * If `crew_count > bunks_capacity`, Vibes generation is penalized (“bad vibes”).
+    * The penalty shape is intended to be exponential with a plateau once “bunkless crew” reaches ~50% of total crew (exact formula TBD).
 
 ### 3.5 Base Stations (Draft List)
 Stations consume Chorus while active and convert time + resources into progression.
