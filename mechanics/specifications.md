@@ -157,6 +157,10 @@ Map representation:
         * `city = 10.0`
         * `mountains = ∞`
 
+World scale + time scale (draft):
+* **1 tile = 4 km** (~1 hour walk for a person under normal conditions).
+* **1 minute real time = 1 hour in-world time** (default simulation scale for travel and timers).
+
 * **Manual Mode:** Direct control for exploration and encounters; best for puzzles/enigmas and high-risk pushes.
 * **Auto Mode:** The game plays on behalf of the player using the same real-time combat/action systems.
 
@@ -557,6 +561,38 @@ Progression model:
 * **Equipped class leveling:** When a crew member levels up, the level is applied to their currently equipped class.
 * **Multi-class:** Switching classes is allowed, but because level-ups get more expensive over time, taking a second/third class from 0 upward is intentionally costly.
 * **Combined performance:** When working at the Base, a crew member contributes using all of their learned class levels (each class level contributes to its band’s generation).
+
+### 3.4.1 Crew Intake (Survivor Cave + Vibes) (Draft)
+Crew intake is an automatic system driven by **Vibes** and gated by bubble proximity to the Survivor Cave.
+
+Key locations:
+* **Survivor Cave** (name TBD): the primary source of new crew early game.
+    * Distance: **6 tiles** from the Base (~24km).
+    * There is no blocking terrain/occlusion between the Base and the Cave.
+
+Recruitment gating:
+* Recruitment can begin when the bubble is close enough that survivors can plausibly reach it:
+    * Define `recruitment_range_tiles = 3`.
+    * Let `d = hex_distance(Base, Cave)` (default 6).
+    * Let `ReachFromBase` be the current bubble reach.
+    * Recruitment is enabled if `d - ReachFromBase <= recruitment_range_tiles`.
+* If the bubble shrinks such that the condition fails, recruitment pauses immediately (no new arrivals).
+
+Vibes (housing pressure currency):
+* **Fire Pit** generates `Vibes` (methods include passive generation, staffing, and consuming loot/items; exact recipes TBD).
+* **Vibes are not persistent across Tuning** (run-scoped).
+* **Each crew member consumes Vibes** over time; higher overall level increases Vibes consumption.
+* Recruitment is driven by the Vibes state only (no extra dependencies on bubble size/stability beyond the Cave gate).
+
+Travel time:
+* Default travel time from Cave to Base is `6` in-world hours = `6` real minutes (using 1 min = 1 hour).
+* The first `X` recruits can arrive immediately the first time recruitment becomes enabled (lore: early “trailblazers” who followed the Hero).
+    * Exact definition of `X` is TBD (example discussion: may relate to the time spent reaching recruitment eligibility).
+* Later tech/perks can reduce travel time.
+
+Capacity and penalties:
+* Crew capacity is governed by **Bunks** (a building providing housing capacity).
+* If `crew_count > bunks_capacity`, Vibes generation is penalized (“bad vibes”).
 
 ### 3.5 Base Stations (Draft List)
 Stations consume Chorus while active and convert time + resources into progression.

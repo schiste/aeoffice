@@ -27,6 +27,7 @@ Single source checklist for what must exist for a playable vertical slice.
 - [ ] Specify Chorus power system details (LIFO, manual overrides, prioritization UI)
 - [ ] Define building caps system (`max_count`, `cap_group`) per building type
 - [ ] Specify detuned → attuned re-attunement costs/conditions per building/tech/perk
+- [ ] Specify Bunks + Vibes system (capacity, upkeep, overcapacity penalty, tuning reset)
 
 ## Combat + Enemies
 - [ ] Define combat actions/skills (cooldowns, resource use, targeting, statuses)
@@ -49,4 +50,3 @@ Single source checklist for what must exist for a playable vertical slice.
 - [ ] Save/load format and versioning for long-term design iteration
 - [ ] Offline progress policy (what runs while app closed)
 - [ ] Telemetry/debug overlays needed for balancing (bubble cost, power budget, Resonance breakdown)
-

@@ -21,6 +21,7 @@ A dormant pathogen exists in all human tissue. It is suppressed by auditory vibr
 * **The Underground:** Where humanity survived. Deep caves insulate against the satellite beams.
 * **The Surface:** A gray, silent wasteland. High risk, high reward (Satellite debris loot).
 * **The Crystal:** An anomaly found by the Player. It resonates against the dampening field, creating a localized "Safe Bubble" that grows with acoustic input.
+* **Scale (draft):** 1 map tile is ~4km (about a 1-hour walk under normal conditions). The nearest known survivor refuge is ~24km away.
 * **Safe Spots:** As survivors relearn lost techniques, they can build forward resonators to create temporary or permanent pockets of safety beyond the Base, and use them to open up (and hold) access to distant expedition sites.
 
 ## 4. Opponents (Monsters)
