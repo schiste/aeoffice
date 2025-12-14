@@ -229,7 +229,12 @@ Player control:
 
 Expedition impact:
 * **Expeditions never fail:** If expedition crew are incapacitated, the expedition continues.
-* **Handicap factor:** Apply `E = 1 - (incapacitated_expedition_crew / initial_expedition_crew)` as an additional penalty on top of losing that crew’s bonuses.
+* **Incapacitation:** Expedition crew can become incapacitated (unconscious) if sound support collapses (e.g., base power collapse and/or a required safe spot going offline; exact triggers TBD).
+    * **Recovery window:** Incapacitation is reversible for **24 hours (real-world time)**.
+    * **Recovery triggers:** Crew can recover only if (A) Base Chorus power is restored, and/or (B) a relevant safe spot comes online again.
+    * **Permanent loss:** If not recovered within 24 hours, incapacitated crew are permanently lost.
+    * **Recall note:** Recall can relocate an expedition, but does not itself “wake” incapacitated crew.
+* **Handicap factor (`E`):** Expedition effectiveness multiplier computed as `E = 1 - (incapacitated_expedition_crew / initial_expedition_crew)`.
 * **Duration + rewards:** `E` scales both expedition progress rate (remaining duration) and rewards (exact mapping TBD).
 * **Hard stall at E=0:** If all expedition crew are incapacitated (`E = 0`), the expedition makes no progress.
 * **Crew locking:** Expedition crew are locked for the duration of the expedition (unless recalled).
