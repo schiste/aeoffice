@@ -131,6 +131,10 @@ Recovery:
 * **Instant wake:** When Chorus capacity returns, inactive staff become active immediately (no warm-up timer).
 * **Non-lethal:** Silence Stupor does not directly harm staff.
 
+Expedition impact:
+* **Expeditions never fail:** If expedition crew become inactive and are removed, the expedition continues.
+* **Handicap factor:** Apply `H = 1 - (incapacitated_expedition_crew / initial_expedition_crew)` as an additional penalty on top of losing that crew’s bonuses. (Exact mapping to remaining duration and rewards to be finalized.)
+
 ### 3.3 Crafting Tiers (Compositions)
 The three base resources can be refined into craftable tiers.
 
@@ -146,6 +150,9 @@ Every living person you gain becomes Base staff ("crew"). Crew members are sound
 * **Vocalist (Chorus):** Mid-band output.
 * **Synth (Harmonics):** High-band output.
 
+Special case:
+* **The Hero:** The Hero can be assigned to the Crystal Circle and cannot be forced into Silence Stupor, ensuring a minimum possible contribution to Base generation.
+
 Progression model:
 * **Experience (XP):** Crew gains XP from Base work and expeditions (expeditions grant much more).
 * **Total level curve:** XP thresholds scale with the crew member’s overall progression.
@@ -157,7 +164,7 @@ Progression model:
 Stations consume Chorus while active and convert time + resources into progression.
 
 Candidates:
-* **Crystal Circle:** Staff “play” to generate Bassline/Chorus/Harmonics for the Crystal.
+* **Crystal Circle:** Staff “play” to generate Bassline/Chorus/Harmonics for the Crystal (producer; does not consume Chorus).
 * **Resonance Chamber:** Improves Bassline conversion into Amplitude (reach growth).
 * **Mix Console:** Improves efficiency and brownout tolerance (Harmonics-facing upgrades).
 * **Workshop:** Crafts Beats/Bars/Tracks/Albums and basic gear parts.
