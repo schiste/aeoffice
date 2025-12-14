@@ -25,15 +25,23 @@ Map progression is physically tied to volume.
 * **Minimum radius:** Default is `0` tiles (Base tile only).
 * **Primary driver:** **Bassline stored pool** (low-band stored resource), not just current output rate.
 * **Modifier:** **Harmonics** improves Crystal efficiency (tuning), increasing how much Amplitude you get from the same Bassline.
-* **Formula (parametric; default):**
+* **Formula (preferred physical model: ripple rings):**
     * Let `Bassline_pool` be the current stored Bassline.
     * Let `Harmonics_raw` be the current high-band production rate (per second) (derived from tick contributions).
     * Let `η_B(Harmonics_raw)` be the Harmonics efficiency multiplier applied to Bassline-to-field conversion (hybrid: smooth + milestones; shape TBD).
     * Define “field charge”: `Bassline_field = Bassline_pool * η_B(Harmonics_raw)`
         * Intuition: Harmonics increases how much *reach* you can get out of the same stored Bassline.
-    * Define radius (tiles): `Amplitude_radius = base_min_radius_tiles + C_r * (Bassline_field)^α`
-        * Default: `α = 0.5` (sqrt-ish feel; easy to rebalance via `C_r` and `α`).
-        * `C_r` is a tuning constant (units: tiles per `(Bassline_field^α)`).
+    * Each map hex has a `terrain_impedance` that determines how much field charge is required to include it (examples: water `0.1`, plains `1.0`; mountains may be forbidden until research).
+    * Compute ring costs by hex distance from Base (`d = hex_distance(base, tile)`):
+        * `ring_cost[d] = Σ terrain_impedance(tile)` for all tiles at distance `d`.
+        * `cumulative_cost[r] = Σ_{d=1..r} ring_cost[d]`
+    * The bubble unfogs as a perfect ripple (no bending): it expands by complete rings.
+    * Define radius (tiles) as: `Amplitude_radius = max r such that cumulative_cost[r] <= Bassline_field * K_field`
+        * `K_field` is a tuning constant (unit conversion / balance knob).
+        * In mostly-uniform terrain, this produces a natural `sqrt` feel (`r ~ sqrt(Bassline_field)`), matching the desired early-game curve.
+* **Formula (approximation for tuning/UI; optional):**
+    * When a full ring-cost inversion is undesirable (e.g., early prototype), approximate with:
+        * `Amplitude_radius ≈ base_min_radius_tiles + C_r * (Bassline_field)^α` with default `α = 0.5`.
     * Player control: because Bassline is a stored pool used for many things, the player can effectively choose to grow/shrink Amplitude by choosing when to accumulate Bassline versus spending it elsewhere.
     * Later tech/perk: allow setting a **Bassline storage floor** > 0 so Amplitude cannot collapse fully (stability tool).
         * Early-game default: spending Bassline for other actions can immediately shrink the bubble (intended as a meaningful tradeoff).
@@ -44,13 +52,14 @@ Map progression is physically tied to volume.
         * If Base generation is **0**, Amplitude decays to the **minimum radius**.
         * Otherwise, Amplitude decays toward the new equilibrium.
 * **Effect:** Expanding Amplitude automatically "un-fogs" the map, revealing new dungeons and resource nodes.
+    * **Reveal pacing:** newly eligible hexes are revealed gradually at `reveal_rate_hexes_per_second` (tuned later), rather than instantly revealing the entire radius in one frame.
 
 ### 1.4 Exploration, Quests, Enigmas, Expeditions
 Outside the Base, the player explores the map to discover locations, complete quests, solve enigmas, and run expeditions.
 
 Map representation:
 * The world map uses a **hex grid**.
-* Distance and rings are computed using hex distance (implementation details TBD; recommend axial coordinates).
+* Distance and rings are computed using hex distance (implementation details TBD; recommend **cube coordinates**).
 
 * **Manual Mode:** Direct control for exploration and encounters; best for puzzles/enigmas and high-risk pushes.
 * **Auto Mode:** The game plays on behalf of the player using the same real-time combat/action systems.
