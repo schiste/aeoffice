@@ -157,6 +157,11 @@ To keep resets consistent, every major object/system is classified by how it beh
 Some buildings can be `untuned`:
 * They persist across Tunings.
 * They do not require Chorus power (or are otherwise exempt from brownout auto-unpower), unless explicitly designed to.
+* By default, `untuned` buildings still lose upgrades on Tuning unless explicitly marked with persistent upgrades.
+
+Upgrade persistence flag (draft):
+* `persistent_upgrades`: If set on a building/feature, its upgrade levels persist across Tunings.
+* Default: upgrades reset on Tuning.
 
 ### 3.1.2 Resonance Calculation (Draft)
 Resonance is **recomputed on every Tuning** as a product of multiple factors. Some factors use the current run, and some use the prior run to reduce volatility (NGU-style “current” and “prior” terms).
