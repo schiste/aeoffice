@@ -150,7 +150,7 @@ Resonance is **recomputed on every Tuning** as a product of multiple factors. So
 High-level shape (placeholder):
 * `R_floor = 1.0`
 * Resonance is replaced on Tuning: the next run starts at `R = R_next` (no accumulation).
-* `R_next = clamp_min(R_floor, Baseline(R_current) * Frontier_pair * Depth_pair * Time_pair * Active_pair * Mastering_now * Fragment_legacy * Stability_now)`
+* `R_next = clamp_min(R_floor, Baseline(R_current) * Frontier_pair * Depth_pair * Time_pair * Active_pair * Harmonics_investment * Fragment_legacy * Stability_now)`
 * Pair factors are typically geometric means, e.g. `Time_pair = sqrt(Time_now * Time_prev)`.
 
 Draft factors:
@@ -180,7 +180,8 @@ Draft factors:
         * `active_minutes = active_seconds_total / 60`
     * `Active(active_minutes) = 1 + a * log(1 + active_minutes)` with small `a` (diminishing returns).
     * Use `Active_pair = sqrt(Active_now * Active_prev)` to bake in prior-run terms.
-* **Mastering (Harmonics):** Derived from “banked Harmonics” during the run (e.g., integrated Harmonics output and/or key Harmonics milestones).
+* **Harmonics Investment:** Resonance contribution driven by specific buildings/perks that consume Harmonics (one-time and/or upkeep) and convert it into a persistent “mastering” effect within the run.
+    * This replaces the earlier idea of a generic `Mastering_now` stat.
 * **Fragment legacy:** A small-weight factor derived from total stacked Harmonic Fragments (`F`), e.g. `1 + w * F` with small `w`.
 * **Stability (Optional):** Mild factor based on Base stability this run (e.g., time spent in “safe” vs brownout), intended as a small optimization reward rather than a punishment.
 
@@ -235,8 +236,9 @@ Expedition impact:
     * **Permanent loss:** If not recovered within 24 hours, incapacitated crew are permanently lost.
     * **Recall note:** Recall can relocate an expedition, but does not itself “wake” incapacitated crew.
 * **Handicap factor (`E`):** Expedition effectiveness multiplier computed as `E = 1 - (incapacitated_expedition_crew / initial_expedition_crew)`.
-* **Duration + rewards:** `E` scales both expedition progress rate (remaining duration) and rewards (exact mapping TBD).
+* **Duration + rewards:** `progress_rate = E` and `reward_multiplier = E`.
 * **Hard stall at E=0:** If all expedition crew are incapacitated (`E = 0`), the expedition makes no progress.
+    * **24h timer start:** The 24-hour permanent-loss timer starts when the expedition reaches `E = 0` (i.e., the last remaining crew becomes incapacitated).
 * **Crew locking:** Expedition crew are locked for the duration of the expedition (unless recalled).
 * **Recall (Call Back):** An expedition can be recalled mid-run to free its crew.
     * **Return lag:** `return_time_seconds = 60 + (p_round * planned_duration_seconds)`, where:
