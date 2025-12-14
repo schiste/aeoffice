@@ -17,7 +17,10 @@ A dormant pathogen exists in all human tissue. It is suppressed by auditory vibr
 * **The Surface:** A gray, silent wasteland. High risk, high reward (Satellite debris loot).
 * **The Crystal:** An anomaly found by the Player. It resonates against the dampening field, creating a localized "Safe Bubble" that grows with acoustic input.
 
-## 4. Factions
-* **The Audiophiles (You):** Scavengers building massive sound systems to reclaim Earth.
-* **The Mutes:** Cultists who view The Silence as a god. They sew their mouths shut and sabotage sound equipment.
-* **The Labels:** Corporate warlords hoarding the last "Master Tapes" (Pre-collapse knowledge).
+## 4. Opponents (Monsters)
+The world outside the Crystal's field is hostile. The primary opposition comes from monsters adapted to (or empowered by) near-total silence.
+
+Design goals:
+* **Pressure:** Monsters make leaving the Safe Bubble a meaningful risk (time, noise budget, supplies).
+* **Variety:** Different monster types encourage different loadouts and expedition plans.
+* **Mystery:** The origin of monsters can be discovered through quests, enigmas, and exploration.

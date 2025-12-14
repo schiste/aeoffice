@@ -9,6 +9,8 @@ The world didn't end with a bang—it ended with a filter. Satellites dampen all
 
 You play a survivor with a genetic resistance (24-hour tolerance). You must build a **Base (The Studio)** centered around a Crystal that amplifies sound, pushing back the Silence to reveal the map.
 
+Outside the Base, you explore the world through **map exploration, quests, enigmas, and expeditions** (with both **manual** and **auto** play modes). The Base is the primary source of sound output, produced by the crew, their equipment, and artifacts.
+
 ## 🛠️ Tech Stack
 * **Engine:** Godot 4.x (Compatibility Renderer for Web support).
 * **Core Logic:** Rust (via GDExtension) for high-performance math/simulations.
@@ -16,11 +18,10 @@ You play a survivor with a genetic resistance (24-hour tolerance). You must buil
 * **Platforms:** Web (HTML5) and Mobile (Android/iOS).
 
 ## 🚀 Getting Started
-1.  **Clone:** `git clone https://github.com/yourusername/dungeons-and-drum-machines.git`
+1.  **Clone:** `git clone https://github.com/schiste/adnd.git`
 2.  **Build Rust:** `cd rust_core && cargo build`
 3.  **Open:** Import `project.godot` into Godot 4.3+.
 
 ## 📂 Documentation
-* [**Game Specifications**](./docs/SPECIFICATIONS.md) - Mechanics, Economy, and Stats.
-* [**Architecture**](./docs/ARCHITECTURE.md) - Code structure, Rust bindings, and Systems.
-* [**World Bible**](./docs/LORE.md) - The Virus, The Factions, and The Silence.
+* [**Game Specifications**](../mechanics/specifications.md) - Mechanics, Economy, and Stats.
+* [**World Bible**](../lore/lore.md) - The Virus, The Silence, and the world.

@@ -7,7 +7,7 @@
 ### 1.1 The Acoustic Threshold (Physics)
 The game world is defined by **Signal-to-Noise Ratio (SNR)** instead of HP.
 * **The Silence:** The ambient environment has a dampening rating (e.g., -60dB).
-* **The Output:** The Player/Base emits sound (e.g., +65dB).
+* **The Output:** The **Base (Studio + Crystal)** emits sound (e.g., +65dB), produced by the crew, their equipment, and artifacts.
 * **The Net Result:** `Output + Silence = Safety Margin`.
     * **> 0dB:** Safe. Viral Load decreases.
     * **< 0dB:** Danger. Viral Load increases.
@@ -24,6 +24,12 @@ Map progression is physically tied to volume.
 * **Amplitude:** The radius of the safe zone around the Base Crystal.
 * **Formula:** `Base Gain * Resonance Multiplier`.
 * **Effect:** Expanding Amplitude automatically "un-fogs" the map, revealing new dungeons and resource nodes.
+
+### 1.4 Exploration, Quests, Enigmas, Expeditions
+Outside the Base, the player explores the map to discover locations, complete quests, solve enigmas, and run expeditions.
+
+* **Manual Mode:** Direct control for exploration and encounters; best for puzzles/enigmas and high-risk pushes.
+* **Auto Mode:** Expeditions run with a chosen plan/loadout; best for farming and long progression sessions.
 
 ---
 
