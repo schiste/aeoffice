@@ -35,8 +35,12 @@ Map progression is physically tied to volume.
         * `terrain_impedance = base_terrain_impedance * feature_modifiers * tech_modifiers * building_modifiers`
         * Examples (placeholders): water `0.1`, plains `1.0`.
     * Some terrains (e.g., mountains) are **hard blockers** with `terrain_impedance = ∞` until specific research/buildings are unlocked.
-    * Compute ring costs by hex distance from Base (`d = hex_distance(base, tile)`):
-        * **Acoustic shadowing (no bending):** occluders do not just exclude themselves; they also cast a “shadow” behind them that the ripple cannot pass through.
+    * Compute ripple coverage using hex rings, per sound source:
+        * The Base Crystal is always a sound source.
+        * Loudspeakers (relays) can add additional sound sources (see below).
+        * Each source emits a circular ripple from its own position (no bending).
+    * Acoustic shadowing (no bending):
+        * Occluders do not just exclude themselves; they also cast a “shadow” behind them that the ripple cannot pass through.
             * Split “difficulty” vs “occlusion”:
                 * `terrain_impedance(tile)` controls how expensive the tile is.
                 * `occludes_ripple(tile)` controls whether it blocks propagation (casts a shadow).
@@ -54,19 +58,17 @@ Map progression is physically tied to volume.
                         * `shadow_width(d) = clamp(width0 + width_slope * d, 0, width_max)`
                         * and does not apply past `shadow_max_depth_tiles`.
                     * Parameters are tuned later; the key rule is: widening is small, clamped, and per-tile-configurable.
-            * Ring-cost inclusion rule (for Base ripple boundary):
-                * A tile is excluded if it is a blocker.
-                * Otherwise, a tile is excluded if it is shadowed from the **Base** (relays do not change the Base boundary; they only fill coverage inside it).
-        * `ring_cost[d] = Σ terrain_impedance(tile)` for all tiles at distance `d` that are eligible under the ring-cost inclusion rule.
-        * `cumulative_cost[r] = Σ_{d=1..r} ring_cost[d]`
-    * The bubble unfogs as a perfect ripple (no bending): it expands by complete rings.
-    * Define radius (tiles) as: `Amplitude_radius = max r such that cumulative_cost[r] <= Bassline_field * K_field`
-        * `K_field` is a tuning constant (unit conversion / balance knob).
-        * In mostly-uniform terrain, this produces a natural `sqrt` feel (`r ~ sqrt(Bassline_field)`), matching the desired early-game curve.
+    * Bubble coverage (conceptual; exact algorithm TBD):
+        * For each active source `s`, compute a max ring index `r_s` such that the ripple cost from that source stays within budget.
+        * A tile is in the bubble if it is within `r_s` of at least one active source **and** it is not a blocker **and** it is not shadowed from that source.
+        * The global bubble is the **union** of all source ripples.
+        * For UI/tiering, define `Amplitude_radius_max = max hex_distance(base, tile)` over all tiles currently in the bubble.
+    * Budget note (balancing TBD):
+        * Loudspeakers are relays; they do not create a separate Bassline pool.
+        * Exact allocation of `Bassline_field` across multiple sources (Base + relays) is to be defined and balanced later.
     * **Mitigation via new emitters (Loudspeakers):**
         * Some buildings can act as additional **Bassline emitters** (new spawning points for the ripple).
         * Loudspeakers are **relays**: they do not get a separate Bassline allocation; they use the same global `Bassline_field` budget and allow propagation into regions that were shadowed from the Base by providing an alternate line-of-sight source.
-        * The bubble boundary (Amplitude radius) remains the Base-centered ripple; relays only change which tiles *within* that radius are eligible for safety/Chorus and unfog (they fill shadowed sectors).
         * Power/placement rules:
             * Loudspeakers are Chorus-powered stations: they have Chorus upkeep when Attuned.
             * Loudspeakers can only be placed **inside** the current bubble (they require Chorus access).
@@ -91,10 +93,7 @@ Map progression is physically tied to volume.
         * Otherwise, Amplitude decays toward the new equilibrium.
 * **Effect:** Expanding Amplitude automatically "un-fogs" the map, revealing new dungeons and resource nodes.
     * **Reveal pacing:** newly eligible hexes are revealed gradually at `reveal_rate_hexes_per_second` (tuned later), rather than instantly revealing the entire radius in one frame.
-    * **Eligibility:** a hex becomes eligible for reveal if it is inside the Base bubble boundary (`hex_distance(base, tile) <= Amplitude_radius`) and it has ripple access:
-        * It is not a blocker, and either:
-            * it is not shadowed from the Base, or
-            * it is not shadowed from at least one currently active Loudspeaker relay.
+    * **Eligibility:** a hex becomes eligible for reveal if it is in the current bubble coverage set (union of active-source ripples; see above).
     * **Persistence:** once a hex is revealed, it remains revealed permanently even if it later becomes unsafe.
     * **Safety rule:** outside current bubble coverage, there is no Chorus access; any Chorus-dependent objects outside go offline immediately.
 
