@@ -237,11 +237,12 @@ Scaling principle:
 * Harmonic Fragments are not consumed by Ascension; they remain stacked on the Crystal and contribute to `H` permanently.
 
 Ascension cadence (anti-spam):
-* Track `N = tuning_count` (number of Ascensions performed).
-* Allow Ascension at any time, but enforce a short **stabilization/rest period** between Ascensions (duration TBD).
+* Track `N = tuning_count` (lifetime number of Ascensions performed).
+* Allow Ascension at any time, but enforce a short real-time cooldown between Ascensions (currently **3 minutes**).
 * To discourage “too-frequent” Ascension, let some costs scale with `N` in addition to `H`, so that increasing `N` without enough run progress becomes counterproductive.
     * Draft: `cost = base_cost * (fixed_factor + cost_multiplier * (H + spam_factor(N)))`
     * Example: `spam_factor(N) = s * N^p` (with small `s` and `p > 1`), tuned so optimal play is “Ascend after meaningful progress” rather than spamming.
+* Spam protection affects **costs only** (not effect strength).
 
 ### 3.3 Crafting Tiers (Compositions)
 The three base resources can be refined into craftable tiers.
