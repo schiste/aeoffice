@@ -70,6 +70,7 @@ Map progression is physically tied to volume.
             * A tile is excluded if it is a blocker (`terrain_impedance = ∞`).
             * Otherwise, a tile is included in the bubble if it is not shadowed from **at least one** active source:
                 * `eligible(tile) := exists s in S such that !is_shadowed(s, tile)`
+            * This means a tile can be “behind” a mountain relative to the Base and still be in the bubble if it has line-of-sight to a powered Loudspeaker relay.
         * Ring cost and budget:
             * `ring_cost[k] = Σ terrain_impedance(tile)` for all `tile in Ring(k)` where `eligible(tile)`.
             * `cumulative_cost[r] = Σ_{k=1..r} ring_cost[k]`
@@ -90,6 +91,7 @@ Map progression is physically tied to volume.
             * Loudspeakers can only be placed **inside** the current bubble (they require Chorus access).
             * If a loudspeaker loses Chorus (e.g., falls outside the bubble due to shrink), it turns off immediately. This can instantly remove access to regions that only existed via that relay (coverage shrinks immediately).
             * Once Chorus returns, the loudspeaker turns back on and the **safety coverage** resumes immediately (no “re-conquer” of previously revealed tiles).
+            * A relay being “inside the bubble” is sufficient for Chorus access; it does not need direct line-of-sight to the Base (it can be powered via other relays).
         * “Over-the-top” tech:
             * Progression can offer both:
                 * a global tech unlock that allows propagation **over** occluders (mountains), and/or
