@@ -93,11 +93,12 @@ The Crystal field is affected by the three resources in different ways:
 Chorus acts as a soft power budget with competing demands:
 * **Field Core:** Minimum power to keep the Crystal stable and provide Viral Load recovery.
 * **Stations:** Workshops, research, crafting, safe-spot fabricators, etc.
-* **Population Load:** Supporting staff activity (comfort, food systems, medical, comms).
+* **Population Load (Active Staff):** Supporting *active* staff (comfort, food systems, medical, comms). Staff beyond Chorus capacity remain present but become **inactive** (cannot work) until capacity increases.
 
 #### 3.2.2 Overload and Inefficiency (Brownout)
 When Chorus supply is lower than Chorus demand, the Base enters a “brownout” state instead of hard-stopping:
 * **Station penalties:** Station throughput scales down and/or some stations go offline.
+* **Staff inactivity:** If population load exceeds what Chorus can sustain, some staff become inactive (cannot be assigned to stations/expeditions until Chorus capacity increases).
 * **Recovery penalties:** Viral Load recovery inside the bubble slows and may stop at severe overload.
 * **Field penalties:** The Crystal loses efficiency: **effective Bassline and effective Harmonics are reduced**, shrinking Amplitude and making safe spots less reliable.
 
