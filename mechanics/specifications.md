@@ -29,7 +29,23 @@ Map progression is physically tied to volume.
 Outside the Base, the player explores the map to discover locations, complete quests, solve enigmas, and run expeditions.
 
 * **Manual Mode:** Direct control for exploration and encounters; best for puzzles/enigmas and high-risk pushes.
-* **Auto Mode:** Expeditions run with a chosen plan/loadout; best for farming and long progression sessions.
+* **Auto Mode:** The game plays on behalf of the player using the same real-time combat/action systems.
+
+Expeditions are a primary way to acquire resources over time:
+* **Player choices:** Select a destination and an expedition composition.
+* **No failure:** Expeditions always complete; the cost is time and crew availability.
+* **Composition effects:** Changes expedition duration, loot amount, and loot rarity.
+
+### 1.5 Forward Safe Spots
+Later in progression, the player can create forward safe spots outside the Base.
+* **Purpose:** Reduce Viral Load pressure during long pushes and act as staging points for exploration.
+* **Unlock model:** Gated behind upgrades, crafting, or quest milestones (to be defined).
+
+### 1.6 Combat (Real-Time, Cooldown-Based)
+Encounters are real-time. Actions recharge over time (cooldowns), enabling both manual play and automation.
+* **Actions:** Examples include basic attacks, strong attacks, and utility skills.
+* **Manual play:** Player chooses when to spend recharged actions.
+* **Auto play:** An AI uses recharged actions according to a selected style/priority (to be defined).
 
 ---
 
