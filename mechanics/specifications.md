@@ -98,7 +98,8 @@ Example mapping (placeholder):
 * Then make the bonus portion stronger: `M' = 1 + (M - 1) * (1 + theory_bonus)`.
 
 Scope:
-* **Applies to all multipliers** (not just damage), including loot multipliers.
+* **Applies to all multipliers** (not just damage), including loot multipliers for the Hero.
+* **Does not apply** to auto expeditions (crew-only reward calculations are not influenced by the Hero).
 * **Does not apply** to safe spot duration (and other hard time-gates; TBD).
 
 ### 2.2 Enigma Support (Passive Thresholds)
@@ -187,6 +188,30 @@ Expedition impact:
     * **Auto-recall:** Some world events (e.g., destination relocking due to safe spot collapse) can force an automatic recall using the same rules.
         * **Progress snapshot:** Auto-recall uses `p` at the moment the event occurs, even if the expedition was stalled (`H = 0`).
         * **Return lag still applies:** Auto-recall always uses the return lag (even if the crew is unconscious/stalled).
+
+#### 3.2.5 Harmonics Cash-In (Ascension Reset)
+Late game, the Hero can choose to **cash in** accumulated Harmonics to permanently increase the Crystal’s Harmonics level.
+
+Concept:
+* The player builds up enough Harmonics to perform an **Ascension**.
+* Performing Ascension shuts down the Crystal, triggering a lethal Silence event for the Base.
+* The run continues with **no crew**, but with a permanently increased **Harmonics Level**.
+
+Terminology:
+* **Harmonics output:** The current run’s generated high-band resource.
+* **Tuning tiers:** Milestone thresholds within a run that unlock upgrades as Harmonics output increases.
+* **Harmonics Level:** Permanent meta-progression gained via Ascension.
+
+Immediate consequences (Ascension event):
+* **Crystal shutdown:** Base generation drops to 0.
+* **Crew death:** All crew members die from the virus (hard reset of staff progression).
+* **System collapse:** Safe spots collapse (Chorus-powered), destinations relock, and expeditions are auto-recalled using the Recall rules.
+
+Aftermath (new run state):
+* **Harmonics Level +1:** A permanent meta-progression layer.
+* **Huge generation bonus:** Harmonics Level grants a large multiplicative bonus to Base generation (exact curve TBD).
+* **Unlocks:** Each Harmonics Level also unlocks new tech tiers/perks/content (details TBD).
+* **Restart staffing:** The Base begins with no crew; the Hero must recruit/rescue new staff over time.
 
 ### 3.3 Crafting Tiers (Compositions)
 The three base resources can be refined into craftable tiers.

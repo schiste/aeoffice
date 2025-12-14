@@ -17,6 +17,7 @@ Outside the Base, you explore the world through **map exploration, quests, enigm
 * **Explore Manually:** The Hero pushes beyond safety (real-time cooldown combat + enigmas) and uses safe spots (including the Base) to rest and reduce Viral Load.
 * **Run Auto Expeditions:** Expeditions are crew-only, parallel, time-based resource runs that never fail, but can slow/stall during brownouts and can be recalled for partial loot.
 * **Manage Tradeoffs:** Sending staff out reduces Base output; exceeding `Chorus` capacity causes brownouts, station penalties, and staff inactivity, which can cascade into smaller reach and unstable safe spots.
+* **Ascend (Late Game):** Cash in accumulated Harmonics to permanently raise `Harmonics Level` at the cost of a hard reset (Crystal shutdown + all crew die); restart with no crew but big generation bonuses and new unlocks.
 
 ## 🛠️ Tech Stack
 * **Engine:** Godot 4.x (Compatibility Renderer for Web support).
