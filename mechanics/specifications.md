@@ -60,14 +60,28 @@ Map progression is physically tied to volume.
                         * and does not apply past `shadow_max_depth_tiles`.
                     * Parameters are tuned later; the key rule is: widening is small, clamped, and per-tile-configurable.
     * Bubble coverage (conceptual; exact algorithm TBD):
-        * For each active source `s`, compute a max ring index `r_s` such that the ripple cost from that source stays within budget.
-        * A tile is in the bubble if it is within `r_s` of at least one active source **and** it is not a blocker **and** it is not shadowed from that source.
-        * The global bubble is the **union** of all source ripples.
-        * For UI/tiering, define `Amplitude_radius_max = max hex_distance(base, tile)` over all tiles currently in the bubble.
-    * Budget note (balancing TBD):
-        * Loudspeakers are relays; they do not create a separate Bassline pool.
-        * Adding new active sources can redistribute the same total `Bassline_field` across more wavefronts; this can expand new sectors while shrinking coverage elsewhere (intended tradeoff).
-        * Exact allocation of `Bassline_field` across multiple sources (Base + relays) is to be defined and balanced later.
+        * The bubble expands in discrete **layers** (rings) of hex distance, but uses the union of all active sources.
+        * Define the active source set: `S = { Base } ∪ { Loudspeaker_i | loudspeaker_i is Attuned and powered }`.
+        * Let `k` be a layer index (hex distance).
+        * The candidate “ring k” is all hexes at min hex distance `k` from the source set:
+            * `Ring(k) = { tile | min_{s in S} hex_distance(s, tile) = k }`
+            * (equivalently: the next layer of tiles connected to the current bubble wavefront).
+        * Eligibility within a ring:
+            * A tile is excluded if it is a blocker (`terrain_impedance = ∞`).
+            * Otherwise, a tile is included in the bubble if it is not shadowed from **at least one** active source:
+                * `eligible(tile) := exists s in S such that !is_shadowed(s, tile)`
+        * Ring cost and budget:
+            * `ring_cost[k] = Σ terrain_impedance(tile)` for all `tile in Ring(k)` where `eligible(tile)`.
+            * `cumulative_cost[r] = Σ_{k=1..r} ring_cost[k]`
+            * The maximum expanded layer is: `Amplitude_layer = max r such that cumulative_cost[r] <= Bassline_field * K_field`
+        * Bubble set:
+            * `Bubble = { tile | min_{s in S} hex_distance(s, tile) <= Amplitude_layer and eligible(tile) }`
+        * Consequence (intended tradeoff):
+            * Adding a new loudspeaker adds tiles to many `Ring(k)` sets, increasing `ring_cost[k]`.
+            * With a fixed `Bassline_field`, this can open new directions while reducing the reachable layer elsewhere.
+        * UI/tiering:
+            * `Amplitude_layer` is the primary bubble expansion metric.
+            * `MaxReachFromBase = max hex_distance(base, tile)` over all tiles currently in `Bubble` can be shown as a secondary stat.
     * **Mitigation via new emitters (Loudspeakers):**
         * Some buildings can act as additional **Bassline emitters** (new spawning points for the ripple).
         * Loudspeakers are **relays**: they do not get a separate Bassline allocation; they use the same global `Bassline_field` budget and allow propagation into regions that were shadowed from the Base by providing an alternate line-of-sight source.
@@ -116,11 +130,11 @@ Map representation:
         * `forest = 5.0`
         * `water = 0.1`
         * `river = 0.5`
+        * `bridge = 0.75`
         * `hills = 1.5`
         * `village = 3.0`
         * `city = 10.0`
         * `mountains = ∞`
-        * `bridge = TBD`
 
 * **Manual Mode:** Direct control for exploration and encounters; best for puzzles/enigmas and high-risk pushes.
 * **Auto Mode:** The game plays on behalf of the player using the same real-time combat/action systems.
@@ -256,6 +270,10 @@ Runtime state (separate from Tuning affinity):
     * After a Tuning, most `detuned` objects start **Inactive** until re-attuned.
     * Only **Attuned** objects have upkeep costs.
     * When a building becomes Attuned, it attempts to power automatically if Chorus budget allows.
+
+Building limits (draft):
+* Each building definition can specify a `max_count` cap (and optionally a shared `cap_group`) to control how many can exist at once.
+* This is handled at the building/item data layer, not as a global rule.
 
 Some buildings can be `untuned`:
 * They persist across Tunings.
