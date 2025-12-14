@@ -34,20 +34,24 @@ Map progression is physically tied to volume.
     * Each map hex has a `terrain_impedance` that determines how much field charge is required to include it.
         * `terrain_impedance = base_terrain_impedance * feature_modifiers * tech_modifiers * building_modifiers`
         * Examples (placeholders): water `0.1`, plains `1.0`.
-        * Some terrains (e.g., mountains) are **hard blockers** with `terrain_impedance = ∞` until specific research/buildings are unlocked.
+    * Some terrains (e.g., mountains) are **hard blockers** with `terrain_impedance = ∞` until specific research/buildings are unlocked.
     * Compute ring costs by hex distance from Base (`d = hex_distance(base, tile)`):
-        * **Acoustic shadowing (no bending):** blockers do not just exclude themselves; they also cast a “shadow” behind them that the ripple cannot pass through.
+        * **Acoustic shadowing (no bending):** occluders do not just exclude themselves; they also cast a “shadow” behind them that the ripple cannot pass through.
             * Split “difficulty” vs “occlusion”:
                 * `terrain_impedance(tile)` controls how expensive the tile is.
                 * `occludes_ripple(tile)` controls whether it blocks propagation (casts a shadow).
-                * Example: mountains are `occludes_ripple = true` and often start as `terrain_impedance = ∞`, but even after mitigation reduces impedance they can still occlude (until separate “over/around” solutions exist).
+                * Example: mountains are `occludes_ripple = true` and start as `terrain_impedance = ∞`.
+                * Passing an occluder (mountains or any future blocker) requires dedicated tech/buildings (see Loudspeakers and “over-the-top” tech below).
             * Define `is_blocker(tile) := terrain_impedance(tile) = ∞` (until mitigated).
             * Define `is_shadowed(tile)` using hex line-of-sight from Base:
                 * Draw the hex line from `base` to `tile` (cube-coordinate line; details TBD).
                 * If any intermediate hex on that line has `occludes_ripple = true`, then `tile` is shadowed.
-                * Shadow “widening” (real-ripple feel): blockers cast a slightly wider cone farther away.
-                    * Draft: allow a small angular/lateral tolerance that increases with distance beyond the blocker (parameters tuned later).
-                    * Implementation hint (cube coords): treat shadow as a cone behind an occluder; a tile is shadowed if it lies roughly “behind” the occluder direction and within a widening lateral band.
+                * Shadow “widening + depth cap” (real-ripple feel):
+                    * Each occluder tile defines `shadow_max_depth_tiles` (how far the shadow extends) and optional width parameters.
+                    * The shadow cone widens slightly with distance (“a mountain blocks a bit more far away than close”), but is clamped:
+                        * `shadow_width(d) = clamp(width0 + width_slope * d, 0, width_max)`
+                        * and does not apply past `shadow_max_depth_tiles`.
+                    * Parameters are tuned later; the key rule is: widening is small, clamped, and per-tile-configurable.
             * Blockers and shadowed tiles are excluded from field inclusion until mitigation.
         * `ring_cost[d] = Σ terrain_impedance(tile)` for all tiles at distance `d` where `!is_blocker(tile) && !is_shadowed(tile)`.
         * `cumulative_cost[r] = Σ_{d=1..r} ring_cost[d]`
@@ -57,9 +61,15 @@ Map progression is physically tied to volume.
         * In mostly-uniform terrain, this produces a natural `sqrt` feel (`r ~ sqrt(Bassline_field)`), matching the desired early-game curve.
     * **Mitigation via new emitters (Loudspeakers):**
         * Some buildings can act as additional **Bassline emitters** (new spawning points for the ripple).
-        * Each emitter produces its own circular ripple (no bending) from its location; the revealed/safe region is the union of emitter ripples.
-        * Emitters let the player “go around” occlusion shadows by placing a source on the near side of an obstacle (or later: “above” it).
-        * Exact Bassline allocation across multiple emitters is TBD (manual split vs automatic).
+        * Each emitter produces its own circular ripple (no bending) from its location; the revealed/safe region is the **union** of emitter ripples.
+        * Emitters are **relays**: they do not get a separate Bassline allocation; they use the same global `Bassline_field` budget and simply allow the ripple to propagate in new directions (by changing line-of-sight against occluders).
+        * Power/placement rules:
+            * Loudspeakers are Chorus-powered stations: they have Chorus upkeep when Attuned.
+            * Loudspeakers can only be placed **inside** the current bubble (they require Chorus access).
+            * If a loudspeaker loses Chorus (e.g., falls outside the bubble due to shrink), it turns off immediately. This can instantly remove access to regions that only existed via that relay (the union shrinks immediately).
+            * Once Chorus returns, the loudspeaker turns back on and the field resumes its previous coverage immediately (no “re-conquer” of previously revealed tiles).
+        * “Over-the-top” tech:
+            * A dedicated late-game tech/building can allow propagation **over** occluders (mountains), reducing or bypassing shadowing rules. (Exact unlock and math TBD.)
 * **Formula (approximation for tuning/UI; optional):**
     * When a full ring-cost inversion is undesirable (e.g., early prototype), approximate with:
         * `Amplitude_radius ≈ base_min_radius_tiles + C_r * (Bassline_field)^α` with default `α = 0.5`.
