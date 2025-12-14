@@ -25,7 +25,15 @@ Map progression is physically tied to volume.
 * **Minimum radius:** The Base (Crystal) provides a small minimum safe radius by default (enough room to support at least one additional station).
 * **Primary driver:** **Bassline** output (low-band production).
 * **Modifier:** **Harmonics** improves Crystal efficiency (tuning), increasing how much Amplitude you get from the same Bassline.
-* **Formula (placeholder):** `Amplitude = f(Bassline) * Tuning(Harmonics)`.
+* **Formula (parametric; default):**
+    * Let `Bassline_raw` be the current low-band production rate from crew + gear + stations (Base-side).
+    * Let `Harmonics_raw` be the current high-band production rate (Base-side).
+    * Let `η_B(Harmonics_raw)` be the Harmonics efficiency multiplier applied to Bassline conversion (shape TBD).
+    * Define effective Bassline: `Bassline_eff = Bassline_raw * η_B(Harmonics_raw)`.
+    * Define radius (tiles): `Amplitude_radius = base_min_radius_tiles + C_r * (Bassline_eff)^α`
+        * Default: `α = 0.5` (sqrt-ish feel; easy to rebalance via `C_r` and `α`).
+        * `C_r` is a tuning constant (units: tiles per `(Bassline_eff^α)`).
+    * This structure maximizes balancing flexibility: changing `C_r` and `α` adjusts the entire reach curve without touching upstream systems.
 * **Inertia (2-phase):** If Base generation drops sharply (or to 0), the field does not collapse instantly:
     * **Hold:** 60s with no change.
     * **Degrade:** then decays over the next 60s (curve TBD; default linear).
