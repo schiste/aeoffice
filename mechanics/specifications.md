@@ -22,7 +22,7 @@ Replaces traditional HP.
 ### 1.3 Amplitude (Exploration)
 Map progression is physically tied to volume.
 * **Amplitude:** The radius of the safe zone around the Base Crystal.
-* **Minimum radius:** The Base (Crystal) provides a small minimum safe radius by default.
+* **Minimum radius:** The Base (Crystal) provides a small minimum safe radius by default (enough room to support at least one additional station).
 * **Primary driver:** **Bassline** output (low-band production).
 * **Modifier:** **Harmonics** improves Crystal efficiency (tuning), increasing how much Amplitude you get from the same Bassline.
 * **Formula (placeholder):** `Amplitude = f(Bassline) * Tuning(Harmonics)`.
@@ -67,6 +67,7 @@ Later in progression, the player can create forward safe spots outside the Base.
     * **Cost model:** Rest is “free”; the only upkeep is the safe spot’s normal Chorus consumption as a station.
     * Buffs/secondary effects TBD.
     * **No lockout:** The Hero can leave immediately after resting (no cooldown).
+    * **Base parity:** The Base functions as the initial safe spot and uses the same rest behavior/rate.
 
 ### 1.6 Combat (Real-Time, Cooldown-Based)
 Encounters are real-time. Actions recharge over time (cooldowns), enabling both manual play and automation.
