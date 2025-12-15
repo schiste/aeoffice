@@ -6,6 +6,7 @@ Single source checklist for what must exist for a playable vertical slice.
 - [ ] Define the “start of run” loop (no-crew start, first assignments, first meaningful goal)
 - [ ] Define crew acquisition/recruitment loop (including post-Tuning zero-crew restart)
 - [ ] Define base interaction loop (what the player does minute-to-minute inside the Base)
+- [ ] Define touch-friendly multi-quantity UI (x1/x10/xMax/custom)
 - [ ] Define manual exploration loop (movement, risk, resting, returns)
 - [ ] Define auto expedition loop (planning, destination rules, recall, rewards)
 

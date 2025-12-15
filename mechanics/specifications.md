@@ -600,10 +600,23 @@ Vibes (housing pressure currency / morale pool):
 Vibes generation model (draft):
 * Vibes generation is produced by the Fire Pit and reduced by “bad vibes” pressure:
     * `Vibes_rate = GoodVibes_rate - BadVibes_rate`
+* Vibes cap:
+    * Starting cap: `Vibes_cap_base = 100`.
+    * Caps are composed of multiple additive bonuses within categories, multiplied across categories (category order is handled at the category level):
+        * Example form: `Vibes_cap = (Base + ΣAdditiveA) * (1 + ΣAdditiveB) * (1 + ΣAdditiveC) ...`
+        * Categories (draft): `Buildings`, `Upgrades`, `Research`, `Items/Artifacts`.
 * GoodVibes:
     * The Fire Pit produces a base `1 Vibe per tick`.
     * Staffing the Fire Pit adds `+1 Vibe per tick` per basic crew member (multipliers TBD; crew efficiency applies).
     * The Fire Pit also has a minimum GoodVibes contribution `GoodVibes_min = n` that always applies (n TBD; do not assume relationship to the base 1/tick).
+    * Staffing slots:
+        * Fire Pit Level 1 has `2` staffing slots.
+        * Upgrades can increase staffing slots (allowing more than 2 contributors).
+    * Group synergy (v0):
+        * Compute total learned class levels across the entire Fire Pit staff group: `B_total`, `C_total`, `H_total`.
+        * Let `sets_10 = min(floor(B_total/10), floor(C_total/10), floor(H_total/10))`.
+        * Synergy multiplier: `synergy_mult = 1 + 0.10 * sets_10`.
+        * Apply `synergy_mult` to the staffing-generated portion of GoodVibes (exact split with base/min TBD).
 * BadVibes:
     * Overcapacity generates BadVibes as an upkeep-like drain that can exceed GoodVibes (making `Vibes_rate` negative).
     * BadVibes depends on `missing_bunks = max(0, crew_count - bunks_capacity)`.
@@ -630,6 +643,9 @@ Capacity and penalties:
 * Crew capacity is governed by **Bunks** (a building providing housing capacity).
 * If `crew_count > bunks_capacity`, Vibes generation is penalized (“bad vibes”).
     * See `BadVibes_rate` model above.
+* Default capacity:
+    * The Base provides a default bunks-providing building with `bunks_capacity = 15` at run start.
+    * Bunks-providing buildings are `untuned` (persist across Tuning).
 
 Recruiting costs and control:
 * Recruiting a crew member has a **one-time Vibes cost** paid from the current Vibes pool.
@@ -667,6 +683,7 @@ Recruiting costs and control:
         * They are removed from `crew_count` immediately (so Bunks/BadVibes update immediately).
     * Restrictions:
         * Crew cannot be sent back while assigned to expeditions (Base-only activities only).
+    * Design intent: this is a pressure-release valve; the primary friction is that `total_recruited_this_run` does not decrease.
 
 Recruit spending rule:
 * The player can only recruit if they have enough Vibes in stock to pay the one-time recruit cost (no “going into debt” via recruitment).
@@ -679,6 +696,10 @@ Instant vs timed arrivals:
 Player control (early game):
 * Recruitment is player-triggered at first (manual “Recruit” actions while recruitment is enabled).
 * Later upgrades/perks can unlock automated recruiting rules (TBD).
+
+Multi-quantity actions (UX requirement):
+* All “buy/build/recruit” actions should support multi-quantity execution (x1/x10/xMax/custom).
+* UI pattern TBD (must work well on touch screens).
 
 ### 3.5 Base Stations (Draft List)
 Stations consume Chorus while active and convert time + resources into progression.
