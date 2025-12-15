@@ -650,6 +650,9 @@ Recruiting costs and control:
             * Define `Cost_i` as the one-time Vibes cost of the `i`-th recruited crew member (1-based).
             * `Cost_30 = 1200`
             * `Cost_500 = 60000`
+            * Derived (v0) using the “optimum” assumptions (30% contribute to Vibes; low multipliers; linear interpolation of “minutes to afford” between 30 and 500):
+                * `Cost_100 ≈ 5053`
+                * `Cost_1000 ≈ 207510`
     * This means the player can recruit even when `Vibes_rate` is negative, as long as they have enough Vibes stock to pay the one-time cost.
 * Negative Vibes consequences are limited to the crew efficiency penalty (no desertion/death purely from low Vibes).
 * The player can choose to send crew back to the Survivor Cave (mechanic TBD) to reduce capacity pressure and Vibes drain.
