@@ -33,11 +33,9 @@ Single source checklist for what must exist for a playable vertical slice.
 - [ ] Define recruit one-time Vibes cost curve (scales with total recruited count)
 - [ ] Define “send crew back to Cave” mechanic (done: instant, no refund, removed for run; confirm UI/limits)
 - [ ] Define manual recruiting UI + later automation unlocks
-- [ ] Pick parameters for `BadVibes_rate = U * (1 + β * r^p)` (β, p)
+- [ ] Validate `BadVibes_rate = U * (1 + β * r^p)` v0 params (p=2, β=236)
 - [ ] Define Vibes tick interval (units for Vibes rates/costs)
-- [ ] Add anchors for recruit cost curve (e.g., cost at n=30/100/500/1000)
-    - [ ] Confirm anchors (current): `Cost_30=1200`, `Cost_500=60000`
-    - [ ] Add `Cost_100` and `Cost_1000` targets (current v0: `Cost_100≈5053`, `Cost_1000≈207510`)
+- [ ] Validate recruit cost curve against anchors (Cost_1=30, Cost_30=1200, Cost_500=60000)
 
 ## Combat + Enemies
 - [ ] Define combat actions/skills (cooldowns, resource use, targeting, statuses)

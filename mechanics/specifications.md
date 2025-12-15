@@ -605,12 +605,14 @@ Vibes generation model (draft):
     * Staffing the Fire Pit adds `+1 Vibe per tick` per basic crew member (multipliers TBD; crew efficiency applies).
     * The Fire Pit also has a minimum GoodVibes contribution `GoodVibes_min = n` that always applies (n TBD; do not assume relationship to the base 1/tick).
 * BadVibes:
-	    * Overcapacity generates BadVibes as an upkeep-like drain that can exceed GoodVibes (making `Vibes_rate` negative).
-	    * BadVibes depends on `missing_bunks = max(0, crew_count - bunks_capacity)`.
+    * Overcapacity generates BadVibes as an upkeep-like drain that can exceed GoodVibes (making `Vibes_rate` negative).
+    * BadVibes depends on `missing_bunks = max(0, crew_count - bunks_capacity)`.
     * Draft shape (matches “each unbunked crew adds 1” + ratio multiplier):
-	        * Let `U = missing_bunks` and `C = max(1, crew_count)`.
-	        * Let `r = U / C`.
-        * `BadVibes_rate = U * (1 + β * r^p)` (β and p TBD).
+        * Let `U = missing_bunks` and `C = max(1, crew_count)`.
+        * Let `r = U / C`.
+        * `BadVibes_rate = U * (1 + β * r^p)`
+        * v0 parameters (match current tuning anchor):
+            * Choose `p = 2` and `β = 236` so that for `crew_count=20`, `bunks_capacity=10` (`U=10`, `r=0.5`), `BadVibes_rate = 600` per tick.
     * Interpretation: each unbunked crew adds a baseline drain of 1, multiplied by how severe unbunking is.
     * Tuning anchor (current): when `crew_count=20` and `bunks_capacity=10` (`U=10`, `r=0.5`), target `BadVibes_rate ~ 600` (per tick).
 
@@ -632,27 +634,28 @@ Capacity and penalties:
 Recruiting costs and control:
 * Recruiting a crew member has a **one-time Vibes cost** paid from the current Vibes pool.
     * The one-time cost scales with the total recruited crew count **this run**.
-        * Goal: gentle early, steeper later.
-        * Base: `Cost_1 = 30` (cost for the 1st recruited crew member).
-        * Draft shape (piecewise acceleration): `cost(n) = ceil(C0 * exp(f(n)))`, where `f(n)` accelerates in stages:
-            * For `0 <= n < 30`: very gentle growth
-            * For `30 <= n < 100`: moderate growth
-            * For `100 <= n < 500`: stronger acceleration
-            * For `n >= 500`: full exponential growth
-        * One possible family (parameters TBD; do not assume):
-            * `f(n) = (n / k1)^p1` for `n < 30`
-            * `f(n) = (n / k2)^p2` for `30 <= n < 100`
-            * `f(n) = (n / k3)^p3` for `100 <= n < 500`
-            * `f(n) = (n / k4)^p4` for `n >= 500`
-            * with `p1 < p2 < p3 < p4`
-            * `n` is total recruited this run so far (before this recruit).
-        * Current tuning anchors (do not assume missing points):
+        * Deterministic curve (v0), derived from the “optimum” assumption:
+            * Assumption: ~30% of recruited crew contribute to Vibes at low multipliers, so the “optimum” GoodVibes rate when recruiting the `i`-th crew member is:
+                * `GoodVibes_opt_per_tick(i) = 1 + 0.3 * (i - 1)`
             * Define `Cost_i` as the one-time Vibes cost of the `i`-th recruited crew member (1-based).
-            * `Cost_30 = 1200`
-            * `Cost_500 = 60000`
-            * Derived (v0) using the “optimum” assumptions (30% contribute to Vibes; low multipliers; linear interpolation of “minutes to afford” between 30 and 500):
-                * `Cost_100 ≈ 5053`
-                * `Cost_1000 ≈ 207510`
+            * Define a target “minutes to afford” curve `T_i` (real minutes) and then convert it into cost:
+                * `Cost_i = ceil(GoodVibes_opt_per_tick(i) * 60 * T_i)`
+            * Anchors (current):
+                * `Cost_1 = 30`
+                * `Cost_30 = 1200`
+                * `Cost_500 = 60000`
+                * (Derived from the same rule) `Cost_100 ≈ 5053`, `Cost_1000 ≈ 207510`
+            * Minutes curve `T_i` (gentle early, steeper later, no lookup table):
+                * Let `T_1 = 0.5` minutes (so `Cost_1 = ceil(1 * 60 * 0.5) = 30`).
+                * Let `T_30 = Cost_30 / (GoodVibes_opt_per_tick(30) * 60)`.
+                * Let `T_500 = Cost_500 / (GoodVibes_opt_per_tick(500) * 60)`.
+                * Define `T_i` piecewise:
+                    * For `1 <= i <= 30` (very gentle): `T_i = T_1 + (T_30 - T_1) * ((i - 1) / 29)^q` with `q > 1` (default `q = 2`).
+                    * For `30 < i <= 500` (moderate): linear in `i`: `T_i = T_30 + (T_500 - T_30) * ((i - 30) / 470)`.
+                    * For `i > 500` (accelerating): exponential in `i`:
+                        * Let `T_1000 = Cost_1000 / (GoodVibes_opt_per_tick(1000) * 60)`.
+                        * Let `k_time = 500 / ln(T_1000 / T_500)` (so the curve matches the 1000th anchor).
+                        * `T_i = T_500 * exp((i - 500) / k_time)`.
     * This means the player can recruit even when `Vibes_rate` is negative, as long as they have enough Vibes stock to pay the one-time cost.
 * Negative Vibes consequences are limited to the crew efficiency penalty (no desertion/death purely from low Vibes).
 * The player can choose to send crew back to the Survivor Cave (mechanic TBD) to reduce capacity pressure and Vibes drain.
@@ -667,6 +670,7 @@ Recruiting costs and control:
 
 Recruit spending rule:
 * The player can only recruit if they have enough Vibes in stock to pay the one-time recruit cost (no “going into debt” via recruitment).
+    * If `total_recruited_this_run = n`, the next recruit cost is `Cost_(n+1)`.
 
 Instant vs timed arrivals:
 * Recruitment uses the instant-arrival stock first (if `instant_recruits_available > 0`), then falls back to timed travel arrivals.
