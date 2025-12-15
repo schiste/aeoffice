@@ -633,7 +633,7 @@ Recruiting costs and control:
 * Recruiting a crew member has a **one-time Vibes cost** paid from the current Vibes pool.
     * The one-time cost scales with the total recruited crew count **this run**.
         * Goal: gentle early, steeper later.
-        * Base: `C0 = 30` (starting cost for the first recruit).
+        * Base: `Cost_1 = 30` (cost for the 1st recruited crew member).
         * Draft shape (piecewise acceleration): `cost(n) = ceil(C0 * exp(f(n)))`, where `f(n)` accelerates in stages:
             * For `0 <= n < 30`: very gentle growth
             * For `30 <= n < 100`: moderate growth
@@ -646,7 +646,10 @@ Recruiting costs and control:
             * `f(n) = (n / k4)^p4` for `n >= 500`
             * with `p1 < p2 < p3 < p4`
             * `n` is total recruited this run so far (before this recruit).
-        * Current tuning anchor: `cost(30) = 600` (interpretation: the cost when `n = 30`; additional anchors TBD).
+        * Current tuning anchors (do not assume missing points):
+            * Define `Cost_i` as the one-time Vibes cost of the `i`-th recruited crew member (1-based).
+            * `Cost_30 = 1200`
+            * `Cost_500 = 60000`
     * This means the player can recruit even when `Vibes_rate` is negative, as long as they have enough Vibes stock to pay the one-time cost.
 * Negative Vibes consequences are limited to the crew efficiency penalty (no desertion/death purely from low Vibes).
 * The player can choose to send crew back to the Survivor Cave (mechanic TBD) to reduce capacity pressure and Vibes drain.

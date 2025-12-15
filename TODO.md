@@ -36,6 +36,8 @@ Single source checklist for what must exist for a playable vertical slice.
 - [ ] Pick parameters for `BadVibes_rate = U * (1 + β * r^p)` (β, p)
 - [ ] Define Vibes tick interval (units for Vibes rates/costs)
 - [ ] Add anchors for recruit cost curve (e.g., cost at n=30/100/500/1000)
+    - [ ] Confirm anchors (current): `Cost_30=1200`, `Cost_500=60000`
+    - [ ] Add `Cost_100` and `Cost_1000` targets
 
 ## Combat + Enemies
 - [ ] Define combat actions/skills (cooldowns, resource use, targeting, statuses)
