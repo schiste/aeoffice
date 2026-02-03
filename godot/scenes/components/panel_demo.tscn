@@ -1,0 +1,133 @@
+[gd_scene load_steps=4 format=3 uid="uid://d2y5vf8k3mxwp"]
+
+[ext_resource type="Script" path="res://scenes/components/panel_demo.gd" id="1_demo"]
+[ext_resource type="PackedScene" uid="uid://clm7r8vq3mfhs" path="res://scenes/components/dock_panel.tscn" id="2_dock"]
+[ext_resource type="PackedScene" uid="uid://b3qxr5y8m4v8k" path="res://scenes/components/collapsible_panel.tscn" id="3_collapsible"]
+
+[node name="PanelDemo" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_demo")
+
+[node name="ColorRect" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.2, 0.2, 0.25, 1)
+
+[node name="Label" type="Label" parent="."]
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -200.0
+offset_top = 20.0
+offset_right = 200.0
+offset_bottom = 60.0
+grow_horizontal = 2
+theme_override_font_sizes/font_size = 24
+text = "Panel System Demo"
+horizontal_alignment = 1
+
+[node name="DemoDockPanel" parent="." instance=ExtResource("2_dock")]
+unique_name_in_owner = true
+offset_left = 50.0
+offset_top = 100.0
+offset_right = 450.0
+offset_bottom = 500.0
+title = "Properties Panel"
+
+[node name="CollapsibleSection1" parent="DemoDockPanel/VBoxContainer/ContentArea/Content" instance=ExtResource("3_collapsible")]
+unique_name_in_owner = true
+layout_mode = 2
+title = "Terrain Settings"
+
+[node name="TerrainContent" type="VBoxContainer" parent="DemoDockPanel/VBoxContainer/ContentArea/Content/CollapsibleSection1/ContentContainer/Content"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="DemoDockPanel/VBoxContainer/ContentArea/Content/CollapsibleSection1/ContentContainer/Content/TerrainContent"]
+layout_mode = 2
+text = "Terrain Type:"
+
+[node name="OptionButton" type="OptionButton" parent="DemoDockPanel/VBoxContainer/ContentArea/Content/CollapsibleSection1/ContentContainer/Content/TerrainContent"]
+layout_mode = 2
+item_count = 5
+selected = 0
+popup/item_0/text = "Grassland"
+popup/item_1/text = "Forest"
+popup/item_1/id = 1
+popup/item_2/text = "Mountain"
+popup/item_2/id = 2
+popup/item_3/text = "Water"
+popup/item_3/id = 3
+popup/item_4/text = "Desert"
+popup/item_4/id = 4
+
+[node name="Label2" type="Label" parent="DemoDockPanel/VBoxContainer/ContentArea/Content/CollapsibleSection1/ContentContainer/Content/TerrainContent"]
+layout_mode = 2
+text = "Height:"
+
+[node name="HSlider" type="HSlider" parent="DemoDockPanel/VBoxContainer/ContentArea/Content/CollapsibleSection1/ContentContainer/Content/TerrainContent"]
+layout_mode = 2
+max_value = 10.0
+step = 0.1
+
+[node name="CollapsibleSection2" parent="DemoDockPanel/VBoxContainer/ContentArea/Content" instance=ExtResource("3_collapsible")]
+unique_name_in_owner = true
+layout_mode = 2
+title = "Visual Settings"
+
+[node name="VisualContent" type="VBoxContainer" parent="DemoDockPanel/VBoxContainer/ContentArea/Content/CollapsibleSection2/ContentContainer/Content"]
+layout_mode = 2
+
+[node name="CheckBox" type="CheckBox" parent="DemoDockPanel/VBoxContainer/ContentArea/Content/CollapsibleSection2/ContentContainer/Content/VisualContent"]
+layout_mode = 2
+text = "Show Grid"
+
+[node name="CheckBox2" type="CheckBox" parent="DemoDockPanel/VBoxContainer/ContentArea/Content/CollapsibleSection2/ContentContainer/Content/VisualContent"]
+layout_mode = 2
+text = "Show Coordinates"
+
+[node name="CheckBox3" type="CheckBox" parent="DemoDockPanel/VBoxContainer/ContentArea/Content/CollapsibleSection2/ContentContainer/Content/VisualContent"]
+layout_mode = 2
+text = "Show Height Map"
+
+[node name="Label" type="Label" parent="DemoDockPanel/VBoxContainer/ContentArea/Content/CollapsibleSection2/ContentContainer/Content/VisualContent"]
+layout_mode = 2
+text = "Opacity:"
+
+[node name="HSlider" type="HSlider" parent="DemoDockPanel/VBoxContainer/ContentArea/Content/CollapsibleSection2/ContentContainer/Content/VisualContent"]
+layout_mode = 2
+value = 100.0
+
+[node name="CollapsibleSection3" parent="DemoDockPanel/VBoxContainer/ContentArea/Content" instance=ExtResource("3_collapsible")]
+unique_name_in_owner = true
+layout_mode = 2
+title = "Advanced Options"
+collapsed = true
+
+[node name="AdvancedContent" type="VBoxContainer" parent="DemoDockPanel/VBoxContainer/ContentArea/Content/CollapsibleSection3/ContentContainer/Content"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="DemoDockPanel/VBoxContainer/ContentArea/Content/CollapsibleSection3/ContentContainer/Content/AdvancedContent"]
+layout_mode = 2
+text = "Seed:"
+
+[node name="SpinBox" type="SpinBox" parent="DemoDockPanel/VBoxContainer/ContentArea/Content/CollapsibleSection3/ContentContainer/Content/AdvancedContent"]
+layout_mode = 2
+max_value = 999999.0
+
+[node name="CheckBox" type="CheckBox" parent="DemoDockPanel/VBoxContainer/ContentArea/Content/CollapsibleSection3/ContentContainer/Content/AdvancedContent"]
+layout_mode = 2
+text = "Use Procedural Generation"
+
+[node name="CheckBox2" type="CheckBox" parent="DemoDockPanel/VBoxContainer/ContentArea/Content/CollapsibleSection3/ContentContainer/Content/AdvancedContent"]
+layout_mode = 2
+text = "Enable Debug Mode"

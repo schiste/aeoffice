@@ -15,14 +15,48 @@ The game world is defined by **Signal-to-Noise Ratio (SNR)** instead of HP.
 World constraint (grounded fiction):
 * The Filter primarily destroys long-range airborne propagation; local vibration near sources can still exist.
 * The Crystal’s bubble is modeled as a localized region where this vibration can be sustained for suppression purposes.
+* v0 implementation note (decision): we do **not** simulate dB/SNR as an explicit numeric system yet; safety is derived from bubble coverage + authored events/conditions.
 
 ### 1.2 Viral Load (Health)
 Replaces traditional HP.
 * **Viral Load:** 0% (Healthy) to 100% (Death).
-* **In Silence:** Increases based on `(Time * DecayRate) / Resistance`.
-* **In Sound:** Decreases rapidly (Recovery).
-* **Edge cases:** If the bubble shrinks and the Hero is now outside safe coverage, Viral Load increase applies immediately (no grace).
+* v0 representation: a single scalar `viral_load_ratio ∈ [0,1]`.
+* v0 core rates (decisions):
+    * **Hero** time from `0 → 1` while fully outside the bubble: **24s** real time (24 in-world hours).
+    * **Normal human** time from `0 → 1` while fully outside the bubble: **4s** real time (4 in-world hours).
+    * **Recovery** time from `1 → 0` while fully inside the bubble: **240s** real time (10 in-world days).
+* v0 update rules (deterministic, per tick / offline catch-up):
+    * If Hero is **outside** `Bubble`:
+        * `viral_load_ratio += dt_seconds / 24`
+    * If Hero is **inside** `Bubble`:
+        * `viral_load_ratio -= dt_seconds / 240`
+    * Clamp to `[0,1]`.
+* Threshold debuffs (decision): debuffs apply based on `viral_load_ratio` tiers (exact tiers/effects TBD).
+* Event modifiers (decision): encounters, conditions, and scripted events may increase viral load directly (no “silent storms” concept).
+* Mitigation (decision): consumables, items, and safe spots can reduce viral load and/or modify its rate (exact models TBD).
+* Offline (decision): Viral Load **does progress offline** based on the Hero’s last saved position and bubble coverage.
+* Edge case behavior (decision):
+    * If the bubble shrinks and the Hero becomes outside safe coverage, Viral Load increase applies immediately (no grace).
+    * No automated safety actions for bubble shrink: the game does not auto-pause or auto-recall; it issues an in-game warning instead.
+    * Point-of-no-return safety device (decision, v0):
+        * In lore, Survivors built a device that calculates Viral Load risk in real time.
+        * When the Hero crosses from inside → outside the bubble, the game logs the exit point and begins computing the Viral Load required to return to safety.
+        * If the Hero reaches the “point of no return” (insufficient remaining Viral Load budget to safely re-enter the bubble), the Hero **automatically** starts returning to safety and the player cannot stop it.
+        * Forced return is a pure retreat: no new encounters/events trigger during the auto-return.
+        * Once the Hero re-enters the bubble, they automatically travel back to The Studio at **2×** travel time (badly hurt) using the normal movement/travel-time rules.
+        * The Hero remains fully incapacitated for the entire forced-return sequence.
+        * Viral Load recovery does **not** begin on bubble re-entry; it begins only once the Hero reaches The Studio, then recovers to `viral_load_ratio = 0` over time (recovery rate as above).
 * **UI:** Displayed as a "Vitals Monitor" waveform, not a red bar.
+
+Echo Scars (decision, v0):
+* Echo Scars are a persistent Hero consequence system triggered by forced-return events (point-of-no-return).
+* Each Scar has both:
+    * a drawback (punishment), and
+    * a compensating adaptation (small upside) to keep it from feeling purely punitive.
+* Scars are uncapped (can stack indefinitely), but their tuning/balancing should avoid a death spiral (exact stacking behavior TBD).
+* Scars can be mitigated/removed (v0: **consumables-only**; exact removal mechanics designed later).
+* Scars can affect both exploration and Base production (exact stat hooks TBD).
+* Presentation tone: clinical + poetic + dark humor; scars may also affect UI presentation (optional authored hooks).
 
 ### 1.3 Bubble (Coverage & Reach)
 Map progression is physically tied to the Crystal’s expanding soundfield.
@@ -81,6 +115,16 @@ Map progression is physically tied to the Crystal’s expanding soundfield.
             * `ring_cost[k] = Σ terrain_impedance(tile)` for all `tile in Ring(k)` where `eligible(tile)`.
             * `cumulative_cost[r] = Σ_{k=1..r} ring_cost[k]`
             * The maximum expanded layer is: `Amplitude_layer = max r such that cumulative_cost[r] <= Bassline_field * K_field`
+                * `K_field` is a global conversion coefficient that turns stored Bassline field charge into an impedance budget (units: impedance-per-Bassline).
+                * Larger `K_field` => faster expansion (more tiles per Bassline). Smaller `K_field` => slower expansion.
+                * Early v0 sanity (all plains, `terrain_impedance = 1`, no occlusion):
+                    * `ring_cost[k] = 6k` and `cumulative_cost[r] = 3r(r+1)`.
+                    * To reach layer 3: need `Bassline_pool >= 36 / K_field` (since early `eta_B = 1`).
+                    * This provides a single tuning knob to hit the ~5 minute early pacing target.
+                * v0 calibration decision (all plains start):
+                    * Target: layer 3 at `Bassline_pool = 100` (with `eta_B = 1`).
+                    * Therefore `K_field_base = 36 / 100 = 0.36`.
+                    * `K_field` can be modified later by upgrades/research (design intent: Crystal Circle improvements).
         * Bubble set:
             * `Bubble = { tile | min_{s in S} hex_distance(s, tile) <= Amplitude_layer and eligible(tile) }`
         * Consequence (intended tradeoff):
@@ -129,14 +173,60 @@ Map progression is physically tied to the Crystal’s expanding soundfield.
     * **Update cadence:** bubble coverage does not need to be recalculated every frame; small latency is acceptable.
         * Draft: recompute bubble coverage at most once per second (or per authored “tick”), and smooth UI transitions separately.
     * **Scale target (draft):** late-game bubble radius on the order of ~`500` hexes from the Base.
+* **Player control (early):** Bubble size updates automatically from current stored Bassline (no manual “expand” action).
+    * Later perks/research can provide additional control (e.g., reserve floors, spend locks, manual shaping).
+
+Layer-step rule (decision, v0):
+* Bubble expansion and shrink happens in whole **layers** (integer `Amplitude_layer`).
+    * Spending Bassline changes the target layer; the bubble transitions toward that target with inertia rules.
 
 ### 1.4 Exploration, Quests, Enigmas, Expeditions
 Outside the Base, the player explores the map to discover locations, complete quests, solve enigmas, and run expeditions.
+
+v0 onboarding gate (draft):
+* Before restoring The Studio, the player completes the first **Investigate → Explore** loop once.
+    * Includes a first very low-level fight against **Dweller Bane**: “a deaf blind old grumpy rat that did dwell away from a fight in a cave a long time ago”.
+* Purpose:
+    * Introduce combat safely.
+    * Unlock Water collection on the Base tile and provide the first Skin (fixed loot).
+* Implementation note (design): “Restore The Studio” is locked until this first loop is completed.
+* v0 base tile timings:
+    * Investigate: `5s` (unlocks Exploration).
+    * Explore: `10s` (triggers the Dweller Bane fight on completion; if the player wins, grant `1 skin` and unlock the Studio restoration upgrade).
+
+Per-tile Investigate / Explore model (draft):
+* Each map tile defines:
+    * `investigate_seconds` (real time): time to perform “Investigate” on that tile.
+    * `explore_seconds` (real time): time to perform “Explore” on that tile.
+    * `investigation_level_current` and `exploration_level_current` (integers): per-tile progression tracks.
+    * unlock conditions and rewards by level (content hooks), including optional equipment requirements (e.g., “Hero wears flip flops”).
+* `0` seconds means the action is instant on that tile.
+
+Persistence and roles (v0 decisions):
+* Per-tile exploration state is **persistent within a save slot** (untuned) and is **monotonic** (does not decrease).
+* **Investigate** can be performed by the Hero or any crew member (worker-blocking).
+* **Explore** can be performed by the Hero only (worker-blocking).
+* Offline/catch-up does **not** progress Investigate/Explore timers.
+
+Leveling and rewards (v0 decisions):
+* Each successful Explore increases `exploration_level_current += 1` for that tile.
+* Unlock rewards are granted **once** when crossing the required level by default.
+    * Some tiles/levels may be authored as repeatable (no level increase); repeatable rewards use RNG within authored parameters (loot tables/weights).
+	* Dungeons/POIs unlocked by exploration:
+	    * Unlock is stored as a **global** save-slot flag (e.g., `unlock:dungeon_city_one`).
+	    * Each dungeon also stores its `home_tile_id` for gating/UI consistency (decision).
+	    * Availability rule (decision): a dungeon is available only while its associated tile is **accessible**:
+	        * In bubble coverage (currently safe),
+	        * Hero has visited (i.e., the tile has been explored/entered by the Hero at least once),
+	        * and any authored access conditions are met.
+	      If the tile becomes inaccessible, the dungeon is unavailable again.
+	    * Unlocking a dungeon does **not** reveal its map tile; reveal is driven by items/artifacts/events.
 
 Map representation:
 * The world map uses a **hex grid**.
 * Distance and rings are computed using hex distance (implementation details TBD; recommend **cube coordinates**).
 * **Reveal vs safety:** fog-of-war reveal is permanent (map knowledge persists), but safety/Chorus access depends on current bubble coverage.
+    * Decision TE-0009: the Hero can enter unrevealed (fogged) tiles; entering a tile marks it as **revealed** (still may require Explore/Investigate to unlock content).
 * World size (draft): finite but intended to be extremely large; the map is hand-authored (not procedurally generated at runtime) and can be streamed/loaded in chunks as the player expands.
 * Regions:
     * The map is organized into **authored regions** (named areas) that can span many technical streaming chunks.
@@ -159,14 +249,49 @@ Map representation:
 
 World scale + time scale (draft):
 * **1 tile = 4 km** (~1 hour walk for a person under normal conditions).
-* **1 minute real time = 1 hour in-world time** (default simulation scale for travel and timers).
+* **1 real second = 1 in-world hour** (default simulation scale for travel and timers).
+
+Movement & Travel Time (decisions, v0):
+* The Hero moves **tile-by-tile**; each tile transition has a real-time duration (can be paused/resumed).
+* Baseline on plains (inside bubble, healthy Hero): **1s per tile** travel time.
+* Bubble `terrain_impedance` and movement travel time use **separate** terrain tables (both authored per terrain/tile).
+    * Movement can be blocked/impossible on some tiles until specific research/items are unlocked.
+* Travel progresses while offline/catch-up (Hero movement timers advance offline).
+* Encounters/events can trigger during normal travel (travel is not purely “safe time”).
+* “Hero visited” flag is set when the Hero **enters** a tile, but tiles traversed during **forced Viral Load return** do **not** count as visited.
+* Point-of-no-return calculation uses **full travel-time pathing**:
+    * `required_time_to_reenter_bubble_seconds` is the shortest travel-time path from the Hero’s current tile to **any** currently-in-bubble tile.
+    * This is recomputed while outside bubble as conditions change (tile travel times, bubble shape, blockers, etc.).
+
+Early materials (draft):
+* In addition to the three band resources, early gameplay introduces **Stone** and **Water**.
+* Stone sources include Base-tile scavenging and map resource nodes (see `3.1.0`).
+* Resource placement (draft):
+    * All terrain types can carry resources.
+    * “Nodes” represent concentrated deposits with higher `stock_max` and/or higher harvesting efficiency than ambient terrain.
+    * Ambient harvesting: even without a node, terrain can provide a small “trickle” of Stone (low stock, low efficiency).
+* Stone node qualities (draft): support multiple Stone node qualities from the start (different `stock_max`, `regen_per_hour`, and yield characteristics).
+    * Examples: Small Quarry, Modern Quarry, Mine, Open Mine.
 
 Tick system (draft):
 * The game uses a single global simulation **tick** with duration `tick_seconds` (real seconds).
     * Default: `tick_seconds = 1.0`.
-* In-world time advances at `60x` real time, so:
-    * `in_world_seconds_per_tick = tick_seconds * 60`
+* In-world time advances at `3600x` real time (1 real second = 1 in-world hour), so:
+    * `in_world_seconds_per_tick = tick_seconds * 3600`
 * Any mechanic described as “per tick” uses this global tick (including Vibes and recruitment timers).
+* Implementation note (design requirement): use **per-system tick accumulators** and **event scheduling** (not per-frame deltas) so idle catch-up is robust and deterministic (exact offline math TBD).
+
+Offline progress scope (draft):
+* While the app is closed, offline/catch-up applies to:
+    * Base-side band resource generation and Vibes tick sources (subject to caps).
+    * Recruit travel timers / arrivals (subject to gating + caps).
+    * Expeditions (progress + returns; subject to caps and destination locking rules).
+        * Expeditions may return materials (e.g., Stone), which can increase while offline, but never beyond caps.
+    * Hero travel timers (tile-by-tile movement) and Viral Load progression (based on last saved position + bubble coverage).
+* While the app is closed, offline/catch-up does **not** apply to:
+    * Base-tile Scavenge actions.
+    * Manual Hero harvesting of map resource nodes.
+* World-state note: map resource node **regeneration** advances in real time while the app is closed (within a save slot).
 
 * **Manual Mode:** Direct control for exploration and encounters; best for puzzles/enigmas and high-risk pushes.
 * **Auto Mode:** The game plays on behalf of the player using the same real-time combat/action systems.
@@ -182,6 +307,11 @@ Expeditions are a primary way to acquire loot over time:
 
 Bubble shrink interactions:
 * If bubble shrink removes Chorus access to a required safe spot, the destination relocks and any active auto expeditions are auto-recalled using the normal Recall rules (no extra penalty).
+
+Expedition duration (decision, v0):
+* Expedition duration is composed of:
+    * `travel_time` (computed by the same movement/pathing system), plus
+    * `exploration_time` at the destination (authored per destination/level; exact model TBD).
 
 ### 1.5 Forward Safe Spots
 Later in progression, the player can create forward safe spots outside the Base.
@@ -213,6 +343,165 @@ Encounters are real-time. Actions recharge over time (cooldowns), enabling both 
 * **Manual play:** Player chooses when to spend recharged actions.
 * **Auto play:** An AI uses recharged actions according to a selected style/priority (to be defined).
 
+Hit resolution (TBD):
+Combat needs a hit-success model (how attacks connect/miss/crit). v0 decisions:
+* Hit model: **hit-rating ratio** + `d100` roll with outcomes **miss / hit / crit**.
+    * There is no separate “evasion stat” in v0; both sides use the same `Tempo`-derived rating structure.
+    * Define the attacker and defender `hit_rating` (unbounded):
+        * `hit_rating = Tempo + gear + perks + other_modifiers − malus`
+    * Hero advantage (decision): the `1.15` multiplier is a **Hero-only** advantage, not a generic attacker advantage.
+        * `hero_advantage_mult = 1.15`
+    * Compute hit chance as a ratio:
+        * `A = max(0, hit_rating_attacker)`
+        * `D = max(0, hit_rating_defender)`
+        * Apply the Hero-only multiplier to the Hero side (attacker or defender):
+            * `A' = A * hero_advantage_mult` if attacker is the Hero, else `A' = A`
+            * `D' = D * hero_advantage_mult` if defender is the Hero, else `D' = D`
+        * `hit_chance = A' / (A' + D')` (If `A'=D'=0`, define `hit_chance = 0.5`.)
+    * Roll `d100` and compare to a threshold derived from hit chance:
+        * Let `p = hit_chance` in `[0,1]`.
+        * Let `roll` be an integer in `[1,100]`.
+        * **Hit succeeds** if `roll > 100 * (1 - p)`. Otherwise it’s a **miss**.
+    * Crit:
+        * Crit chance comes from a separate `crit_rating` (exact mapping TBD) and is influenced by `Theory`.
+        * v0 crit chance model: `crit% = min(100, crit_rating_total)` (linear, cap at 100%).
+            * `crit_rating_total` is built from rating adders (gear/perks/modifiers) plus Attribute-derived contributions (e.g., `Theory` via an authored table).
+        * Crit wound behavior (decisions):
+            * A crit bypasses **all gear durability** for the whole attack.
+            * The crit does not change the base wound payload type, but also adds an additional `+1 Light Wound` that ignores modifiers/blockers.
+    * Outcomes:
+        * Miss
+        * Hit
+        * Crit
+* Skills can miss (like basic attacks), but may carry hit buffs.
+* Tutorial tuning rule (decision): Dweller Bane is authored so the fight is effectively not losable (by stats/balance rather than forced 100% hit rules).
+
+Viral Load on attacks (decision):
+* Attacks can carry a Viral Load payload in addition to Wounds.
+* If an attack’s Wound payload is fully absorbed by gear durability (no Wounds reach the Hero), then **no Viral Load payload is applied**.
+* Crits (see above) bypass gear durability, so Viral Load payloads apply on crits.
+* Viral Load payload unit convention (decision):
+    * Attacks express Viral Load payload as a direct delta to `viral_load_ratio`.
+    * `+1 Viral Load` on hit means `viral_load_ratio += 0.01` (1%).
+
+Hero skills (decisions, v0):
+* The Hero starts with exactly **one** skill: `Attack`.
+    * There is no separate “basic attack” button; `Attack` is the basic action.
+* Skills can be single-target or AoE (v0 supports AoE authoring).
+* Skill authoring fields include:
+    * `cooldown_seconds`
+    * hit modifiers (rating adders): `hit_rating_bonus_or_malus`, `crit_rating_bonus`
+    * payloads: Wounds (LW or MW) and optional Viral Load payload **from foes only**
+    * optional `uses` / `charges` system:
+        * Each use decrements `charges_current`.
+        * Replenishment can be time-based, object-based, perk-based, etc. (e.g., bows consume ammo).
+* The Hero never applies Viral Load payloads to foes (v0): Viral Load is a “foes → Hero” pressure axis only.
+
+Combat resolution order (decisions, v0):
+* On a Hero or foe attack execution:
+    1. Roll hit → miss/hit/crit.
+    2. If **miss**: no payloads apply.
+    3. If **hit**:
+        * Apply wound payload to target, routed through gear first (if applicable) using routing rules.
+        * If any wound reaches the target’s wound track, apply Viral Load payload if the attacker has one.
+    4. If **crit**:
+        * Crit bypasses all gear durability for the whole attack.
+        * Apply base wound payload directly to target wound track.
+        * Add extra `+1 Light Wound` that ignores modifiers/blockers.
+        * Apply Viral Load payload once (not doubled).
+* MW payload conversion (decision): a MW payload converts to `+Y_target` wound units, where `Y_target = light_wounds_per_major` for that target track/item.
+
+Victory conditions (decisions, v0):
+* Default: a foe is defeated when `wound_units_taken >= major_wounds_max * light_wounds_per_major`.
+* Some encounters can additionally trigger special scripted events on thresholds (e.g., flee, phase change, tutorial prompts).
+
+Tuning target (v0):
+* Tutorial fight (Dweller Bane) target clear time: ~`30s` with the starting `Attack` skill (numbers tuned via stats, not forced hit rules).
+
+In-combat recovery (decision, v0):
+* In-combat healing/repair is possible via items (consumables). Exact items and rules TBD.
+
+Tutorial encounter (v0 authored intent):
+* Encounter: **Dweller Bane** (tutorial fight on first Studio Explore victory).
+    * Intended player experience:
+        * Hero hit rate feels ~`60%`.
+        * Fight is effectively not losable by tuning stats (no forced 100% hit rules).
+        * Target clear time: ~`30s` (tuning anchor).
+    * Draft authored numbers (need unit consistency check for Viral Load payloads):
+        * Dweller Bane wound capacity: `3` Light Wounds.
+        * Dweller Bane bite: every `5s`, applies `+1 LW` and `+1 Viral Load` (`viral_load_ratio += 0.01`).
+    * Victory triggers the “cleaning impulse” story event, which unlocks “Removing Moss” on the Crystal Circle.
+
+Consumables & inventory (decisions, v0):
+* Inventory is slot-limited (not unlimited stacks); exact slot count TBD.
+    * v0: `inventory_slots_max = 4`.
+* Tutorial: the player starts with **no** consumables.
+* Healing item example: **Bandaids** remove exactly `+1 Light Wound` worth of wounds (i.e., `-1 wound unit`).
+    * Healing items can be used anywhere (not restricted to bubble).
+* Repair items can restore gear durability in either Light-Wound units (LW) and/or Major-Wound units (MW) (exact mapping TBD per item).
+    * v0 repair consumable: **Glue** restores `+3` wound units to one **chosen** damaged gear item.
+* Consumable use is instant in v0.
+* Consumable cooldown:
+    * Outside combat: global `1s` cooldown between consumable uses.
+    * In combat: no global cooldown (per-item cooldowns only).
+* Forced return restriction: when Viral Load forced-return triggers, the player cannot use consumables during the retreat sequence.
+* Persistence: consumables persist across Tunings by default (`untuned`), but some consumables can be run-scoped (`tuned`).
+* Acquisition (early): consumables are found as exploration loot (other sources later).
+
+Attribute tables (v0, authored):
+* Some attribute effects are defined by small authored tables rather than a formula (early balancing convenience).
+* v0: `Theory` contributes to crit chance via cumulative milestones (sum of all reached milestones):
+    * `Theory >= 1` ⇒ `+0.1%` crit
+    * `Theory >= 3` ⇒ `+0.2%` crit
+    * `Theory >= 5` ⇒ `+0.3%` crit
+    * `Theory >= 10` ⇒ `+0.4%` crit
+  Example totals: at `Theory=0` ⇒ `0.0%`, at `Theory=3` ⇒ `0.3%`, at `Theory=10` ⇒ `1.0%`.
+
+Health model (decision): Wounds + Viral Load
+* The Hero does not have classic HP. Combat pressure is split into:
+    * **Wounds** (injury capacity; immediate combat survivability), and
+    * **Viral Load** (always ticking outside bubble; attacks can add Viral Load directly).
+* Foes also have Wounds capacity (and optionally Viral Load payloads for their attacks).
+
+Wounds structure (decision, v0):
+* Wounds come in two severities:
+    * **Light Wounds** (LW)
+    * **Major Wounds** (MW)
+* A combatant’s wound capacity is authored as:
+    * `major_wounds_max = X`
+    * `light_wounds_per_major = Y`
+    * Effective light-wound capacity: `light_wounds_max = X * Y`
+    * Storage model (same-pool decision): track wounds as a single “wound unit” counter.
+        * Light Wound payload: `+1` wound unit.
+        * Major Wound payload: `+Y` wound units (where `Y` is the target track’s `light_wounds_per_major`).
+        * This makes MW-vs-LW sensitivity depend on the target/gear’s `Y` (intended: some gear is great vs LW but collapses quickly to MW, and vice-versa).
+* v0 Hero baseline:
+    * `major_wounds_max = 3`
+    * `light_wounds_per_major = 6` (so `light_wounds_max = 18`)
+* Foe baseline: same structure; values authored per foe (Dweller Bane TBD).
+
+Damage payloads (decision):
+* Each foe attack/skill can apply both:
+    * a **Wound payload** (either `+1 Light Wound` or `+1 Major Wound`), and
+    * a **Viral Load payload** (amount per hit; allows “high viral / low wounds” enemies).
+
+Gear protection & durability (decision):
+* Gear protects the Hero from Wounds via a durability system using the same MW/LW structure:
+    * Each gear piece can absorb `X_gear` Major Wounds made of `Y_gear` Light Wounds.
+* When a Wound would be applied to the Hero:
+    * If applicable gear durability remains, the gear absorbs it (reducing its durability).
+    * Otherwise, the Hero’s wound capacity takes it.
+* Exact gear slotting, break behavior, and repair loops are TBD.
+
+Automation unlock (decisions):
+* v0: no auto-fight at the tutorial stage.
+* Auto-fight is unlocked later (via upgrade/research) and cycles skills (not “optimal” play).
+* Baseline skill cooldown for early basics: **3s**.
+
+Travel encounters (decision):
+* Encounters can trigger while traveling; world time does not stop.
+* If outside the bubble, Viral Load continues to rise during encounters.
+
 ---
 
 ## 2. Hero Stats (Launch Set)
@@ -221,6 +510,13 @@ To keep the system focused, the Hero starts with 3 primary stats. Damage and pro
 * **Sustain:** Viral Load resistance and rest recovery rate.
 * **Tempo:** Cooldown recharge speed and mobility/avoidance.
 * **Theory:** Enigma support (hints/spots/clues), utility skill effectiveness, small damage multiplier, and potential Base-related perks/unlocks (TBD).
+
+Attribute properties (decisions, v0):
+* Attributes are **unbounded** integers.
+* Fresh save/run starts at: `Sustain=0`, `Tempo=0`, `Theory=0`.
+* Attributes can be increased by both:
+    * Hero progression (leveling/perks), and
+    * gear/perks/other modifiers.
 
 ### 2.1 Theory as a “Multiplier Multiplier”
 To keep Theory’s impact very small early and more relevant later, it primarily amplifies **multipliers** rather than base values.
@@ -261,7 +557,21 @@ The economy is powered by three base resources generated through sound productio
 * **Chorus (Mid Band):** Mid-frequency energy (body and presence).
 * **Harmonics (High Band):** High-frequency energy (detail and coherence).
 
-These resources are generated by crew roles (classes) staffing the Base. Expeditions bring back loot/materials that are processed at the Base and converted into these resources (conversion systems TBD).
+These resources are generated primarily by crew staffing the **Crystal** (via the Crystal Circle and related upgrades). Expeditions bring back loot/materials that are used for progression (upgrades/research/perks/efficiency); direct loot-to-band conversion is not part of the early design (later systems TBD).
+
+Early rule (decision):
+* Band resources are generated by the **Crystal** via staffing (Crystal Circle / crew) at first.
+* Expeditions return **loot/materials** (not band resources directly); these feed upgrades, research, perks, and efficiency rather than direct band conversion (early).
+    * Later systems may add additional production modifiers/buildings, but the Crystal remains the primary band source.
+
+Passive band generation (v0 addition):
+* Not all band generation must be staffing-only forever.
+* v0 plan: the **“Removing Moss”** Crystal Circle upgrade unlocks a passive Bassline trickle (`+1 Bassline / tick`) to reduce hard dependency on constant staffing.
+    * Passive trickle runs always (including offline/catch-up) and does not require staffing.
+    * It is affected by Crystal Circle output multipliers (e.g., “Removing Moss”) and by Crystal Circle upgrades (level source).
+    * Passive trickle does **not** grant XP (v0).
+    * Passive trickle is additive to staffed contributions (separate generator) and follows normal cap behavior (overflow lost).
+    * Pacing gate intent (v0): this upgrade becomes available after the first Explore fight (Dweller Bane death), via story trigger.
 
 ### 3.1.0 Resource Model (Rates + Storage)
 Each base resource exists as both:
@@ -275,16 +585,86 @@ Implementation-friendly representation (discrete “music ticks”):
 * The effective per-second production rate used by economy math is derived as:
     * `rate_per_second = amount_per_tick / tick_interval_seconds`
 * For safety and simplicity, simulation can update pools using continuous rates (`pool += rate_per_second * delta_seconds`) while still keeping ticks as the “authoring” representation for cadence/UI/VFX.
+    * For robustness (long sessions + idle catch-up), prefer a fixed-timestep tick accumulator for authored tick sources rather than relying only on floating `delta_seconds` (exact offline/catch-up policy TBD).
 
 Rules:
 * If production would exceed storage capacity, the overflow is **lost** (unless a later perk changes this behavior).
 * Costs come in two forms:
     * **One-time costs:** Require enough stored pool; if you don’t have the stock, the action cannot be taken.
     * **Upkeep costs (per second):** Power/maintenance drains a resource pool over time (e.g., `x Chorus / sec` to keep a safe spot online).
+* Early-game caps (draft tuning anchors):
+    * `Bassline_cap_base = 100`.
+    * `Chorus` starts at `0` (unlocked later).
+    * `Harmonics` starts at `0` (unlocked later).
+* Materials (separate from the three bands; draft):
+    * Buildings have a one-time **creation cost** denominated in materials and/or band resources, used for progression/story gating.
+    * The first material resource is **Stone** (other materials TBD).
+    * Fresh run starts with **0 Stone** (no starter stash).
+    * Water (v0): Water is a material pool (units: liters) and persists across Tunings; starting cap `Water_cap_base = 5L`.
+    * Early acquisition (draft): Stone can be earned via:
+        * A Base-tile **Scavenge** activity (tap-light, time-based; full system TBD and designed after the core resource model).
+            * Scavenge is a **manned** activity (performed by the Hero or crew at the Base).
+            * v0 early-step numbers (for “Restore The Studio” + “Build Fire Pit” objective setup):
+                * Player Stone pool starts at `0`, but the Base tile has a large **world stock** available to scavenge: `stock_max = 10000`.
+                * Baseline: `100 Stone / 1s` real time scavenging at base efficiency (continuous, tick-based) while stock remains.
+                * When Base tile Stone stock is depleted, Scavenge falls back to “ambient rubble” at `1 Stone / tick` (intentionally very slow).
+            * Water (v0): Water can be collected on the Base tile as soon as the run starts:
+                * Studio tile starts with `5L` available, up to `30L`.
+                * Regeneration: `+0.003L/s` up to the tile max.
+                * Collection rate: `2L/s` while a worker is assigned.
+    * Skin (v0): Skin is a persistent loot item (not a material pool) and is obtained from special creatures with fixed loot (v0 starter: 1 Skin from Dweller Bane).
+        * **Map resource nodes** revealed as the bubble expands (collection rules TBD).
+            * Early: nodes can be harvested by the Hero and/or via expeditions.
+            * Later: buildings may automate harvesting/collection.
+            * Draft concept: nodes hold a finite **stock** that diminishes as they are harvested; yields can scale with per-actor scavenging efficiency (Hero/crew) (exact model TBD).
+            * Persistence (draft): node stocks are **persistent world-state** (not reset by Tuning).
+                * Persistence scope: persistent **within a save slot** (new save starts with fresh world-state).
+            * Regeneration (draft): varies by resource type.
+                * Natural regeneration shape (draft): linear regeneration (e.g., `stock += regen_per_hour * hours_elapsed`, capped at `stock_max`).
+                * Stone: `regen_per_hour = 0` by default (finite deposits; “stone doesn’t spawn”).
+                    * If tech/buildings affect Stone availability, treat it as increasing effective `stock_max` / unlocking new deposits, not time-based regeneration.
+        * Efficiency (draft): scavenging/harvesting efficiency is defined **per material** (e.g., Stone efficiency vs later materials).
+            * Sources (draft): efficiency can come from (A) level, (B) class levels, (C) dedicated scavenging stats/gear, and (D) tools/building bonuses.
+            * Class alignment (draft): each material defines which crew class is **bonus/neutral/malus** for harvesting efficiency (mapping per material TBD).
+            * Stone (draft): class alignment is **Drummer (bonus)**, **Vocalist (neutral)**, **Synth (malus)**.
+    * Spending rule (draft): materials (e.g., Stone) are spent only via explicit player actions (no automatic material upkeep spending).
+    * Building creation cost scaling (draft):
+        * Let `BaseCost` be the creation cost for a building type.
+        * Let `n_existing` be the number of existing buildings of that type.
+        * Let `CountMult_building(n_existing)` be a count-scaling multiplier (per building type).
+            * Default: a mild power curve to control spam, e.g. `CountMult_building(n_existing) = (n_existing + 1)^p_count`.
+                * `p_count` is per building type; early staples can use smaller values.
+                * Default recommendation: `p_count_default = 1.2` (override per building).
+        * Let `TuningMult_building(N)` be a tuning-related multiplier based on lifetime tuning count `N` (per building type).
+            * `TuningMult_building` is **per building type** so early buildings can remain cheap across Tunings.
+            * Default shape TBD; recommended approach: **piecewise** (flat early, then gentle ramp), e.g.:
+                * `TuningMult_building(N) = 1 + k_building * log2(1 + max(0, N - N0))`
+                * with a small `k_building` and a small grace `N0` (e.g., `N0 = 3`) so early buildings remain affordable.
+                * Calibration example (very small scaling): with `N0 = 3`, to target ~`+1%` by `N = 10`, set `k_building ≈ 0.0033` (since `log2(1 + (10 - 3)) = 3`).
+        * Creation cost: `Cost = BaseCost * CountMult_building(n_existing) * TuningMult_building(N)`.
+        * Upgrade costs: use the same `CountMult_building` and `TuningMult_building` multipliers unless explicitly overridden per building/upgrade line.
+        * Fire Pit special case (draft intent):
+            * Tuning-count scaling should be flat (very small or none).
+            * Prefer a mechanics-driven incentive to build/upgrade a single Fire Pit, rather than hard caps or extreme cost spikes (exact model TBD).
+    * Early material caps (draft):
+        * `Stone_cap_base = 1000`.
+        * At cap: additional Stone is not collected (no negative effect yet), effectively blocking further Stone collection until space is freed.
+            * If an action would collect Stone while at cap, it is blocked (cannot start).
+            * If an ongoing Stone-collecting action reaches cap mid-action, it pauses; the worker produces nothing until the player intervenes.
+                * UI: mark the assigned worker/station as **Blocked**; it stays assigned (no auto-idle).
+    * Tuning persistence (draft):
+        * Materials can define their own Tuning affinity (do not assume all materials reset).
+        * **Stone persists across Tunings** (`untuned`), but starts at `0` on a fresh save.
+        * Offline/idle gains beyond cap are lost (collection is blocked at cap).
+
+Cap behavior summary (draft):
+* Band resources (`Bassline/Chorus/Harmonics`): at cap, additional generation overflows (lost).
+* Materials (e.g., `Stone`): at cap, collection is blocked (cannot start; in-progress actions pause).
+* Vibes: positive cap behavior is TBD; Vibes can go negative.
 * Upkeep vs storage behavior:
     * If `generation > upkeep`, pay upkeep and store the surplus (up to cap).
     * If `upkeep > generation`, the pool is drained to cover the deficit; if the pool hits 0, the system enters brownout behavior (see `3.2.2`).
-* On **Tuning**, all stored pools reset to **0** (run-scoped state).
+* On **Tuning**, band-resource stored pools reset to **0** (run-scoped state); materials may persist depending on their per-resource affinity.
 
 ### 3.1.1 Key Multipliers (Draft)
 To keep formulas readable, we use these symbols:
@@ -298,6 +678,9 @@ To keep resets consistent, every major object/system is classified by how it beh
 * `detuned`: Persists as a physical shell but becomes inert on Tuning; it resets to its default constructed level (upgrades wiped) and must be re-attuned via a one-time payment (and any conditions) to become operational again (e.g., most Base stations).
 * `tuned`: Run-scoped; reset/destroyed on Tuning (e.g., crew, stored pools, temporary boosts, safe spots, active expeditions).
 * Optional later: `crystal_bound`: A subtype of gear/items that are `tuned` (destroyed or detuned on Tuning).
+
+Notes:
+* “Stored pools” includes band resources by default; materials can explicitly opt into `untuned` persistence (e.g., Stone).
 
 Runtime state (separate from Tuning affinity):
 * **Attuned:** The object is calibrated to the current Crystal phase and can function (subject to Chorus power).
@@ -476,6 +859,7 @@ Expedition impact:
     * **Auto-recall:** Some world events (e.g., destination relocking due to safe spot collapse) can force an automatic recall using the same rules.
         * **Progress snapshot:** Auto-recall uses `p` at the moment the event occurs, even if the expedition was stalled (`E = 0`).
         * **Return lag still applies:** Auto-recall always uses the return lag (even if the crew is unconscious/stalled).
+    * v0: If an expedition destination becomes unavailable because its dungeon/tile is no longer accessible, auto-recall triggers using the same Recall rules.
 
 #### 3.2.5 Harmonics Cash-In (Tuning Reset)
 The Hero can choose to **Tune** the Crystal (reset the run) and cash in accumulated Harmonics to permanently increase the Crystal’s long-term progression.
@@ -528,7 +912,7 @@ Tier-based Resonance cost scaling:
 * Standard cost shape: `cost = base_cost * (1 + k * R_eff)`
     * If `k = 0`, cost is constant.
     * If `k > 0`, cost scales linearly with Resonance.
-    * Example (early staple): Fire Pit `base_cost=10`, Tier 1 `k=0` => cost stays `10` for every Tuning regardless of Resonance.
+    * Example (early staple): a Tier 1 “starter staple” building with `base_cost=10` and `k=0` stays at `10` for every Tuning regardless of Resonance.
 
 Scaling principle:
 * Resonance is used in both **production** and **cost scaling** (Base-side).
@@ -543,15 +927,61 @@ Tuning cadence (anti-spam):
     * Example: `spam_factor(N) = s * N^p` (with small `s` and `p > 1`), tuned so optimal play is “Tune after meaningful progress” rather than spamming.
 * Spam protection affects **costs only** (not effect strength).
 
-### 3.3 Crafting Tiers (Compositions)
-The three base resources can be refined into craftable tiers.
-
-* **Beats:** The smallest crafted unit, mixed from Bassline/Chorus/Harmonics.
-* **Bars:** Crafted from Beats (`16 Beats = 1 Bar`). Used for basic gear and building parts.
-* **Tracks:** Crafted from Bars. Used for advanced gear, upgrades, and consumable effects.
-* **Albums:** Crafted from Tracks. Used for artifacts and long-term progression unlocks.
+### 3.3 Itemization + Crafting (TBD)
+Crafting tiers and itemization are intentionally deferred and will be redesigned alongside items/gear.
 
 ### 3.4 Crew Classes and Growth
+
+> **Detailed design:** See [crew-system.md](../documentation/crew-system.md) for comprehensive crew identity, traits, and relationship systems.
+
+#### 3.4.0 Crew Design Philosophy (v0)
+Crew members are **small in number, meaningful in identity**. Every crew member should be relatable and their loss should matter.
+
+* **Scale:** ~30 crew ceiling (expandable later via mechanics)
+* **Identity:** Each crew has name, portrait, family, creed, profession, and 3 traits
+* **Traits:** One positive, one negative, one mixed (bonus + small malus)
+* **Traits tone:** Absurd, fun, lore-infused (where the game's humor expresses itself)
+* **Relationships:** Simple model (Family/Creed matching → flat bonuses/maluses)
+* **Politics/Creed:** Can create tension, maluses on cooperation, trigger events/secrets
+
+#### 3.4.0.1 Crew Identity Structure
+```
+CREW MEMBER
+├── Identity (Name, Family, Portrait, Backstory)
+├── Beliefs (Creed, Politics)
+├── Profession (trained at Selection Day)
+├── Class (Drummer/Vocalist/Synth)
+├── Stats (Sustain, Tempo, Theory)
+├── Traits (3: positive + negative + mixed)
+├── Progression (XP, Class Levels, Profession Skills)
+├── Relationships (Family bonds, Creed bonds)
+└── State (Assignment, Mood, Status)
+```
+
+#### 3.4.0.2 Lindquist Over-Representation
+Going to Studio Echo is the core of the Lindquist creed. Early recruits are almost exclusively Lindquist.
+
+**Degressive curve (success-based trigger):**
+| Recruit # | Lindquist % | Reason |
+|-----------|-------------|--------|
+| 1-5 | 100% | True believers |
+| 6-10 | 80% | + adventurous others |
+| 11-15 | 60% | Word spreads |
+| 16-20 | 40% | Political interest |
+| 21-25 | 30% | Official policy |
+| 26-30 | 20% | Established outpost |
+
+#### 3.4.0.3 Creed Interaction Matrix
+| | Piaf | Brass | Trené | Brel | Lectro |
+|---|------|-------|-------|------|--------|
+| **Piaf** | ++ | + | - | + | -- |
+| **Brass** | + | ++ | + | - | - |
+| **Trené** | - | + | ++ | + | + |
+| **Brel** | + | - | + | ++ | - |
+| **Lectro** | -- | - | + | - | ++ |
+
+Key: `++` +15%, `+` +5%, `-` -5%, `--` -15% cooperation (can trigger events)
+
 Every living person you gain becomes Base staff ("crew"). Crew members are sound producers with three learnable classes:
 
 * **Drummer (Bassline):** Low-band output.
@@ -561,16 +991,58 @@ Every living person you gain becomes Base staff ("crew"). Crew members are sound
 Special case:
 * **The Hero:** The Hero can be assigned to the Crystal Circle, but is unavailable while exploring manually (Base generation can drop to 0).
     * Early-game default: at the start of a fresh run, Base production can be `0` until the player assigns crew (or the Hero) to the Crystal Circle.
+    * Early progression: the Hero generates **Bassline only** at first; other band generation is unlocked later through story/progression.
+    * Band focus rule (draft): like other crew, the Hero generates **one band at a time** (based on their current assignment/class focus).
+    * Reassignment cooldown (draft): switching the Hero’s assignment has a small cooldown (e.g., **3 seconds**) to prevent swap-spam.
 
 Progression model:
-* **Experience (XP):** Crew gains XP from Base work and expeditions (expeditions grant much more).
-* **Total level curve:** XP thresholds scale with the crew member’s overall progression.
-* **Equipped class leveling:** When a crew member levels up, the level is applied to their currently equipped class.
+* **Experience (XP):** Actors gain XP from most productive activities (band work, Base work, expeditions, etc.).
+* **Total level curve:** XP thresholds scale exponentially with the actor’s total level (see `documentation/scaling-models.json` → `xp_threshold_exponential`).
+* **Equipped class leveling:** When an actor levels up, the level is applied to their currently equipped class.
 * **Multi-class:** Switching classes is allowed, but because level-ups get more expensive over time, taking a second/third class from 0 upward is intentionally costly.
-* **Combined performance:** When working at the Base, a crew member contributes using all of their learned class levels (each class level contributes to its band’s generation).
+* **Tuning persistence (decision):**
+    * **Hero XP persists across Tunings** (a key benefit of Tuning is a stronger early-run Hero).
+    * Crew is `tuned` and is destroyed/reset on Tuning; crew XP is therefore run-scoped.
+* **Combined performance (revised):**
+    * **Crew** contributes using the **active class level only** for the band they are currently producing.
+    * **Hero** has a special compounding bonus: when producing a band, **all** of the Hero’s class levels contribute as multiplicative multipliers to that band’s output.
+        * This keeps the Hero relevant in late game even when crew specialization grows.
+
+Band output multiplier (decision, v0):
+* Let `L` be a class level.
+* Class level multiplier: `LevelMult(L) = 1 + a_level * log2(1 + L)` with `a_level = 0.2`.
+* Crystal Circle baseline: `base_amount_per_tick_per_staff = 1` and `tick_interval_seconds = 1`.
+* Crew output per tick when producing band X: `amount_per_tick = base_amount_per_tick_per_staff * LevelMult(L_active_for_X)`.
+* Hero output per tick when producing band X: `amount_per_tick = base_amount_per_tick_per_staff * Π_{class in {Drummer,Vocalist,Synth}} LevelMult(L_class)`.
+    * Early: only Drummer is unlocked and all levels start at `0`, so `LevelMult(0)=1`.
+
+XP awarding (draft, v0 decisions):
+* XP from band work is proportional to **output produced** (after multipliers).
+    * v0: `1 XP` per `1` band unit that is **actually stored** (if the pool is capped and overflow is lost, the overflow grants **no** XP).
+* Passive band trickles do **not** grant XP.
+* Offline/catch-up:
+    * Offline band generation **does** grant XP (staffed generation is simulated during catch-up).
+    * Any system excluded from offline progress grants **no** XP while offline because it does not progress.
+* Non-band tasks:
+    * Every task/action can award XP; v0: XP values are **fully authored per task** (no shared formula yet).
+    * XP is awarded **continuously as progress accrues** for worker-blocking tasks (not only on completion).
+
+Class switching (v0 decision):
+* Switching an actor’s equipped class has a punitive cooldown: **180s**.
+* One-time grace behavior: after the **first** class change, the actor may switch class again once within **10s** (undo/adjust). After that, the standard cooldown applies.
 
 ### 3.4.1 Crew Intake (Survivor Cave + Vibes) (Draft)
 Crew intake is a system driven by **Vibes** and gated by bubble proximity to the Survivor Cave.
+
+v0 early objectives prerequisite (decision):
+* The player must complete:
+    * **Restore The Studio** (Stone-only cleanup/fix),
+    * **Build Fire Pit**, and
+    * reach `ReachFromBase >= 3`
+  before the first crew can be recruited.
+* Additionally, recruiting requires:
+    * `Vibes >= Cost_next` (one-time recruit cost at commit time),
+    * and bunks restored (story gate); bunks capacity does not hard-limit recruiting, but overcapacity triggers BadVibes.
 
 Key locations:
 * **Survivor Cave** (name TBD): the primary source of new crew early game.
@@ -584,15 +1056,28 @@ Recruitment gating:
     * Let `d = hex_distance(Base, Cave)` (default 6).
     * Let `ReachFromBase` be the current bubble reach.
     * Recruitment is enabled if `d - ReachFromBase <= recruitment_range_tiles`.
-* If the bubble shrinks such that the condition fails, recruitment pauses immediately (no new arrivals).
-* Lore-grounding note: this range is chosen to align with the world’s “Silence Virus” lethality window for standard humans (survivors can risk a short exposed traversal to reach the bubble).
+* If the bubble shrinks such that the condition fails, recruitment pauses immediately.
+    * v0 decision: any **in-progress recruit travel** is cancelled when recruitment becomes disabled.
+        * The recruit still counts toward `total_recruited_this_run` (cost-curve progression is not reversed).
+        * v0: no refund; the recruit dies; no partial benefits; no extra cooldown.
+* Lore-grounding note: this range is chosen to align with the world’s “Silence Virus” lethality window for standard humans (4 in-world hours). With the draft world scale (`1 tile ≈ 1 hour walk`), `recruitment_range_tiles = 3` is a ~3-hour traverse.
 
 Vibes (housing pressure currency / morale pool):
 * **Fire Pit** generates `Vibes` (methods include passive generation, staffing, and consuming loot/items; exact recipes TBD).
+    * Early: the Fire Pit is **not** a free starting building; it must be built by the player.
+    * Early: the Fire Pit has **no Chorus upkeep** (it can operate while `Chorus = 0`).
+    * Draft creation cost (early): `200 Stone`.
+    * Draft build time (early): `4` real seconds.
+    * Baseline output (draft): generates `1` Vibe per tick autonomously.
+    * Build limit (decision): `max_count = 1`.
+        * UX: the Build action can remain visible, but attempting to build a second Fire Pit should show a player-facing message (draft):
+            * "Fire Pits are about gathering, community and belonging... do you really think splitting the band would be a good thing ? Are you a Gallagher????"
 * **Vibes are not persistent across Tuning** (run-scoped).
 * `Vibes` is a **pool** that can increase (“good vibes”) or decrease (“bad vibes”).
 * **Each crew member consumes Vibes** over time (exact curve TBD; do not assume level-scaling).
-* Recruitment is driven by the Vibes state only (no extra dependencies on bubble size/stability beyond the Cave gate).
+* Recruitment is driven primarily by the Vibes state, but is gated by:
+    * the Survivor Cave reach condition (bubble proximity), and
+    * v0 early objectives prerequisites (Studio restored + Fire Pit built + `ReachFromBase >= 3`).
 * **Negative Vibes:** if the Vibes pool drops below `0`, it becomes a negative multiplier on crew efficiency.
     * Scope: applies to **crew-driven efficiency and capacities** (production throughput, staffing output, and other crew-based contributions).
     * Penalty shape: exponential, e.g. `crew_eff_mult = exp(Vibes / K)` for `Vibes < 0` (parameter `K` TBD).
@@ -605,6 +1090,7 @@ Vibes generation model (draft):
     * Caps are composed of multiple additive bonuses within categories, multiplied across categories (category order is handled at the category level):
         * Example form: `Vibes_cap = (Base + ΣAdditiveA) * (1 + ΣAdditiveB) * (1 + ΣAdditiveC) ...`
         * Categories (draft): `Buildings`, `Upgrades`, `Research`, `Items/Artifacts`.
+    * At cap: additional GoodVibes generation overflows (lost).
 * GoodVibes:
     * The Fire Pit produces a base `1 Vibe per tick`.
     * Staffing the Fire Pit adds `+1 Vibe per tick` per basic crew member (multipliers TBD; crew efficiency applies).
@@ -619,7 +1105,7 @@ Vibes generation model (draft):
         * Apply `synergy_mult` to the staffing-generated portion of GoodVibes (exact split with base/min TBD).
 * BadVibes:
     * Overcapacity generates BadVibes as an upkeep-like drain that can exceed GoodVibes (making `Vibes_rate` negative).
-    * BadVibes depends on `missing_bunks = max(0, crew_count - bunks_capacity)`.
+    * BadVibes depends on `missing_bunks = max(0, occupant_count - bunks_capacity)` where `occupant_count = crew_count + 1` (Hero consumes bunks).
     * Draft shape (matches “each unbunked crew adds 1” + ratio multiplier):
         * Let `U = missing_bunks` and `C = max(1, crew_count)`.
         * Let `r = U / C`.
@@ -630,22 +1116,30 @@ Vibes generation model (draft):
     * Tuning anchor (current): when `crew_count=20` and `bunks_capacity=10` (`U=10`, `r=0.5`), target `BadVibes_rate ~ 600` (per tick).
 
 Travel time:
-* Default travel time from Cave to Base is `6` in-world hours = `6` real minutes (using 1 min = 1 hour).
+* Default travel time from Cave to Base (v0): computed by the movement/pathing system.
+    * With v0 assumptions (all plains, `1s` per tile, distance `6` tiles): ~`6s` real time (= `6` in-world hours).
 * **Instant arrivals stock:** the Cave maintains a stock of `instant_recruits_available = X`.
-    * Draft rule: `X = max(0, X0 - minutes_until_reach_3)` with `X0 = 30` (tuning TBD).
-    * These recruits can arrive immediately once recruitment is enabled, but they still require sufficient Vibes (they consume Vibes like any other crew member).
+    * v0 rule (decision):
+        * Start: `X0 = 30`.
+        * Floor: `X_floor = 5` (cannot die).
+        * Decay: one dies every `10` real seconds from run start.
+        * `instant_recruits_available(t) = max(X_floor, X0 - floor(t_seconds_since_run_start / 10))`.
+    * These recruits can arrive immediately once recruitment is enabled, but they still require sufficient Vibes.
     * After the stock is exhausted, recruits arrive via the normal travel timer.
 * **Commit time:** the one-time recruit Vibes cost is paid when the recruit commits to the trip (not on arrival).
-* **In-transit luck:** once a recruit has committed, they will arrive even if recruitment later becomes disabled (they “get lucky”).
+* v0: no “in-transit luck” for recruitment travel; losing the recruitment gate cancels in-progress travel (see gating rule).
 * Later tech/perks can reduce travel time.
 
 Capacity and penalties:
 * Crew capacity is governed by **Bunks** (a building providing housing capacity).
-* If `crew_count > bunks_capacity`, Vibes generation is penalized (“bad vibes”).
+* The Hero consumes bunks capacity like any other occupant (v0 decision).
+    * Define `occupant_count = crew_count + 1` (the `+1` is the Hero).
+* If `occupant_count > bunks_capacity`, Vibes generation is penalized (“bad vibes”).
     * See `BadVibes_rate` model above.
 * Default capacity:
-    * The Base provides a default bunks-providing building with `bunks_capacity = 15` at run start.
-    * Bunks-providing buildings are `untuned` (persist across Tuning).
+    * v0: The Studio exists at run start but provides `bunks_capacity = 0` until restored.
+        * First Studio upgrade: “Restore public spaces of the ground floor” costs `600 Stone` and provides `+15 bunks_capacity`.
+    * Additional bunks sources can exist later and may have different Tuning affinity; do not assume all bunks providers persist.
 
 Recruiting costs and control:
 * Recruiting a crew member has a **one-time Vibes cost** paid from the current Vibes pool.
@@ -674,8 +1168,19 @@ Recruiting costs and control:
                         * `T_i = T_500 * exp((i - 500) / k_time)`.
     * This means the player can recruit even when `Vibes_rate` is negative, as long as they have enough Vibes stock to pay the one-time cost.
 * Negative Vibes consequences are limited to the crew efficiency penalty (no desertion/death purely from low Vibes).
-* The player can choose to send crew back to the Survivor Cave (mechanic TBD) to reduce capacity pressure and Vibes drain.
-    * Sending crew back is **instant** and has no gating limitations.
+* The player can choose to send crew back to the Survivor Cave to reduce capacity pressure and Vibes drain.
+    * **Player cannot refuse incoming recruits** — they are scarce and needed.
+    * **Send-back defining moment (first time only):**
+        * Trigger: First time player clicks "Send Back" on any crew member.
+        * The crew member **refuses to leave** (reaction varies by personality, but all variants are about staying — even "resigned" = denial).
+        * Player must resolve the confrontation by choosing a **leadership archetype**:
+            * **The Pragmatist:** "We can't carry dead weight." Future send-backs are clean but cost Vibes and reputation.
+            * **The Protector:** "No one gets left behind unless they choose." Send-back disabled; must find role for everyone. **Bonus: +increased Vibes generation.**
+            * **The Judge:** "Prove your worth or go." Crew get trial period to redeem before send-back.
+            * **The Manipulator:** "Make them want to leave." Can't send directly; make life miserable until they volunteer. (Dark path)
+        * This choice is **locked** until a story-triggered event allows change (TBD).
+    * After defining moment: send-back behavior follows chosen archetype rules.
+    * Sending crew back is **instant** and has no gating limitations (post-archetype choice).
     * There is no refund of the one-time Vibes recruit cost.
     * Sent-back crew are removed for the rest of the run (not re-recruitable unless a later system adds it).
     * Immediate effects:
@@ -692,10 +1197,23 @@ Recruit spending rule:
 Instant vs timed arrivals:
 * Recruitment uses the instant-arrival stock first (if `instant_recruits_available > 0`), then falls back to timed travel arrivals.
 * This behavior is automatic and mandatory (no manual override).
+* Instant arrival presentation (draft): instant recruits appear `1` second after the player taps Recruit (for pacing/UI).
+
+Instant arrivals stock (decision, v0):
+* The Cave maintains `instant_recruits_available`, which decays over real time from run start:
+    * Start: `X0 = 30`.
+    * Floor: `X_floor = 5` (cannot die).
+    * Decay: one dies every `10` real seconds from run start.
+    * Formula: `instant_recruits_available(t) = max(X_floor, X0 - floor(t_seconds_since_run_start / 10))`.
+* Design intent:
+    * Faster early progression (reaching recruitment range sooner) preserves more instant recruits.
+    * Later, higher `R` should indirectly improve this by accelerating early progression.
 
 Player control (early game):
 * Recruitment is player-triggered at first (manual “Recruit” actions while recruitment is enabled).
 * Later upgrades/perks can unlock automated recruiting rules (TBD).
+* Multi-quantity recruiting (tap-light): the player can queue recruits using x1/x10/xMax/custom.
+    * Draft travel rule: queued recruits travel **in parallel** (independent timers), not one-at-a-time.
 
 Multi-quantity actions (UX requirement):
 * All “buy/build/recruit” actions should support multi-quantity execution (x1/x10/xMax/custom).
@@ -706,9 +1224,15 @@ Stations consume Chorus while active and convert time + resources into progressi
 
 Candidates:
 * **Crystal Circle:** Staff “play” to generate Bassline/Chorus/Harmonics for the Crystal (producer; does not consume Chorus).
+    * Early draft: Crystal Circle Level 0 starts with **3 staffing slots**.
+        * v0 staffing rule: if the Hero staffs the Crystal Circle, the Hero occupies all 3 slots (no simultaneous crew staffing).
+    * Early upgrades (v0 draft):
+        * “Removing Moss”: `+10%` to all band outputs from the Crystal Circle, time-only `10s`, no Stone cost, persists across Tunings.
+        * “Polish the Crystal Base”: improves bubble conversion by increasing `K_field` (start `+1%`; costs 1 skin + 5L water; `4s`; persists across Tunings).
+            * Water is collected at the Base tile from run start (v0), but Skin requires completing the first Explore fight.
 * **Resonance Chamber:** Improves Bassline conversion into bubble reach.
 * **Mix Console:** Improves efficiency and brownout tolerance (Harmonics-facing upgrades).
-* **Workshop:** Crafts Beats/Bars/Tracks/Albums and basic gear parts.
+* **Workshop:** Crafts items/parts (system TBD).
 * **Repair Bench:** Repairs and upgrades expedition equipment.
 * **Research Booth:** Unlocks tech trees (safe spots, automation, new station tiers).
 * **Safe Spot Fabricator:** Produces temporary/permanent safe spot modules.
@@ -724,3 +1248,22 @@ Example ladder:
 3. **Live Set:** Unlocks an additional **parallel expedition slot** and reduces brownout penalties.
 4. **Studio Take:** Unlocks **permanent safe spots** and increases safe spot stability/duration.
 5. **Mastering:** Major efficiency leap; raises max station tier, improves field stability, and increases brownout tolerance.
+Travel encounters (decisions, v0):
+* Encounters can trigger both inside and outside the bubble, with different authored rates.
+* Trigger moments:
+    * Some encounters trigger on **tile entry**.
+    * Some encounters can trigger during the **tile travel time** (mid-edge).
+* When an encounter triggers:
+    * Movement pauses until resolved (time continues).
+    * Encounter resolution types supported: combat, non-combat event, loot-only, or “nothing happens” (filler).
+* Encounter placement model:
+    * Mix of per-tile entry chance and authored “hot tiles” (no global uniform rate required).
+* Determinism:
+    * Use deterministic per-tile-entry seeds derived from `tile_id` and an `entry_count` (see templates).
+* Offline:
+    * If travel progresses offline, travel encounters can be generated offline but they **queue** and stop travel until the player returns.
+* Modifiers:
+    * Encounter eligibility/rate can depend on terrain, region/distance-from-base, Echo Scars/perks/gear, and authored tile content parameters.
+* Special events:
+    * Special events can be authored both as travel-encounter outcomes and as separate system hooks (e.g., Echo Scar gain triggering a finger-loss check).
+* Authoring reference: `documentation/travel-encounters-v0.md`.

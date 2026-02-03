@@ -21,6 +21,10 @@ Outside the Base, you explore the world through **map exploration, quests, enigm
 * **Tune (Reset):** Cash in accumulated Harmonics (incl. Harmonic Fragments carried back by the Hero) to recalculate `Resonance` for the next run at the cost of a hard reset (Crystal shutdown + all crew die); most buildings remain placed but become `detuned` (inactive shells: upgrades reset + one-time re-attunement payment), while `untuned` buildings keep upgrades, and you restart with no crew but big generation bonuses and new unlocks.
     * On Tuning, active expeditions are lost (crew dead) and safe spots collapse.
 
+## 📱 UX Targets (Early)
+* **Tap-light idle:** Prioritize meaningful decisions over repeated tapping; provide multi-quantity actions (`x1/x10/xMax/custom`) for purchases/recruitment.
+* **Default orientation:** Mobile **portrait** first, with landscape + desktop layouts supported.
+
 ## 🛠️ Technical
 See [**Technical Architecture**](./technical-architecture.md).
 

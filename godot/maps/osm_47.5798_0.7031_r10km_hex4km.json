@@ -1,0 +1,3359 @@
+{
+  "version": 4,
+  "meta": {
+    "kind": "save",
+    "unix": 1765981543,
+    "iso": "2025-12-17T14:25:43.037518+00:00",
+    "source": "overpass",
+    "center": {
+      "lat": 47.5798,
+      "lon": 0.7031
+    },
+    "radius_m": 10000,
+    "hex": {
+      "across_flats_m": 4000,
+      "size_m": 2309.401076758503
+    },
+    "utm": {
+      "zone": 31,
+      "hemisphere": "N"
+    },
+    "notes": "Terrain from closed ways only; relations (multipolygons) ignored in this MVP.",
+    "basemap": {
+      "path": "res://maps/osm_47.5798_0.7031_r10km_hex4km_basemap.svg",
+      "radius_m": 10000,
+      "px": 1024,
+      "kind": "svg",
+      "style": "osm_simple"
+    }
+  },
+  "regions": [],
+  "hexes": [
+    {
+      "q": 0,
+      "r": -3,
+      "terrain": "plains",
+      "features": [
+        {
+          "kind": "poi",
+          "name": "Épeigné-sur-Dême",
+          "lat": 47.6689622,
+          "lon": 0.6129553,
+          "tags": {
+            "place": "village"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Épeigné-sur-Dême − Centre",
+          "lat": 47.6687534,
+          "lon": 0.6135943,
+          "tags": {}
+        },
+        {
+          "kind": "poi",
+          "name": "Épeigné-sur-Dême − Centre",
+          "lat": 47.6688274,
+          "lon": 0.6133669,
+          "tags": {}
+        },
+        {
+          "kind": "poi",
+          "name": "Le Bourg",
+          "lat": 47.6691264,
+          "lon": 0.6130376,
+          "tags": {
+            "place": "hamlet"
+          }
+        }
+      ],
+      "elevation": 0
+    },
+    {
+      "q": 1,
+      "r": -3,
+      "terrain": "plains",
+      "features": [
+        {
+          "kind": "poi",
+          "name": "La Coulée",
+          "lat": 47.6544599,
+          "lon": 0.6711429,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "La Sourdrie",
+          "lat": 47.6604834,
+          "lon": 0.6499661,
+          "tags": {
+            "place": "hamlet"
+          }
+        }
+      ],
+      "elevation": 0
+    },
+    {
+      "q": 2,
+      "r": -3,
+      "terrain": "plains",
+      "features": [
+        {
+          "kind": "poi",
+          "name": "Les Hermites",
+          "lat": 47.6648918,
+          "lon": 0.7517698,
+          "tags": {
+            "amenity": "post_office"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "La Maison Rouge",
+          "lat": 47.6646708,
+          "lon": 0.7321176,
+          "tags": {
+            "place": "hamlet"
+          }
+        }
+      ],
+      "elevation": 0,
+      "description": "amenity=post_office"
+    },
+    {
+      "q": 3,
+      "r": -3,
+      "terrain": "plains",
+      "features": [
+        {
+          "kind": "poi",
+          "name": "Les Hermites",
+          "lat": 47.6649393,
+          "lon": 0.7536488,
+          "tags": {
+            "place": "village"
+          }
+        }
+      ],
+      "elevation": 0,
+      "name": "Les Hermites",
+      "description": "place=village"
+    },
+    {
+      "q": -1,
+      "r": -2,
+      "terrain": "plains",
+      "features": [
+        {
+          "kind": "poi",
+          "name": "Les Tertres",
+          "lat": 47.6307782,
+          "lon": 0.5700106,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Montadam",
+          "lat": 47.6353403,
+          "lon": 0.5800562,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Sérigné",
+          "lat": 47.6318014,
+          "lon": 0.6064326,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Sur l'Etang de Maunay",
+          "lat": 47.6312144,
+          "lon": 0.5739959,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Beroison",
+          "lat": 47.6302336,
+          "lon": 0.6011123,
+          "tags": {
+            "place": "hamlet"
+          }
+        }
+      ],
+      "elevation": 0
+    },
+    {
+      "q": 0,
+      "r": -2,
+      "terrain": "plains",
+      "features": [
+        {
+          "kind": "poi",
+          "name": "Chemillé-sur-Dême",
+          "lat": 47.6590707,
+          "lon": 0.6490378,
+          "tags": {
+            "place": "village"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Chemillé-sur-Dême",
+          "lat": 47.6588213,
+          "lon": 0.6489561,
+          "tags": {
+            "amenity": "post_office"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Chemillé-sur-Dême − Maison de Retraite",
+          "lat": 47.6586066,
+          "lon": 0.6442768,
+          "tags": {}
+        },
+        {
+          "kind": "poi",
+          "name": "Chemillé-sur-Dême − Maison de Retraite",
+          "lat": 47.6586734,
+          "lon": 0.6438977,
+          "tags": {}
+        },
+        {
+          "kind": "poi",
+          "name": "Route de Tours",
+          "lat": 47.6572383,
+          "lon": 0.6486074,
+          "tags": {}
+        },
+        {
+          "kind": "poi",
+          "name": "Route de Tours",
+          "lat": 47.6574814,
+          "lon": 0.6485469,
+          "tags": {}
+        },
+        {
+          "kind": "poi",
+          "name": "Le Bourg",
+          "lat": 47.6587953,
+          "lon": 0.6480204,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Saint-Hylaire",
+          "lat": 47.656654,
+          "lon": 0.6522192,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Bibliothèque municipale de Chemillé-sur-Dême",
+          "lat": 47.6599195,
+          "lon": 0.6468932,
+          "tags": {
+            "amenity": "library"
+          }
+        }
+      ],
+      "elevation": 0,
+      "name": "Chemillé-sur-Dême",
+      "description": "place=village | amenity=post_office | place=hamlet | amenity=library"
+    },
+    {
+      "q": 1,
+      "r": -2,
+      "terrain": "plains",
+      "features": [
+        {
+          "kind": "poi",
+          "name": "Les Cholières",
+          "lat": 47.6366188,
+          "lon": 0.7124402,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Les Bruyères",
+          "lat": 47.6395121,
+          "lon": 0.7147981,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Le Margat",
+          "lat": 47.6427187,
+          "lon": 0.7151609,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "L'Abbaye",
+          "lat": 47.6449822,
+          "lon": 0.7192349,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "La Gaillardière",
+          "lat": 47.6466758,
+          "lon": 0.7065445,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "La Morinerie",
+          "lat": 47.6387241,
+          "lon": 0.6920948,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Les Blanchardières",
+          "lat": 47.6439453,
+          "lon": 0.6947745,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "L'Huisserie",
+          "lat": 47.6412967,
+          "lon": 0.6845202,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "La Grande Coulardière",
+          "lat": 47.6374722,
+          "lon": 0.6959095,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Le Ragot",
+          "lat": 47.640339,
+          "lon": 0.6863685,
+          "tags": {
+            "place": "hamlet"
+          }
+        }
+      ],
+      "elevation": 0
+    },
+    {
+      "q": 2,
+      "r": -2,
+      "terrain": "plains",
+      "features": [
+        {
+          "kind": "poi",
+          "name": "La Ferrière",
+          "lat": 47.6283958,
+          "lon": 0.7471376,
+          "tags": {
+            "place": "village"
+          }
+        }
+      ],
+      "elevation": 0
+    },
+    {
+      "q": 3,
+      "r": -2,
+      "terrain": "plains",
+      "features": [
+        {
+          "kind": "poi",
+          "name": "L'Aître Adam",
+          "lat": 47.64497,
+          "lon": 0.7838173,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "La Corbinière",
+          "lat": 47.652219,
+          "lon": 0.8117222,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "La Robinière",
+          "lat": 47.6461174,
+          "lon": 0.8149893,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Monthalan",
+          "lat": 47.6538381,
+          "lon": 0.82406,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Les Trois Portes",
+          "lat": 47.6604632,
+          "lon": 0.8031795,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "La Chartrie",
+          "lat": 47.6339699,
+          "lon": 0.7920119,
+          "tags": {
+            "place": "hamlet"
+          }
+        }
+      ],
+      "elevation": 0
+    },
+    {
+      "q": -2,
+      "r": -1,
+      "terrain": "plains",
+      "features": [
+        {
+          "kind": "poi",
+          "name": "Neuvy-le-Roi − Église",
+          "lat": 47.6040605,
+          "lon": 0.5941684,
+          "tags": {}
+        },
+        {
+          "kind": "poi",
+          "name": "Neuvy-le-Roi",
+          "lat": 47.6032911,
+          "lon": 0.5940915,
+          "tags": {
+            "place": "village"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Huche-Pie",
+          "lat": 47.6124502,
+          "lon": 0.5893773,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Auberge du bon accueil",
+          "lat": 47.6038748,
+          "lon": 0.5944406,
+          "tags": {
+            "amenity": "restaurant"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Hervé Périgne",
+          "lat": 47.6034926,
+          "lon": 0.5946034,
+          "tags": {
+            "amenity": "dentist"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Pharmacie Pineau",
+          "lat": 47.6038754,
+          "lon": 0.5946007,
+          "tags": {
+            "amenity": "pharmacy"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Crédit Agricole",
+          "lat": 47.602978,
+          "lon": 0.5908229,
+          "tags": {
+            "amenity": "bank"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "École Primaire Privée Saint-Eugène",
+          "lat": 47.6020617,
+          "lon": 0.5917107,
+          "tags": {
+            "amenity": "school"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Maison Familiale Rurale de Neuvy-le-Roi",
+          "lat": 47.6012257,
+          "lon": 0.5912302,
+          "tags": {
+            "amenity": "school"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Neuvy-le-Roi",
+          "lat": 47.6034623,
+          "lon": 0.5945913,
+          "tags": {
+            "amenity": "post_office"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "La Grange-atelier",
+          "lat": 47.6037405,
+          "lon": 0.5953648,
+          "tags": {
+            "amenity": "arts_centre"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "École Publique des Tilleuls",
+          "lat": 47.6041665,
+          "lon": 0.5925107,
+          "tags": {
+            "amenity": "school"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Le Brouillard",
+          "lat": 47.6168172,
+          "lon": 0.5786452,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Espace Coworking",
+          "lat": 47.6037682,
+          "lon": 0.5946793,
+          "tags": {
+            "amenity": "coworking_space"
+          }
+        }
+      ],
+      "elevation": 0,
+      "name": "Neuvy-le-Roi",
+      "description": "place=village | place=hamlet | amenity=restaurant | amenity=dentist | amenity=pharmacy | amenity=bank | amenity=school | amenity=post_office | amenity=arts_centre | amenity=coworking_space"
+    },
+    {
+      "q": -1,
+      "r": -1,
+      "terrain": "plains",
+      "features": [
+        {
+          "kind": "poi",
+          "name": "Cherelle",
+          "lat": 47.6015616,
+          "lon": 0.6071023,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Château de Fontenailles",
+          "lat": 47.6000111,
+          "lon": 0.6455452,
+          "tags": {
+            "historic": "castle"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Collège Honorat de Racan",
+          "lat": 47.6059536,
+          "lon": 0.598974,
+          "tags": {
+            "amenity": "school"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Bibliothèque municipale associée",
+          "lat": 47.6039596,
+          "lon": 0.598258,
+          "tags": {
+            "amenity": "library"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Château de Fontenailles",
+          "lat": 47.5993814,
+          "lon": 0.6458893,
+          "tags": {
+            "place": "hamlet"
+          }
+        }
+      ],
+      "elevation": 0,
+      "description": "historic=castle | amenity=school | amenity=library"
+    },
+    {
+      "q": 0,
+      "r": -1,
+      "terrain": "plains",
+      "features": [
+        {
+          "kind": "poi",
+          "name": "Louestault",
+          "lat": 47.617066,
+          "lon": 0.6494902,
+          "tags": {
+            "place": "village"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Marray",
+          "lat": 47.6211829,
+          "lon": 0.6991911,
+          "tags": {
+            "place": "village"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Louestault − Centre",
+          "lat": 47.6165708,
+          "lon": 0.650025,
+          "tags": {}
+        },
+        {
+          "kind": "poi",
+          "name": "Le Haut Montas",
+          "lat": 47.6051297,
+          "lon": 0.6975992,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Goulevent",
+          "lat": 47.606352,
+          "lon": 0.6981059,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Louestault − Centre",
+          "lat": 47.6166263,
+          "lon": 0.6502547,
+          "tags": {}
+        },
+        {
+          "kind": "poi",
+          "name": "Poste Annexe",
+          "lat": 47.6214252,
+          "lon": 0.7006393,
+          "tags": {
+            "amenity": "post_office"
+          }
+        }
+      ],
+      "elevation": 0,
+      "description": "amenity=post_office"
+    },
+    {
+      "q": 1,
+      "r": -1,
+      "terrain": "plains",
+      "features": [
+        {
+          "kind": "poi",
+          "name": "La Bustière",
+          "lat": 47.6112741,
+          "lon": 0.7351155,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Le Châtaigner",
+          "lat": 47.6215783,
+          "lon": 0.7135748,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "École élémentaire",
+          "lat": 47.6195971,
+          "lon": 0.7029784,
+          "tags": {
+            "amenity": "school"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Bibliothèque du pommier vert",
+          "lat": 47.6196599,
+          "lon": 0.7028547,
+          "tags": {
+            "amenity": "library"
+          }
+        }
+      ],
+      "elevation": 0,
+      "description": "amenity=school | amenity=library"
+    },
+    {
+      "q": 2,
+      "r": -1,
+      "terrain": "plains",
+      "features": [
+        {
+          "kind": "poi",
+          "name": "La Riderie",
+          "lat": 47.5975097,
+          "lon": 0.7881708,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "La Morillonnière",
+          "lat": 47.5971558,
+          "lon": 0.7797765,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Les Harranges",
+          "lat": 47.605193,
+          "lon": 0.7835313,
+          "tags": {
+            "place": "hamlet"
+          }
+        }
+      ],
+      "elevation": 0
+    },
+    {
+      "q": 3,
+      "r": -1,
+      "terrain": "plains",
+      "features": [
+        {
+          "kind": "poi",
+          "name": "Ancien temple protestant",
+          "lat": 47.6164037,
+          "lon": 0.8192793,
+          "tags": {
+            "historic": "church"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "La Maréchalerie",
+          "lat": 47.6146957,
+          "lon": 0.821038,
+          "tags": {
+            "tourism": "guest_house"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Côté Renée, Côté Louis, Le Sentier",
+          "lat": 47.615032,
+          "lon": 0.8225027,
+          "tags": {
+            "tourism": "guest_house"
+          }
+        }
+      ],
+      "elevation": 0,
+      "description": "historic=church | tourism=guest_house"
+    },
+    {
+      "q": -3,
+      "r": 0,
+      "terrain": "plains",
+      "features": [],
+      "elevation": 0
+    },
+    {
+      "q": -2,
+      "r": 0,
+      "terrain": "plains",
+      "features": [
+        {
+          "kind": "poi",
+          "name": "Neuillé-Pont-Pierre",
+          "lat": 47.5594287,
+          "lon": 0.5927697,
+          "tags": {}
+        }
+      ],
+      "elevation": 0
+    },
+    {
+      "q": -1,
+      "r": 0,
+      "terrain": "plains",
+      "features": [
+        {
+          "kind": "poi",
+          "name": "Beaumont-la-Ronce",
+          "lat": 47.5688244,
+          "lon": 0.6694072,
+          "tags": {
+            "place": "village"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Château de la Cantinière",
+          "lat": 47.5859497,
+          "lon": 0.6623573,
+          "tags": {
+            "historic": "castle"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Beaumont-la-Ronce − Centre",
+          "lat": 47.5703216,
+          "lon": 0.6709765,
+          "tags": {}
+        },
+        {
+          "kind": "poi",
+          "name": "Beaumont-la-Ronce − Centre",
+          "lat": 47.5704977,
+          "lon": 0.6711499,
+          "tags": {}
+        },
+        {
+          "kind": "poi",
+          "name": "Beaumont-la-Ronce − Clinique",
+          "lat": 47.5601998,
+          "lon": 0.6560842,
+          "tags": {}
+        },
+        {
+          "kind": "poi",
+          "name": "Beaumont-la-Ronce − Clinique",
+          "lat": 47.5603428,
+          "lon": 0.656261,
+          "tags": {}
+        },
+        {
+          "kind": "poi",
+          "name": "Les Aunils",
+          "lat": 47.5702274,
+          "lon": 0.674085,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Poste Annexe",
+          "lat": 47.5696228,
+          "lon": 0.6712112,
+          "tags": {
+            "amenity": "post_office"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Les Carrières",
+          "lat": 47.5762671,
+          "lon": 0.6749372,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "La Blinière",
+          "lat": 47.5703998,
+          "lon": 0.6755078,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Gripouilleau",
+          "lat": 47.5724665,
+          "lon": 0.671872,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Les Vaux Gates",
+          "lat": 47.5732197,
+          "lon": 0.6749271,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "La Tuilerie",
+          "lat": 47.571469,
+          "lon": 0.6735453,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Bibliothèque René Fillet",
+          "lat": 47.569925,
+          "lon": 0.6702535,
+          "tags": {
+            "amenity": "library"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Mairie de Beaumont-Louestault",
+          "lat": 47.5699058,
+          "lon": 0.6706536,
+          "tags": {
+            "amenity": "townhall"
+          }
+        }
+      ],
+      "elevation": 0,
+      "name": "Beaumont-la-Ronce",
+      "description": "place=village | historic=castle | place=hamlet | amenity=post_office | amenity=library | amenity=townhall"
+    },
+    {
+      "q": 0,
+      "r": 0,
+      "terrain": "plains",
+      "features": [
+        {
+          "kind": "poi",
+          "name": "Les Caves de Valarault",
+          "lat": 47.5692652,
+          "lon": 0.6836341,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "L'Oisonnière",
+          "lat": 47.5864609,
+          "lon": 0.7288093,
+          "tags": {
+            "place": "hamlet"
+          }
+        }
+      ],
+      "elevation": 0
+    },
+    {
+      "q": 1,
+      "r": 0,
+      "terrain": "plains",
+      "features": [
+        {
+          "kind": "poi",
+          "name": "Saint-Laurent-en-Gâtines",
+          "lat": 47.5855338,
+          "lon": 0.7762565,
+          "tags": {
+            "place": "village"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Saint-Laurent-en-Gâtines",
+          "lat": 47.5828276,
+          "lon": 0.7786401,
+          "tags": {}
+        },
+        {
+          "kind": "poi",
+          "name": "Chenusson",
+          "lat": 47.5755658,
+          "lon": 0.736051,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Mémorial 1914-1918",
+          "lat": 47.5868008,
+          "lon": 0.7773079,
+          "tags": {
+            "historic": "memorial"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Saint-Laurent-en-Gâtines",
+          "lat": 47.5873184,
+          "lon": 0.7770742,
+          "tags": {
+            "amenity": "post_office"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "L'Éguillère",
+          "lat": 47.5777748,
+          "lon": 0.7806017,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "La Barbottinière",
+          "lat": 47.5779287,
+          "lon": 0.7708587,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "L'Hortière",
+          "lat": 47.5831098,
+          "lon": 0.747352,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Le Long Bois",
+          "lat": 47.5941924,
+          "lon": 0.7687372,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "La Gaudière",
+          "lat": 47.5858148,
+          "lon": 0.7649276,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Forêt de Nouzilly",
+          "lat": 47.5644968,
+          "lon": 0.750063,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "La Piquetterie",
+          "lat": 47.5745015,
+          "lon": 0.7427496,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Bois-Rond",
+          "lat": 47.5817122,
+          "lon": 0.7355858,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "École Primaire de Saint-Laurent-en-Gâtines",
+          "lat": 47.5871967,
+          "lon": 0.7781973,
+          "tags": {
+            "amenity": "school"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Liberi libri",
+          "lat": 47.5868778,
+          "lon": 0.7772113,
+          "tags": {
+            "amenity": "public_bookcase"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Rassemblement des Saint-Laurent de France",
+          "lat": 47.5871935,
+          "lon": 0.777269,
+          "tags": {
+            "historic": "memorial"
+          }
+        }
+      ],
+      "elevation": 0,
+      "name": "Saint-Laurent-en-Gâtines",
+      "description": "place=village | place=hamlet | historic=memorial | amenity=post_office | amenity=school | amenity=public_bookcase"
+    },
+    {
+      "q": 2,
+      "r": 0,
+      "terrain": "plains",
+      "features": [
+        {
+          "kind": "poi",
+          "name": "Saint-Laurent-en-Gâtines",
+          "lat": 47.5869653,
+          "lon": 0.7845024,
+          "tags": {}
+        },
+        {
+          "kind": "poi",
+          "name": "L'Aître Barbier",
+          "lat": 47.5802668,
+          "lon": 0.7874925,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "L'Étang Marron",
+          "lat": 47.5783922,
+          "lon": 0.8268653,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "La Richardière",
+          "lat": 47.592799,
+          "lon": 0.8345331,
+          "tags": {
+            "place": "hamlet"
+          }
+        }
+      ],
+      "elevation": 0
+    },
+    {
+      "q": 3,
+      "r": 0,
+      "terrain": "plains",
+      "features": [],
+      "elevation": 0
+    },
+    {
+      "q": -3,
+      "r": 1,
+      "terrain": "plains",
+      "features": [
+        {
+          "kind": "poi",
+          "name": "Neuillé pont pierre",
+          "lat": 47.5554176,
+          "lon": 0.5956587,
+          "tags": {}
+        },
+        {
+          "kind": "poi",
+          "name": "Neuillé pont pierre",
+          "lat": 47.5554788,
+          "lon": 0.5957593,
+          "tags": {}
+        },
+        {
+          "kind": "poi",
+          "name": "Modulo Charging Station",
+          "lat": 47.5561453,
+          "lon": 0.5953224,
+          "tags": {
+            "amenity": "charging_station"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Duo Resto",
+          "lat": 47.5564521,
+          "lon": 0.5932123,
+          "tags": {
+            "amenity": "restaurant"
+          }
+        }
+      ],
+      "elevation": 0,
+      "description": "amenity=charging_station | amenity=restaurant"
+    },
+    {
+      "q": -2,
+      "r": 1,
+      "terrain": "plains",
+      "features": [
+        {
+          "kind": "poi",
+          "name": "Aire de la Chenardière",
+          "lat": 47.5333603,
+          "lon": 0.6196131,
+          "tags": {}
+        },
+        {
+          "kind": "poi",
+          "name": "Neuillé-Pont-Pierre",
+          "lat": 47.5521969,
+          "lon": 0.6015951,
+          "tags": {}
+        },
+        {
+          "kind": "poi",
+          "name": "Aire de Chantemerle",
+          "lat": 47.541725,
+          "lon": 0.6136417,
+          "tags": {}
+        },
+        {
+          "kind": "poi",
+          "name": "Menhir de Montifray",
+          "lat": 47.56371,
+          "lon": 0.6338499,
+          "tags": {
+            "historic": "archaeological_site"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "La Blottière",
+          "lat": 47.5528199,
+          "lon": 0.6382932,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "La Maillotière",
+          "lat": 47.533085,
+          "lon": 0.6253999,
+          "tags": {
+            "place": "hamlet"
+          }
+        }
+      ],
+      "elevation": 0,
+      "description": "historic=archaeological_site"
+    },
+    {
+      "q": -1,
+      "r": 1,
+      "terrain": "forest",
+      "features": [
+        {
+          "kind": "poi",
+          "name": "Château de Mirandol",
+          "lat": 47.5592714,
+          "lon": 0.6612887,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "La Guillonnière",
+          "lat": 47.5589528,
+          "lon": 0.6656059,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "La Touche",
+          "lat": 47.5553467,
+          "lon": 0.6888184,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "La Plotinière",
+          "lat": 47.5571108,
+          "lon": 0.6776326,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "La Hardonnière",
+          "lat": 47.5327879,
+          "lon": 0.6874989,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Les Commaillères",
+          "lat": 47.5441782,
+          "lon": 0.6725691,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "La Rainière",
+          "lat": 47.5523117,
+          "lon": 0.696677,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Clinique du Val de Loire",
+          "lat": 47.5590365,
+          "lon": 0.661127,
+          "tags": {
+            "amenity": "clinic"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Calvaire",
+          "lat": 47.5304962,
+          "lon": 0.6775019,
+          "tags": {
+            "historic": "wayside_cross"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Le Grand Boulay",
+          "lat": 47.5512935,
+          "lon": 0.6532655,
+          "tags": {
+            "place": "hamlet"
+          }
+        }
+      ],
+      "elevation": 0,
+      "description": "amenity=clinic | historic=wayside_cross"
+    },
+    {
+      "q": 0,
+      "r": 1,
+      "terrain": "plains",
+      "features": [
+        {
+          "kind": "poi",
+          "name": "Nouzilly",
+          "lat": 47.5433632,
+          "lon": 0.7438321,
+          "tags": {
+            "place": "village"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "La Burerie",
+          "lat": 47.5429563,
+          "lon": 0.7142511,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Maran",
+          "lat": 47.5367248,
+          "lon": 0.7167018,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "La Sirottière",
+          "lat": 47.5331124,
+          "lon": 0.7346475,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Calvaire",
+          "lat": 47.5435953,
+          "lon": 0.7435697,
+          "tags": {
+            "historic": "wayside_cross"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Monument aux morts",
+          "lat": 47.5435402,
+          "lon": 0.7437897,
+          "tags": {
+            "historic": "memorial"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Pharmacie Balay",
+          "lat": 47.5425025,
+          "lon": 0.7458285,
+          "tags": {
+            "amenity": "pharmacy"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Croix Saint-André",
+          "lat": 47.5333779,
+          "lon": 0.7256542,
+          "tags": {
+            "historic": "wayside_cross"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Calvaire",
+          "lat": 47.54294,
+          "lon": 0.7403219,
+          "tags": {
+            "historic": "wayside_cross"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "La Pierre à Vinaigre",
+          "lat": 47.5346587,
+          "lon": 0.7257843,
+          "tags": {
+            "historic": "archaeological_site"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "La Poste",
+          "lat": 47.5433677,
+          "lon": 0.7441129,
+          "tags": {
+            "amenity": "post_office"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "La Tuilerie",
+          "lat": 47.5539539,
+          "lon": 0.7324168,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "La Grenaudière",
+          "lat": 47.5491091,
+          "lon": 0.7400513,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Robinson",
+          "lat": 47.5405445,
+          "lon": 0.7452722,
+          "tags": {
+            "tourism": "chalet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "La Vallée Vigneau",
+          "lat": 47.5371592,
+          "lon": 0.7382932,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "La Guinauderie",
+          "lat": 47.549846,
+          "lon": 0.7463678,
+          "tags": {
+            "place": "hamlet"
+          }
+        }
+      ],
+      "elevation": 0,
+      "description": "historic=wayside_cross | historic=memorial | amenity=pharmacy | historic=archaeological_site | amenity=post_office | tourism=chalet"
+    },
+    {
+      "q": 1,
+      "r": 1,
+      "terrain": "plains",
+      "features": [
+        {
+          "kind": "poi",
+          "name": "L'Orfrasière",
+          "lat": 47.5458381,
+          "lon": 0.7737589,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Les Loges",
+          "lat": 47.5425711,
+          "lon": 0.7941542,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Les Loges",
+          "lat": 47.545213,
+          "lon": 0.793973,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "La Tintonnière",
+          "lat": 47.5479609,
+          "lon": 0.7679985,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "La Taille du Gland",
+          "lat": 47.5517371,
+          "lon": 0.7744042,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Le Pont Vert",
+          "lat": 47.5405401,
+          "lon": 0.7672483,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "La Maloire",
+          "lat": 47.546574,
+          "lon": 0.7712355,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Carroi Bedmar",
+          "lat": 47.5377928,
+          "lon": 0.7738362,
+          "tags": {
+            "tourism": "information"
+          }
+        }
+      ],
+      "elevation": 0,
+      "description": "tourism=information"
+    },
+    {
+      "q": 2,
+      "r": 1,
+      "terrain": "plains",
+      "features": [
+        {
+          "kind": "poi",
+          "name": "La Coutarderie",
+          "lat": 47.5638114,
+          "lon": 0.8292963,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "La Frugerie",
+          "lat": 47.56045,
+          "lon": 0.8361984,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "La Basse Platerie",
+          "lat": 47.5512852,
+          "lon": 0.8156346,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Les Côteaux",
+          "lat": 47.548081,
+          "lon": 0.8324759,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "La Croix de Jubilé",
+          "lat": 47.5442106,
+          "lon": 0.8331229,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "La Lisardière",
+          "lat": 47.541953,
+          "lon": 0.8306166,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "La Platerie",
+          "lat": 47.5488035,
+          "lon": 0.8145774,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "La Rouzerie",
+          "lat": 47.5449728,
+          "lon": 0.8308019,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Pierre à Vinaigre",
+          "lat": 47.5497019,
+          "lon": 0.8279219,
+          "tags": {
+            "historic": "wayside_cross",
+            "natural": "stone"
+          }
+        }
+      ],
+      "elevation": 0,
+      "name": "La Coutarderie",
+      "description": "place=hamlet | historic=wayside_cross"
+    },
+    {
+      "q": -3,
+      "r": 2,
+      "terrain": "forest",
+      "features": [
+        {
+          "kind": "poi",
+          "name": "La Borde Saulay",
+          "lat": 47.5083363,
+          "lon": 0.6253682,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "La Croix aux Renards",
+          "lat": 47.5132343,
+          "lon": 0.6078766,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Saulay",
+          "lat": 47.5056778,
+          "lon": 0.6190107,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Le Roussay",
+          "lat": 47.5118507,
+          "lon": 0.5901032,
+          "tags": {}
+        },
+        {
+          "kind": "poi",
+          "name": "Le Roussay",
+          "lat": 47.5125152,
+          "lon": 0.590268,
+          "tags": {}
+        },
+        {
+          "kind": "poi",
+          "name": "Les Bruyères",
+          "lat": 47.5013388,
+          "lon": 0.5997151,
+          "tags": {}
+        },
+        {
+          "kind": "poi",
+          "name": "Les Bruyères",
+          "lat": 47.5014439,
+          "lon": 0.6001013,
+          "tags": {}
+        },
+        {
+          "kind": "poi",
+          "name": "Saint-Antoine-du-Rocher",
+          "lat": 47.5036124,
+          "lon": 0.6163207,
+          "tags": {}
+        },
+        {
+          "kind": "poi",
+          "name": "Saint-Antoine-du-Rocher − Gare",
+          "lat": 47.5032861,
+          "lon": 0.6158511,
+          "tags": {}
+        },
+        {
+          "kind": "poi",
+          "name": "Semblançay − Stade",
+          "lat": 47.5050855,
+          "lon": 0.5873756,
+          "tags": {}
+        },
+        {
+          "kind": "poi",
+          "name": "Semblançay − Stade",
+          "lat": 47.5053127,
+          "lon": 0.5875863,
+          "tags": {}
+        },
+        {
+          "kind": "poi",
+          "name": "Fontaine",
+          "lat": 47.5161672,
+          "lon": 0.5823706,
+          "tags": {
+            "amenity": "fountain"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Bel-Air",
+          "lat": 47.5014111,
+          "lon": 0.614603,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Le Chêne Baudet",
+          "lat": 47.5038446,
+          "lon": 0.6224131,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Roussay",
+          "lat": 47.5172947,
+          "lon": 0.5921969,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Les Bruyères",
+          "lat": 47.5014916,
+          "lon": 0.5965154,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "La Noue Guerinet",
+          "lat": 47.512304,
+          "lon": 0.5956351,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Padova Pizza - Saint-Antoine-du-Rocher",
+          "lat": 47.5005276,
+          "lon": 0.6016496,
+          "tags": {
+            "amenity": "vending_machine"
+          }
+        }
+      ],
+      "elevation": 0,
+      "name": "La Borde Saulay",
+      "description": "place=hamlet | amenity=fountain | amenity=vending_machine"
+    },
+    {
+      "q": -2,
+      "r": 2,
+      "terrain": "plains",
+      "features": [
+        {
+          "kind": "poi",
+          "name": "Rouziers-de-Touraine",
+          "lat": 47.5175967,
+          "lon": 0.6488459,
+          "tags": {
+            "place": "village"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Bourmay",
+          "lat": 47.531425,
+          "lon": 0.6570062,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Place du Général Leclerc",
+          "lat": 47.5175432,
+          "lon": 0.6482313,
+          "tags": {}
+        },
+        {
+          "kind": "poi",
+          "name": "Aigrefin",
+          "lat": 47.5067432,
+          "lon": 0.6338933,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Pharmacie des Tournesols",
+          "lat": 47.5141421,
+          "lon": 0.649469,
+          "tags": {
+            "amenity": "pharmacy"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Place du Général Leclerc",
+          "lat": 47.517044,
+          "lon": 0.647553,
+          "tags": {}
+        },
+        {
+          "kind": "poi",
+          "name": "Place du Général Leclerc",
+          "lat": 47.5171536,
+          "lon": 0.647791,
+          "tags": {}
+        },
+        {
+          "kind": "poi",
+          "name": "Parking Salle des Sports",
+          "lat": 47.5140229,
+          "lon": 0.6517181,
+          "tags": {
+            "amenity": "parking"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Fontaine",
+          "lat": 47.5310467,
+          "lon": 0.6450337,
+          "tags": {
+            "natural": "spring"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Calvaire",
+          "lat": 47.5177586,
+          "lon": 0.6535149,
+          "tags": {
+            "historic": "wayside_cross"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Calvaire",
+          "lat": 47.5155694,
+          "lon": 0.6792131,
+          "tags": {
+            "historic": "wayside_cross"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Poste Annexe",
+          "lat": 47.5167341,
+          "lon": 0.6483058,
+          "tags": {
+            "amenity": "post_office"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Le Bourg",
+          "lat": 47.5175119,
+          "lon": 0.6476661,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Le Petit Puits",
+          "lat": 47.5141107,
+          "lon": 0.6527947,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "La Pietrie",
+          "lat": 47.5151108,
+          "lon": 0.6473595,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "La Morandière",
+          "lat": 47.5171153,
+          "lon": 0.6509036,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Les Grand Maisons",
+          "lat": 47.518539,
+          "lon": 0.6522694,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Hôtel du Boeuf",
+          "lat": 47.517419,
+          "lon": 0.6483773,
+          "tags": {
+            "amenity": "bar"
+          }
+        }
+      ],
+      "elevation": 0,
+      "description": "amenity=pharmacy | amenity=parking | natural=spring | historic=wayside_cross | amenity=post_office | amenity=bar"
+    },
+    {
+      "q": -1,
+      "r": 2,
+      "terrain": "plains",
+      "features": [
+        {
+          "kind": "poi",
+          "name": "Les Œufs-Durs",
+          "lat": 47.5160256,
+          "lon": 0.6949065,
+          "tags": {}
+        },
+        {
+          "kind": "poi",
+          "name": "Les Œufs-Durs",
+          "lat": 47.5167193,
+          "lon": 0.6948102,
+          "tags": {}
+        },
+        {
+          "kind": "poi",
+          "name": "Fontaine",
+          "lat": 47.5196443,
+          "lon": 0.7199049,
+          "tags": {
+            "amenity": "fountain"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "La Bourlerie",
+          "lat": 47.53022,
+          "lon": 0.7267284,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Moulin de Fresnay",
+          "lat": 47.5201016,
+          "lon": 0.7206401,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Le Plessis - Rose",
+          "lat": 47.5180042,
+          "lon": 0.7290959,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Le Plessis l'Ormeau",
+          "lat": 47.5157977,
+          "lon": 0.7285652,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Le PLessis - Rouère",
+          "lat": 47.5166739,
+          "lon": 0.7240244,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Moulin de Berton",
+          "lat": 47.5326251,
+          "lon": 0.7029555,
+          "tags": {
+            "place": "hamlet"
+          }
+        }
+      ],
+      "elevation": 0,
+      "description": "amenity=fountain"
+    },
+    {
+      "q": 0,
+      "r": 2,
+      "terrain": "plains",
+      "features": [
+        {
+          "kind": "poi",
+          "name": "Fontaine",
+          "lat": 47.5206564,
+          "lon": 0.7470998,
+          "tags": {
+            "amenity": "fountain"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "La Simonnière",
+          "lat": 47.5276356,
+          "lon": 0.7395655,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Fontaine",
+          "lat": 47.523442,
+          "lon": 0.7614291,
+          "tags": {
+            "natural": "spring"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Calvaire",
+          "lat": 47.5320441,
+          "lon": 0.7461758,
+          "tags": {
+            "historic": "wayside_cross"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Fontaine",
+          "lat": 47.5208149,
+          "lon": 0.7339171,
+          "tags": {
+            "natural": "spring"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "La Saunerie",
+          "lat": 47.5179093,
+          "lon": 0.7468597,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Les Bois Quarre",
+          "lat": 47.5106607,
+          "lon": 0.7489191,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "La Guée",
+          "lat": 47.5067294,
+          "lon": 0.7458869,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Madère",
+          "lat": 47.504763,
+          "lon": 0.7500345,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Le Petit Moulin",
+          "lat": 47.5048006,
+          "lon": 0.7721604,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "La Faisanderie",
+          "lat": 47.4999341,
+          "lon": 0.7548428,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "La Porcherie",
+          "lat": 47.4991113,
+          "lon": 0.7580008,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Corcay",
+          "lat": 47.5082572,
+          "lon": 0.7639245,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Fontaine de la Huche",
+          "lat": 47.5288564,
+          "lon": 0.7752576,
+          "tags": {
+            "natural": "spring"
+          }
+        }
+      ],
+      "elevation": 0,
+      "description": "amenity=fountain | natural=spring | historic=wayside_cross"
+    },
+    {
+      "q": 1,
+      "r": 2,
+      "terrain": "plains",
+      "features": [
+        {
+          "kind": "poi",
+          "name": "Le Lignou",
+          "lat": 47.5053807,
+          "lon": 0.8080532,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Bordebure",
+          "lat": 47.5056195,
+          "lon": 0.795097,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "La Pinsonnière",
+          "lat": 47.5089324,
+          "lon": 0.8133249,
+          "tags": {
+            "place": "hamlet"
+          }
+        }
+      ],
+      "elevation": 0
+    },
+    {
+      "q": -3,
+      "r": 3,
+      "terrain": "plains",
+      "features": [
+        {
+          "kind": "poi",
+          "name": "La Chabottière",
+          "lat": 47.4934344,
+          "lon": 0.6270206,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Place de la Chapelle",
+          "lat": 47.4959847,
+          "lon": 0.6314803,
+          "tags": {}
+        },
+        {
+          "kind": "poi",
+          "name": "Clos de la Cure",
+          "lat": 47.4999347,
+          "lon": 0.6297315,
+          "tags": {}
+        },
+        {
+          "kind": "poi",
+          "name": "Saint-Antoine-du-Rocher",
+          "lat": 47.496733,
+          "lon": 0.6303753,
+          "tags": {
+            "place": "village"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "La Mourière",
+          "lat": 47.496518,
+          "lon": 0.6151641,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "La Vésière",
+          "lat": 47.4996445,
+          "lon": 0.6210879,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "La Palinière",
+          "lat": 47.5005409,
+          "lon": 0.6377292,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Les Bonshommes",
+          "lat": 47.4977723,
+          "lon": 0.6392947,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "La Placière",
+          "lat": 47.4931321,
+          "lon": 0.619526,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Source de Saint-Antoine de Touraine",
+          "lat": 47.4960355,
+          "lon": 0.6315859,
+          "tags": {
+            "amenity": "fountain",
+            "tourism": "yes"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "École Primaire de Saint-Antoine-du-Rocher",
+          "lat": 47.4969789,
+          "lon": 0.6298869,
+          "tags": {
+            "amenity": "school"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Poste Annexe",
+          "lat": 47.4966094,
+          "lon": 0.6290202,
+          "tags": {
+            "amenity": "post_office"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Moulin du Bondonneau",
+          "lat": 47.4920373,
+          "lon": 0.6351905,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Clos des Bonhommes",
+          "lat": 47.4967096,
+          "lon": 0.636465,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "La Couturasserie",
+          "lat": 47.4958941,
+          "lon": 0.6148626,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Le Guignier des Bergeries",
+          "lat": 47.5025449,
+          "lon": 0.6260605,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Le Guignier des Bergères",
+          "lat": 47.5032037,
+          "lon": 0.6255137,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Clos des Bonhommes",
+          "lat": 47.4970928,
+          "lon": 0.6375659,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Les Bruyères",
+          "lat": 47.4957099,
+          "lon": 0.6389751,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Le Petit Bournais",
+          "lat": 47.4915257,
+          "lon": 0.6149141,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Les Fossettes",
+          "lat": 47.5035889,
+          "lon": 0.6221261,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Déchèterie de Saint Antoine du Rocher",
+          "lat": 47.5037332,
+          "lon": 0.6238066,
+          "tags": {
+            "amenity": "recycling"
+          }
+        }
+      ],
+      "elevation": 0,
+      "description": "amenity=fountain | amenity=school | amenity=post_office | amenity=recycling"
+    },
+    {
+      "q": -2,
+      "r": 3,
+      "terrain": "plains",
+      "features": [
+        {
+          "kind": "poi",
+          "name": "Cerellis",
+          "lat": 47.4990948,
+          "lon": 0.6833713,
+          "tags": {
+            "amenity": "cafe"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "École maternelle",
+          "lat": 47.4990671,
+          "lon": 0.6817568,
+          "tags": {
+            "amenity": "school"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Cerelles − Centre",
+          "lat": 47.5016091,
+          "lon": 0.6822755,
+          "tags": {}
+        },
+        {
+          "kind": "poi",
+          "name": "École primaire",
+          "lat": 47.4997693,
+          "lon": 0.6817394,
+          "tags": {
+            "amenity": "school"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Langennerie",
+          "lat": 47.4936337,
+          "lon": 0.6965339,
+          "tags": {
+            "place": "village"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Langennerie",
+          "lat": 47.4908918,
+          "lon": 0.6976345,
+          "tags": {}
+        },
+        {
+          "kind": "poi",
+          "name": "Cerelles",
+          "lat": 47.5005676,
+          "lon": 0.6837233,
+          "tags": {
+            "place": "village"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Cerelles",
+          "lat": 47.4989209,
+          "lon": 0.6821549,
+          "tags": {
+            "amenity": "post_office"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "La Puiserie",
+          "lat": 47.4965489,
+          "lon": 0.6616275,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Les Charmes",
+          "lat": 47.4932829,
+          "lon": 0.7005458,
+          "tags": {}
+        },
+        {
+          "kind": "poi",
+          "name": "Monument aux Morts",
+          "lat": 47.498348,
+          "lon": 0.6822735,
+          "tags": {
+            "historic": "memorial"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Calvaire",
+          "lat": 47.5014149,
+          "lon": 0.6824613,
+          "tags": {
+            "historic": "wayside_cross"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Les Grisse-Dents",
+          "lat": 47.4912672,
+          "lon": 0.6615116,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Chatenay",
+          "lat": 47.4995387,
+          "lon": 0.6890662,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Les Mots Passants",
+          "lat": 47.499106,
+          "lon": 0.6820737,
+          "tags": {
+            "amenity": "library"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Langennerie",
+          "lat": 47.4909451,
+          "lon": 0.6976328,
+          "tags": {}
+        },
+        {
+          "kind": "poi",
+          "name": "Café de l'Avenir",
+          "lat": 47.4920124,
+          "lon": 0.6974409,
+          "tags": {
+            "amenity": "bar"
+          }
+        }
+      ],
+      "elevation": 0,
+      "name": "Langennerie",
+      "description": "place=village | amenity=post_office | place=hamlet | historic=memorial | historic=wayside_cross | amenity=library | amenity=bar"
+    },
+    {
+      "q": -1,
+      "r": 3,
+      "terrain": "plains",
+      "features": [
+        {
+          "kind": "poi",
+          "name": "Château des Belles Ruries",
+          "lat": 47.4901197,
+          "lon": 0.7566195,
+          "tags": {
+            "historic": "castle"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "La Hallière",
+          "lat": 47.5023922,
+          "lon": 0.7357877,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "La Salle",
+          "lat": 47.5002548,
+          "lon": 0.7507353,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Les Belles-Ruries",
+          "lat": 47.4920826,
+          "lon": 0.754141,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Neret",
+          "lat": 47.4940509,
+          "lon": 0.7432097,
+          "tags": {
+            "place": "hamlet"
+          }
+        }
+      ],
+      "elevation": 0,
+      "description": "historic=castle"
+    },
+    {
+      "q": 0,
+      "r": 3,
+      "terrain": "plains",
+      "features": [
+        {
+          "kind": "poi",
+          "name": "Le Boulay",
+          "lat": 47.4904148,
+          "lon": 0.7760176,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "La Carte",
+          "lat": 47.4933829,
+          "lon": 0.7754526,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Monnaie",
+          "lat": 47.4996611,
+          "lon": 0.7856396,
+          "tags": {
+            "place": "village"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Monnaie",
+          "lat": 47.5009864,
+          "lon": 0.7901888,
+          "tags": {
+            "amenity": "post_office"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Au bon accueil",
+          "lat": 47.5014062,
+          "lon": 0.7889967,
+          "tags": {
+            "amenity": "bar"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Pharmacie Piron",
+          "lat": 47.5018667,
+          "lon": 0.7907028,
+          "tags": {
+            "amenity": "pharmacy"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Croix-Poëlon",
+          "lat": 47.4971625,
+          "lon": 0.7833008,
+          "tags": {}
+        },
+        {
+          "kind": "poi",
+          "name": "J-B Moreau",
+          "lat": 47.5024136,
+          "lon": 0.790805,
+          "tags": {}
+        },
+        {
+          "kind": "poi",
+          "name": "Aux Héros de l'Air",
+          "lat": 47.4900783,
+          "lon": 0.7749014,
+          "tags": {
+            "historic": "memorial"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Café du centre",
+          "lat": 47.5020033,
+          "lon": 0.7903382,
+          "tags": {
+            "amenity": "cafe"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Caisse d'Épargne",
+          "lat": 47.5004152,
+          "lon": 0.7877878,
+          "tags": {
+            "amenity": "bank"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "École Maternelle",
+          "lat": 47.5048268,
+          "lon": 0.7919088,
+          "tags": {
+            "amenity": "school"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "École Élémentaire",
+          "lat": 47.5040839,
+          "lon": 0.7921717,
+          "tags": {
+            "amenity": "school"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Maison Médicale",
+          "lat": 47.4991865,
+          "lon": 0.7841003,
+          "tags": {
+            "amenity": "doctors"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Les Cheneaux",
+          "lat": 47.4929381,
+          "lon": 0.7881874,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "La Gasnerie",
+          "lat": 47.4945044,
+          "lon": 0.7929151,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "La Buvinière",
+          "lat": 47.4938932,
+          "lon": 0.800012,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Bellevue",
+          "lat": 47.4949737,
+          "lon": 0.8031404,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "La Pierre A Durand",
+          "lat": 47.4994896,
+          "lon": 0.7728199,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "La Blondellerie",
+          "lat": 47.5015331,
+          "lon": 0.7749108,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Bourdigal",
+          "lat": 47.5045912,
+          "lon": 0.7819347,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Le Coq Hardi",
+          "lat": 47.5027907,
+          "lon": 0.7912631,
+          "tags": {
+            "amenity": "restaurant"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Le Pizzaiolo",
+          "lat": 47.5024394,
+          "lon": 0.7906938,
+          "tags": {
+            "amenity": "restaurant"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Crédit Agricole Monnaie",
+          "lat": 47.4975527,
+          "lon": 0.782906,
+          "tags": {
+            "amenity": "bank"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Place JB Moreau - Monnaie",
+          "lat": 47.5022083,
+          "lon": 0.7905836,
+          "tags": {
+            "amenity": "parking"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "La Croix Poelon",
+          "lat": 47.4960459,
+          "lon": 0.7812474,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "La Forêt Belier",
+          "lat": 47.4932571,
+          "lon": 0.811653,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "La Morietterie",
+          "lat": 47.4996603,
+          "lon": 0.7959383,
+          "tags": {
+            "place": "hamlet"
+          }
+        },
+        {
+          "kind": "poi",
+          "name": "Gang Of Pizza de Monnaie",
+          "lat": 47.4979912,
+          "lon": 0.7837245,
+          "tags": {
+            "amenity": "vending_machine"
+          }
+        }
+      ],
+      "elevation": 0,
+      "name": "Le Boulay",
+      "description": "place=hamlet | place=village | amenity=post_office | amenity=bar | amenity=pharmacy | historic=memorial | amenity=cafe | amenity=bank | amenity=school | amenity=doctors | amenity=restaurant | amenity=parking | amenity=vending_machine"
+    }
+  ],
+  "edges": [
+    {
+      "key": "-1,-1:-1,0",
+      "type": "road"
+    },
+    {
+      "key": "-1,-1:0,-1",
+      "type": "river"
+    },
+    {
+      "key": "-1,-1:0,-2",
+      "type": "river"
+    },
+    {
+      "key": "-1,-2:-1,-1",
+      "type": "road"
+    },
+    {
+      "key": "-1,-2:0,-2",
+      "type": "road"
+    },
+    {
+      "key": "-1,-2:0,-3",
+      "type": "road"
+    },
+    {
+      "key": "-1,0:-1,1",
+      "type": "river"
+    },
+    {
+      "key": "-1,0:0,-1",
+      "type": "road"
+    },
+    {
+      "key": "-1,0:0,0",
+      "type": "river"
+    },
+    {
+      "key": "-1,1:-1,2",
+      "type": "river"
+    },
+    {
+      "key": "-1,1:0,0",
+      "type": "river"
+    },
+    {
+      "key": "-1,1:0,1",
+      "type": "river"
+    },
+    {
+      "key": "-1,2:-1,3",
+      "type": "river"
+    },
+    {
+      "key": "-1,2:0,1",
+      "type": "river"
+    },
+    {
+      "key": "-1,2:0,2",
+      "type": "river"
+    },
+    {
+      "key": "-1,3:0,2",
+      "type": "river"
+    },
+    {
+      "key": "-1,3:0,3",
+      "type": "road"
+    },
+    {
+      "key": "-2,-1:-1,-1",
+      "type": "road"
+    },
+    {
+      "key": "-2,-1:-1,-2",
+      "type": "road"
+    },
+    {
+      "key": "-2,-1:-2,0",
+      "type": "river"
+    },
+    {
+      "key": "-2,0:-1,-1",
+      "type": "road"
+    },
+    {
+      "key": "-2,0:-1,0",
+      "type": "river"
+    },
+    {
+      "key": "-2,0:-2,1",
+      "type": "road"
+    },
+    {
+      "key": "-2,1:-1,0",
+      "type": "river"
+    },
+    {
+      "key": "-2,1:-1,1",
+      "type": "road"
+    },
+    {
+      "key": "-2,1:-2,2",
+      "type": "river"
+    },
+    {
+      "key": "-2,2:-1,1",
+      "type": "road"
+    },
+    {
+      "key": "-2,2:-1,2",
+      "type": "river"
+    },
+    {
+      "key": "-2,2:-2,3",
+      "type": "river"
+    },
+    {
+      "key": "-2,3:-1,2",
+      "type": "river"
+    },
+    {
+      "key": "-2,3:-1,3",
+      "type": "river"
+    },
+    {
+      "key": "-3,0:-2,-1",
+      "type": "road"
+    },
+    {
+      "key": "-3,0:-2,0",
+      "type": "road"
+    },
+    {
+      "key": "-3,0:-3,1",
+      "type": "road"
+    },
+    {
+      "key": "-3,1:-2,0",
+      "type": "road"
+    },
+    {
+      "key": "-3,1:-2,1",
+      "type": "road"
+    },
+    {
+      "key": "-3,1:-3,2",
+      "type": "river"
+    },
+    {
+      "key": "-3,2:-2,1",
+      "type": "road"
+    },
+    {
+      "key": "-3,2:-2,2",
+      "type": "road"
+    },
+    {
+      "key": "-3,2:-3,3",
+      "type": "river"
+    },
+    {
+      "key": "-3,3:-2,2",
+      "type": "river"
+    },
+    {
+      "key": "-3,3:-2,3",
+      "type": "road"
+    },
+    {
+      "key": "0,-1:0,0",
+      "type": "road"
+    },
+    {
+      "key": "0,-1:1,-1",
+      "type": "river"
+    },
+    {
+      "key": "0,-1:1,-2",
+      "type": "road"
+    },
+    {
+      "key": "0,-2:0,-1",
+      "type": "river"
+    },
+    {
+      "key": "0,-2:1,-2",
+      "type": "road"
+    },
+    {
+      "key": "0,-2:1,-3",
+      "type": "river"
+    },
+    {
+      "key": "0,-3:0,-2",
+      "type": "river"
+    },
+    {
+      "key": "0,-3:1,-3",
+      "type": "road"
+    },
+    {
+      "key": "0,0:0,1",
+      "type": "river"
+    },
+    {
+      "key": "0,0:1,-1",
+      "type": "road"
+    },
+    {
+      "key": "0,0:1,0",
+      "type": "river"
+    },
+    {
+      "key": "0,1:0,2",
+      "type": "river"
+    },
+    {
+      "key": "0,1:1,0",
+      "type": "river"
+    },
+    {
+      "key": "0,1:1,1",
+      "type": "river"
+    },
+    {
+      "key": "0,2:0,3",
+      "type": "river"
+    },
+    {
+      "key": "0,2:1,1",
+      "type": "river"
+    },
+    {
+      "key": "0,2:1,2",
+      "type": "river"
+    },
+    {
+      "key": "0,3:1,2",
+      "type": "river"
+    },
+    {
+      "key": "1,-1:1,0",
+      "type": "road"
+    },
+    {
+      "key": "1,-1:2,-1",
+      "type": "road"
+    },
+    {
+      "key": "1,-1:2,-2",
+      "type": "river"
+    },
+    {
+      "key": "1,-2:1,-1",
+      "type": "road"
+    },
+    {
+      "key": "1,-2:2,-2",
+      "type": "road"
+    },
+    {
+      "key": "1,-2:2,-3",
+      "type": "road"
+    },
+    {
+      "key": "1,-3:1,-2",
+      "type": "road"
+    },
+    {
+      "key": "1,-3:2,-3",
+      "type": "river"
+    },
+    {
+      "key": "1,0:1,1",
+      "type": "river"
+    },
+    {
+      "key": "1,0:2,-1",
+      "type": "river"
+    },
+    {
+      "key": "1,0:2,0",
+      "type": "road"
+    },
+    {
+      "key": "1,1:1,2",
+      "type": "river"
+    },
+    {
+      "key": "1,1:2,0",
+      "type": "river"
+    },
+    {
+      "key": "1,1:2,1",
+      "type": "river"
+    },
+    {
+      "key": "1,2:2,1",
+      "type": "river"
+    },
+    {
+      "key": "2,-1:2,0",
+      "type": "river"
+    },
+    {
+      "key": "2,-1:3,-1",
+      "type": "river"
+    },
+    {
+      "key": "2,-1:3,-2",
+      "type": "river"
+    },
+    {
+      "key": "2,-2:2,-1",
+      "type": "river"
+    },
+    {
+      "key": "2,-2:3,-2",
+      "type": "road"
+    },
+    {
+      "key": "2,-2:3,-3",
+      "type": "river"
+    },
+    {
+      "key": "2,-3:2,-2",
+      "type": "road"
+    },
+    {
+      "key": "2,-3:3,-3",
+      "type": "river"
+    },
+    {
+      "key": "2,0:2,1",
+      "type": "river"
+    },
+    {
+      "key": "2,0:3,-1",
+      "type": "river"
+    },
+    {
+      "key": "2,0:3,0",
+      "type": "river"
+    },
+    {
+      "key": "2,1:3,0",
+      "type": "river"
+    },
+    {
+      "key": "3,-1:3,0",
+      "type": "road"
+    },
+    {
+      "key": "3,-2:3,-1",
+      "type": "road"
+    },
+    {
+      "key": "3,-3:3,-2",
+      "type": "road"
+    }
+  ],
+  "terrain_limits": {}
+}

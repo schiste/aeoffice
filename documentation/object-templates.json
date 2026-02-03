@@ -1,0 +1,2091 @@
+{
+  "_meta": {
+    "doc": "AD&D object templates (design reference)",
+    "purpose": "JSON-style templates of attributes for each object type; not an implementation schema yet.",
+    "notes": [
+      "Use this alongside documentation/object-types.md to keep terminology consistent.",
+      "Fields marked *_tbd are placeholders and should be resolved through design decisions."
+    ]
+  },
+  "enums": {
+    "tuning_affinity": ["tuned", "detuned", "untuned"],
+    "cap_behavior": ["overflow_lost", "blocked_at_cap"],
+    "harvest_channel": ["manual_hero", "base_manned", "expedition", "building_automated"],
+    "band": ["bassline", "chorus", "harmonics"],
+    "crew_class": ["drummer", "vocalist", "synth"]
+  },
+    "templates": {
+    "Persistence": {
+      "scope": "save_slot",
+      "tuning_affinity": "tuned",
+      "resets_on_tuning": true
+    },
+	    "SystemConfig_Game": {
+	      "time_scale": {
+	        "tick_seconds": 1.0,
+	        "in_world_seconds_per_real_second": 3600,
+	        "note": "1 real second = 1 in-world hour"
+	      },
+      "simulation_model": {
+        "approach": "per_system_tick_accumulators_and_event_scheduling",
+        "offline_catchup": "unlimited_until_caps",
+        "notes_tbd": [
+          "Define how to fast-forward systems whose rates change during catch-up (caps, gating, brownouts, etc.)."
+        ]
+      }
+    },
+    "ResourcePoolDefinition": {
+      "id": "bassline",
+      "kind": "band",
+      "display_name": "Bassline",
+      "storage_cap_base": 100,
+      "cap_behavior": "overflow_lost",
+      "starts_locked": false,
+      "starts_at_amount": 0,
+      "persistence": {
+        "scope": "save_slot",
+        "tuning_affinity": "tuned",
+        "resets_on_tuning": true
+      },
+      "notes_tbd": []
+    },
+    "VibesPoolDefinition": {
+      "id": "vibes",
+      "kind": "run_scoped_pool",
+      "display_name": "Vibes",
+      "storage_cap_base": 100,
+      "cap_behavior": "overflow_lost",
+      "can_go_negative": true,
+      "persistence": {
+        "scope": "save_slot",
+        "tuning_affinity": "tuned",
+        "resets_on_tuning": true
+      },
+      "notes_tbd": [
+        "Define exact Vibes consumption per crew (and whether it scales)."
+      ]
+    },
+    "MaterialPoolDefinition": {
+      "id": "stone",
+      "kind": "material",
+      "display_name": "Stone",
+      "storage_cap_base": 1000,
+      "cap_behavior": "blocked_at_cap",
+      "starts_locked": false,
+      "starts_at_amount": 0,
+      "persistence": {
+        "scope": "save_slot",
+        "tuning_affinity": "untuned",
+        "resets_on_tuning": false
+      },
+      "harvest_alignment": {
+        "bonus_class": "drummer",
+        "neutral_class": "vocalist",
+        "malus_class": "synth"
+      },
+      "harvest_efficiency_sources": {
+        "level": true,
+        "class_levels": true,
+        "dedicated_stats_or_gear": true,
+        "tools_or_buildings": true
+      },
+      "collection_blocking_behavior": {
+        "blocked_at_cap_cannot_start": true,
+        "mid_action_reaches_cap": "pause_and_mark_blocked_requires_player_intervention"
+      },
+      "notes_tbd": [
+        "Materials default to untuned persistence; override per material when needed."
+      ]
+    },
+    "WaterPoolDefinition": {
+      "id": "water",
+      "kind": "material",
+      "display_name": "Water",
+      "unit": "liters",
+      "storage_cap_base": 5,
+      "cap_behavior": "blocked_at_cap",
+      "starts_locked": false,
+      "starts_at_amount": 0,
+      "persistence": {
+        "scope": "save_slot",
+        "tuning_affinity": "untuned",
+        "resets_on_tuning": false
+      },
+      "notes_tbd": [
+        "Decision CL-0081: Water is a material pool and persists across Tunings."
+      ]
+    },
+        "LootItemDefinition": {
+            "id": "skin",
+            "kind": "loot_item",
+            "display_name": "Skin",
+            "stackable": true,
+            "persistence": {
+                "scope": "save_slot",
+                "tuning_affinity": "untuned",
+                "resets_on_tuning": false
+            },
+            "notes_tbd": [
+                "Decision CL-0082: Skin is a persistent loot item."
+            ]
+        },
+		        "EncounterDefinition": {
+		            "id": "dweller_bane",
+		            "kind": "encounter",
+		            "display_name": "Dweller Bane",
+		            "wound_capacity_tbd": {
+		                "major_wounds_max": 1,
+		                "light_wounds_per_major": 3
+		            },
+		            "attacks_tbd": [
+		                {
+		                    "id": "bite",
+		                    "cooldown_seconds_tbd": 5,
+		                    "accuracy_rating_tbd": 0,
+		                    "crit_chance_tbd": 0,
+		                    "wound_payload_tbd": {
+		                        "kind": "light_wound",
+		                        "amount": 1
+		                    },
+		                    "viral_load_delta_ratio_tbd": 0.01
+		                }
+		            ],
+		            "xp_reward_tbd": 1,
+		            "tags_tbd": [
+		                "tutorial_fight",
+		                "special_creature_fixed_loot"
+		            ],
+            "fixed_loot": [
+                {
+                    "loot_id": "skin",
+                    "quantity": 1
+                }
+            ],
+		            "notes_tbd": [
+		                "v0: extremely low-level tutorial opponent (\"a deaf blind old grumpy rat...\").",
+		                "Fixed loot: 1 Skin.",
+		                "Decision HIT-0006/DB-0003/DB-0011: tune stats so the fight is effectively not losable and Hero hit rate feels ~60% (do not force 100% hit rules).",
+		                "Decision DB-0005: Dweller Bane wound capacity is 3 Light Wounds (implemented as 1 MW of 3 LW).",
+		                "Decision DB-0006/DB-0007/VLUNIT-0001: bites every 5s; payload is 1 LW + 1 Viral Load (= +0.01 viral_load_ratio).",
+		                "Decision DB-0008: low wound + low viral pressure are the safety valves."
+		            ]
+		        },
+	        "SkillDefinition": {
+	          "id": "skill_attack",
+	          "kind": "skill",
+	          "display_name": "Attack",
+	          "targeting": {
+	            "mode": "single_or_aoe",
+	            "aoe_shape_tbd": null,
+	            "aoe_max_targets_tbd": null
+	          },
+	          "cooldown_seconds": 3,
+	          "hit_rating_bonus_or_malus": 0,
+	          "crit_rating_bonus": 0,
+	          "wound_payload": {
+	            "kind": "light_wound",
+	            "amount": 1
+	          },
+	          "viral_load_delta_ratio": 0,
+	          "charges": {
+	            "enabled": false,
+	            "charges_max_tbd": null,
+	            "charges_current_tbd": null,
+	            "replenish_model_tbd": null,
+	            "notes_tbd": [
+	              "Charges are used for ammo-like skills/items (e.g., a bow); replenishment can be time/object/perk based."
+	            ]
+	          },
+	          "notes_tbd": [
+	            "Decision SK-0001/SK-0002: starting skill is Attack (no separate basic).",
+	            "Decision SK-0004: skills can have hit/crit rating modifiers and optional charges."
+	          ]
+	        },
+	        "ConsumableDefinition": {
+	          "id": "consumable_bandaid",
+	          "kind": "consumable",
+	          "display_name": "Bandaids",
+	          "persistence": {
+	            "scope": "save_slot",
+	            "tuning_affinity": "untuned",
+	            "resets_on_tuning": false
+	          },
+	          "use_time_seconds": 0,
+	          "can_use_in_combat": true,
+	          "can_use_outside_bubble": true,
+	          "cannot_use_during_forced_return": true,
+	          "effects": [
+	            {
+	              "kind": "heal_wounds",
+	              "wound_units_delta": -1
+	            }
+	          ],
+	          "cooldown_seconds_tbd": 0,
+	          "notes_tbd": [
+	            "Decision IT-0003: bandaids remove one Light Wound (one wound unit).",
+	            "Decision IT-0004: healing items can be used anywhere.",
+	            "Decision IT-0008: no consumables during forced return."
+	          ]
+	        },
+	        "ConsumableDefinition_Glue": {
+	          "id": "consumable_glue",
+	          "kind": "consumable",
+	          "display_name": "Glue",
+	          "persistence": {
+	            "scope": "save_slot",
+	            "tuning_affinity": "untuned",
+	            "resets_on_tuning": false
+	          },
+	          "use_time_seconds": 0,
+	          "can_use_in_combat": true,
+	          "can_use_outside_bubble": true,
+	          "cannot_use_during_forced_return": true,
+	          "targeting": {
+	            "target_kind": "gear_item",
+	            "selection": "player_choice",
+	            "only_if_damaged": true
+	          },
+	          "effects": [
+	            {
+	              "kind": "repair_gear",
+	              "wound_units_delta": 3
+	            }
+	          ],
+	          "cooldown_seconds_tbd": 0,
+	          "notes_tbd": [
+	            "Decision IT-0011: Glue restores +3 wound units to one damaged gear item.",
+	            "Decision IT-0012: player chooses which gear item is repaired."
+	          ]
+	        },
+	        "TileExplorationProfileDefinition": {
+	            "id": "studio_tile_v0",
+	            "kind": "tile_exploration_profile",
+            "investigation_levels": [
+                {
+                    "level": 0,
+                    "duration_seconds": 5,
+                    "conditions_tbd": [],
+                    "on_complete_grants": [
+                        {
+                            "kind": "unlock_action",
+                            "id": "explore"
+                        }
+                    ],
+                    "repeatable": false
+                }
+            ],
+	            "exploration_levels": [
+	                {
+	                    "level": 1,
+	                    "duration_seconds": 10,
+	                    "conditions_tbd": [],
+	                    "on_complete_encounter_id_tbd": "dweller_bane",
+	                    "on_victory_grants": [
+	                        {
+	                            "kind": "unlock",
+	                            "id": "studio_restore_upgrade"
+	                        },
+	                        {
+	                            "kind": "unlock",
+	                            "id": "crystal_circle_remove_moss"
+	                        }
+	                    ],
+	                    "repeatable": false
+	                }
+	            ],
+	            "notes_tbd": [
+	                "v0: Base/Studio tile uses standard per-tile Investigate→Explore leveling.",
+	                "Investigate can be done by Hero or crew; Explore is Hero-only.",
+	                "Decision DB-0010: Dweller Bane victory triggers the 'cleaning impulse' event; it unlocks the Crystal Circle upgrade 'Removing Moss'."
+	            ]
+	        },
+        "ContentUnlockDefinition": {
+            "id": "dungeon_city_one",
+            "kind": "content_unlock",
+            "unlocked_by": {
+                "kind": "tile_exploration_level",
+                "tile_id_tbd": "tile_city_one",
+                "required_exploration_level": 1
+            },
+            "availability_rule": "requires_tile_accessible",
+            "tile_accessibility_rule": {
+                "requires_in_bubble": true,
+                "requires_revealed": false,
+                "requires_hero_visited": true,
+                "requires_access_conditions_met": true,
+                "notes_tbd": [
+                    "Decision BU-0008 (refinement): 'accessible' for expeditions/out-of-base placement is: in bubble + Hero visited (and any authored access conditions for special content)."
+                ]
+            },
+            "notes_tbd": [
+                "Decision EX-0001: unlocks are stored as a global set.",
+                "Decision EX-0012: unlock is granted by tile exploration AND the dungeon also stores a home_tile_id (for gating/UI consistency)."
+            ]
+        },
+        "DungeonDefinition": {
+            "id": "dungeon_city_one",
+            "kind": "dungeon",
+            "display_name_tbd": "City One",
+            "home_tile_id": "tile_city_one",
+            "availability_rule": "requires_tile_accessible_and_unlocked",
+            "notes_tbd": [
+                "Decision EX-0012: dungeon stores home_tile_id.",
+                "Dungeon unlock is granted by tile exploration (ContentUnlockDefinition)."
+            ]
+        },
+        "MetaProgressionDefinition": {
+            "id": "resonance",
+            "kind": "meta",
+            "display_name": "Resonance",
+            "representation": "numeric_scalar",
+      "persistence": {
+        "scope": "save_slot",
+        "tuning_affinity": "untuned",
+        "resets_on_tuning": false
+      },
+      "notes_tbd": [
+        "Resonance is recomputed on Tuning rather than accumulated."
+      ]
+    },
+	    "ActorDefinition": {
+	      "id": "hero",
+	      "kind": "actor",
+      "persistence": {
+        "scope": "save_slot",
+        "tuning_affinity": "untuned",
+        "resets_on_tuning": false
+      },
+	      "bands_unlocked_at_start": ["bassline"],
+	      "band_focus_rule": "one_band_at_a_time",
+	      "assignment_swap_cooldown_seconds": 3,
+	      "xp_progression": {
+	        "xp_threshold_model_id": "xp_threshold_exponential",
+	        "xp_per_stored_band_unit_generated": 1,
+	        "xp_from_passive_trickles": false,
+	        "offline_band_output_grants_xp": true,
+	        "task_xp_model_tbd": "value_based_per_task"
+	      },
+	      "class_switch_policy": {
+	        "cooldown_seconds": 180,
+	        "one_time_grace_seconds": 10,
+	        "notes_tbd": [
+	          "Grace decision XP-0011: after the first class change, allow one additional switch within 10s (undo/adjust), then enforce cooldown."
+	        ]
+	      },
+	      "notes_tbd": [
+	        "Define exploration/combat stats progression separately."
+	      ]
+	    },
+		    "MovementSystemConfig": {
+		      "hero_travel": {
+	        "model": "tile_by_tile_timer",
+	        "offline_progress": true,
+	        "base_seconds_per_tile": 1,
+	        "terrain_travel_time_table_id_tbd": "terrain_travel_time_v0",
+	        "travel_can_trigger_events": true,
+	        "visited_flag_on_enter": true,
+	        "forced_return_traversal_counts_as_visited": false,
+	        "blocked_until_unlocks_supported": true
+	      },
+		      "travel_encounters": {
+		        "enabled": true,
+		        "scope": "inside_and_outside_bubble",
+		        "trigger_moments": ["on_tile_entry", "mid_travel"],
+		        "movement_pause_on_trigger": true,
+		        "resolution_types": ["combat", "event", "loot_only", "nothing"],
+		        "rate_models_supported": ["per_tile_entry_chance", "hot_tiles_only"],
+		        "table_selection": {
+		          "supports_layering": true,
+		          "hot_tile_overrides": true,
+		          "selected_tables_tbd": [
+		            "travel_table_plains_inside_bubble_v0",
+		            "travel_table_plains_outside_bubble_v0",
+		            "travel_table_hot_tile_v0"
+		          ]
+		        },
+		        "determinism": {
+		          "seed_model": "per_tile_entry",
+		          "seed_derivation": "seed64 = hash64(global_seed, 'travel_encounter', tile_id, entry_count)",
+		          "entry_count_key": "hero|tile_id"
+		        },
+		        "mid_travel_seed_tbd": {
+		          "seed_derivation": "seed64 = hash64(global_seed, 'travel_encounter_mid', from_tile_id, to_tile_id, segment_count)",
+		          "segment_count_key": "hero|from_tile_id|to_tile_id"
+		        },
+		        "offline_policy": {
+		          "can_generate_offline": true,
+		          "behavior": "queue_and_stop_travel_until_player_returns",
+		          "preselect_outcome_when_queueing": true
+		        },
+		        "modifiers_supported": [
+		          "terrain_type",
+		          "region_or_distance_from_base",
+		          "echo_scars",
+		          "perks",
+		          "gear",
+		          "tile_content_tags"
+		        ],
+	        "special_events": {
+	          "supported": true,
+	          "sources": ["travel_table", "system_hooks"]
+	        },
+	        "notes_tbd": [
+	          "Decisions TE-0001..TE-0010."
+	        ]
+	      },
+	      "pathfinding": {
+	        "algorithm": "dijkstra_shortest_travel_time",
+	        "notes_tbd": [
+	          "Used for point-of-no-return time-to-safety and for expedition/recruit travel-time computation."
+	        ]
+	      },
+	      "notes_tbd": [
+	        "Decisions MV-0001..MV-0010: plains base is 1s/tile; movement travel-time is separate from bubble impedance; travel progresses offline; travel can trigger events."
+	      ]
+	    },
+	    "GearSystemConfig": {
+	      "slots_v0": [
+	        "head",
+	        "shoulders",
+	        "body",
+	        "arms",
+	        "belt",
+	        "necklace",
+	        "rings_each_finger",
+	        "legs"
+	      ],
+	      "slot_counts_v0": {
+	        "belt": 1,
+	        "rings_max": 10,
+	        "finger_loss_supported": true,
+	        "notes_tbd": [
+	          "Decision GE-0011: belt count is 1; rings max is 10 (each finger), but fingers can be lost which reduces available ring slots."
+	        ]
+	      },
+	      "finger_loss": {
+	        "sources": ["echo_scars", "special_events"],
+	        "notes_tbd": [
+	          "Decision GE-0017: finger loss comes from Echo Scars and special events."
+	        ]
+	      },
+	      "durability_tracking": "per_item",
+	      "routing": {
+	        "model": "random_eligible_piece",
+	        "randomness": "weighted_table",
+	        "weights_percent_tbd": {
+	          "head": 10,
+	          "shoulders": 12,
+	          "body": 35,
+	          "arms": 18,
+	          "belt": 5,
+	          "necklace": 1,
+	          "rings": 0.1,
+	          "legs": 18.9
+	        },
+	        "notes_tbd": [
+	          "Decision GE-0012: use a rational weighted table (sums to 100%) rather than uniform random."
+	        ]
+	      },
+	      "break_behavior": {
+	        "at_zero": "damaged_state",
+	        "remains_equipped": true,
+	        "penalty": "protection_becomes_0",
+	        "notes_tbd": [
+	          "Decision GE-0013: at 0 durability, the item remains equipped but provides 0 wound protection."
+	        ]
+	      },
+	      "repair": {
+	        "allowed_locations": ["studio", "safe_spots", "anywhere_with_consumable"],
+	        "inputs_tbd": ["items", "perks"],
+	        "time_cost_tbd": true
+	      },
+	      "wounds_equivalence": {
+	        "default_major_to_light_units": 3,
+	        "per_item_override_via_light_wounds_per_major": true,
+	        "notes_tbd": [
+	          "Decision GE-0006: same pool; default 1 MW = 3 LW for gear unless item overrides via its Y."
+	        ]
+	      },
+	      "starting_gear_tbd": "minimal_survivor_set",
+	      "acquisition_channels": ["exploration_fights", "expeditions", "crafting_later", "vendors_later"],
+	      "notes_tbd": [
+	        "Decision GE-0001..GE-0010."
+	      ]
+	    },
+		    "MapKnowledgeSystemConfig": {
+		      "fog_of_war": {
+		        "hero_can_enter_unrevealed_tiles": true,
+		        "on_enter_tile_sets_revealed": true,
+		        "revealed_is_not_explored": true,
+		        "notes_tbd": [
+		          "Decision TE-0009: entering a fogged tile reveals it on the map, but Explore/Investigate still gate deeper content."
+		        ]
+		      }
+		    },
+		    "TravelEncounterTableDefinitionTemplate": {
+		      "id": "travel_table_plains_inside_bubble_v0",
+		      "kind": "travel_encounter_table",
+		      "trigger_moments": ["on_tile_entry"],
+		      "scope": "inside_bubble",
+		      "rate_model": {
+		        "model": "per_tile_entry_chance",
+		        "chance_percent_tbd": 5,
+		        "hot_tiles_only": false
+		      },
+		      "filters": {
+		        "terrain_types": ["plain"],
+		        "tile_content_tags_tbd": [],
+		        "distance_from_base_range_tbd": null,
+		        "region_ids_tbd": []
+		      },
+		      "entries": [
+		        {
+		          "id": "nothing_common",
+		          "weight": 80,
+		          "outcome": {"kind": "nothing"}
+		        },
+		        {
+		          "id": "loot_small",
+		          "weight": 20,
+		          "outcome": {"kind": "loot_only", "ref_id_tbd": "loot_table_travel_small"}
+		        }
+		      ],
+		      "notes_tbd": [
+		        "Example v0 table: mostly nothing, occasional loot."
+		      ]
+		    },
+		    "TravelEncounterTableDefinitionTemplate_Outside": {
+		      "id": "travel_table_plains_outside_bubble_v0",
+		      "kind": "travel_encounter_table",
+		      "trigger_moments": ["on_tile_entry", "mid_travel"],
+		      "scope": "outside_bubble",
+		      "rate_model": {
+		        "model": "per_tile_entry_chance",
+		        "chance_percent_tbd": 15,
+		        "hot_tiles_only": false
+		      },
+		      "filters": {
+		        "terrain_types": ["plain"],
+		        "tile_content_tags_tbd": [],
+		        "distance_from_base_range_tbd": null,
+		        "region_ids_tbd": []
+		      },
+		      "entries": [
+		        {
+		          "id": "combat_common",
+		          "weight": 60,
+		          "outcome": {"kind": "combat", "ref_id_tbd": "encounter_wildlife_tbd"}
+		        },
+		        {
+		          "id": "event_common",
+		          "weight": 25,
+		          "outcome": {"kind": "event", "ref_id_tbd": "event_travel_tbd"}
+		        },
+		        {
+		          "id": "loot_common",
+		          "weight": 10,
+		          "outcome": {"kind": "loot_only", "ref_id_tbd": "loot_table_travel_outside_tbd"}
+		        },
+		        {
+		          "id": "nothing_rare",
+		          "weight": 5,
+		          "outcome": {"kind": "nothing"}
+		        }
+		      ],
+		      "notes_tbd": [
+		        "Example v0 table: more combat/event pressure outside bubble; tune later."
+		      ]
+		    },
+		    "TravelEncounterTableDefinitionTemplate_HotTile": {
+		      "id": "travel_table_hot_tile_v0",
+		      "kind": "travel_encounter_table",
+		      "trigger_moments": ["on_tile_entry"],
+		      "scope": "any",
+		      "rate_model": {
+		        "model": "hot_tiles_only",
+		        "chance_percent_tbd": 100,
+		        "hot_tiles_only": true
+		      },
+		      "filters": {
+		        "terrain_types_tbd": null,
+		        "tile_content_tags_tbd": ["hot_encounter"],
+		        "distance_from_base_range_tbd": null,
+		        "region_ids_tbd": []
+		      },
+		      "entries": [
+		        {
+		          "id": "hot_combat",
+		          "weight": 70,
+		          "outcome": {"kind": "combat", "ref_id_tbd": "encounter_hot_tbd"}
+		        },
+		        {
+		          "id": "hot_event",
+		          "weight": 30,
+		          "outcome": {"kind": "event", "ref_id_tbd": "event_hot_tbd"}
+		        }
+		      ],
+		      "notes_tbd": [
+		        "Hot tile override table keyed off tile content tags."
+		      ]
+		    },
+		    "SpecialEventDefinitionTemplate": {
+		      "id": "finger_loss_check",
+		      "kind": "special_event",
+		      "trigger_sources": ["echo_scar_gain", "travel_table"],
+		      "determinism": {
+		        "seed_derivation_tbd": "seed64 = hash64(global_seed, 'special_event', event_id, claim_count)",
+		        "claim_counter_key_tbd": "hero|event_id"
+		      },
+		      "resolution_tbd": {
+		        "requires_player_input": false,
+		        "effects_tbd": [
+		          "may_reduce_rings_slots_max",
+		          "may_add_ui_lore_log_entry"
+		        ]
+		      },
+		      "notes_tbd": [
+		        "Finger loss is triggered by some Echo Scars and special events (Decision GE-0017/ES-0014)."
+		      ]
+		    },
+		    "CrewMemberDefinition": {
+		      "id": "crew_member",
+		      "kind": "actor",
+      "persistence": {
+        "scope": "save_slot",
+        "tuning_affinity": "tuned",
+        "resets_on_tuning": true
+      },
+	      "available_classes": ["drummer", "vocalist", "synth"],
+	      "starting_unlocked_classes_tbd": ["drummer"],
+	      "starting_class_levels_tbd": {
+	        "drummer": 0,
+	        "vocalist": 0,
+	        "synth": 0
+	      },
+	      "xp_progression": {
+	        "xp_threshold_model_id": "xp_threshold_exponential",
+	        "xp_per_stored_band_unit_generated": 1,
+	        "xp_from_passive_trickles": false,
+	        "offline_band_output_grants_xp": true,
+	        "task_xp_model_tbd": "value_based_per_task"
+	      },
+	      "class_switch_policy": {
+	        "cooldown_seconds": 180,
+	        "one_time_grace_seconds": 10,
+	        "notes_tbd": [
+	          "Grace decision XP-0011: after the first class change, allow one additional switch within 10s (undo/adjust), then enforce cooldown."
+	        ]
+	      },
+	      "notes_tbd": []
+	    },
+    "BuildingTypeDefinition": {
+      "id": "fire_pit",
+      "kind": "building_type",
+      "display_name": "Fire Pit",
+      "persistence": {
+        "scope": "save_slot",
+        "tuning_affinity": "untuned",
+        "resets_on_tuning": false
+      },
+      "max_count": 1,
+      "creation_cost": {
+        "stone": 200
+      },
+      "build_time_seconds": 4,
+      "cost_scaling_profile_id": "fire_pit_costs",
+      "chorus_upkeep_per_second": 0,
+      "staffing_slots_by_level_tbd": {
+        "1": 2
+      },
+      "vibes_generation": {
+        "baseline_vibes_per_tick": 1,
+        "staffing_bonus_vibes_per_tick_per_basic_crew": 1,
+        "goodvibes_min_tbd": null,
+        "synergy": {
+          "model_id": "fire_pit_synergy_sets10",
+          "params_tbd": {
+            "levels_per_set": 10,
+            "bonus_per_set": 0.1,
+            "cap_mult_tbd": null
+          },
+          "applies_to": "whole_goodvibes_generation"
+        }
+      },
+      "upgrade_cost_scaling": {
+        "uses_count_mult": true,
+        "uses_tuning_mult": true
+      },
+      "notifications": {
+        "on_build_limit_reached": "content/notifications/fire_pit_limit.md"
+      },
+      "notes_tbd": [
+        "Fire Pit is special-cased to be max_count=1 (player-facing warning copy).",
+        "Fire Pit tuning affinity is untuned (persists across Tunings)."
+      ]
+    },
+    "StationTypeDefinition": {
+      "id": "crystal_circle",
+      "kind": "station_type",
+      "display_name": "Crystal Circle",
+      "tuning_affinity": "untuned",
+      "persistence": {
+        "scope": "save_slot",
+        "tuning_affinity": "untuned",
+        "resets_on_tuning": false
+      },
+      "staffing_slots_by_level": {
+        "0": 3
+      },
+      "hero_staffing_slots_required": 3,
+      "chorus_upkeep_per_second": 0,
+      "band_output_model": {
+        "base_amount_per_tick_per_staff": 1,
+        "tick_interval_seconds": 1,
+        "level_multiplier_model_id": "band_output_level_mult_log2",
+        "crew_uses_active_class_level_only": true,
+        "hero_multiplier_rule": "product_of_all_class_level_multipliers_for_produced_band",
+        "notes_tbd": [
+          "Early: only Drummer/Bassline is unlocked; other classes/bands unlock later.",
+          "Crew: multiplier uses the active class level only (for the produced band).",
+          "Hero: when producing a band, all class levels contribute as multiplicative multipliers."
+        ]
+      },
+      "upgrade_lines_tbd": [
+	        {
+	          "id": "crystal_circle_remove_moss",
+	          "display_name": "Removing Moss",
+	          "max_level": 1,
+	          "unlock_rule_tbd": "after_dweller_bane_victory_cleaning_impulse",
+	          "effects": {
+	            "band_output_mult_all": 1.1,
+	            "enable_passive_bassline_trickle": true,
+	            "passive_bassline_amount_per_tick": 1
+	          },
+          "cost": null,
+          "time_seconds": 10,
+          "worker_required": true,
+          "progress_persists_if_unassigned": true,
+          "tuning_affinity_override": "untuned",
+          "notes_tbd": [
+            "Decision CL-0057: applies to all band outputs.",
+            "Decision CL-0064: time-only (10s), no Stone cost.",
+            "Decision CL-0067: this upgrade is untuned (persists across Tunings).",
+            "Decision BA-0036: becomes available after Dweller Bane death (story trigger).",
+            "Decision BA-0036: activates passive Bassline generation (+1/tick) as part of cleaning."
+          ]
+        },
+        {
+          "id": "crystal_circle_polish_crystal",
+          "display_name": "Polish the Crystal Base",
+          "max_level": 1,
+          "effects_tbd": {
+            "K_field_mult": 1.01
+          },
+          "cost": {
+            "skin": 1,
+            "water_liters": 5
+          },
+          "time_seconds": 4,
+          "worker_required": true,
+          "progress_persists_if_unassigned": true,
+          "tuning_affinity_override": "untuned",
+          "notes_tbd": [
+            "Decision CL-0058: modifies K_field (bubble budget conversion).",
+            "Decision CL-0066: start at +1% (K_field_mult=1.01).",
+            "Decision CL-0075: costs 1 skin + 5 water (liters), duration 4s.",
+            "Decision CL-0084: this upgrade is untuned (persists across Tunings)."
+          ]
+        }
+      ],
+      "outputs": [
+        {
+          "resource_id": "bassline",
+          "tick_interval_seconds": 1,
+          "amount_per_tick_tbd": 1
+        }
+      ],
+      "notes_tbd": [
+        "Crystal Circle outputs are early-source of band generation; exact tick amounts TBD."
+      ]
+    },
+        "BasePermanentBuildingDefinition": {
+            "id": "studio",
+            "kind": "building_type",
+            "display_name": "The Studio",
+            "persistence": {
+                "scope": "save_slot",
+                "tuning_affinity": "untuned",
+                "resets_on_tuning": false
+      },
+      "max_count": 1,
+      "bunks_capacity": 0,
+            "restoration_tbd": {
+                "starts_damaged": true,
+                "restore_upgrade_name_tbd": "Restore public spaces of the ground floor",
+                "unlock_rule_tbd": "after_first_investigate_explore_loop",
+                "restore_cost": {
+                    "stone": 600
+                },
+                "restore_time_seconds": 12,
+                "restore_effects": {
+                    "bunks_capacity_add": 15
+                },
+                "notes_tbd": [
+                    "Restore The Studio is an early objective; it is required (alongside Fire Pit + ReachFromBase>=3) before first recruitment."
+                ]
+            },
+      "notes_tbd": [
+        "This is a free starter structure and persists across Tunings.",
+        "v0: starts damaged with 0 bunks until restored."
+      ]
+    },
+    "MapTileDefinition": {
+      "terrain_type": "plain",
+      "occludes_ripple": false,
+      "terrain_impedance": 1.0,
+      "exploration": {
+        "investigation_level_max_tbd": null,
+        "exploration_level_max_tbd": null,
+        "investigate_seconds_by_level_tbd": {},
+        "explore_seconds_by_level_tbd": {},
+        "conditions_by_investigation_level_tbd": {},
+        "conditions_by_exploration_level_tbd": {},
+        "rewards_by_investigation_level_tbd": {},
+        "rewards_by_exploration_level_tbd": {}
+      },
+      "ambient_resources": [
+        {
+          "material_id": "stone",
+          "stock_current_tbd": 10,
+          "stock_max_tbd": 10,
+          "regen_per_hour": 0,
+          "harvest_channels": ["manual_hero", "expedition"]
+        }
+      ],
+      "notes_tbd": [
+        "This is a per-terrain-type template; actual tiles/coords live in authored map data files."
+      ]
+    },
+    "ResourceNodeTemplate": {
+      "id": "stone_quarry_small",
+      "kind": "resource_node",
+      "material_id": "stone",
+      "node_quality": "small_quarry",
+      "stock_current_tbd": 1000,
+      "stock_max_tbd": 1000,
+      "regen_per_hour": 0,
+      "persistence": {
+        "scope": "save_slot",
+        "resets_on_tuning": false
+      },
+      "harvest_channels": ["manual_hero", "expedition", "building_automated"],
+      "notes_tbd": [
+        "Stone nodes do not regenerate by default.",
+        "All terrain can carry ambient resources; nodes represent concentrated deposits."
+      ]
+    },
+    "ResourceNodeState": {
+      "node_id": "stone_quarry_small",
+      "stock_current": 1000,
+      "last_updated_unix_seconds_tbd": 0,
+      "notes_tbd": [
+        "World-state lives per save slot; this state is separate from the node definition."
+      ]
+    },
+    "ExpeditionDestinationDefinition": {
+      "id": "destination_tbd",
+      "kind": "expedition_destination",
+      "unlocked_by_tbd": "safe_spot_or_story",
+      "returns": [
+        {
+          "kind": "loot_or_material",
+          "material_id_tbd": "stone",
+          "amount_tbd": 0
+        }
+      ],
+      "notes_tbd": [
+        "Early decision: expeditions return loot/materials, not band resources directly."
+      ]
+    },
+        "OfflineProgressPolicyTemplate": {
+      "included_systems": ["band_generation", "vibes_generation", "recruit_travel", "expeditions"],
+      "excluded_systems": ["base_scavenge", "manual_node_harvest", "tile_investigate", "tile_explore"],
+      "catchup_horizon": "unlimited_until_caps",
+      "world_state": {
+        "node_regeneration_advances_offline": true,
+        "persistence_scope": "save_slot"
+      },
+      "notes_tbd": [
+        "Use per-system tick accumulators + event scheduling; stop at caps."
+      ]
+        },
+        "ExplorationSystemConfig": {
+        "persistence": {
+          "scope": "save_slot",
+          "tuning_affinity": "untuned",
+          "resets_on_tuning": false
+        },
+        "BandPassiveGenerationConfig": {
+            "bassline_trickle": {
+                "enabled": false,
+                "amount_per_tick_tbd": 1,
+                "tick_interval_seconds": 1,
+                "unlocked_by_tbd": "crystal_circle_upgrade:crystal_circle_remove_moss",
+                "affected_by_crystal_output_mult_tbd": true,
+                "affected_by_levels_tbd": "crystal_circle_upgrades_only",
+                "adds_to_staffing_contributions": true,
+                "grants_xp": false,
+                "notes_tbd": [
+                    "v0: passive Bassline trickle is unlocked by the Crystal Circle upgrade 'Removing Moss' to reduce dependence on constant staffing."
+                ]
+            }
+        },
+        "actions": {
+          "investigate": {
+            "can_be_done_by": ["hero", "crew"],
+            "offline_progress": false,
+            "duration_seconds_per_tile": true,
+            "unlock_conditions_by_level_tbd": true
+          },
+          "explore": {
+            "can_be_done_by": ["hero"],
+            "offline_progress": false,
+            "duration_seconds_per_tile": true,
+            "unlock_conditions_by_level_tbd": true
+          }
+        },
+        "leveling": {
+          "investigation_level_is_monotonic": true,
+          "exploration_level_is_monotonic": true,
+          "success_increments_by": 1,
+          "max_level_per_tile_tbd": null
+        },
+        "rewards": {
+          "unlock_grants_one_time_by_default": true,
+          "repeatable_rewards_supported_tbd": true,
+          "repeatable_rewards_rng_tbd": {
+            "enabled": true,
+            "model": "derive_per_claim_seed",
+            "seed_derivation": "seed64 = hash64(global_seed, 'exploration_loot', tile_id, exploration_level, reward_id, claim_count)",
+            "claim_counter_key": "tile_id|exploration_level|reward_id",
+            "parameters_tbd": [
+              "loot_table_id",
+              "rarity_weights",
+              "min_max_rolls"
+            ]
+          }
+        },
+        "notes_tbd": [
+          "Decisions CL-0111..CL-0120: exploration levels persist per tile per save slot; Investigate can be done by Hero or crew; Explore is Hero-only; no offline progression.",
+          "Decision CL-0116: unlock grants are one-time by default; some tiles/levels can be configured repeatable (random loot within parameters)."
+        ]
+      },
+      "ScavengeSystemConfig": {
+        "stone_scavenge": {
+          "channel": "base_manned",
+          "base_tile_stock_max": 10000,
+          "depletes_world_stock": true,
+          "yield_model": "continuous_rate",
+          "yield_per_second_base": {
+            "stone": 100
+          },
+          "fallback_when_depleted": {
+            "yield_model": "tick_rate",
+            "yield_per_tick": {
+              "stone": 1
+            },
+            "notes": "Intentionally very slow ambient rubble."
+          },
+          "efficiency_effect_tbd": "increases_yield_rate_and_or_reduces_time",
+          "notes_tbd": [
+            "v0 only: base tile has Stone stock available so Restore The Studio + Fire Pit can be completed quickly.",
+            "Full scavenge system (tile stocks, diminishing, per-actor efficiency curves) is designed later."
+          ]
+        },
+        "water_collect_tbd": {
+          "channel": "base_manned",
+          "unlock_rule_tbd": "at_run_start",
+          "base_tile_stock_current_start_tbd": 5,
+          "base_tile_stock_max": 30,
+          "base_tile_regen_per_second": 0.003,
+          "depletes_world_stock": true,
+          "yield_model": "continuous_rate",
+          "yield_per_second_base": {
+            "water_liters": 2
+          },
+          "notes_tbd": [
+            "Decision CL-0091/CL-0092/CL-0093: water starts at 5L on the Studio tile, max 30L, regenerates slowly, and is collected at 2L/s.",
+            "Decision CL-0105: water collection is available as soon as the player starts playing."
+          ]
+        }
+      },
+      "WorkTaskState": {
+        "task_id_tbd": "uuid_or_int",
+        "kind_tbd": "studio_restore_or_build_or_upgrade",
+        "total_work_seconds": 0,
+        "worked_seconds": 0,
+        "assigned_worker_actor_id_tbd": null,
+        "progress_persists_if_unassigned": true,
+        "notes_tbd": [
+          "Used for worker-blocking construction/upgrade actions where partial progress may persist."
+        ]
+      },
+        "TimerState": {
+            "kind": "timer",
+            "start_unix_seconds": 0,
+            "end_unix_seconds": 0,
+            "notes_tbd": [
+                "Used for build timers, recruit travel timers, expedition timers.",
+                "Timers are authoritative; an in-memory event queue is derived from these on load."
+            ]
+        },
+        "RngStreamState": {
+            "seed_uint64_tbd": "uint64",
+            "counter_uint64_tbd": 0,
+            "notes_tbd": [
+                "Determinism: simulation events advance counters; UI should not."
+            ]
+        },
+        "TickAccumulatorState": {
+            "accum_seconds": 0,
+            "tick_seconds": 1,
+            "notes_tbd": [
+                "Stores fractional tick remainder so long offline sessions do not drift."
+            ]
+        },
+        "BuildingInstanceState": {
+            "instance_id_tbd": "uuid_or_int",
+            "type_id": "fire_pit",
+            "level": 0,
+            "upgrades": {
+                "upgrade_line_id_tbd": 0
+            },
+            "staff_assignments": [
+                "actor_id_tbd"
+            ],
+            "construction_task_tbd": null,
+            "grandfathered_meta_snapshots": {
+                "N_at_purchase_tbd": 0,
+                "R_at_purchase_tbd": 0
+            },
+            "notes_tbd": [
+                "If under construction, construction_task_tbd is a WorkTaskState (worker-blocking, progress can persist)."
+            ]
+        },
+        "StationInstanceState": {
+            "instance_id_tbd": "uuid_or_int",
+            "type_id": "crystal_circle",
+            "level": 0,
+            "staff_assignments": [
+                "actor_id_tbd"
+            ],
+            "notes_tbd": [
+                "Stations are treated like buildings for staffing, but may have different placement rules."
+            ]
+        },
+		        "HeroState": {
+		            "actor_id": "hero",
+		            "current_tile_id_tbd": "tile_base",
+		            "attributes": {
+		                "sustain": 0,
+		                "tempo": 0,
+		                "theory": 0
+		            },
+		            "active_modifiers": [],
+		            "travel_encounter_state_tbd": {
+		              "tile_entry_counts": {},
+		              "travel_segment_counts_tbd": {},
+		              "queued_encounters": [
+		                {
+		                  "queued_id_tbd": "uuid_or_int",
+		                  "created_unix_seconds": 0,
+		                  "trigger_moment": "on_tile_entry",
+		                  "tile_id_tbd": "tile_id",
+		                  "from_tile_id_tbd": null,
+		                  "to_tile_id_tbd": null,
+		                  "seed_uint64_tbd": "uint64",
+		                  "selected_outcome_tbd": {
+		                    "kind": "combat|event|loot_only|nothing",
+		                    "ref_id_tbd": "encounter_id_or_event_id_or_loot_table_id"
+		                  },
+		                  "requires_player_input_tbd": true,
+		                  "resolved": false
+		                }
+		              ],
+		              "notes_tbd": [
+		                "Stores per-tile entry counters for deterministic travel encounter seeding and any queued encounters when offline."
+		              ]
+		            },
+		            "skills": [
+		              {
+		                "skill_id": "skill_attack",
+		                "cooldown_ends_unix_seconds_tbd": 0,
+		                "charges_current_tbd": null
+		              }
+		            ],
+		            "band_focus": "bassline",
+		            "viral_load_ratio": 0,
+		            "wounds": {
+		                "major_wounds_max": 3,
+		                "light_wounds_per_major": 6,
+		                "wound_units_taken": 0
+		            },
+		            "incapacitated_until_unix_seconds_tbd": 0,
+		            "echo_scars": [
+		                {
+		                    "scar_id_tbd": "echo_scar_id",
+		                    "stacks": 1
+		                }
+		            ],
+		            "viral_load_outside_bubble_state_tbd": {
+		                "outside_bubble_since_unix_seconds_tbd": null,
+		                "logged_exit_tile_id_tbd": null,
+		                "last_known_safe_tile_id_tbd": "tile_base",
+		                "forced_return_active": false,
+		                "forced_return_phase_tbd": null,
+		                "forced_return_events_paused": true
+		            },
+		            "equipped_class": "drummer",
+		            "class_levels": {
+		                "drummer": 0,
+		                "vocalist": 0,
+	                "synth": 0
+	            },
+	            "xp_total": 0,
+	            "level_total": 0,
+	            "class_switch_state": {
+	                "cooldown_ends_unix_seconds": 0,
+	                "first_switch_unix_seconds_tbd": 0,
+	                "grace_used": false,
+	                "notes_tbd": [
+	                    "Grace decision XP-0011: after the first class change, allow one additional switch within 10s (undo/adjust)."
+	                ]
+	            },
+	            "last_assignment_swap_unix_seconds": 0,
+	            "notes_tbd": [
+	                "Hero is unique; exploration/combat state will be added later."
+	            ]
+	        },
+		        "CrewMemberState": {
+		            "actor_id_tbd": "uuid_or_int",
+		            "equipped_class": "drummer",
+		            "class_levels": {
+		                "drummer": 0,
+	                "vocalist": 0,
+	                "synth": 0
+	            },
+	            "xp_total": 0,
+	            "level_total": 0,
+	            "class_switch_state": {
+	                "cooldown_ends_unix_seconds": 0,
+	                "first_switch_unix_seconds_tbd": 0,
+	                "grace_used": false
+	            },
+	            "status_flags": {
+	                "on_expedition": false,
+	                "incapacitated_tbd": false
+	            },
+		            "notes_tbd": []
+		        },
+		        "WoundCapacityTemplate": {
+		            "major_wounds_max": 3,
+		            "light_wounds_per_major": 6,
+		            "notes_tbd": [
+		                "Wounds are expressed as X Major Wounds made of Y Light Wounds."
+		            ]
+		        },
+	        "WoundStateTemplate": {
+	            "major_wounds_max": 3,
+	            "light_wounds_per_major": 6,
+	            "wound_units_taken": 0,
+	            "notes_tbd": [
+	                "v0 Hero baseline: 3 MW of 6 LW.",
+	                "Same-pool model: Light Wound adds +1 wound unit; Major Wound adds +light_wounds_per_major wound units.",
+	                "Derived UI: major_taken = floor(wound_units_taken / light_wounds_per_major), light_remainder = wound_units_taken % light_wounds_per_major."
+	            ]
+	        },
+	        "RecruitTravelState": {
+	            "recruit_id_tbd": "uuid_or_int",
+	            "timer": {
+	                "kind": "timer",
+                "start_unix_seconds": 0,
+                "end_unix_seconds": 0
+            },
+            "cost_paid": {
+                "vibes": 0
+            },
+            "arrival_guaranteed": false,
+            "cancel_policy": {
+                "when_gate_lost": "cancel",
+                "refund_vibes": false,
+                "fate": "dies",
+                "provides_partial_benefits": false,
+                "cooldown_after_cancel_seconds": 0
+            },
+            "notes_tbd": [
+                "v0: recruit travel can be cancelled if recruitment becomes disabled (ReachFromBase gate lost)."
+            ]
+        },
+        "RecruitmentState": {
+            "total_recruited_count": 0,
+            "instant_stock_current": 0,
+            "instant_stock_max_tbd": 30,
+            "in_transit": [],
+            "notes_tbd": [
+                "Instant stock behavior is defined in RecruitmentSystemConfig; this state only stores current values and in-flight recruits."
+            ]
+        },
+	        "ExpeditionRunState": {
+	            "run_id_tbd": "uuid_or_int",
+	            "destination_id_tbd": "destination_tbd",
+	            "crew_actor_ids": [],
+	            "duration_model": "travel_plus_exploration",
+	            "travel_time_seconds_tbd": 0,
+	            "exploration_time_seconds_tbd": 0,
+	            "timer": {
+	                "kind": "timer",
+	                "start_unix_seconds": 0,
+	                "end_unix_seconds": 0
+	            },
+            "rng_seed_uint64_tbd": "uint64",
+            "progress_cache_tbd": null,
+            "notes_tbd": [
+                "Expeditions always complete (no failure); progress and returns are subject to caps and destination locking rules."
+            ]
+        },
+        "SimulationState": {
+            "tick_seconds": 1,
+            "last_simulated_unix_seconds": 0,
+            "accumulators": {
+                "band_generation": {
+                    "accum_seconds": 0,
+                    "tick_seconds": 1
+                },
+                "vibes_generation": {
+                    "accum_seconds": 0,
+                    "tick_seconds": 1
+                }
+            },
+            "notes_tbd": [
+                "Catch-up processes time in segments between events; see documentation/save-load.md."
+            ]
+        },
+        "SaveSlotStateTemplate": {
+            "save_schema_version": 1,
+            "save_slot_id_tbd": "slot_01",
+            "save_slot_name_tbd": "My Slot",
+            "platform_tbd": {
+                "os_tbd": "ios_android_web_pc",
+                "app_version_tbd": "semver",
+                "device_id_hash_tbd": "sha256:..."
+            },
+            "game_data_version_tbd": "semver",
+            "game_data_hash": "sha256:...",
+            "created_unix_seconds": 0,
+            "last_saved_unix_seconds": 0,
+            "clock_warnings": {
+                "last_detected_backward_time_shift": false
+            },
+            "simulation": {
+                "tick_seconds": 1,
+                "last_simulated_unix_seconds": 0,
+                "accumulators": {
+                    "band_generation": {
+                        "accum_seconds": 0,
+                        "tick_seconds": 1
+                    },
+                    "vibes_generation": {
+                        "accum_seconds": 0,
+                        "tick_seconds": 1
+                    }
+                }
+            },
+            "resources": {
+                "bassline_pool": 0,
+                "chorus_pool": 0,
+                "harmonics_pool": 0,
+                "vibes_pool": 0,
+                "stone_pool": 0
+            },
+            "meta_progression": {
+                "resonance_tbd": 1.0,
+                "fragments_unspent_tbd": 0,
+                "refinement_tbd": 0
+            },
+            "rng": {
+                "global_seed_uint64_tbd": "uint64",
+                "streams": {
+                    "system_stream_id_tbd": {
+                        "seed_uint64_tbd": "uint64",
+                        "counter_uint64_tbd": 0
+                    }
+                }
+            },
+	            "actors": {
+		                "hero": {
+		                    "actor_id": "hero",
+		                    "current_tile_id_tbd": "tile_base",
+		                    "attributes": {
+		                        "sustain": 0,
+		                        "tempo": 0,
+		                        "theory": 0
+		                    },
+		                    "active_modifiers": [],
+		                    "skills": [
+		                      {
+		                        "skill_id": "skill_attack",
+		                        "cooldown_ends_unix_seconds_tbd": 0,
+		                        "charges_current_tbd": null
+		                      }
+		                    ],
+		                    "band_focus": "bassline",
+		                    "viral_load_ratio": 0,
+		                    "wounds": {
+		                        "major_wounds_max": 3,
+		                        "light_wounds_per_major": 6,
+		                        "wound_units_taken": 0
+		                    },
+		                    "incapacitated_until_unix_seconds_tbd": 0,
+		                    "echo_scars": [],
+	                    "viral_load_outside_bubble_state_tbd": {
+	                        "outside_bubble_since_unix_seconds_tbd": null,
+	                        "logged_exit_tile_id_tbd": null,
+	                        "last_known_safe_tile_id_tbd": "tile_base",
+	                        "forced_return_active": false,
+	                        "forced_return_phase_tbd": null,
+	                        "forced_return_events_paused": true
+	                    },
+	                    "equipped_class": "drummer",
+	                    "class_levels": {
+	                        "drummer": 0,
+	                        "vocalist": 0,
+	                        "synth": 0
+	                    },
+	                    "xp_total": 0,
+	                    "level_total": 0,
+	                    "class_switch_state": {
+	                        "cooldown_ends_unix_seconds": 0,
+	                        "first_switch_unix_seconds_tbd": 0,
+	                        "grace_used": false
+	                    },
+	                    "last_assignment_swap_unix_seconds": 0
+	                },
+	                "crew": []
+	            },
+            "base_state": {
+                "buildings": [],
+                "stations": [],
+                "work_tasks_tbd": []
+            },
+            "actions_state": {
+                "recruitment": {
+                    "total_recruited_count": 0,
+                    "instant_stock_current": 0,
+                    "instant_stock_max_tbd": 30,
+                    "in_transit": []
+                },
+                "expeditions": [],
+                "frozen_actions_tbd": []
+            },
+            "world_state": {
+                "resource_nodes": [],
+                "map_knowledge_tbd": {},
+                "unlocked_content_ids_tbd": [],
+                "tile_exploration_state_tbd": {
+                    "tile_id_tbd": {
+                        "investigation_level_current": 0,
+                        "exploration_level_current": 0,
+                        "hero_visited": false,
+                        "access_conditions_met_tbd": false,
+                        "one_time_grants_awarded_tbd": [],
+                        "repeatable_reward_claim_counts_tbd": {}
+                    }
+                }
+            },
+            "run_state_tbd": {
+                "tuning_count": 0,
+                "last_tuning_unix_seconds": 0
+            }
+        },
+        "SaveIndexTemplate": {
+            "save_schema_version": 1,
+            "slots": [
+                {
+                    "save_slot_id": "slot_01",
+                    "save_slot_name": "Slot 1",
+                    "last_played_unix_seconds_tbd": 0
+                }
+            ],
+            "notes_tbd": [
+                "Index file lists available slots and their names; state lives in each slot folder."
+            ]
+        },
+        "SaveSystemConfigTemplate": {
+            "slots_count": 3,
+            "autosave_interval_seconds": 15,
+            "backup_rotation": {
+                "keep_backups": 3,
+                "keep_last_known_good": 2
+            },
+            "write_policy": {
+                "atomic_write": true,
+                "write_temp_then_rename": true
+            },
+            "notes_tbd": [
+                "Design-time config for save cadence/retention; implementation may override per platform."
+            ]
+        },
+      "BubbleSystemConfig": {
+        "layer_step_rule": "full_rings_only",
+        "growth_control": {
+          "early": "automatic_from_stored_bassline",
+          "later_tbd": ["reserve_floors", "spend_locks", "manual_shaping"]
+        },
+        "layer_cost_model": {
+          "model": "edge_sum",
+          "definition": "ring_cost[k] = sum(terrain_impedance(tile) for tile in Ring(k) where eligible(tile)); cumulative_cost[r] = sum_{k<=r} ring_cost[k]",
+          "notes_tbd": [
+            "Decision BU-0002/BU-0004: bubble expands/shrinks in full rings; the cost to expand is the summed impedance of all newly-conquered edge tiles."
+          ]
+        },
+        "field_budget": {
+          "Bassline_field_model": "Bassline_field = Bassline_pool * eta_B",
+          "eta_B_harmonics_baseline": 1.0,
+          "K_field_base": 0.36,
+          "K_field_sources_tbd": [
+            "crystal_circle_upgrades",
+            "research_perks_items"
+          ],
+          "K_field_stacking_rule": "K_field = K_field_base * product(K_field_mult_sources)",
+          "notes_tbd": [
+            "K_field converts Bassline_field into an impedance budget for ripple layers; see mechanics/specifications.md and documentation/glossary.md."
+          ]
+        },
+      "inertia": {
+        "hold_seconds": 10,
+        "degrade_seconds": 10,
+        "curve_tbd": "linear_or_other"
+      },
+      "recompute_cadence_seconds_tbd": 1,
+      "reveal": {
+        "reveal_rate_hexes_per_second_tbd": 0,
+        "fog_reveal_persists": true
+      },
+      "propagation": {
+        "sources": ["base_crystal", "loudspeakers_tbd"],
+        "terrain_impedance": "per_tile",
+        "occlusion": {
+          "occludes_ripple_flag": true,
+          "shadow_params_tbd": ["shadow_max_depth_tiles", "shadow_width_params"]
+        },
+        "line_of_sight_model_tbd": "hex_cube_coords_line"
+      }
+    },
+      "RecruitmentSystemConfig": {
+      "survivor_cave": {
+        "distance_tiles": 6,
+        "recruitment_range_tiles": 3
+      },
+      "BunksSystemConfig": {
+        "hero_consumes_bunk": true,
+        "occupant_count_model": "occupant_count = crew_count + 1",
+        "recruit_requires_free_bunks_at_commit": 0,
+        "notes_tbd": [
+          "Decision CL-0079: bunks do not hard-limit recruiting; they only drive BadVibes via overcapacity."
+        ]
+      },
+      "gating_rule": "enabled_if(d - ReachFromBase <= recruitment_range_tiles)",
+      "travel_time": {
+        "model": "movement_pathing_sum",
+        "notes_tbd": [
+          "Decision MV-0009: recruit travel time uses the same movement/pathing system (sum of tile travel times).",
+          "Fallback: if pathing data is unavailable, approximate with distance_tiles * base_seconds_per_tile."
+        ]
+      },
+            "instant_recruits": {
+                "uses_stock": true,
+                "stock_rule": "X(t) = max(X_floor, X0 - floor(t_seconds_since_run_start / 10))",
+                "x0": 30,
+                "x_floor": 5,
+                "ui_spawn_delay_seconds": 1
+            },
+      "costs": {
+        "currency": "vibes",
+        "pay_time": "commit_time",
+        "cannot_go_into_debt": true,
+        "cost_curve_tbd": "see_mechanics_spec_crew_intake"
+      },
+      "queueing": {
+        "multi_quantity": true,
+        "travel_mode": "parallel"
+      },
+      "in_transit_luck": false,
+      "in_transit_behavior_when_gate_lost": "cancel_in_transit_counts_for_total_recruited",
+      "notes_tbd": [
+        "Decision CL-0089: losing reach (gate) cancels ongoing recruitments but still counts toward total recruited."
+      ]
+    },
+    "CombatSystemConfig": {
+      "mode": "real_time_cooldowns",
+      "auto_fight": {
+        "starts_locked": true,
+        "unlock_tbd": "upgrade_or_research",
+        "behavior": "cycles_skills"
+      },
+      "starting_skills_count": 1,
+      "starting_skill_ids": ["skill_attack"],
+      "supports_aoe_targeting": true,
+      "baseline_skill_cooldown_seconds": 3,
+      "health_model": {
+        "wounds": {
+          "enabled": true,
+          "hero_baseline": {
+            "major_wounds_max": 3,
+            "light_wounds_per_major": 6
+          },
+          "gear_durability_uses_same_structure": true,
+          "foes_use_same_structure": true
+        },
+        "viral_load_payloads_on_attacks": true
+      },
+      "gear_interaction": {
+        "routing": "random_eligible_piece",
+        "break_state": "damaged_not_unequipped",
+        "viral_load_payload_applies_only_if_wound_not_fully_absorbed": true
+      },
+      "hit_resolution": {
+        "model": "hit_rating_ratio_d100_threshold",
+        "roll": "d100",
+        "d100_convention": "roll_in_1_to_100_success_if_roll_gt_100_times_one_minus_hit_chance",
+        "outcomes": ["miss", "hit", "crit"],
+        "skills_can_miss": true,
+        "hit_buffs_supported": true,
+        "ratings": {
+          "hero_advantage_mult": 1.15,
+          "hero_advantage_applies_to": "hero_side_attacker_or_defender",
+          "attacker_hit_rating": "tempo_hit_rating_bonus + gear + perks + other_modifiers - malus",
+          "defender_hit_rating": "tempo_hit_rating_bonus + gear + perks + other_modifiers - malus",
+          "hit_chance": "Let A=max(0,attacker_hit_rating), D=max(0,defender_hit_rating). Let A'=A*hero_advantage_mult if attacker is Hero else A. Let D'=D*hero_advantage_mult if defender is Hero else D. hit_chance = A'/(A'+D'); if A'=D'=0 => 0.5",
+          "d100_threshold_rule": "roll in [1,100]; success if roll > 100*(1-hit_chance)"
+        },
+        "crit_roll": {
+          "roll_after_hit_only": true,
+          "crit_rating_total_tbd": "crit_rating + theory_crit_bonus_percent + gear + perks + other_modifiers - malus",
+          "crit_chance_model": "linear_cap_100",
+          "crit_chance_percent": "min(100, crit_rating_total)",
+          "cap_percent": 100,
+          "enemies_can_crit": true
+        },
+        "crit_effect": {
+          "bypasses_gear_durability_for_whole_attack": true,
+          "adds_light_wound": 1,
+          "bypasses_modifiers_and_blockers": true,
+          "bypasses_gear_durability": true,
+          "notes_tbd": [
+            "Decision GE-0007: crit bypasses all gear durability for the whole attack.",
+            "Decision HIT-0014: crit bonus LW bypasses gear durability absorption and applies directly to the target's wound track."
+          ]
+        },
+      "viral_load_on_hit": {
+        "attacks_can_apply_viral_load": true,
+        "apply_only_if_wound_not_fully_absorbed_by_gear": true,
+        "crit_applies_viral_load_payload_again": false,
+        "notes_tbd": [
+          "Decision CRIT-0005/CRIT-0009: crit applies both the crit LW and the attack's normal Viral Load payload (not doubled).",
+          "Decision CRIT-0005: if the attack is fully absorbed by gear, Viral Load does not apply."
+        ]
+      },
+        "notes_tbd": [
+          "Decision HIT-0001/HIT-0002/HIT-0003: ratio model with d100; 3-tier outcomes; skills can miss and can carry hit buffs.",
+          "Decision HIT-0004/HIT-0008/HIT-0011: hit buffs/malus are rating adders; ratings are unbounded; hero advantage mult=1.15 (Hero-only).",
+          "Decision HIT-0010/HIT-0013: crit chance is driven by crit_rating and influenced by Theory (exact crit function TBD).",
+          "Decision HIT-0005/HIT-0014: crit adds +1 LW that ignores modifiers/blockers and bypasses gear durability."
+        ]
+      },
+      "travel_encounters": {
+        "enabled": true,
+        "time_does_not_stop": true,
+        "outside_bubble_viral_load_continues": true
+      },
+      "hero_applies_viral_load_to_foes": false,
+      "viral_load_payload_units": {
+        "model": "direct_ratio_delta",
+        "one_point_equals_ratio": 0.01
+      },
+      "victory_conditions": {
+        "default": "defeat_when_wound_units_taken >= major_wounds_max*light_wounds_per_major",
+        "special_events_supported": true
+      },
+      "in_combat_recovery": {
+        "allowed": true,
+        "sources": ["items_consumables"]
+      },
+      "notes_tbd": [
+        "Decisions CB-0001/CB-0005/CB-0006/CB-0007/CB-0008/CB-0009/CB-0010: cooldown combat; auto-fight unlocked later and cycles; travel encounters do not pause time; forced return used instead of death.",
+        "Decisions SK-0001..SK-0010: starting skill is Attack; skills can have charges; hero never applies viral load; victory condition is wound units with special events allowed; target tutorial clear ~30s; in-combat recovery is item-based."
+      ]
+    },
+    "InventorySystemConfig": {
+      "model": "slot_limited",
+      "inventory_slots_max_tbd": 4,
+      "starting_consumables": [],
+      "consumable_use": {
+        "use_time_seconds": 0,
+        "global_cooldown_seconds_outside_combat": 1,
+        "global_cooldown_seconds_in_combat": 0,
+        "in_combat_policy": "per_item_cooldowns_only"
+      },
+      "persistence_default": {
+        "tuning_affinity": "untuned",
+        "notes_tbd": [
+          "Decision IT-0009: consumables persist across Tunings by default, but some can be tuned/run-scoped."
+        ]
+      },
+      "acquisition_channels_early": ["exploration_loot"],
+      "notes_tbd": [
+        "Decisions IT-0001..IT-0010."
+      ]
+    },
+	    "ModifierSystemConfig": {
+	      "rating_adders": {
+	        "used_for": ["hit_rating", "crit_rating", "tempo_hit_rating_bonus"],
+	        "stacking": "sum_adders_minus_malus",
+	        "notes_tbd": [
+	          "Decision HIT-0011: hit/evade buffs are rating adders.",
+	          "Hit/crit ratings are unbounded by default."
+	        ]
+	      },
+	      "multipliers": {
+	        "stacking": "product",
+	        "notes_tbd": [
+	          "Used for band output, K_field, and other multiplicative scaling sources."
+	        ]
+	      },
+	      "ordering_proposed": ["base", "rating_adders", "multipliers", "caps_if_any"],
+	      "duration_and_persistence": {
+	        "duration_seconds_field": "duration_seconds",
+	        "tuning_affinity_field": "tuning_affinity",
+	        "offline_progress_default": true
+	      },
+	      "conflict_rules_tbd": {
+	        "same_source_reapply": "refresh_duration_or_stack_tbd",
+	        "unique_id_required": true
+	      },
+	      "representation": {
+	        "implicit_from_sources": ["gear", "perks", "attributes", "echo_scars"],
+	        "explicit_active_instances_for_temporary": true,
+	        "ui_breakdown_requires_action": true,
+	        "ui_breakdown_storage": "recompute_only_no_snapshots",
+	        "notes_tbd": [
+	          "Decision MOD-0001: store both (implicit from owned/equipped sources + explicit active instances for temporary effects).",
+	          "Decision MOD-0012: breakdown is recomputed; do not store snapshot breakdowns in saves."
+	        ]
+	      },
+	      "reapply_policies_supported": ["refresh_duration", "stack", "take_max_value", "ignore"],
+	      "stack_caps_supported": true,
+	      "channels": {
+	        "enabled": true,
+	        "channel_ids_v0": ["gear", "perk", "consumable", "event", "zone", "echo_scar", "system"],
+	        "notes_tbd": [
+	          "Decision MOD-0010: use channels to simplify debugging and UI breakdowns."
+	        ]
+	      },
+	      "viral_load_tiers": {
+	        "mode": "separate_debuffs_not_in_hit_crit_ratings",
+	        "notes_tbd": [
+	          "Decision MOD-0007: Viral Load tiers do not feed into hit/crit/cooldown rating calculations in v0."
+	        ]
+	      },
+	      "ActiveModifierDefinitionTemplate": {
+	        "id": "modifier_id_tbd",
+	        "channel": "consumable",
+	        "target_kind": "hero_or_crew_or_building_or_system",
+	        "stat_key_tbd": "hit_rating|crit_rating|cooldown_mult|band_output_mult|etc",
+	        "kind": "adder_or_multiplier",
+	        "value": 0,
+	        "duration_seconds": 0,
+	        "tuning_affinity": "tuned",
+	        "progresses_offline": true,
+	        "reapply_policy": "refresh_duration",
+	        "stack_cap_tbd": null,
+	        "notes_tbd": [
+	          "Per-definition policy controls re-application and stacking (Decision MOD-0002/MOD-0003)."
+	        ]
+	      },
+	      "ActiveModifierStateTemplate": {
+	        "modifier_instance_id_tbd": "uuid_or_int",
+	        "modifier_definition_id_tbd": "modifier_id_tbd",
+	        "stacks": 1,
+	        "start_unix_seconds": 0,
+	        "end_unix_seconds": 0,
+	        "source_id_tbd": "consumable_or_event_or_zone",
+	        "notes_tbd": [
+	          "Decision MOD-0009: modifier instances require stable IDs for determinism."
+	        ]
+	      },
+	      "notes_tbd": [
+	        "See documentation/modifier-system.md for the design overview."
+	      ]
+	    },
+    "PowerSystemConfig": {
+      "chorus_budget": {
+        "upkeep_paid_from": ["generation_first", "pool_second"],
+        "brownout_when_pool_zero_and_deficit": true
+      },
+      "brownout_resolution": {
+        "auto_unpower_rule": "LIFO",
+        "player_manual_overrides": true
+      },
+      "notes_tbd": [
+        "Chorus starts locked at 0 early; this becomes relevant after Chorus unlock."
+      ]
+    },
+    "TuningSystemConfig": {
+      "cooldown_real_seconds": 180,
+      "resets": {
+        "crew": "dies",
+        "band_pools": "reset_to_0",
+        "safe_spots": "collapse",
+        "expeditions": "terminated_no_loot"
+      },
+      "persistence_tags": ["tuned", "detuned", "untuned"],
+      "notes_tbd": [
+        "Resonance recompute math is in mechanics/specifications.md; encode here later once stabilized."
+      ]
+    },
+    "ViralLoadSystemConfig": {
+      "representation": "viral_load_ratio_0_to_1",
+      "progresses_offline": true,
+      "outside_bubble_rate": {
+        "hero_time_seconds_0_to_1": 24,
+        "normal_human_time_seconds_0_to_1": 4
+      },
+      "inside_bubble_recovery": {
+        "time_seconds_1_to_0": 240
+      },
+      "sustain_scaling_tbd": {
+        "model": "table_or_formula",
+        "outside_time_seconds_0_to_1": "base_24s * outside_mult(Sustain)",
+        "recovery_time_seconds_1_to_0": "base_240s / recovery_mult(Sustain)",
+        "defaults_proposed": {
+          "outside_mult_formula": "1 + 0.05*Sustain",
+          "recovery_mult_formula": "1 + 0.05*Sustain"
+        },
+        "sample_table_levels_0_to_10_proposed": {
+          "0": {"outside_0_to_1_s": 24.0, "recovery_1_to_0_s": 240.0},
+          "1": {"outside_0_to_1_s": 25.2, "recovery_1_to_0_s": 228.6},
+          "2": {"outside_0_to_1_s": 26.4, "recovery_1_to_0_s": 218.2},
+          "3": {"outside_0_to_1_s": 27.6, "recovery_1_to_0_s": 208.7},
+          "4": {"outside_0_to_1_s": 28.8, "recovery_1_to_0_s": 200.0},
+          "5": {"outside_0_to_1_s": 30.0, "recovery_1_to_0_s": 192.0},
+          "6": {"outside_0_to_1_s": 31.2, "recovery_1_to_0_s": 184.6},
+          "7": {"outside_0_to_1_s": 32.4, "recovery_1_to_0_s": 177.8},
+          "8": {"outside_0_to_1_s": 33.6, "recovery_1_to_0_s": 171.4},
+          "9": {"outside_0_to_1_s": 34.8, "recovery_1_to_0_s": 165.5},
+          "10": {"outside_0_to_1_s": 36.0, "recovery_1_to_0_s": 160.0}
+        }
+      },
+      "threshold_debuffs_tbd": {
+        "enabled": true,
+        "tiers": [
+          {
+            "threshold_ratio": 0.5,
+            "effects_tbd": ["movement_speed_mult", "work_eff_mult", "encounter_rate_mult"]
+          },
+          {
+            "threshold_ratio": 0.8,
+            "effects_tbd": ["movement_speed_mult", "work_eff_mult", "encounter_rate_mult"]
+          },
+          {
+            "threshold_ratio": 0.95,
+            "effects_tbd": ["movement_speed_mult", "work_eff_mult", "encounter_rate_mult"]
+          }
+        ]
+      },
+      "event_modifiers": {
+        "supported_sources": ["encounters", "tile_conditions", "scripted_events"],
+        "notes_tbd": [
+          "Decision VL-0008: viral load can be increased by events/conditions/encounters; no 'silent storms' concept."
+        ]
+      },
+      "mitigation_sources_tbd": ["consumables", "items", "safe_spots"],
+      "failure_policy": {
+        "model": "point_of_no_return_auto_return",
+        "device_lore": "Survivors built a real-time Viral Load calculator; when you leave the bubble it logs the exit point and computes the Viral Load required to return to safety.",
+        "trigger_rule": "If viral_load_ratio >= 1 - (required_time_to_reenter_bubble_seconds / hero_time_seconds_0_to_1), force auto-return (player cannot cancel).",
+        "required_time_to_reenter_bubble_seconds_tbd": "derived from movement system; recompute as needed while outside bubble.",
+        "forced_return_event_policy": "retreat_only_no_new_events",
+        "auto_return_phases": [
+          {
+            "phase": "return_to_bubble_edge",
+            "goal": "reenter_bubble",
+            "player_control": "locked"
+          },
+          {
+            "phase": "return_to_studio",
+            "goal": "tile_base",
+            "travel_time_multiplier": 2,
+            "player_control": "locked"
+          }
+        ],
+        "incapacitation": {
+          "when": "on_trigger_and_until_recovered",
+          "no_tasks": true,
+          "recovery_start": "on_arrival_at_studio_only",
+          "recovery_completion_rule": "viral_load_ratio <= 0",
+          "notes_tbd": [
+            "Recovery time is the inside-bubble recovery model; with linear recovery, time to full recovery is viral_load_ratio_at_arrival * time_seconds_1_to_0.",
+            "Lore phrasing: 'Viral Load points × 24s' can be interpreted as viral_load_ratio*10 points with 24s per point (=240s from 100%)."
+          ]
+        },
+        "notes_tbd": [
+          "Decision VL-0011/VL-0012: forced auto-return once the 'point of no return' is crossed; full incapacitation; player cannot stop it."
+        ]
+      },
+      "warning_policy": {
+        "on_becoming_outside_bubble": "warn_only_no_auto_actions"
+      },
+      "notes_tbd": [
+        "Decisions VL-0001..VL-0010: single Viral Load scalar; progresses offline; rates anchored for Hero vs normal humans; recovery is slow."
+      ]
+    }
+    ,
+    "EchoScarSystemConfig": {
+      "trigger": "on_forced_return_trigger",
+      "stacking": "uncapped",
+      "stacks_per_scar_id": true,
+      "count_v0": 15,
+      "awards_per_trigger": 1,
+      "design": "mixed_drawback_plus_adaptation",
+      "affects_systems": ["exploration", "base_production"],
+      "removal_sources": ["consumables", "items", "buildings", "perks"],
+      "persistence": {
+        "tuning_affinity": "untuned",
+        "resets_on_tuning": false
+      },
+      "selection_pipeline_tbd": {
+        "step_1_eligible_set": "deterministic_by_conditions",
+        "step_2_candidate_offer": {
+          "mode": "offer_N_choices",
+          "N": 3,
+          "fill_method": "weighted_random_without_replacement_from_eligible",
+          "fallback_if_less_than_N": "offer_all"
+        },
+        "step_3_player_choice": true,
+        "notes_tbd": [
+          "Decision ES-0011/ES-0012: eligible pool can change by conditions; selection supports weighted random + deterministic filters + player choice."
+        ]
+      },
+      "finger_loss": {
+        "supported": true,
+        "sources": ["echo_scar", "special_event"],
+        "notes_tbd": [
+          "Decision ES-0014/GE-0017: finger loss can be both a scar and a special event triggered by scars."
+        ]
+      },
+      "removal": {
+        "supported": true,
+        "sources": ["consumables"],
+        "rules_tbd": "designed_later"
+      },
+      "catalog_tbd": [
+        {
+          "scar_id": "echo_scar_deeper_voice",
+          "display_name": "Deeper Voice",
+          "tone_tags": ["clinical", "poetic"],
+          "malus": {
+            "hero_band_output_mult": {"harmonics": 0.8}
+          },
+          "bonus": {
+            "hero_band_output_mult": {"bassline": 1.5}
+          },
+          "stacking_rule_tbd": "multiplicative_or_soft_cap",
+          "notes_tbd": ["Example from ES-0018."]
+        },
+        {
+          "scar_id": "echo_scar_tinnitus_bloom",
+          "display_name": "Tinnitus Bloom",
+          "tone_tags": ["clinical", "dark_humor"],
+          "malus": {"combat_hit_rating_add": -5},
+          "bonus": {"combat_crit_rating_add": 5},
+          "stacking_rule_tbd": "additive"
+        },
+        {
+          "scar_id": "echo_scar_metronome_heart",
+          "display_name": "Metronome Heart",
+          "tone_tags": ["poetic"],
+          "malus": {"skill_cooldown_mult": 1.05},
+          "bonus": {"movement_travel_time_mult": 0.95},
+          "stacking_rule_tbd": "multiplicative"
+        },
+        {
+          "scar_id": "echo_scar_filter_sneeze",
+          "display_name": "Filter Sneeze",
+          "tone_tags": ["dark_humor"],
+          "malus": {"viral_load_recovery_time_mult_at_studio": 1.05},
+          "bonus": {"consumable_use_global_cooldown_mult_outside_combat": 0.9},
+          "stacking_rule_tbd": "multiplicative"
+        },
+        {
+          "scar_id": "echo_scar_bone_conduction",
+          "display_name": "Bone Conduction",
+          "tone_tags": ["clinical", "poetic"],
+          "malus": {"gear_routing_weight_bias_tbd": "more_head_hits"},
+          "bonus": {"hero_advantage_mult_add_tbd": 0.01},
+          "stacking_rule_tbd": "tbd"
+        },
+        {
+          "scar_id": "echo_scar_muffled_world",
+          "display_name": "Muffled World",
+          "tone_tags": ["clinical"],
+          "malus": {"ui_audio_feedback_reduced": true},
+          "bonus": {"ui_vitals_readability_bonus": true},
+          "stacking_rule_tbd": "binary"
+        },
+        {
+          "scar_id": "echo_scar_hairline_fracture",
+          "display_name": "Hairline Fracture",
+          "tone_tags": ["clinical"],
+          "malus": {"gear_durability_repair_mult": 1.1},
+          "bonus": {"glue_repairs_bonus_wound_units": 1},
+          "stacking_rule_tbd": "additive"
+        },
+        {
+          "scar_id": "echo_scar_echo_laugh",
+          "display_name": "Echo Laugh",
+          "tone_tags": ["dark_humor", "poetic"],
+          "malus": {"vibes_on_hero_presence_mult_tbd": 0.95},
+          "bonus": {"vibes_on_hero_presence_mult_tbd": 1.05},
+          "stacking_rule_tbd": "tbd",
+          "notes_tbd": ["Net effect is tiny; mostly flavor unless expanded later."]
+        },
+        {
+          "scar_id": "echo_scar_glass_teeth",
+          "display_name": "Glass Teeth",
+          "tone_tags": ["dark_humor"],
+          "malus": {"attack_wound_payload_mult": 0.95},
+          "bonus": {"attack_hit_rating_add": 5},
+          "stacking_rule_tbd": "tbd"
+        },
+        {
+          "scar_id": "echo_scar_static_fingers",
+          "display_name": "Static Fingers",
+          "tone_tags": ["clinical", "dark_humor"],
+          "malus": {"rings_slots_max_delta_tbd": -1},
+          "bonus": {"consumable_drop_rate_mult_tbd": 1.05},
+          "stacking_rule_tbd": "additive",
+          "on_gain_events_tbd": [
+            {"kind": "special_event", "id": "finger_loss_check"}
+          ]
+        },
+        {
+          "scar_id": "echo_scar_pulse_memory",
+          "display_name": "Pulse Memory",
+          "tone_tags": ["poetic"],
+          "malus": {"forced_return_trigger_margin_mult_tbd": 0.95},
+          "bonus": {"forced_return_travel_time_mult_bonus_tbd": 0.98},
+          "stacking_rule_tbd": "tbd"
+        },
+        {
+          "scar_id": "echo_scar_low_battery_miracle",
+          "display_name": "Low Battery Miracle",
+          "tone_tags": ["dark_humor"],
+          "malus": {"inventory_slots_max_delta_tbd": -1},
+          "bonus": {"glue_consumable_count_bonus_tbd": 1},
+          "stacking_rule_tbd": "additive"
+        },
+        {
+          "scar_id": "echo_scar_rhythm_sickness",
+          "display_name": "Rhythm Sickness",
+          "tone_tags": ["clinical"],
+          "malus": {"travel_encounter_rate_mult_tbd": 1.05},
+          "bonus": {"combat_crit_rating_add": 3},
+          "stacking_rule_tbd": "additive"
+        },
+        {
+          "scar_id": "echo_scar_salt_and_snow",
+          "display_name": "Salt and Snow",
+          "tone_tags": ["poetic"],
+          "malus": {"water_collection_eff_mult_tbd": 0.95},
+          "bonus": {"viral_load_outside_time_mult_tbd": 1.05},
+          "stacking_rule_tbd": "multiplicative"
+        },
+        {
+          "scar_id": "echo_scar_polite_panic",
+          "display_name": "Polite Panic",
+          "tone_tags": ["dark_humor"],
+          "malus": {"combat_hit_rating_add": -3},
+          "bonus": {"combat_hit_rating_add": 6},
+          "stacking_rule_tbd": "tbd",
+          "notes_tbd": ["Another tiny net-positive/negative pair; tune later to avoid triviality."]
+        }
+      ],
+      "notes_tbd": [
+        "Decision ES-0001..ES-0006: Echo Scars exist in v0; triggered by forced-return; removable/mitigatable; uncapped stacks; affects Base and exploration."
+      ]
+    }
+    ,
+    "AttributeSystemConfig": {
+      "attributes": [
+        {
+          "id": "sustain",
+          "unbounded": true,
+          "starts_at": 0,
+          "sources": ["hero_progression", "gear", "perks", "other_modifiers"]
+        },
+        {
+          "id": "tempo",
+          "unbounded": true,
+          "starts_at": 0,
+          "sources": ["hero_progression", "gear", "perks", "other_modifiers"]
+        },
+        {
+          "id": "theory",
+          "unbounded": true,
+          "starts_at": 0,
+          "sources": ["hero_progression", "gear", "perks", "other_modifiers"]
+        }
+      ],
+      "tables": {
+        "theory_to_crit_bonus_percent_cumulative": {
+          "model": "cumulative_milestones",
+          "milestones": [
+            {"min_level": 1, "add_crit_bonus_percent": 0.1},
+            {"min_level": 3, "add_crit_bonus_percent": 0.2},
+            {"min_level": 5, "add_crit_bonus_percent": 0.3},
+            {"min_level": 10, "add_crit_bonus_percent": 0.4}
+          ],
+          "result": "theory_crit_bonus_percent = sum(add_crit_bonus_percent for milestones where Theory >= min_level)",
+          "notes_tbd": [
+            "Decision ATTR-0004/ATTR-0007: Theory→crit% milestones are cumulative (sum of all reached milestones)."
+          ]
+        },
+        "tempo_to_hit_rating_bonus_linear_proposed": {
+          "model": "linear",
+          "formula": "tempo_hit_rating_bonus = tempo * k_tempo_hit",
+          "defaults_proposed": {"k_tempo_hit": 1},
+          "sample_table_levels_0_to_10_proposed": {
+            "0": 0,
+            "1": 1,
+            "2": 2,
+            "3": 3,
+            "4": 4,
+            "5": 5,
+            "6": 6,
+            "7": 7,
+            "8": 8,
+            "9": 9,
+            "10": 10
+          },
+          "notes_tbd": [
+            "v0 default: 1 Tempo point = +1 hit-rating point (identity mapping).",
+            "If later balancing needs Tempo to matter more/less relative to gear/perks, adjust k_tempo_hit without changing the hit-chance ratio model."
+          ]
+        }
+      },
+      "notes_tbd": [
+        "Decisions ATTR-0001..ATTR-0003: attributes are unbounded, start at 0, and come from both progression and gear/perks."
+      ]
+    }
+  }
+}

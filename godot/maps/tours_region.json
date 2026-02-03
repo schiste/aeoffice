@@ -1,0 +1,5959 @@
+{
+  "version": 4,
+  "meta": {
+    "kind": "save",
+    "source": "osm",
+    "center_lat": 47.5798,
+    "center_lon": 0.7031,
+    "radius_km": 10.0,
+    "hex": {
+      "size_m": 4000.0
+    },
+    "generator": "osm_to_hex.py"
+  },
+  "regions": [
+    {
+      "id": 0,
+      "name": "Unassigned",
+      "color": [
+        0.9,
+        0.9,
+        0.9,
+        0.35
+      ]
+    }
+  ],
+  "hexes": [
+    {
+      "q": -1,
+      "r": 0,
+      "terrain": "plains",
+      "impedance": null,
+      "features": [
+        "road",
+        "waterway",
+        "forest",
+        "farmland",
+        "urban",
+        "buildings:3"
+      ],
+      "elevation": 0,
+      "name": "Neuvy-le-Roi",
+      "description": "Village (pop: 1065)",
+      "datalayer": {
+        "osm": {
+          "has_road": true,
+          "has_railway": false,
+          "has_water": true,
+          "has_forest": true,
+          "has_farmland": true,
+          "has_urban": true,
+          "building_count": 3,
+          "landuse": [
+            "village_green",
+            "cemetery",
+            "orchard",
+            "military",
+            "farmland",
+            "farmyard",
+            "quarry",
+            "meadow",
+            "grass",
+            "forest",
+            "industrial",
+            "residential",
+            "basin"
+          ],
+          "natural": [
+            "scrub",
+            "tree_row",
+            "wood",
+            "water"
+          ],
+          "features": [
+            "road:primary",
+            "road:primary",
+            "road:primary",
+            "road:primary",
+            "road:primary",
+            "road:primary",
+            "road:primary",
+            "road:motorway_link",
+            "road:motorway_link",
+            "road:motorway_link",
+            "road:motorway_link",
+            "road:motorway_link",
+            "landuse:residential",
+            "landuse:residential",
+            "landuse:forest",
+            "landuse:forest",
+            "landuse:forest",
+            "landuse:forest",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "water:stream",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "water:stream",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "water:stream",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "water:stream",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "water:stream",
+            "natural:water",
+            "natural:water",
+            "water:stream",
+            "natural:water",
+            "natural:water",
+            "water:stream",
+            "natural:water",
+            "natural:water",
+            "water:stream",
+            "natural:water"
+          ],
+          "places": [
+            {
+              "name": "Neuvy-le-Roi",
+              "type": "village",
+              "population": "1065"
+            },
+            {
+              "name": "La Baudelli\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Siaudi\u00e8re",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Cherelle",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "La Petite Verderie",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Pinotti\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Grand Maison",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Marotti\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Varenne",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Roulli\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Dargenterie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Tremblaie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Moquebaril",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "L'\u00catre Gougeon",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Petite Roche",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Roche",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Le Moulin de Breuil",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Perche",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Ch\u00e2teau de Beaulieu",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Le Plessis Garnier",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Besnardi\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Lande",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Galopperie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Plat\u00e9",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Hardonni\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "L'Oie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La B\u00e9cassi\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Soulaine",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Picarderie",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Marga",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Les Maupolonni\u00e8res",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Le Pin",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Gaudis",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Les Poupini\u00e8res",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Domaine de la Haute Barde",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "S\u00e9cheresse",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Le Clot",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Garencerie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Chaufournais",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Chanteviniere",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Cr\u00e9pini\u00e9re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Guiberdi\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Huclonniere",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Noue",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Sabli\u00e8re",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Les Cartes",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Les Coudraux",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Les Cruches",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Pr\u00e9 du Parc",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Ronce",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Le Porteau",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Sur l'\u00c9tang",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Le Puits",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Ferme de Fontenailles",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Pr\u00e9 du Petit Puits",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Haute Barde",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Barde",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Cabinerie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Gentillerie",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Les Vaux",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Culgrand",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "L'\u00c9tang de Choisel\u00e9",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Pi\u00e8ce de l'\u00c9tang de Choisel\u00e9",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "L'\u00c9corche Boeuf",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Grande Pi\u00e8ce",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Les Perres",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Pr\u00e9e",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La M\u00e9tairie",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Butte",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Maladerie",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Les Pr\u00e9s",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Le Pain",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Pastorale",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Chevetterie",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "L'H\u00eatre",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Le Petit H\u00eatre",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Ribondi\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Belle Ville",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Ch\u00e2teau de Fontenailles",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "Les Maupilonni\u00e8res",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Le Bournais",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Rome",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Croix",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Buvini\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Moulin du Bas Racan",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Le Moulin du Gu\u00e9",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Thomassi\u00e8re",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Le Moulin de Gruteau",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Grange Rouge",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Maladrie",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Ch\u00e2teau de Montifray",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Dausserrerie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Le Cimeti\u00e8re",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Les Chalonges",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Le Petit Bien",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Borde",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Prairie de l'Encloitre",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Rougerie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Perrotti\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Terre de la Cantini\u00e8re",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Guillardi\u00e8re",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Terre des Chatelleers",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Terre de la Gapi\u00e8re",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Terres de la Hallandi\u00e8re",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Terres de S\u00e9cheresse",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Terres des Ch\u00e2telliers",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "P\u00e2tures de Beauvais",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Sous l'\u00c9tang de Bois Soleil",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La M\u00e9tairie",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Sermentaye",
+              "type": "isolated_dwelling",
+              "population": ""
+            }
+          ],
+          "historic": [
+            {
+              "type": "castle",
+              "name": "Ch\u00e2teau de Fontenailles"
+            },
+            {
+              "type": "archaeological_site",
+              "name": "Menhir de Montifray"
+            }
+          ],
+          "tourism": [],
+          "amenities": [
+            {
+              "type": "school",
+              "name": "Coll\u00e8ge Honorat de Racan"
+            },
+            {
+              "type": "school",
+              "name": "\u00c9cole Primaire Priv\u00e9e Saint-Eug\u00e8ne"
+            },
+            {
+              "type": "school",
+              "name": "Maison Familiale Rurale de Neuvy-le-Roi"
+            },
+            {
+              "type": "school",
+              "name": "\u00c9cole Publique des Tilleuls"
+            }
+          ],
+          "leisure": [],
+          "natural_points": [
+            {
+              "type": "cave_entrance",
+              "name": "",
+              "elevation": ""
+            }
+          ]
+        }
+      }
+    },
+    {
+      "q": -1,
+      "r": 1,
+      "terrain": "water",
+      "impedance": null,
+      "features": [
+        "road",
+        "waterway",
+        "forest",
+        "farmland",
+        "urban",
+        "buildings:2"
+      ],
+      "elevation": 0,
+      "name": "Chemill\u00e9-sur-D\u00eame",
+      "description": "Village (pop: 714)",
+      "datalayer": {
+        "osm": {
+          "has_road": true,
+          "has_railway": false,
+          "has_water": true,
+          "has_forest": true,
+          "has_farmland": true,
+          "has_urban": true,
+          "building_count": 2,
+          "landuse": [
+            "farmland",
+            "cemetery",
+            "orchard",
+            "farmyard",
+            "quarry",
+            "meadow",
+            "grass",
+            "forest",
+            "industrial",
+            "residential",
+            "basin"
+          ],
+          "natural": [
+            "scrub",
+            "wood",
+            "tree_row",
+            "water"
+          ],
+          "features": [
+            "landuse:meadow",
+            "landuse:residential",
+            "landuse:residential",
+            "landuse:meadow",
+            "landuse:residential",
+            "landuse:meadow",
+            "landuse:farmland",
+            "landuse:meadow",
+            "landuse:forest",
+            "landuse:forest",
+            "landuse:forest",
+            "landuse:forest",
+            "landuse:farmland",
+            "landuse:farmyard",
+            "landuse:cemetery",
+            "road:secondary",
+            "road:secondary",
+            "road:secondary",
+            "landuse:cemetery",
+            "road:secondary",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water"
+          ],
+          "places": [
+            {
+              "name": "Chemill\u00e9-sur-D\u00eame",
+              "type": "village",
+              "population": "714"
+            },
+            {
+              "name": "Louestault",
+              "type": "village",
+              "population": "366"
+            },
+            {
+              "name": "Marray",
+              "type": "village",
+              "population": "482"
+            },
+            {
+              "name": "Les Bruy\u00e8res",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Mauvissi\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Le Mortier",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Les Folies",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Chapronni\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Guiaugui\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Chante-Mesle",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Siloterie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Le Moulin \u00e0 Vent",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Ligotti\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Ch\u00e2teau de la P\u00e9nissi\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Houssardi\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Verglaci\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Bassereau",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Les Ormeaux",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Haye Martin",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Pont Barry",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La B\u00e2lerie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Fontaine",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Le Tertre",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Tassellerie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Charnaitrie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Vilprovel",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Le Gillet",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Morinerie",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "Les Blanchardi\u00e8res",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "La Gaudardrie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "L'Huisserie",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "La Guillonni\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Baratoire",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Grande Coulardi\u00e8re",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "Le Buis",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Pimparerie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Ch\u00e2teau de la Roche d'Al\u00e8s",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Ballage",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Martini\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Coul\u00e9e",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "Le Poirier Vert",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Le Tremblay",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Les Pr\u00e9s",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Montjouvant",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Grillonni\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Les Landes",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Proph\u00e8terie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Rezay",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Le Coudray",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Busti\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Graffini\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Les Rougeries",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Vall\u00e9e",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Pini\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Rousselli\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Le Grand Haut Bois",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La M\u00e9nardi\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Gaudini\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Le Ragot",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "Le Bourg",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Les Petits Tertres",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Bois du Petit Moulin",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Le Petit Moulin",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Pi\u00e8ce des Noyers",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Tuffi\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Boucahusserie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Restaurie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Cassine",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Petit Vau-Ribou",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Justice",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Moulinas",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Moulin de Ballage",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Moque-Souris",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Soulettrie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Cantini\u00e8re",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Grande Maison",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Charbonnerie",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Roche d'Al\u00e8s",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Boutterie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Les Grandes Bru\u00e8res",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Touchellion",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Provelli\u00e8re",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Le Vau Saint-Martin",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "L'Aubinerie",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Le Bourg",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "La Sourdrie",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "Ferme de Baratoire",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Penissi\u00e8re",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Chapelle Saint-C\u00f4me",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Dindassi\u00e8re",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Le Plessis",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Fours \u00e0 Chaux",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Saint-Hylaire",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "Le Vivier",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Moulinas",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Le Grand Niaffre",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Bois Girault",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Les Perres",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Doucetterie",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Pr\u00e9s de Moquesouris",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "L\u2019Ormeau",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Les Oies Bures",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Borde",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Le Pr\u00e9 du Grand Gu\u00e9",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Croix Verte",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Le Chatelier",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Le Petit Haut Bois",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Le Petit Rappel\u00e9",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Les Mortiers",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Le Petit Niaffre",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Le Moulin du Buis",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Vau Ribou",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Bois de la Cure",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Les Grands Perres",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Pi\u00e8ce de la Marni\u00e8re",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Guillaumerie",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Pi\u00e8ce de la Barre",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Les Bournais",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Les Fonds",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Les Champs de la Croix",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Ch\u00e2teau Gaillard",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Grange",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Jametterie",
+              "type": "locality",
+              "population": ""
+            }
+          ],
+          "historic": [
+            {
+              "type": "memorial",
+              "name": ""
+            },
+            {
+              "type": "memorial",
+              "name": ""
+            },
+            {
+              "type": "memorial",
+              "name": ""
+            }
+          ],
+          "tourism": [],
+          "amenities": [
+            {
+              "type": "school",
+              "name": "\u00c9cole \u00e9l\u00e9mentaire"
+            }
+          ],
+          "leisure": [],
+          "natural_points": []
+        }
+      }
+    },
+    {
+      "q": 0,
+      "r": -1,
+      "terrain": "water",
+      "impedance": null,
+      "features": [
+        "road",
+        "waterway",
+        "forest",
+        "farmland",
+        "urban",
+        "buildings:4"
+      ],
+      "elevation": 0,
+      "name": "Cerelles",
+      "description": "Village (pop: 1242)",
+      "datalayer": {
+        "osm": {
+          "has_road": true,
+          "has_railway": false,
+          "has_water": true,
+          "has_forest": true,
+          "has_farmland": true,
+          "has_urban": true,
+          "building_count": 4,
+          "landuse": [
+            "railway",
+            "farmland",
+            "cemetery",
+            "orchard",
+            "farmyard",
+            "reservoir",
+            "plant_nursery",
+            "meadow",
+            "grass",
+            "forest",
+            "industrial",
+            "residential",
+            "basin"
+          ],
+          "natural": [
+            "scrub",
+            "tree_row",
+            "wood",
+            "water"
+          ],
+          "features": [
+            "landuse:meadow",
+            "landuse:residential",
+            "landuse:forest",
+            "landuse:forest",
+            "landuse:forest",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "waterway:stream",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "landuse:forest",
+            "landuse:reservoir",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "landuse:forest",
+            "landuse:forest",
+            "landuse:forest",
+            "landuse:forest",
+            "landuse:forest",
+            "landuse:forest",
+            "landuse:forest",
+            "landuse:forest",
+            "landuse:forest",
+            "landuse:forest",
+            "landuse:forest",
+            "landuse:forest",
+            "landuse:forest",
+            "landuse:forest",
+            "landuse:forest",
+            "landuse:farmland",
+            "road:secondary",
+            "natural:wood",
+            "road:motorway",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "landuse:forest",
+            "landuse:forest",
+            "landuse:forest",
+            "landuse:forest",
+            "landuse:forest",
+            "landuse:forest",
+            "landuse:forest",
+            "landuse:forest",
+            "landuse:farmland",
+            "landuse:cemetery",
+            "natural:wood",
+            "natural:wood",
+            "natural:wood",
+            "landuse:residential",
+            "landuse:residential",
+            "landuse:forest",
+            "natural:tree_row",
+            "natural:tree_row",
+            "natural:wood",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water"
+          ],
+          "places": [
+            {
+              "name": "Cerelles",
+              "type": "village",
+              "population": "1242"
+            },
+            {
+              "name": "La Croix",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Le Moulin de Renouard",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Vall\u00e9e du Veau",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Bigotti\u00e8re",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Filonni\u00e8re",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Rivi\u00e8re",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Rouziers-de-Touraine",
+              "type": "village",
+              "population": "1348"
+            },
+            {
+              "name": "Paradis",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Touche",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Le Carroir",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Basse Livorni\u00e8re",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Le Grand Chemin",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Ch\u00e2teau de Mirandol",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "La Roche Bourdeil",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Moulin de Beaumont",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Les Boudegourds",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Le Petit Coudray",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Buvini\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "L'Aubuis",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Logerie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Bois Bourdeil",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Le Haut Boisrimont",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Les Teni\u00e8res",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Le Boulay",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Bourmay",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "Ch\u00e2teau de Beau Ch\u00eane",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Le Moulinet",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Grivelli\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Laisonni\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Hardonni\u00e8re",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "Ch\u00e2teau de Rochefort",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Ch\u00e2teau de la Violi\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Basse Georgerie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Le Petit Bois",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La B\u00e9jauderie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Loge",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Borde Saulay",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "Aigrefin",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "La Gu\u00e9raudi\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Petite Maison",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Ch\u00e2teau de La Roche d'Ambille",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Les Commaill\u00e8res",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "La P\u00e9tardi\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Puiserie",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "La Croix Finet",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Gaspi\u00e8re",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Le Moulin aux Clercs",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Pilonni\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Roderie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Le Petit Tertre",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Haute Carte",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "L'Encloitre",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Le Petit Boulay",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Bois de la Fosse aux Boeufs",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Le Petit Boulay",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Les Caves de la Gaspi\u00e8re",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Les \u0152ufs-Durs",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Le Rudon",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Les \u0152ufs-Durs",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Pietrie",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Biscarat",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Le Pot",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Le Pot",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Valerie",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Basse Carte",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Figuetrie",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Sauvag\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Le Tertre",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Les Crochets",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Ch\u00e2teau de Fontaine",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Raudi\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Huchepie",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Milletrie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Boulas",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Harlandi\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Les Mancelli\u00e8res",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Fontaine de Tarisse",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Bassinet",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Moulin de Violi\u00e8re",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Les Reneries",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Folie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Taille Chaumin",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Les Blourdiers",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Les Trente Arpents",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Petasseau",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Fosse de Panloup",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La G\u00e9lini\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Georgerie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Terre de l'Encloitre",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "L'Encloitre",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Blotti\u00e8re",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "La Rogi\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Le Bourg",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "Le Petit Puits",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "Beau Ch\u00eane",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Balli\u00e8re",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Le Veau",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Le Jauneau",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Chenaye",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Les Berjons",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Terres de la Bezardi\u00e8re",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Bezardi\u00e8re",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Monvalletterie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Plaine des Cormaill\u00e8res",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Jalli\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Taille des Collas",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "L'Esperance",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Fosse",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Chauvelli\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Le Petit Bois",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Moulin de Berton",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "La Roche d'Ambille",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Bicanerie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Moulin de Moulinet",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Violi\u00e8re",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Voisini\u00e8re",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Rougeatrie",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Picouli\u00e8re",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Rochefort",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Les Joncheries",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Pietrie",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "La Mailletrie",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Morandi\u00e8re",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "Les Grand Maisons",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "La Muloti\u00e8re",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Mirandolle",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Petite Carr\u00e9rie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Le Caveau",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Les Naudi\u00e8res",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Croutelli\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Colini\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Le Grand Coudray",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Patonnerie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Bas Boisrimont",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Bois-Menard",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "L\u2019Arche",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Le Pont aux Galliers",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Le Grand Boulay",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "La Boutaudrie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Croix Finet",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Beaumont Louestault",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Mailloti\u00e8re",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "Les Perrets",
+              "type": "isolated_dwelling",
+              "population": ""
+            }
+          ],
+          "historic": [
+            {
+              "type": "wayside_cross",
+              "name": "Calvaire"
+            },
+            {
+              "type": "memorial",
+              "name": ""
+            },
+            {
+              "type": "wayside_cross",
+              "name": "Calvaire"
+            },
+            {
+              "type": "wayside_cross",
+              "name": "Calvaire"
+            },
+            {
+              "type": "wayside_cross",
+              "name": "Calvaire"
+            }
+          ],
+          "tourism": [],
+          "amenities": [
+            {
+              "type": "school",
+              "name": "\u00c9cole primaire"
+            }
+          ],
+          "leisure": [],
+          "natural_points": [
+            {
+              "type": "spring",
+              "name": "Fontaine",
+              "elevation": ""
+            }
+          ]
+        }
+      }
+    },
+    {
+      "q": 0,
+      "r": 0,
+      "terrain": "water",
+      "impedance": null,
+      "features": [
+        "road",
+        "waterway",
+        "forest",
+        "farmland",
+        "urban",
+        "buildings:6"
+      ],
+      "elevation": 0,
+      "name": "Beaumont-la-Ronce",
+      "description": "Village (pop: 1765)",
+      "datalayer": {
+        "osm": {
+          "has_road": true,
+          "has_railway": false,
+          "has_water": true,
+          "has_forest": true,
+          "has_farmland": true,
+          "has_urban": true,
+          "building_count": 6,
+          "landuse": [
+            "education",
+            "farmland",
+            "cemetery",
+            "retail",
+            "farmyard",
+            "meadow",
+            "vineyard",
+            "grass",
+            "forest",
+            "industrial",
+            "residential"
+          ],
+          "natural": [
+            "scrub",
+            "wood",
+            "water",
+            "wetland",
+            "tree_row"
+          ],
+          "features": [
+            "road:primary",
+            "road:primary",
+            "road:primary",
+            "road:primary",
+            "road:primary",
+            "road:secondary",
+            "road:primary",
+            "landuse:residential",
+            "landuse:farmland",
+            "landuse:meadow",
+            "landuse:meadow",
+            "landuse:farmland",
+            "landuse:forest",
+            "waterway:stream",
+            "landuse:cemetery",
+            "landuse:farmland",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "road:secondary",
+            "road:secondary",
+            "natural:wetland",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "landuse:forest",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "natural:wood",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "road:secondary",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "landuse:forest",
+            "landuse:forest",
+            "landuse:forest",
+            "landuse:forest",
+            "landuse:forest",
+            "road:primary",
+            "road:primary"
+          ],
+          "places": [
+            {
+              "name": "Beaumont-la-Ronce",
+              "type": "village",
+              "population": "1765"
+            },
+            {
+              "name": "La Guillonni\u00e8re",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "Nambray",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Les F\u00e9ries",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Le Haut Montas",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "Goulevent",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "Les Bournais",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Renaudi\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Vall\u00e9e",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Perruche",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Barre",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Ganach\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Bois Clair",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Bur\u00e9rie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Verneuil",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Rocherie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Touche",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "La Huberdi\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Vauchouan",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Blancherie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Coudre",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Les Caves de Valarault",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "Les Chotards",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Le Vivier",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Corderie",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Tupini\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Perri\u00e8re",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Mondinerie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Grange",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Plotini\u00e8re",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "Les Fagu\u00e8res",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Chenusson",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "Monts\u00e9jour",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Cave",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Longueville",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Petite Morini\u00e8re",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Brosse",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Piverdi\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Rochincrie",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Chauvelli\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La B\u00e9guerrerie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Raini\u00e8re",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "Le Pommier Vert",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Le Ch\u00eane",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Maison Neuve",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Fran\u00e7oisi\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La D\u00e9asserie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Garenne",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Brindelini\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Les Aunils",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "La Petite Vall\u00e9e",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Les Verronneaux",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "L'Horti\u00e8re",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "Pi\u00e8ce du Plessis",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Blonderie",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Les Gilberts",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Pi\u00e8ce de la Paillasse",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Les Carri\u00e8res",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "La Servraudi\u00e8re",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Louisatti\u00e8re",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Les Ranchers",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Violetterie",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Thibaudrie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Blini\u00e8re",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "Gripouilleau",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "Les Vaux Gates",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "La Ronsi\u00e8re",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Paillasse",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Robichonni\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Piquetterie",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "Bel-Air",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Christinerie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Les Gaudini\u00e8res",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Le Plessis",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Passe-Vite",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Bois-Rond",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "La Blonni\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "L'Oisonni\u00e8re",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "La Grande Carrerie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Le Chariot",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Tr\u00e9maill\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Le Fourneau",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Les Buroches",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Chesnaie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Le Souchai",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Courtrie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Les Vallois",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "St-Armel",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Tuilerie",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "La Richerie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Saultrie",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Saint-Armel",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Le Chalet",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Beaupellerie",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Le Nerprun",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Les Houx",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Les Bois du Plessis",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Bois du Plessis",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Pi\u00e8ce des Bois",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Basse Vall\u00e9e",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Pi\u00e8ces de la Croix Blanche",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Pi\u00e8ce des Noyers",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Bois de Moulivert",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Bois de Defaix",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Les Trous \u00e0 Terre",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Pi\u00e8ce de Tertre",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Pi\u00e8ce du Coteau",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Taille d'Alisier",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Le Chemin de Belle",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Le Houx",
+              "type": "isolated_dwelling",
+              "population": ""
+            }
+          ],
+          "historic": [
+            {
+              "type": "castle",
+              "name": "Ch\u00e2teau de la Cantini\u00e8re"
+            },
+            {
+              "type": "memorial",
+              "name": ""
+            }
+          ],
+          "tourism": [],
+          "amenities": [],
+          "leisure": [],
+          "natural_points": []
+        }
+      }
+    },
+    {
+      "q": 0,
+      "r": 1,
+      "terrain": "plains",
+      "impedance": null,
+      "features": [
+        "road",
+        "waterway",
+        "forest",
+        "farmland",
+        "urban",
+        "buildings:1"
+      ],
+      "elevation": 0,
+      "name": "La Ferri\u00e8re",
+      "description": "Village (pop: 318)",
+      "datalayer": {
+        "osm": {
+          "has_road": true,
+          "has_railway": false,
+          "has_water": true,
+          "has_forest": true,
+          "has_farmland": true,
+          "has_urban": true,
+          "building_count": 1,
+          "landuse": [
+            "farmland",
+            "cemetery",
+            "orchard",
+            "farmyard",
+            "meadow",
+            "vineyard",
+            "grass",
+            "forest",
+            "industrial",
+            "brownfield",
+            "residential",
+            "basin"
+          ],
+          "natural": [
+            "heath",
+            "scrub",
+            "wood",
+            "water",
+            "tree_row"
+          ],
+          "features": [
+            "landuse:vineyard",
+            "landuse:farmland",
+            "landuse:forest",
+            "landuse:forest",
+            "landuse:forest",
+            "landuse:forest",
+            "landuse:forest",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water"
+          ],
+          "places": [
+            {
+              "name": "La Ferri\u00e8re",
+              "type": "village",
+              "population": "318"
+            },
+            {
+              "name": "L'Huilerie",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Petite Chaboti\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Grande Chaboti\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Fromagerie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Les Choli\u00e8res",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "Les Bruy\u00e8res",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "Le Margat",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "L'Abbaye",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "Le Hallier",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Gaillardi\u00e8re",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "Le Mortier",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Le Petit H\u00eatre",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Grande Guinaudi\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Levrauderie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Les Marni\u00e8res",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Les Rousseaux",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Busti\u00e8re",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "Bel-Air",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Le Ch\u00e2taigner",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "La Crossonni\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Riderie de la Brosse",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Le Mortier",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Les Logeries",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Le Rouchou",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Pi\u00e8ce du Juer",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Taille aux Dames",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Les Septs Arpents",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Les Usages",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Carroi de l'Aiguiller",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Les Cadines",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Grande Noue",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Les Houl\u00e9es",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Bois des Houl\u00e9es",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Les Maisons Neuves",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Les Tesni\u00e8res",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Sous la Chartrie",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "L'A\u00eetre Adam",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "Le Clos Barreau",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Les Sicots",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Pi\u00e8ce de l'A\u00eetre Adam",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Bouli\u00e8re",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Teurterie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Poupardi\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Mauny",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Thomassi\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Diard",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Cerisiers",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Petite Guinaudi\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Gannerie",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Les Mardelles",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Garenne",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Le Grenouilleau",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Belle-Vue",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Vall\u00e9e Germain",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Terrerie",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Petiti\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Pentini\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Les Quatre Vents",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Bougrerie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Mulottrie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Le Mortier",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Chartrie",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "La Chaboti\u00e8re",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Les Maisons Neuves",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Raudi\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Butte",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Finardi\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Fourrerie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Brosserie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Grande Brossellerie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Chaussumerie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Piardi\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Boissi\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Petite Maison",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Mahodellerie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Les Veilleries",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Bretonni\u00e8re",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Les Lices",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Pi\u00e8ce d'Orfraie",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Les Noues de Nouzill\u00e9",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Bignolet",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Le Petit Rouchou",
+              "type": "isolated_dwelling",
+              "population": ""
+            }
+          ],
+          "historic": [
+            {
+              "type": "memorial",
+              "name": ""
+            },
+            {
+              "type": "memorial",
+              "name": ""
+            }
+          ],
+          "tourism": [],
+          "amenities": [],
+          "leisure": [],
+          "natural_points": []
+        }
+      }
+    },
+    {
+      "q": 1,
+      "r": -1,
+      "terrain": "water",
+      "impedance": null,
+      "features": [
+        "waterway",
+        "forest",
+        "farmland",
+        "urban",
+        "buildings:6"
+      ],
+      "elevation": 0,
+      "name": "Nouzilly",
+      "description": "Village (pop: 1237)",
+      "datalayer": {
+        "osm": {
+          "has_road": false,
+          "has_railway": false,
+          "has_water": true,
+          "has_forest": true,
+          "has_farmland": true,
+          "has_urban": true,
+          "building_count": 6,
+          "landuse": [
+            "village_green",
+            "farmland",
+            "cemetery",
+            "orchard",
+            "farmyard",
+            "meadow",
+            "grass",
+            "forest",
+            "industrial",
+            "residential",
+            "basin"
+          ],
+          "natural": [
+            "scrub",
+            "beach",
+            "wood",
+            "water",
+            "wetland",
+            "tree_row"
+          ],
+          "features": [
+            "landuse:farmland",
+            "landuse:farmland",
+            "landuse:farmland",
+            "landuse:farmland",
+            "landuse:residential",
+            "landuse:meadow",
+            "landuse:farmland",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "landuse:cemetery",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "waterway:stream",
+            "waterway:stream",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "natural:beach",
+            "landuse:forest",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "landuse:basin",
+            "landuse:basin",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "landuse:forest",
+            "landuse:forest",
+            "landuse:forest",
+            "natural:water",
+            "natural:water",
+            "landuse:forest",
+            "landuse:forest",
+            "landuse:grass",
+            "landuse:meadow",
+            "landuse:meadow",
+            "natural:scrub",
+            "landuse:meadow",
+            "natural:scrub",
+            "natural:scrub",
+            "landuse:meadow",
+            "natural:tree_row",
+            "natural:tree_row",
+            "natural:tree_row",
+            "natural:tree_row",
+            "water:reservoir",
+            "natural:water",
+            "natural:water",
+            "water:reservoir",
+            "natural:water",
+            "natural:water",
+            "waterway:canal",
+            "waterway:stream",
+            "waterway:stream",
+            "waterway:stream",
+            "waterway:stream",
+            "waterway:stream",
+            "waterway:stream",
+            "waterway:stream",
+            "waterway:stream",
+            "waterway:stream",
+            "waterway:stream",
+            "waterway:stream",
+            "waterway:stream",
+            "waterway:stream",
+            "waterway:stream",
+            "waterway:stream",
+            "waterway:canal",
+            "waterway:stream",
+            "waterway:stream",
+            "landuse:forest",
+            "landuse:forest",
+            "natural:wood",
+            "natural:wood",
+            "landuse:forest",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "waterway:canal",
+            "waterway:canal",
+            "waterway:canal",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "waterway:stream",
+            "waterway:stream",
+            "waterway:stream",
+            "waterway:stream",
+            "waterway:canal",
+            "water:pond",
+            "natural:water"
+          ],
+          "places": [
+            {
+              "name": "Nouzilly",
+              "type": "village",
+              "population": "1237"
+            },
+            {
+              "name": "Bourdigal",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Lousi\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Burerie",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "La Chesnerie",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Duranderie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Soudrerie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Durerie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Brivedellerie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Maran",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "Le Tuffeau",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Sirotti\u00e8re",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "L'Orfrasi\u00e8re",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "Charentais",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Fosse aux Loups",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Les Loues",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Vall\u00e9e Martin",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Bois-le-Roi",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Le Chaillou",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Le Mortier",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Les Champs",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Le Villeret",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Moulin de Mad\u00e8re",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Le Moulin Vi\u00e9",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Le Haut Fresnay",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Bellevue",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Juquellerie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Harlandi\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Prairie de la Harlandi\u00e8re",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Perraudrie",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Marian",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Les Pr\u00e9s de Vauliard",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Longue \u00c9chelle",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Beau-Soleil",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Moulin de Vaul\u00e9ard",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Marian",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Bois de Baudry",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Carte",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Les Caves de la Babini\u00e8re",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Moulin de la Roche d'Ambille",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Bedellerie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Puiserie",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Vall\u00e9e-au-Diable",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Le Pin",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Les Bois du Lierry",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Valencerie",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Le Moulin de Fresnay",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Le Hallier",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Le Carroi",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Petite Simonni\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La C\u00f4te d'Azur",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "L'Arche",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Le Petit Moulin",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Beauregard",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Plonni\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Bigotti\u00e8re",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Simonni\u00e8re",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "Les Fosses Rouges",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Bourasserie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Gu\u00e9 B\u00e9dassie",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Panchien",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Ville-Mousse",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Bernetti\u00e8re",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Les Petits Champs",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Les Haies",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Le\u00a0Haut-Fresnay",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Babini\u00e8re",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Le Bas des Naudi\u00e8res",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Les Bois de la Burerie",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Les Bois Sainte-Marie",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Terres des Bois de Sainte-Marie",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Taille Bourbeuse",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Ronci\u00e8re",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Les Chaintres",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Basse Boulas",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Carroi de la Daumerie",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Daumerie",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Bourlerie",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "La Garoch\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Setterie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Les Perrets",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Richardi\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Chauvellerie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Douci\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Garenne Forget",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Faute",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Saultrie",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Carrefour de la Saultrie",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Quartier de la Bo\u00eete",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Le Grand Conseil",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Bel-Air",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Pr\u00e9s de la Simonni\u00e8re",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Les Pr\u00e9s de la Patouille",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Perri\u00e8re",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Le Bas-Pin",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Les Terres de Bas Foss\u00e9s",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Tuilerie",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "Les Bas Foss\u00e9s",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Grenaudi\u00e8re",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "Fontenay",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Moulin de Fresnay",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "Les Pentes du Petit Moulin",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Le Plessis - Rose",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "Le Plessis l'Ormeau",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "Le PLessis - Rou\u00e8re",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "La Pi\u00e8ce du Carroi",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Saunerie",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "La Grande Bourasserie",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Les Bois Quarre",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "La Gu\u00e9e",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "Mad\u00e8re",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "La Halli\u00e8re",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "Le Petit Moulin",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "La Faisanderie",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "La Salle",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "La Porcherie",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "Moque Souris",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Neret",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "La Roncerie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Les Loges",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "Bel-Air",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Tintonni\u00e8re",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "La Taille du Gland",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "Le Pont Vert",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "La Povini\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Vall\u00e9e Vigneau",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "La Petite Chauverie",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Lourioux",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Le Clos",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Champboureau",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Maloire",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "La Guinauderie",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "Corcay",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "Le Buisson",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Bornech\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "L\u2019Ouchette",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Les Bois Quarres",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Basse Simonni\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Le Clos Barrault",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Pr\u00e9s des Quatre Fontaines",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Marni\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Grande Chauverie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Perrerie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Le Clos Saint Jean",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "L'\u00c2nerie",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Les Bourdingaux",
+              "type": "locality",
+              "population": ""
+            }
+          ],
+          "historic": [
+            {
+              "type": "wayside_cross",
+              "name": "Calvaire"
+            },
+            {
+              "type": "memorial",
+              "name": "Monument aux morts"
+            },
+            {
+              "type": "wayside_cross",
+              "name": "Croix Saint-Andr\u00e9"
+            },
+            {
+              "type": "wayside_cross",
+              "name": "Calvaire"
+            },
+            {
+              "type": "archaeological_site",
+              "name": "La Pierre \u00e0 Vinaigre"
+            },
+            {
+              "type": "wayside_cross",
+              "name": "Calvaire"
+            },
+            {
+              "type": "memorial",
+              "name": ""
+            }
+          ],
+          "tourism": [],
+          "amenities": [],
+          "leisure": [],
+          "natural_points": [
+            {
+              "type": "spring",
+              "name": "",
+              "elevation": ""
+            },
+            {
+              "type": "spring",
+              "name": "",
+              "elevation": ""
+            },
+            {
+              "type": "cave_entrance",
+              "name": "",
+              "elevation": ""
+            },
+            {
+              "type": "cave_entrance",
+              "name": "",
+              "elevation": ""
+            },
+            {
+              "type": "cave_entrance",
+              "name": "",
+              "elevation": ""
+            },
+            {
+              "type": "cave_entrance",
+              "name": "",
+              "elevation": ""
+            },
+            {
+              "type": "cave_entrance",
+              "name": "",
+              "elevation": ""
+            },
+            {
+              "type": "cave_entrance",
+              "name": "",
+              "elevation": ""
+            },
+            {
+              "type": "cave_entrance",
+              "name": "",
+              "elevation": ""
+            },
+            {
+              "type": "cave_entrance",
+              "name": "",
+              "elevation": ""
+            },
+            {
+              "type": "cave_entrance",
+              "name": "",
+              "elevation": ""
+            },
+            {
+              "type": "cave_entrance",
+              "name": "",
+              "elevation": ""
+            },
+            {
+              "type": "cave_entrance",
+              "name": "",
+              "elevation": ""
+            },
+            {
+              "type": "cave_entrance",
+              "name": "",
+              "elevation": ""
+            },
+            {
+              "type": "cave_entrance",
+              "name": "",
+              "elevation": ""
+            },
+            {
+              "type": "cave_entrance",
+              "name": "",
+              "elevation": ""
+            },
+            {
+              "type": "cave_entrance",
+              "name": "",
+              "elevation": ""
+            },
+            {
+              "type": "cave_entrance",
+              "name": "",
+              "elevation": ""
+            },
+            {
+              "type": "cave_entrance",
+              "name": "",
+              "elevation": ""
+            },
+            {
+              "type": "cave_entrance",
+              "name": "",
+              "elevation": ""
+            },
+            {
+              "type": "cave_entrance",
+              "name": "",
+              "elevation": ""
+            },
+            {
+              "type": "cave_entrance",
+              "name": "",
+              "elevation": ""
+            },
+            {
+              "type": "cave_entrance",
+              "name": "",
+              "elevation": ""
+            },
+            {
+              "type": "cave_entrance",
+              "name": "",
+              "elevation": ""
+            },
+            {
+              "type": "cave_entrance",
+              "name": "",
+              "elevation": ""
+            },
+            {
+              "type": "cave_entrance",
+              "name": "",
+              "elevation": ""
+            },
+            {
+              "type": "cave_entrance",
+              "name": "",
+              "elevation": ""
+            }
+          ]
+        }
+      }
+    },
+    {
+      "q": 1,
+      "r": 0,
+      "terrain": "water",
+      "impedance": null,
+      "features": [
+        "road",
+        "waterway",
+        "forest",
+        "farmland",
+        "urban",
+        "buildings:1"
+      ],
+      "elevation": 0,
+      "name": "Saint-Laurent-en-G\u00e2tines",
+      "description": "Village (pop: 896)",
+      "datalayer": {
+        "osm": {
+          "has_road": true,
+          "has_railway": false,
+          "has_water": true,
+          "has_forest": true,
+          "has_farmland": true,
+          "has_urban": true,
+          "building_count": 1,
+          "landuse": [
+            "cemetery",
+            "farmland",
+            "farmyard",
+            "meadow",
+            "grass",
+            "forest",
+            "industrial",
+            "residential",
+            "flowerbed"
+          ],
+          "natural": [
+            "scrub",
+            "tree_row",
+            "wood",
+            "water"
+          ],
+          "features": [
+            "road:primary",
+            "road:primary",
+            "road:primary",
+            "road:primary",
+            "landuse:forest",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "road:secondary",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "landuse:residential",
+            "landuse:forest",
+            "landuse:forest",
+            "landuse:forest",
+            "road:secondary",
+            "road:secondary",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "road:primary",
+            "road:primary",
+            "natural:water",
+            "natural:water",
+            "natural:wood",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "landuse:cemetery",
+            "road:secondary",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "waterway:stream",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "natural:wood",
+            "water:pond",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "natural:water",
+            "landuse:forest",
+            "landuse:forest",
+            "landuse:forest",
+            "landuse:forest",
+            "landuse:forest",
+            "landuse:forest",
+            "landuse:forest"
+          ],
+          "places": [
+            {
+              "name": "Saint-Laurent-en-G\u00e2tines",
+              "type": "village",
+              "population": "896"
+            },
+            {
+              "name": "La Muloch\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Le Fougerai",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Les Mares",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Coutarderie",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "La Bouquini\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Commune",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Moulizie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Le Courbet",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Grande Maison",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Pi\u00e8ce du Vivier",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Tour Carr\u00e9e",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Villeneuve",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Le Point du Jour",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Pi\u00e8ces de Villeneuve",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Les Gains",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Pi\u00e8ce de la Grande Maison",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "L'A\u00eetre Barbier",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "La Grande M\u00e9tairie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "L'\u00c9guill\u00e8re",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "La Barbottini\u00e8re",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Bourdaisi\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Morellerie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Barbottini\u00e8re",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "L'Esp\u00e9rance",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Potterie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Terri\u00e8re",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Le Pommel\u00e9",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Les Pr\u00e9s",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Les Serpins",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Pi\u00e8ces des Pr\u00e9s",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Chauss\u00e9e",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Ligni\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Les Arpents",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Pr\u00e9 de l'Enfer",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Pointe",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Les Grandes Friches",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Petite Herserie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Th\u00e9odi\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Truissardi\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Pi\u00e8ce des Trous",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Noue",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Le Champ au Loup",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Pr\u00e9s de la Boissi\u00e8re",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Bouvalini\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Bois de Logerie",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Herserie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Logerie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Pi\u00e8ce de Champillon",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Pi\u00e8ce de Logerie",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Plateau de la Bouquini\u00e8re",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Lignerie",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Foraudi\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Goupill\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Pi\u00e8ce de Billault",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Les Petites Friches",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Carroi des Grandes Maisons",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Coul\u00e9e de la Planche",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Gauche Chappe",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Champ-Larron",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Gennetouzi\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Laupardi\u00e8re",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Le Perre",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Les Minerais",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Butte",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Pilettrie",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Le Fourneau",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Pi\u00e8ces de la Corbini\u00e8re",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Chesnerie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Corbini\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Ch\u00e9vrie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Cochonnerie",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Fosse aux Loups",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Grande Taille",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Le Cul de Sac",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Le Perroi",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Bois du Fresne",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Garenne",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Petite Boissi\u00e8re",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Le Grand Clos",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Les Coteries",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Les Fr\u00e9neries",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Fosse au Loup",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Garenne",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Le Clos de la Leu",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Les Defrocs",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Les Perrets",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Taille des Buis",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Bru\u00e8re Caloti\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Le Clos de Geni\u00e8vre",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Pi\u00e8ce de Champillon",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Le Bois Naudin",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Les Petits Pr\u00e9s",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Le Ch\u00eane Picard",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Briganderie",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Les Minerais",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Les Forts Noites et Charmois",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Les Souchots",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Le Courbet",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Pi\u00e8ce du Vivier",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Roberderie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Chotarderie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Riderie",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "La Morillonni\u00e8re",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "La Queue de Gatines",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Le Long Bois",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "Les Foresti\u00e8res",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Demonnerie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Jaminerie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Cornillerie",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Le Hallier",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Gaudi\u00e8re",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "Les Harranges",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "Le Grand Rouchou",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Donnerie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Beurrerie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "L'\u00c9tang-Neuf",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Chain\u00e9e",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Les Loges",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "La Galini\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Boissi\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "For\u00eat de Nouzilly",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "La Fredonni\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Le Tremble",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Pi\u00e8ces du Cimeti\u00e8re",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Les Pressaudi\u00e8res",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Vicairerie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Huberdi\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Les Foucanderies",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Roussellerie",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Beurrerie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Le Petit Etre",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "L'\u00c9tang Marron",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "La Maconnerie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Guinauderie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Gentillerie",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Charri\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Galini\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Richardi\u00e8re",
+              "type": "hamlet",
+              "population": ""
+            },
+            {
+              "name": "La Bouquini\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Les Perronneries",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Le Fresne",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "La Poulti\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Le Carroi",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "L'Etang Marron",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Le Petit Bois",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Taille de la Croix Huppeloup",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Le Defroc",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Pi\u00e8ce du Grillon",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Roulini\u00e8re",
+              "type": "isolated_dwelling",
+              "population": ""
+            },
+            {
+              "name": "Le Plantin",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Fosse \u00e0 Cane",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Les Taillis de la Grande Noue",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Petite Pi\u00e8ce de l'All\u00e9e",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Les Devants de la Charri\u00e8re",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Les Pains",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Le Dessus du Buisson",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Pi\u00e8ce des Foucauderies",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Les Rouillards",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Les Tranchots",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Les Bois de l'Ormeau",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Pi\u00e8ce de la Muloch\u00e8re",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Les Defaix",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Perr\u00e9e",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Pi\u00e8ces sur l'\u00c9tang",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Pi\u00e8ces de la Gaudi\u00e8re",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Pi\u00e8ces de l'\u00c9coinse",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Pente de l'\u00c9coinse",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Les Coteaux",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Villerie",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "La Bouill\u00e8re",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Les Minerais",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Pi\u00e8ce de l'\u00c9tang Marron",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Pi\u00e8ce de la Faunaise",
+              "type": "locality",
+              "population": ""
+            },
+            {
+              "name": "Les Taillis de l'\u00c9tang Marron",
+              "type": "locality",
+              "population": ""
+            }
+          ],
+          "historic": [
+            {
+              "type": "memorial",
+              "name": "M\u00e9morial 1914-1918"
+            },
+            {
+              "type": "memorial",
+              "name": "Rassemblement des Saint-Laurent de France"
+            }
+          ],
+          "tourism": [],
+          "amenities": [
+            {
+              "type": "school",
+              "name": "\u00c9cole Primaire de Saint-Laurent-en-G\u00e2tines"
+            }
+          ],
+          "leisure": [],
+          "natural_points": []
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "key": "-1,0:0,0",
+      "type": "road"
+    },
+    {
+      "key": "-1,0:-1,1",
+      "type": "road"
+    },
+    {
+      "key": "-1,-1:-1,0",
+      "type": "road"
+    },
+    {
+      "key": "-1,0:0,-1",
+      "type": "road"
+    },
+    {
+      "key": "-2,1:-1,0",
+      "type": "river"
+    },
+    {
+      "key": "-1,1:0,1",
+      "type": "road"
+    },
+    {
+      "key": "-1,1:0,0",
+      "type": "road"
+    },
+    {
+      "key": "-2,1:-1,1",
+      "type": "river"
+    },
+    {
+      "key": "-1,1:-1,2",
+      "type": "river"
+    },
+    {
+      "key": "-1,-1:0,-1",
+      "type": "road"
+    },
+    {
+      "key": "0,-1:0,0",
+      "type": "road"
+    },
+    {
+      "key": "0,-1:1,-2",
+      "type": "road"
+    },
+    {
+      "key": "0,-1:1,-1",
+      "type": "river"
+    },
+    {
+      "key": "0,0:1,0",
+      "type": "road"
+    },
+    {
+      "key": "0,0:0,1",
+      "type": "road"
+    },
+    {
+      "key": "0,0:1,-1",
+      "type": "river"
+    },
+    {
+      "key": "0,1:1,0",
+      "type": "road"
+    },
+    {
+      "key": "0,1:1,1",
+      "type": "river"
+    },
+    {
+      "key": "-1,2:0,1",
+      "type": "river"
+    },
+    {
+      "key": "1,-1:2,-1",
+      "type": "river"
+    },
+    {
+      "key": "1,-1:1,0",
+      "type": "river"
+    },
+    {
+      "key": "1,-2:1,-1",
+      "type": "river"
+    },
+    {
+      "key": "1,0:1,1",
+      "type": "river"
+    },
+    {
+      "key": "1,0:2,-1",
+      "type": "river"
+    }
+  ],
+  "terrain_limits": {}
+}

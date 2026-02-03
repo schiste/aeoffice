@@ -1,0 +1,656 @@
+{
+  "_meta": {
+    "doc": "AD&D scaling models (design reference)",
+    "purpose": "Single place for curves/formulas used across systems (cost scaling, tuning scaling, penalties). Templates reference these IDs to avoid duplication and blind spots.",
+    "version": "draft-1",
+    "conventions": {
+      "time": {
+        "tick_seconds_default": 1.0,
+        "in_world_seconds_per_real_second_default": 3600,
+        "note": "1 real second = 1 in-world hour (3600x)."
+      },
+      "variables": {
+        "N": "lifetime tuning_count (per save slot)",
+        "R": "Resonance scalar (persistent meta, recomputed on Tuning)",
+        "n_existing": "number of existing buildings of a type",
+        "u_total": "total upgrades purchased on a building (sum of levels bought across all upgrade lines of that building instance)",
+        "p": "generic exponent",
+        "k": "generic coefficient"
+      }
+    }
+  },
+    "models": {
+	        "band_output_level_mult_log2": {
+	            "id": "band_output_level_mult_log2",
+	            "type": "multiplier",
+	            "formula": "LevelMult(L) = 1 + a_level * log2(1 + L)",
+	            "inputs": {
+	                "L": "number",
+	                "a_level": "number"
+	            },
+	            "defaults": {
+	                "a_level": 0.2
+	            },
+	            "units": {
+	                "L": "class_levels",
+	                "a_level": "dimensionless",
+	                "LevelMult": "dimensionless"
+	            },
+	            "domain": {
+	                "L_min": 0,
+	                "a_level_min": 0
+	            },
+	            "notes": [
+	                "Decision CL-0042/CL-0043: use log2 diminishing returns for class-level multipliers."
+	            ]
+	        },
+	        "xp_threshold_exponential": {
+	            "id": "xp_threshold_exponential",
+	            "type": "threshold_curve",
+	            "formula": "XP_to_next(level_total) = XP0 * b_xp^level_total",
+	            "inputs": {
+	                "level_total": "number",
+	                "XP0": "number",
+	                "b_xp": "number"
+	            },
+	            "defaults": {
+	                "XP0": 50,
+	                "b_xp": 1.28
+	            },
+	            "units": {
+	                "level_total": "levels",
+	                "XP0": "xp_units",
+	                "b_xp": "dimensionless",
+	                "XP_to_next": "xp_units"
+	            },
+	            "domain": {
+	                "level_total_min": 0,
+	                "XP0_min": 0,
+	                "b_xp_min_exclusive": 1
+	            },
+	            "notes": [
+	                "Decision XP-0006: start with an exponential XP curve.",
+	                "Pacing anchor XP-0007: target level 1 ~50s, level 4 ~5min (baseline early play)."
+	            ]
+	        },
+	        "build_time_from_collection_time": {
+	            "id": "build_time_from_collection_time",
+	            "type": "time_model",
+	            "formula": "build_time_seconds = build_time_factor * collection_time_seconds",
+            "inputs": {
+                "collection_time_seconds": "number",
+                "build_time_factor": "number"
+            },
+            "defaults": {
+                "build_time_factor": 2.0
+            },
+            "units": {
+                "collection_time_seconds": "seconds",
+                "build_time_seconds": "seconds"
+            },
+            "domain": {
+                "collection_time_seconds_min": 0,
+                "build_time_factor_min": 0
+            },
+            "notes": [
+                "Design rule (draft): base building time is 2x collection time for the required resources, then modified by bonuses/maluses."
+            ]
+        },
+        "cost_components_apply_each": {
+            "id": "cost_components_apply_each",
+            "type": "cost_composition",
+            "formula": "For a multi-component cost (e.g., stone+bands), apply multipliers to each component independently.",
+      "units": {},
+      "domain": {},
+      "notes": [
+        "Decision SM-0002."
+      ]
+    },
+    "building_count_power": {
+      "id": "building_count_power",
+      "type": "multiplier",
+      "formula": "CountMult = (n_existing + 1)^p_count",
+      "inputs": {
+        "n_existing": "number",
+        "p_count": "number"
+      },
+      "units": {
+        "n_existing": "count",
+        "p_count": "dimensionless",
+        "CountMult": "dimensionless"
+      },
+      "domain": {
+        "n_existing_min": 0,
+        "p_count_min_exclusive": 0
+      },
+      "calibration_targets": [
+        {
+          "name": "default_sanity_check",
+          "example_p_count": 1.2,
+          "multipliers": {
+            "n=0": 1.0,
+            "n=1": 2.297,
+            "n=2": 3.737,
+            "n=4": 6.899
+          }
+        }
+      ],
+      "notes": [
+        "Default p_count is mild (>1) to control spam; override per building type."
+      ]
+    },
+    "upgrade_count_power": {
+      "id": "upgrade_count_power",
+      "type": "multiplier",
+      "formula": "UpgradeMult = (u_total + 1)^p_upg",
+      "inputs": {
+        "u_total": "number",
+        "p_upg": "number"
+      },
+      "units": {
+        "u_total": "count",
+        "p_upg": "dimensionless",
+        "UpgradeMult": "dimensionless"
+      },
+      "domain": {
+        "u_total_min": 0,
+        "p_upg_min_exclusive": 0
+      },
+      "notes": [
+        "Decision SM-0102: upgrades use a dedicated count axis.",
+        "Decision SM-0101/SM-1203: u_total is the total number of upgrades purchased on the building across all upgrade lines."
+      ]
+    },
+    "count_mult_softcap": {
+      "id": "count_mult_softcap",
+      "type": "multiplier",
+      "formula": "CountMult = (n+1)^p * (1 + (n/n_soft)^q)",
+      "inputs": {
+        "n": "number",
+        "p": "number",
+        "n_soft": "number",
+        "q": "number"
+      },
+      "units": {
+        "n": "count",
+        "p": "dimensionless",
+        "n_soft": "count",
+        "q": "dimensionless"
+      },
+      "domain": {
+        "n_min": 0,
+        "p_min_exclusive": 0,
+        "n_soft_min_exclusive": 0,
+        "q_min_exclusive": 0
+      },
+      "notes": [
+        "Decision SM-0103: support a softcap/hardcap-style variant model.",
+        "This provides an early mild curve with a stronger late ramp; tune per building type."
+      ]
+    },
+    "tuning_mult_log_grace": {
+      "id": "tuning_mult_log_grace",
+      "type": "multiplier",
+      "formula": "TuningMult = 1 + k * log2(1 + max(0, N - N0))",
+      "inputs": {
+        "N": "number",
+        "N0": "number",
+        "k": "number"
+      },
+      "units": {
+        "N": "count",
+        "N0": "count",
+        "k": "dimensionless",
+        "TuningMult": "dimensionless"
+      },
+      "domain": {
+        "N_min": 0,
+        "N0_min": 0,
+        "k_min": 0
+      },
+      "notes": [
+        "Per building type; intended to be flat early then gently ramp.",
+        "Decision SM-0201: N is lifetime tuning_count per save slot.",
+        "Decision SM-0205: use log2 model (no step-based alternative)."
+      ]
+    },
+    "building_meta_mult_log_grace_with_resonance": {
+      "id": "building_meta_mult_log_grace_with_resonance",
+      "type": "multiplier",
+      "formula": "R_eff = log10(1 + R); spam_factor = spam_s * N^spam_p; MetaMult = (1 + kN * log2(1 + max(0, N - N0))) * (1 + kR * R_eff) * (1 + kS * spam_factor)",
+      "inputs": {
+        "N": "number",
+        "N0": "number",
+        "kN": "number",
+        "R": "number",
+        "kR": "number",
+        "spam_s": "number",
+        "spam_p": "number",
+        "kS": "number"
+      },
+      "units": {
+        "N": "count",
+        "N0": "count",
+        "kN": "dimensionless",
+        "R": "dimensionless",
+        "kR": "dimensionless",
+        "spam_s": "dimensionless",
+        "spam_p": "dimensionless",
+        "kS": "dimensionless",
+        "MetaMult": "dimensionless"
+      },
+      "domain": {
+        "N_min": 0,
+        "N0_min": 0,
+        "kN_min": 0,
+        "R_min": 0,
+        "kR_min": 0,
+        "spam_s_min": 0,
+        "spam_p_min": 0,
+        "kS_min": 0
+      },
+      "defaults": {
+        "spam_s": 0.00001,
+        "spam_p": 2,
+        "kS": 1
+      },
+      "notes": [
+        "Decision SM-0302: fold Resonance into building tuning-count scaling so they work together in one meta multiplier.",
+        "Decision SM-0301: apply Resonance scaling to both band and material costs.",
+        "Decision SM-1207: spam_factor is active as an additional N-based multiplier.",
+        "This model is used by building cost profiles to avoid stacking multiple separate meta multipliers accidentally."
+      ]
+    },
+    "building_cost_product": {
+      "id": "building_cost_product",
+      "type": "cost_model",
+      "formula": "ScaledCost(component) = BaseCost(component) * CountMult(n_existing) * UpgradeMult(u_total) * MetaMult(N,R) (apply per component)",
+      "inputs": {
+        "BaseCost(component)": "number",
+        "n_existing": "number",
+        "u_total": "number",
+        "N": "number",
+        "R": "number"
+      },
+      "notes": [
+        "Decision SM-0001: prefer one explicit combined cost product to reduce blind spots.",
+        "Decision SM-0002: apply multipliers to each cost component independently."
+      ]
+    },
+    "resonance_cost_linear": {
+      "id": "resonance_cost_linear",
+      "type": "cost_scaling",
+      "formula": "R_eff = log10(1 + R); cost = base_cost * (1 + k * R_eff)",
+      "inputs": {
+        "R": "number",
+        "k": "number",
+        "base_cost": "number"
+      },
+      "units": {
+        "R": "dimensionless",
+        "k": "dimensionless",
+        "base_cost": "resource_units",
+        "cost": "resource_units"
+      },
+      "domain": {
+        "R_min": 0,
+        "k_min": 0,
+        "base_cost_min": 0
+      },
+      "notes": [
+        "Used for Resonance-based cost tiers in mechanics/specifications.md.",
+        "k=0 means no Resonance scaling.",
+        "Decision SM-0303: use R_eff=log10(1+R) as the standard approach."
+      ]
+    },
+    "tuning_spam_factor_power": {
+      "id": "tuning_spam_factor_power",
+      "type": "multiplier",
+      "formula": "spam_factor = s * N^p",
+      "inputs": {
+        "N": "number",
+        "s": "number",
+        "p": "number"
+      },
+      "units": {
+        "N": "count",
+        "s": "dimensionless",
+        "p": "dimensionless",
+        "spam_factor": "dimensionless"
+      },
+      "domain": {
+        "N_min": 0,
+        "s_min": 0,
+        "p_min": 0
+      },
+      "defaults": {
+        "s": 0.00001,
+        "p": 2
+      },
+      "notes": [
+        "Anti-spam factor; affects costs only (not effect strength)."
+      ]
+    },
+    "vibes_negative_eff_exp": {
+      "id": "vibes_negative_eff_exp",
+      "type": "multiplier",
+      "formula": "if Vibes < 0: crew_eff_mult = exp(Vibes / K) else crew_eff_mult = 1",
+      "inputs": {
+        "Vibes": "number",
+        "K": "number"
+      },
+      "units": {
+        "Vibes": "vibes_units",
+        "K": "vibes_units",
+        "crew_eff_mult": "dimensionless"
+      },
+      "domain": {
+        "K_min_exclusive": 0
+      },
+      "defaults": {
+        "K": 144
+      },
+      "calibration_targets": [
+        {
+          "name": "starter_target",
+          "target": "Vibes=-100 => crew_eff_mult≈0.5",
+          "implies_K": 144
+        }
+      ],
+      "notes": [
+        "Decision SM-0502: applies to all crew-driven outputs.",
+        "Decision SM-0503: do not cap the multiplier (no floor)."
+      ]
+    },
+    "bad_vibes_hysteresis_mult": {
+      "id": "bad_vibes_hysteresis_mult",
+      "type": "stateful_multiplier",
+      "formula": "Maintain BadVibesMult >= 1. If missing_bunks>0: BadVibesMult = 2^(t_overcrowded_seconds / doubling_time_seconds). EffectiveBadVibes_rate = BadVibes_rate_base * BadVibesMult. If missing_bunks==0: t_overcrowded_seconds decays toward 0 over decay_reset_seconds (linear), so BadVibesMult returns to 1.",
+      "inputs": {
+        "BadVibes_rate_base": "number",
+        "t_overcrowded_seconds": "number",
+        "doubling_time_seconds": "number",
+        "decay_reset_seconds": "number"
+      },
+      "units": {
+        "BadVibes_rate_base": "vibes_units_per_tick",
+        "EffectiveBadVibes_rate": "vibes_units_per_tick",
+        "BadVibesMult": "dimensionless",
+        "doubling_time_seconds": "real_seconds",
+        "decay_reset_seconds": "real_seconds"
+      },
+      "domain": {
+        "BadVibes_rate_base_min": 0,
+        "doubling_time_seconds_min_exclusive": 0,
+        "t_overcrowded_seconds_min": 0,
+        "decay_reset_seconds_min_exclusive": 0
+      },
+      "defaults": {
+        "doubling_time_seconds": 180,
+        "decay_reset_seconds": 60
+      },
+      "notes": [
+        "Decision SM-0604: add hysteresis (overcrowding persistence matters).",
+        "Decision SM-1204/SM-1205: hysteresis increases BadVibes via extra drain; when overcrowded, BadVibes rate doubles every 3 minutes real time; when overcrowding ends, it resets back to baseline over 1 minute."
+      ]
+    },
+    "bad_vibes_rate_ratio_power": {
+      "id": "bad_vibes_rate_ratio_power",
+      "type": "rate",
+      "formula": "U = missing_bunks; C = max(1, crew_count); r = U/C; BadVibes_rate = U * (1 + beta * r^p)",
+      "inputs": {
+        "missing_bunks": "number",
+        "crew_count": "number",
+        "beta": "number",
+        "p": "number"
+      },
+      "defaults": {
+        "p": 2,
+        "beta": 236
+      },
+      "units": {
+        "BadVibes_rate": "vibes_units_per_tick",
+        "missing_bunks": "count",
+        "crew_count": "count"
+      },
+      "anchor_notes": [
+        "Anchor: crew_count=20, bunks_capacity=10 => U=10, r=0.5 => BadVibes_rate≈600 per tick."
+      ]
+    },
+    "fire_pit_synergy_sets10": {
+      "id": "fire_pit_synergy_sets10",
+      "type": "multiplier",
+      "formula": "sets = min(floor(B_total/levels_per_set), floor(C_total/levels_per_set), floor(H_total/levels_per_set)); raw = 1 + bonus_per_set * sets; synergy_mult = (cap_mult is null) ? raw : min(cap_mult, raw)",
+      "inputs": {
+        "B_total": "number",
+        "C_total": "number",
+        "H_total": "number",
+        "levels_per_set": "number",
+        "bonus_per_set": "number",
+        "cap_mult": "number_or_null"
+      },
+      "units": {
+        "synergy_mult": "dimensionless"
+      },
+      "domain": {
+        "B_total_min": 0,
+        "C_total_min": 0,
+        "H_total_min": 0,
+        "levels_per_set_min_exclusive": 0,
+        "bonus_per_set_min": 0,
+        "cap_mult_min_or_null": 1
+      },
+      "defaults": {
+        "levels_per_set": 10,
+        "bonus_per_set": 0.1,
+        "cap_mult": null
+      },
+      "notes": [
+        "Decision SM-0701: totals include class levels plus powerups (research/perks/items).",
+        "Decision SM-0702: applies to the whole GoodVibes generation (not just a portion).",
+        "Decision SM-0703: step size and per-set bonus should be configurable.",
+        "Decision SM-0704: allow an optional cap parameter (default uncapped)."
+      ]
+    },
+    "recruit_cost_curve_v0": {
+      "id": "recruit_cost_curve_v0",
+      "type": "cost_curve",
+      "formula": "Cost_i = ceil(GoodVibes_opt_per_tick(i) * 60 * T_i_minutes)",
+      "inputs": {
+        "i": "number"
+      },
+      "anchors": {
+        "Cost_1": 30,
+        "Cost_30": 1200,
+        "Cost_500": 60000
+      },
+      "notes": [
+        "Decision SM-0801: i is keyed off total_recruited_this_run (run-scoped).",
+        "Decision SM-0803: full piecewise T_i definition is encoded here for centralization.",
+        "This curve uses real minutes for T_i and converts to Vibes via *60."
+      ],
+      "definition": {
+        "goodvibes_opt_per_tick": "GoodVibes_opt_per_tick(i) = 1 + 0.3 * (i - 1)",
+        "minutes_curve": {
+          "T_1_minutes": 0.5,
+          "T_30_minutes": "Cost_30 / (GoodVibes_opt_per_tick(30) * 60)",
+          "T_500_minutes": "Cost_500 / (GoodVibes_opt_per_tick(500) * 60)",
+          "T_1000_minutes": "Cost_1000 / (GoodVibes_opt_per_tick(1000) * 60)",
+          "Cost_1000_derived": 207510,
+          "segments": {
+            "1_to_30": {
+              "q_default": 2,
+              "formula": "T_i = T_1 + (T_30 - T_1) * ((i - 1) / 29)^q"
+            },
+            "31_to_500": {
+              "formula": "T_i = T_30 + (T_500 - T_30) * ((i - 30) / 470)"
+            },
+            "501_plus": {
+              "k_time": "500 / ln(T_1000 / T_500)",
+              "formula": "T_i = T_500 * exp((i - 500) / k_time)"
+            }
+          }
+        }
+      }
+    },
+    "recruit_discount_multiplier": {
+      "id": "recruit_discount_multiplier",
+      "type": "multiplier",
+      "formula": "effective_cost = base_cost * discount_mult",
+      "inputs": {
+        "discount_mult": "number"
+      },
+      "domain": {
+        "discount_mult_min": 0
+      },
+      "notes": [
+        "Decision SM-0802: allow discounts from research/perks later."
+      ]
+    },
+    "expedition_recall_return_lag": {
+      "id": "expedition_recall_return_lag",
+      "type": "time",
+      "formula": "return_time_seconds = 60 + (p_round * planned_duration_seconds); p_round is p rounded up to 0.25 increments (except p<0.05 uses exact p)",
+      "inputs": {
+        "p": "number",
+        "planned_duration_seconds": "number"
+      }
+    },
+    "expedition_recall_loot_multiplier": {
+      "id": "expedition_recall_loot_multiplier",
+      "type": "multiplier",
+      "formula": "loot_multiplier = 0.66 * p (floored per item type when discrete)",
+      "inputs": {
+        "p": "number"
+      }
+    },
+    "bubble_inertia_hold_degrade": {
+      "id": "bubble_inertia_hold_degrade",
+      "type": "time_profile",
+      "formula": "hold_seconds=10 then degrade_seconds=10 (curve TBD; default linear)",
+      "inputs": {
+        "hold_seconds": "number",
+        "degrade_seconds": "number"
+      },
+      "defaults": {
+        "hold_seconds": 10,
+        "degrade_seconds": 10
+      }
+    },
+    "bubble_inertia_modifiers": {
+      "id": "bubble_inertia_modifiers",
+      "type": "modifier",
+      "formula": "hold_seconds = base_hold * (1 + hold_mult); degrade_seconds = base_degrade * (1 + degrade_mult)",
+      "inputs": {
+        "base_hold": "number",
+        "base_degrade": "number",
+        "hold_mult": "number",
+        "degrade_mult": "number"
+      },
+      "notes": [
+        "Decision SM-1001/SM-1002: inertia starts constant but can be modified by research/perks; prefer parameterized modifiers for long-term extensibility."
+      ]
+    },
+    "harvest_time_per_batch": {
+      "id": "harvest_time_per_batch",
+      "type": "time",
+      "formula": "time_seconds = max(time_floor_seconds, base_time_seconds / efficiency)",
+      "inputs": {
+        "base_time_seconds": "number",
+        "efficiency": "number",
+        "time_floor_seconds": "number"
+      },
+      "domain": {
+        "efficiency_min_exclusive": 0,
+        "base_time_seconds_min": 0,
+        "time_floor_seconds_min": 0
+      },
+      "notes": [
+        "Decision SM-1101: harvesting uses time-per-batch; continuous harvesting uses small batch times.",
+        "Decision SM-1102: efficiency reduces time, with a floor time."
+      ]
+    },
+    "stock_refresh_linear": {
+      "id": "stock_refresh_linear",
+      "type": "rate",
+      "formula": "stock = min(stock_max, stock + refresh_per_hour * hours_elapsed)",
+      "inputs": {
+        "stock": "number",
+        "stock_max": "number",
+        "refresh_per_hour": "number",
+        "hours_elapsed": "number"
+      },
+      "notes": [
+        "Decision SM-1103: both ambient and nodes have stock + refresh value per resource (refresh may be 0)."
+      ]
+    }
+  },
+  "profiles": {
+    "building_default": {
+      "id": "building_default",
+      "applies_to": ["building_creation", "building_upgrade"],
+      "cost_components_model_id": "cost_components_apply_each",
+      "cost_model_id": "building_cost_product",
+      "creation_count_model_id": "building_count_power",
+      "creation_count_params": {
+        "p_count": 1.2
+      },
+      "upgrade_count_model_id": "upgrade_count_power",
+      "upgrade_count_params": {
+        "p_upg": 1.2
+      },
+      "meta_model_id": "building_meta_mult_log_grace_with_resonance",
+      "meta_params": {
+        "N0": 3,
+        "kN": 0.0033,
+        "kR": 0.02,
+        "spam_s": 0.00001,
+        "spam_p": 2,
+        "kS": 1
+      },
+      "notes": [
+        "Override p_count, p_upg, N0, kN, and kR per building type."
+      ]
+    },
+    "fire_pit_costs": {
+      "id": "fire_pit_costs",
+      "applies_to": ["building_creation", "building_upgrade"],
+      "cost_components_model_id": "cost_components_apply_each",
+      "cost_model_id": "building_cost_product",
+      "creation_count_model_id": "building_count_power",
+      "creation_count_params": {
+        "p_count": 1.2
+      },
+      "upgrade_count_model_id": "upgrade_count_power",
+      "upgrade_count_params": {
+        "p_upg": 1.2
+      },
+      "meta_model_id": "building_meta_mult_log_grace_with_resonance",
+      "meta_params": {
+        "N0": 3,
+        "kN": 0.0033,
+        "kR": 0.001,
+        "spam_s": 0.00001,
+        "spam_p": 2,
+        "kS": 1
+      },
+      "notes": [
+        "Fire Pit has max_count=1, so count scaling is mostly irrelevant; tuning scaling intended to be very small.",
+        "Decision SM-0204: Fire Pit meta scaling should be very small but not 0; set kR when you want Resonance to affect it."
+      ]
+    }
+  }
+  ,
+  "policies": {
+    "meta_scaling_snapshots": {
+      "id": "meta_scaling_snapshots",
+      "applies_to": ["building_creation", "building_upgrade"],
+      "rule": "For untuned (persistent) buildings, use N_at_purchase and R_at_purchase for meta scaling on future upgrades (grandfather). For tuned/detuned buildings, use current N and current R.",
+      "notes": [
+        "Decision SM-0203: grandfather tuning-count scaling for persistent buildings.",
+        "Decision SM-1206: use R_at_purchase for grandfathered scaling too.",
+        "This affects how costs feel when N/R rise across Tunings while some buildings persist."
+      ]
+    }
+  }
+}

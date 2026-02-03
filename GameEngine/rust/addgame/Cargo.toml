@@ -1,0 +1,12 @@
+[package]
+name = "addgame"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+godot = { git = "https://github.com/godot-rust/gdext", branch = "master" }
+rusqlite = { version = "0.32", features = ["bundled"] }

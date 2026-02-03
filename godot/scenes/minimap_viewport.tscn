@@ -1,0 +1,23 @@
+[gd_scene load_steps=3 format=3 uid="uid://c8yxr5y8m4v9m"]
+
+[ext_resource type="Script" path="res://scenes/minimap_viewport.gd" id="1_minimap_viewport"]
+[ext_resource type="Script" path="res://scenes/viewport_indicator.gd" id="2_viewport_indicator"]
+
+[node name="MinimapViewport" type="SubViewportContainer"]
+custom_minimum_size = Vector2(300, 200)
+offset_right = 300.0
+offset_bottom = 200.0
+stretch = true
+script = ExtResource("1_minimap_viewport")
+
+[node name="SubViewport" type="SubViewport"]
+transparent_bg = true
+size = Vector2i(400, 300)
+render_target_update_mode = 4
+
+[node name="MinimapCamera" type="Camera2D" parent="SubViewport"]
+zoom = Vector2(1, 1)
+
+[node name="ViewportIndicator" type="Node2D" parent="SubViewport"]
+z_index = 100
+script = ExtResource("2_viewport_indicator")
