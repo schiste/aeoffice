@@ -2,7 +2,13 @@
 
 > **"In the Silence, music isn't art. It's oxygen."**
 
-**Advanced Drummers and Dungeons (AD&D)** is a Dystopian Idle-RPG built with **Godot 4** and **Rust**. It combines the addictive progression of incremental games (*NGU Idle*, *Candy Box*) with the survival tension of *Darkest Dungeon*, wrapped in a unique "Acoustic Survival" narrative.
+**Advanced Drummers and Dungeons (AD&D)** is a dystopian idle-RPG built around a simple principle: **sound is survival**.
+
+The current implementation path is:
+
+- a **Rust** simulation core as the source of truth,
+- a **web-first** prototype for iteration, balancing, and testing,
+- and a portable architecture that can later support richer visual frontends without rewriting the game rules.
 
 ## 🎵 The Concept
 The world didn't end with a bang—it ended with a filter. Satellites dampen most audible sound on Earth (approx. 20Hz–15kHz), collapsing long-range propagation. A "Silence Virus" kills anyone exposed to absolute quiet for more than 4 hours.

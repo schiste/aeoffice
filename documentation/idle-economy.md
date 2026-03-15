@@ -1,0 +1,716 @@
+# Idle Economy
+
+This document is the canonical source of truth for AD&D's idle economy.
+
+It exists to unify what is currently split across:
+
+- `documentation/general.md`
+- `documentation/phase-0-simulation-spec.md`
+- `mechanics/specifications.md`
+- `TODO.md`
+
+When those documents disagree on an idle-system detail, this file wins for:
+
+- resource behavior
+- staffing behavior
+- station behavior
+- offline behavior
+- idle pressure systems
+- and the boundary between the base idle game and later world systems
+
+This document is not the full game specification.
+It is the authoritative specification for the base-side economy and its immediate dependencies.
+
+## 1. Purpose
+
+AD&D is not meant to be "an idle game with some lore."
+It is meant to be a long-lived idle-RPG where the base itself is a machine for survival, growth, and obsession.
+
+The idle economy must achieve four things at once:
+
+1. create legible, meaningful tradeoffs
+2. support long-term optimization and return play
+3. make the world feel alive while the player is away
+4. feed the later exploration/combat/tuning layers without being replaced by them
+
+The base must already be interesting before the player ever leaves it.
+
+## 2. Scope
+
+This document covers:
+
+- the three-band economy
+- material loops that feed the base
+- staffing and slot systems
+- station power and brownout behavior
+- bubble coverage and field budget behavior
+- recruitment pressure and housing pressure
+- processing and upgrade loops
+- offline rules
+- idle UX requirements
+
+This document does not fully specify:
+
+- manual exploration
+- travel encounters
+- combat
+- expeditions as a world system
+- tuning/reset resolution
+- crew identity and politics
+
+Those systems may depend on the idle economy, but they are not the idle economy.
+
+One exception already exists in the live build:
+
+- `Viral Load v0` is implemented because the opening Hero actions now leave the base safety bubble.
+
+That survival layer is treated here as an immediate dependency of the idle onboarding loop, not as the full future world-survival spec.
+
+## 3. Phase Boundaries
+
+The idle design must be read in three layers.
+
+### 3.1 Current Prototype Truth
+
+This is what the playable web build is allowed to implement now.
+
+It currently includes:
+
+- `Bassline`, `Chorus`, `Harmonics`
+- `Stone`, `Water`, `Vibes`, `Skin`
+- Hero plus a small anonymous crew
+- Crystal staffing
+- construction staffing
+- Fire Pit, Resonance Chamber, Mix Console, Workshop, Research Booth
+- bubble growth from stored Bassline
+- Chorus-powered stations and brownouts
+- Harmonics efficiency tiers
+- first processing recipes
+- Studio restoration, Fire Pit, and early recruitment gate
+- Hero Viral Load, forced return, Studio-only recovery, and stored narrative choices
+- full offline catch-up for allowed systems
+
+### 3.2 Idle Core Complete
+
+The idle core is not "complete" until the following are true:
+
+- `Resonance` exists as a real base-side multiplier system
+- expeditions exist as a parallel idle loop
+- loot/material processing into band output exists
+- relay/loudspeaker infrastructure exists
+- the Vibes/Bunks model is design-locked
+
+### 3.3 Full Game
+
+Only after the idle core is complete should the game rely on:
+
+- manual world travel as a major progression vector
+- combat as a central progression vector
+- safe-spot networks as core exploration support
+- tuning/reset as the main long-run driver
+
+## 4. Core Design Rules
+
+The idle economy follows these rules.
+
+### 4.1 Sound Is Survival
+
+The base generates sound.
+Sound is represented as structured resources, not flavor.
+
+The three base resources are:
+
+- `Bassline`: reach
+- `Chorus`: power
+- `Harmonics`: efficiency
+
+These are not redundant currencies.
+Each one must create a different operational problem.
+
+### 4.2 The Base Is A Machine
+
+The base is not a passive storage hub.
+It is a system of:
+
+- staffing
+- powered stations
+- processing
+- upgrades
+- housing pressure
+- and resource conversion
+
+Every new idle mechanic should strengthen this machine-like identity.
+
+### 4.3 Stored Resources Matter
+
+The player should care about:
+
+- current generation
+- current storage
+- current spend pressure
+- and current risk if they spend too aggressively
+
+AD&D should reward planning, not just tapping.
+
+### 4.4 The Bubble Uses Budget, Not Fictional Magic
+
+The safe bubble is not a purely visual radius.
+It is a real consequence of stored `Bassline`, field conversion, and terrain cost.
+
+### 4.5 Pressure Must Stay Legible
+
+The player should be able to answer, at any time:
+
+- what is generating value
+- what is consuming value
+- what is at risk
+- what is blocked
+- and what will break first
+
+If a system cannot be made legible in the UI, it is not ready.
+
+## 5. Authoritative Resource Model
+
+## 5.1 Band Resources
+
+### `Bassline`
+
+Role:
+
+- determines safe-bubble reach through stored field budget
+- is the main early progression driver
+- is the main spend-vs-reach tension
+
+Rules:
+
+- generated by Crystal staffing
+- stored up to a cap
+- overflow is lost
+- passive trickle is allowed when specific upgrades say so
+- spending lowers available field budget immediately
+- the bubble does not continuously drain Bassline as upkeep
+
+### `Chorus`
+
+Role:
+
+- powers manual stations
+- powers active life support
+- creates brownout risk when overcommitted
+
+Rules:
+
+- generated by Crystal staffing
+- stored up to a cap
+- overflow is lost
+- upkeep is covered first by generation, then by stored Chorus
+- if Chorus is insufficient, stations brown out automatically using LIFO unpowering
+
+### `Harmonics`
+
+Role:
+
+- improves conversion efficiency
+- improves field efficiency
+- improves brownout tolerance and advanced station behavior
+- leads toward `Resonance` and later Tuning systems
+
+Rules:
+
+- generated by Crystal staffing
+- stored up to a cap
+- overflow is lost
+- should combine continuous bonuses with milestone tiers
+- should eventually participate in long-term progression, not only short-run optimization
+
+## 5.2 Material Resources
+
+### `Stone`
+
+Role:
+
+- early construction material
+- base restoration material
+- processing input
+
+Rules:
+
+- blocked at cap
+- gathered manually or through later automated systems
+- persistent as a world/material layer
+
+### `Water`
+
+Role:
+
+- early support material
+- upgrade/process input
+- first persistent non-band material loop
+
+Rules:
+
+- blocked at cap
+- player pool and tile stock are separate
+- base tile stock regenerates
+- collection is active work, not passive magic
+
+### `Skin`
+
+Role:
+
+- scarce story-linked material
+- used for specific early upgrades
+
+Rules:
+
+- should remain rare and meaningful
+- should not become generic bulk currency
+
+## 5.3 Run-Scoped Morale Pressure
+
+### `Vibes`
+
+Role:
+
+- recruitment currency
+- pressure buffer for housing and social stability
+
+Rules:
+
+- generated through the Fire Pit and later social systems
+- can go negative
+- positive overflow is lost at cap
+- negative values reduce crew efficiency
+- bad housing pressure should be one of the main reasons this becomes unstable
+
+## 6. Staffing Model
+
+## 6.1 Actors
+
+The idle economy currently has:
+
+- one Hero
+- a small crew count
+
+The Hero is special.
+Crew is generic for now.
+
+That is acceptable for the prototype, but not the final design.
+
+## 6.2 Hero Rules
+
+The Hero:
+
+- can be assigned or idle
+- does not consume Crystal slots
+- can perform one active role at a time
+- gains class XP from stored band output attributed to the Hero
+
+Current Hero classes:
+
+- `Drummer`
+- `Vocalist`
+- `Synth`
+
+The Hero should feel like:
+
+- a flexible anchor early
+- a scaling specialist later
+- never a purely decorative unit
+
+## 6.3 Crew Rules
+
+Crew:
+
+- fill operational roles
+- are limited by available headcount
+- are further limited by slot systems where relevant
+
+Current prototype roles:
+
+- `Crystal: Bassline`
+- `Crystal: Chorus`
+- `Crystal: Harmonics`
+- `Construction`
+- `Fire Pit: Vibes`
+- `Base: Scavenge`
+- `Base: Water`
+
+## 6.4 Slot Rules
+
+Crystal slots apply only to:
+
+- `Crystal: Bassline`
+- `Crystal: Chorus`
+- `Crystal: Harmonics`
+
+Construction is not a Crystal slot activity.
+
+This distinction is important and must remain clear in both simulation and UI.
+
+## 7. Station Model
+
+Stations are where the idle economy becomes a machine.
+
+Each station should eventually be described by:
+
+- what unlocks it
+- whether it needs staff
+- whether it needs Chorus
+- what it consumes
+- what it produces
+- what upgrades/processes it hosts
+- what persists through Tuning
+
+## 7.1 Current Station Set
+
+### `Crystal Circle`
+
+Role:
+
+- generates the three bands
+- hosts early Crystal upgrades
+- defines the initial base loop
+
+Must remain:
+
+- the primary source of early growth
+- readable
+- slot-limited
+
+### `Fire Pit`
+
+Role:
+
+- generates `Vibes`
+- acts as the first social/morale station
+
+Early rule:
+
+- no Chorus upkeep in the prototype
+
+### `Resonance Chamber`
+
+Role:
+
+- improves field conversion
+- acts as the first advanced power/efficiency station
+
+### `Mix Console`
+
+Role:
+
+- improves Harmonics-side efficiency
+- improves brownout tolerance
+
+### `Workshop`
+
+Role:
+
+- improves build throughput
+- improves water-side support loops
+
+### `Research Booth`
+
+Role:
+
+- improves Chorus support efficiency
+- improves Harmonics tier access
+
+## 7.2 Future Station Expansion
+
+The broader design still expects later stations such as:
+
+- infirmary / recovery systems
+- repair/equipment stations
+- relay/loudspeaker infrastructure
+- expedition support stations
+- resonance/tuning specialization stations
+
+These must be added through the same catalog/station model, not as ad hoc one-off rules.
+
+## 8. Construction And Processing
+
+## 8.1 Construction
+
+Construction exists to convert current economy into future economy.
+
+Current rules:
+
+- some upgrades drain Bassline while workers are assigned
+- some projects pay Stone upfront and then require worker time
+- construction pauses without workers
+- Bassline-fed construction pauses without Bassline
+
+Design rule:
+
+Construction must always compete with at least one other meaningful use of labor or resources.
+
+## 8.2 Processing
+
+Processing should turn materials and station time into structural improvements.
+
+Current prototype processing is:
+
+- efficiency-oriented
+- station-bound
+- one job per station
+- paused by station brownouts
+
+This is good as a first layer.
+
+But the final idle economy also needs:
+
+- resource transformation recipes
+- loot processing
+- expedition returns feeding the base
+- authored conversion chains into the band economy
+
+Processing should eventually answer:
+
+- how loot becomes useful
+- how stations specialize
+- how the base develops distinct production identities
+
+## 9. Bubble And Field Model
+
+## 9.1 Current Canonical Bubble Rule
+
+The bubble is governed by:
+
+- stored `Bassline`
+- field conversion multiplier
+- terrain impedance
+- blocker exclusion
+- inertia on contraction
+
+The important rule is:
+
+`Bassline` supports the bubble by budget.
+It does not act as a constant hidden upkeep drain.
+
+## 9.2 Field Budget
+
+Stored `Bassline` creates a field budget.
+
+That field budget is converted into coverage using:
+
+- `K_field`
+- field multipliers
+- terrain costs
+
+Coverage must be explainable to the player as:
+
+- current supported coverage
+- next ring cost
+- current risk if they spend more
+
+## 9.3 Future Bubble Completion
+
+The bubble system is not complete until it includes:
+
+- relays/loudspeakers
+- multi-source propagation
+- obstacle routing / acoustic shadowing where appropriate
+- safe-spot interaction
+- expedition dependency on sound support
+
+## 10. Power And Brownouts
+
+`Chorus` is the base's power resource.
+
+The power model must preserve four behaviors:
+
+1. stations request power
+2. life support also consumes power
+3. the player can manually request stations on/off
+4. deficits cause LIFO brownouts
+
+The point of brownouts is not just punishment.
+It is to make overextension visible and reversible.
+
+A good brownout system creates cascading tradeoffs:
+
+- fewer active stations
+- lower efficiency
+- lower bubble confidence
+- more risk for later world systems
+
+## 11. Housing, Vibes, And Recruitment
+
+This is the social pressure loop.
+
+## 11.1 Bunks
+
+Bunks are not only a cap.
+They are a stability threshold.
+
+Rules:
+
+- the Hero counts as an occupant
+- overcapacity does not hard-block recruiting
+- instead, overcapacity increases bad-vibes pressure
+
+## 11.2 Vibes
+
+`Vibes` should remain a hybrid of:
+
+- recruitment fuel
+- morale buffer
+- pressure indicator
+
+Current design intent is good, but still not fully locked.
+
+The design still needs to definitively answer:
+
+- exact Vibes tick units
+- exact negative-penalty scope
+- exact recruit-cost curve validation
+- exact relationship between Fire Pit staffing, passive Vibes, and synergies
+
+## 11.3 Recruitment
+
+Recruitment is currently:
+
+- range-gated by bubble reach
+- paid in `Vibes`
+- time-gated by travel
+- assisted by a decaying instant-arrival stock
+
+This is a good early model.
+
+But the full idle design still needs:
+
+- later automation rules
+- recruit queue UX
+- send-back consequences in UI/system form
+- integration with expeditions and long-run staffing strategy
+
+## 12. Offline Policy
+
+Offline progress is not an optional quality-of-life feature.
+It is part of the idle design.
+
+The idle economy must explicitly state what progresses offline and what does not.
+
+## 12.1 Current Allowed Offline Progress
+
+Current design direction allows offline progress for:
+
+- band generation
+- bubble growth / shrink behavior
+- `Vibes` generation
+- recruit travel
+- water-stock regeneration
+- station processing
+
+## 12.2 Current Disallowed Offline Progress
+
+Current design direction disallows offline progress for:
+
+- manual scavenging
+- manual water collection
+- Hero onboarding/world actions
+- manual exploration
+- queued travel encounters
+
+This split is correct in spirit:
+
+- automated or systemic loops can progress offline
+- explicit manual world interaction should not silently resolve itself
+
+## 13. Idle UX Requirements
+
+The idle economy is not complete if the UI hides its logic.
+
+The UI must eventually surface:
+
+- current generation by resource
+- current active upkeep
+- slot usage
+- current field budget
+- current supported coverage
+- next threshold / next bottleneck
+- brownout state and what will fail first
+- current housing pressure
+- current recruit gate state
+- current processing jobs and blocked reasons
+
+The product also needs true tap-light batch interaction:
+
+- `x1`
+- `x10`
+- `xMax`
+- custom quantity
+
+That requirement is part of the economy design, not a later UX polish task.
+
+## 14. What Is Missing From The Idle Economy
+
+The idle design is not yet complete.
+
+The most important missing mechanics are:
+
+### 14.1 `Resonance`
+
+This is currently conceptually central but mechanically absent from the runtime.
+
+It must become a real base-side system, not just a future note tied to Tuning.
+
+### 14.2 Expeditions
+
+Expeditions are supposed to be a parallel idle loop that competes for crew and returns loot.
+
+Without them, the base economy is still inward-facing.
+
+### 14.3 Loot-To-Band Conversion
+
+The design still lacks the real pipeline that turns expedition/world outputs into base sound outputs.
+
+### 14.4 Relay / Loudspeaker Network
+
+Without this, bubble optimization is still too close to "bigger number wins."
+
+### 14.5 Final Vibes / Bunks Lock
+
+This loop exists, but is not yet fully design-locked.
+
+## 15. Design Rules For Future Additions
+
+Any new idle mechanic should pass these checks:
+
+1. Does it create a new tradeoff, not just a new number?
+2. Does it connect to at least one existing pressure system?
+3. Does it remain legible in the UI?
+4. Does it strengthen the base-machine identity?
+5. Does it preserve the distinction between base idle and world action?
+
+If the answer is "no" to most of these, it probably should not exist yet.
+
+## 16. Recommended Next Idle Milestone
+
+The next proper milestone should be:
+
+**Idle Core Complete**
+
+That milestone should mean:
+
+- `Resonance` is implemented
+- expeditions are implemented
+- loot/material conversion into bands is implemented
+- relay/loudspeaker mechanics are implemented
+- the Vibes/Bunks model is validated and locked
+
+Only after that should the project rely heavily on exploration/combat to make the game feel complete.
+
+## 17. Source Precedence
+
+For idle systems, precedence should now be:
+
+1. this document
+2. `documentation/phase-0-simulation-spec.md`
+3. `documentation/general.md`
+4. `mechanics/specifications.md`
+5. `TODO.md`
+
+`TODO.md` remains a checklist, not the canonical rules source.
