@@ -1,1 +1,8 @@
 .DS_Store
+target/
+dist/
+build/
+node_modules/
+.next/
+coverage/
+apps/web/src/lib/wasm/add-web-bindings/
