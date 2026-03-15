@@ -15,13 +15,16 @@
 | Field | Value |
 |-------|-------|
 | **Name** | Studio Echo (originally *Studio Écho*) |
+| **Game ID** | `tile.base_core` |
+| **Hex** | **(0, 0)** — grid origin |
 | **Type** | Former recording studio / Current settlement base |
 | **Region** | Touraine, Loire Valley, France |
-| **Coordinates** | ~47.3°N, 0.7°E (rural commune near Pernay) |
+| **Coordinates** | ~47.40°N, 0.65°E (rural commune near Pernay) |
 | **Crystal** | Class-3 (Large regional Crystal) |
 | **Status (Year 300 AS)** | Newly claimed by the Hero |
 | **Prior Status** | Abandoned (266 years) |
 | **Population** | 1 (Hero) + Dweller Bane |
+| **Distance to Survivors Cave** | 6 tiles / 24 km east |
 
 ---
 
@@ -370,16 +373,37 @@ He's not telling. He can't hear the question.
 
 ## Appendix: Location Data
 
+> **Cross-references:** [../README.md](../README.md) (world scale & hex mapping) | [../../../mechanics/specifications.md](../../../mechanics/specifications.md) sections 2.1, 3.0 | `crates/core/src/state.rs` | `crates/core/src/game_data.rs`
+
 ```
 LOCATION: Studio Echo
+GAME_ID: tile.base_core
+HEX: (0, 0) — Origin of hex grid
+TILE_FEATURE: Base
 TYPE: Settlement (Hero Base)
 REGION: Touraine, Loire Valley, France
 
+REAL_WORLD:
+  Commune: Pernay, Indre-et-Loire, France
+  Coordinates: ~47.40°N, 0.65°E
+  Geology: Tuffeau limestone farmstead with hillside caves
+
 CRYSTAL:
   Class: 3 (Large Regional)
-  Bubble: ~800m radius
+  Bubble: ~800m radius (expandable with Bassline production)
   Frequency: 127 Hz
   Status: Unclaimed → Hero's
+  Base Slots: 3 (DEFAULT_BASE_SLOTS)
+
+DISTANCES:
+  To Survivors Cave: 6 tiles / 24 km / 6s travel (hex 6,0)
+  To Tours (ruins): ~5 tiles / 20 km (beyond grid edge)
+  To Marchand Farm: ~2 tiles / 8 km (ruins)
+
+GRID:
+  Radius: 6 rings (GRID_RADIUS=6), 127 total hexes
+  Bubble Expansion Axis: East toward Survivors Cave (6,0)
+  Recruitment Gate: Opens at reach >= 3 rings
 
 STRUCTURE:
   Main Building: 18th-century farmhouse (damaged but salvageable)
@@ -402,6 +426,15 @@ THREATS:
   Internal: Dweller Bane (low)
   External: Mutated fauna at bubble edge
   Future: Faction interest in Class-3 Crystal
+
+GAME_CONSTANTS:
+  DEFAULT_BASE_SLOTS: 3
+  DEFAULT_TOTAL_CREW: 2
+  GRID_RADIUS: 6
+  REACH_OBJECTIVE_TARGET: 3
+  RECRUITMENT_RANGE_TILES: 3
+  SURVIVOR_CAVE_Q: 6
+  SURVIVOR_CAVE_R: 0
 ```
 
 ---
@@ -412,4 +445,4 @@ THREATS:
 
 ---
 
-*Last updated: Year 300 AS*
+*Last updated: 2026-03-15*

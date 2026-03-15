@@ -8,6 +8,45 @@
 
 ---
 
+## Game Reference Data
+
+> **Cross-references:** [../README.md](../README.md) (world scale & hex mapping) | [../../../mechanics/specifications.md](../../../mechanics/specifications.md) section 3.4.1 | `crates/core/src/state.rs` | `crates/core/src/game_data.rs`
+
+```
+LOCATION: Les Grottes de la Bresme (Survivors Cave)
+GAME_ID: tile.survivor_cave
+HEX: (6, 0) — 6 tiles / 24 km due east of Base
+TILE_FEATURE: SurvivorCave
+TERRAIN: Plains (cave entrances in tuffeau cliffs along river valley)
+
+REAL_WORLD:
+  Commune: Saint-Etienne-de-Chigny, Indre-et-Loire, France
+  Coordinates: ~47.38°N, 0.42°E
+  Geology: Tuffeau limestone, Bresme river valley cliffs
+
+RECRUITMENT_MECHANICS:
+  Cave Distance: 6 tiles (SURVIVOR_CAVE_Q=6, SURVIVOR_CAVE_R=0)
+  Recruitment Range: 3 tiles (RECRUITMENT_RANGE_TILES=3)
+  Gate Opens When: bubble reach >= 3 (cave_distance - reach <= range)
+  Normal Human Survival: 4 in-world hours (4s real) outside bubble
+  Coherence: 6 tiles - 3 tile range = reach 3 needed
+             3 tiles * 1 hour/tile = 3 hour walk < 4 hour lethal window
+  Recruit Travel: 6s normal, 1s instant (from pre-positioned stock)
+  Prerequisites: Studio restored + Fire Pit built + reach >= 3
+
+STORY_BEATS:
+  - story.beat.reach_survivor_cave (bubble reaches cave proximity)
+  - story.beat.first_recruit (first crew member recruited)
+  - story.beat.await_survivor_arrival (recruit in transit)
+
+RELATED_UI:
+  - ui.map.cave_gate (map marker showing recruitment gate)
+  - ui.action.recruit (recruitment action button)
+  - ui.status.base_recruits (recruit status display)
+```
+
+---
+
 ## Overview
 
 **Les Grottes de la Bresme** (The Bresme Caves) is a network of natural and man-made caves carved into the tuffeau limestone cliffs along the Bresme river valley. Before The Silence, parts of the system were:
@@ -487,6 +526,31 @@ The emergency backup. When technology fails, the Bouche family — beatboxers tr
 
 See [studio_echo.md](studio_echo.md) for details on the Hero Base and travel routes between locations.
 
+### The Recruitment Corridor
+
+The 6-tile path from Studio Echo (0, 0) to Les Grottes (6, 0) is the game's primary early progression axis. The player must:
+
+1. **Generate Bassline** at the Crystal Circle to fuel bubble expansion
+2. **Expand the bubble** eastward along the Bresme Path (river valley terrain = low impedance)
+3. **Reach ring 3** — the bubble now covers half the distance to the cave
+4. **Recruitment gate opens** — survivors can cross the remaining 3 tiles (3 in-world hours) within the 4-hour lethal window
+5. **Spend Vibes** to recruit from the cave population
+
+If the bubble **shrinks** (brownout, Bassline depletion), the recruitment gate closes and any in-transit recruits are lost. This creates tension between expansion ambition and power stability.
+
+### Real-World Cave Density
+
+The OSM data validates the density of cave systems in this region. The nearby commune of **Nouzilly** (hex area east of the Bresme valley) contains **25 mapped cave entrances** and **2 natural springs** in a single 4 km hex — confirming that tuffeau limestone here creates exactly the kind of extensive underground network that the lore describes.
+
+Named cave sites in the surrounding area:
+- **Les Caves de la Babiniere** (Nouzilly) — cave settlement
+- **Les Caves de la Gaspiere** (Cerelles) — cave locality
+- **Les Caves de Valarault** (Beaumont-la-Ronce) — cave hamlet
+- **Les Carrieres** (Beaumont-la-Ronce) — quarry site (tuffeau extraction)
+- **La Pierre a Vinaigre** (Nouzilly) — archaeological site near cave cluster
+
+See [../README.md](../README.md) and [README.md (regional)](README.md) for the full OSM geographic dataset.
+
 ---
 
-*Last updated: 2025-12-15*
+*Last updated: 2026-03-15*
