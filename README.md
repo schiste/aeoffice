@@ -1,13 +1,11 @@
 # Aedventure Virtual Office
 
-This repository contains the product and technical planning documents for the
-Aedventure Customer Virtual Office App.
+This repository contains the hard-fork plan and implementation workspace for
+the Aedventure Customer Virtual Office App.
 
-The project starts by forking SkyOffice and turning it into a maintainable,
-tenant-ready customer application. The SaaS Foundation/backoffice remains the
-intended control plane for tenants, users, roles, permissions, subscriptions,
-audit, and configuration, but the first engineering milestone is the Customer
-Virtual Office App itself.
+SkyOffice is not the product architecture. SkyOffice is a temporary legacy
+source reference that must be reduced, replaced, and rebuilt into a clean
+architecture before product feature work resumes.
 
 ## Canonical Documentation
 
@@ -15,32 +13,48 @@ Virtual Office App itself.
 - [Phase 0 Refactor Plan](docs/phase-0-refactor-plan.md)
 - [SkyOffice Fork Maintenance](docs/skyoffice-fork-maintenance.md)
 - [Phase 0 Baseline Verification](docs/phase-0-baseline-verification.md)
+- [Initial License Audit](docs/license-audit.md)
 
 ## Source Layout
 
-- `apps/customer-virtual-office/` - SkyOffice fork imported with upstream Git
-  history preserved as a subtree.
+- `legacy/skyoffice-original/` - SkyOffice fork imported with upstream Git
+  history preserved as a subtree. This is reference code, not the target app.
+- `apps/web/` - future React or Svelte frontend with Phaser world renderer.
+- `apps/world-server/` - future Colyseus authoritative world server.
+- `apps/api/` - future Fastify API with Wikimedia OAuth, sessions, RBAC, and
+  persistence.
+- `apps/media-gateway/` - future LiveKit token service and media policy layer.
+- `packages/protocol/` - future client/server protocol definitions.
+- `packages/map-engine/` - future map parsing, collision, zones, and navigation.
+- `packages/auth-wikimedia/` - future Wikimedia OAuth 2.0 integration.
+- `packages/shared-types/` - future shared application types.
+- `infra/` - future Docker Compose and deployment scaffolding.
+- `assets/ASSET_MANIFEST.md` - required manifest for any target-app assets.
 - `docs/` - product, architecture, and phase planning documents.
 
 ## Starting Position
 
-1. Start with the Customer Virtual Office App.
-2. Fork SkyOffice.
-3. Treat Step 0 as a major refactor, not a feature sprint.
-4. Keep the product usable after each refactor step.
-5. Defer commercial asset/licensing cleanup until a much later stage.
-6. Design every core data model so it can become tenant-customizable.
-7. Design APIs so future AI agents can safely inspect and operate the system.
+1. Preserve SkyOffice history.
+2. Move SkyOffice under `legacy/`.
+3. Freeze feature work.
+4. Make the build reproducible.
+5. Audit and remove incompatible bundled assets.
+6. Replace auth with Wikimedia OAuth 2.0 plus local users/sessions.
+7. Replace client-authoritative movement with server-authoritative movement.
+8. Add Postgres persistence immediately.
+9. Replace PeerJS media with LiveKit/coturn.
+10. Define a clean protocol before adding product features.
 
 ## Early Non-Goals
 
 - Rebuilding the SaaS Foundation from scratch.
 - Building the full map editor immediately.
-- Replacing all SkyOffice assets immediately.
-- Implementing enterprise Google Meet, Teams, or Zoom integrations in Step 0.
+- Adding rooms, admin features, or design polish on the legacy architecture.
+- Keeping PeerJS as the final media layer.
 - Implementing production AI agents in Step 0.
-- Building a large-scale broadcast system before validating the core virtual
-  office experience.
+- Implementing enterprise Google Meet, Teams, or Zoom integrations in Step 0.
+- Building a large-scale broadcast system before the core protocol and
+  persistence layers are clean.
 
 ## Phase 0 Baseline Check
 
@@ -55,3 +69,6 @@ After dependencies are already installed, use:
 ```bash
 SKIP_INSTALL=1 scripts/verify-skyoffice-baseline.sh
 ```
+
+This script verifies the legacy SkyOffice baseline only. The new app stack
+must get its own CI checks as it is created.

@@ -16,11 +16,13 @@ technical reviews, and future agent-oriented integration work.
 
 ## 2. Finalized Project Stance
 
-The project starts with the **Customer Virtual Office App**.
+The project starts with a **hard fork reset** of the Customer Virtual Office
+App architecture.
 
-The first engineering step is to **fork SkyOffice** and perform a **major
-refactor**. This is Step 0. Step 0 is not optional and should not be treated as
-a small cleanup pass.
+The first engineering step is to preserve SkyOffice under `legacy/`, freeze
+feature work, and rebuild the target architecture under `apps/` and
+`packages/`. Step 0 is not optional and should not be treated as a small
+cleanup pass.
 
 The SaaS Foundation/backoffice is still the intended long-term control plane
 for:
@@ -38,10 +40,9 @@ for:
 - Tenant configuration.
 - AI agent governance.
 
-However, the immediate engineering focus is the virtual office customer app.
-The reason is practical: SkyOffice is the highest-risk technical base. It must
-be made maintainable, modular, and data-driven before it is connected deeply to
-the broader SaaS system.
+However, the immediate engineering focus is not product features. It is
+replacing risky inherited architecture: client-authoritative movement,
+password-only auth, PeerJS media, in-memory-only state, and bundled asset risk.
 
 ## 3. Core Product Vision
 
@@ -66,9 +67,10 @@ The platform must eventually allow each tenant to:
 
 1. Create and manage one or more 2D virtual office worlds.
 2. Customize maps, floors, rooms, zones, portals, objects, and spawn points.
-3. Configure meetings through Jitsi, external providers, or future native
+3. Use the platform LiveKit/coturn media layer for proximity and meeting
    media.
-4. Bring their own Google Meet, Microsoft Teams, or Zoom later.
+4. Bring their own Google Meet, Microsoft Teams, Zoom, or Jitsi later where a
+   tenant wants external provider workflows.
 5. Assign user access through tenant-aware RBAC.
 6. Invite guests safely.
 7. Configure branding and tenant-specific settings.
@@ -79,9 +81,9 @@ The platform must eventually allow each tenant to:
 
 ## 5. Immediate Build Strategy
 
-### 5.1 Start With SkyOffice
+### 5.1 Start With A Hard-Fork Reset
 
-SkyOffice is the initial codebase for:
+SkyOffice is the legacy reference for:
 
 - 2D rendering.
 - Avatar movement.
@@ -90,54 +92,57 @@ SkyOffice is the initial codebase for:
 - Basic object interaction.
 - Virtual office spatial UX.
 
-The fork should be treated as a starting point, not as the final architecture.
+The fork should not be treated as the target architecture.
 
 ### 5.2 Step 0 Is A Major Refactor
 
-Step 0 exists to make SkyOffice suitable for product development.
+Step 0 exists to make the fork safe enough for product development.
 
 Step 0 goals:
 
-- Fork SkyOffice into this project.
-- Establish a clean repository/package structure.
-- Separate client, realtime server, shared types, and configuration.
-- Replace fragile hard-coded assumptions with data-driven configuration where
-  practical.
-- Prepare the code for tenant-scoped worlds without building the full tenant
-  system yet.
-- Add a meeting-provider abstraction stub.
-- Add a realtime auth/token abstraction stub.
-- Add basic build, lint, and test structure.
-- Keep the app playable after each refactor milestone.
+- Preserve SkyOffice history under `legacy/skyoffice-original`.
+- Establish target `apps/` and `packages/` structure.
+- Make the legacy build reproducible.
+- Audit licensing and asset redistribution risk.
+- Replace auth with Wikimedia OAuth 2.0 and local sessions.
+- Add Postgres persistence.
+- Replace client-authoritative movement with server-authoritative movement.
+- Replace PeerJS with LiveKit/coturn.
+- Define a clean protocol package.
+- Rebuild permissions before product features.
 
 Step 0 non-goals:
 
-- No full SaaS backoffice implementation.
-- No complete map editor.
+- No product feature work.
+- No admin polish.
 - No enterprise meeting-provider integrations.
 - No production AI agents.
 - No broadcast/event infrastructure.
-- No commercial asset cleanup.
+- No design polish on legacy architecture.
 
-### 5.3 Asset Cleanup Is Deferred
+### 5.3 Asset Licensing Is A Step 0 Gate
 
-Commercial asset cleanup and licensing remediation are explicitly deferred to a
-much later stage.
+The target app must not bundle inherited assets unless their redistribution
+rights are clear and recorded. SkyOffice assets may remain under `legacy/` only
+as temporary reference material while the target app is rebuilt.
+
+Art direction and final production asset replacement can happen later, but the
+license boundary cannot be deferred.
 
 For now:
 
-- Existing SkyOffice assets may be kept for internal development and
-  prototyping.
+- Existing SkyOffice assets may be kept under `legacy/` for internal reference.
 - Assets should be clearly marked as not cleared for commercial launch.
 - No early engineering time should be spent replacing all sprites, tilesets,
   or art packs.
+- Target app code must not copy or load uncleared legacy assets.
 - The project must not publicly launch commercially with uncleared assets.
 - Production-safe asset replacement belongs in a later commercial readiness
   phase.
 
 Rationale:
 
-Asset cleanup is important, but it is not the first technical risk. The first
+Art replacement is important, but it is not the first technical risk. The first
 technical risk is turning the SkyOffice prototype into a maintainable,
 configurable, tenant-ready product foundation.
 
@@ -183,17 +188,19 @@ The SaaS Foundation owns:
 The Virtual Office App should not reimplement these systems. It should consume
 them through APIs and tokens.
 
-### 6.3 Meeting Providers
+### 6.3 Media And Meeting Providers
 
-Meeting providers own media complexity where possible.
+The product media layer should be controlled by the platform first.
 
 Initial priority:
 
-1. Jitsi for self-hosted or controlled embedded meetings.
-2. External links as a fallback.
-3. Google Meet, Microsoft Teams, and Zoom integrations later.
-4. Native P2P or native SFU only if it becomes strategically important.
-5. Broadcast mode later for large events.
+1. LiveKit for proximity media and room meetings.
+2. coturn for TURN fallback.
+3. Server-issued media tokens.
+4. Server-controlled proximity subscriptions.
+5. External provider links as a fallback.
+6. Google Meet, Microsoft Teams, Zoom, and Jitsi integrations later.
+7. Broadcast mode later for large events.
 
 ## 7. Target Users
 
@@ -332,7 +339,10 @@ Responsibilities:
 
 - Create or resolve meeting rooms.
 - Generate join URLs.
-- Embed Jitsi where applicable.
+- Issue LiveKit tokens for platform-hosted media.
+- Apply proximity subscription policy.
+- Configure TURN access through coturn.
+- Embed external providers later where applicable.
 - Store external meeting metadata.
 - Apply tenant meeting policies.
 - Audit joins and moderation actions.
@@ -363,41 +373,33 @@ Responsibilities:
 
 ## 9. Repository Direction After Fork
 
-The fork should move toward a structure like:
+The hard fork should use this structure:
 
 ```text
-apps/
-  customer-virtual-office/
-    src/
-      app/
-      game/
-      world/
-      avatars/
-      meetings/
-      presence/
-      ui/
-      config/
+legacy/
+  skyoffice-original/
 
-services/
-  realtime/
-    src/
-      rooms/
-      auth/
-      state/
-      messages/
+apps/
+  web/
+  world-server/
+  api/
+  media-gateway/
 
 packages/
+  protocol/
+  map-engine/
+  auth-wikimedia/
   shared-types/
-  world-schema/
-  meeting-providers/
-  realtime-protocol/
+
+infra/
+  docker-compose.yml
 
 docs/
   customer-virtual-office-platform-spec.md
 ```
 
-The exact package manager and monorepo tool can be decided during Step 0. The
-important point is to separate runtime concerns early.
+`legacy/skyoffice-original/` is reference code. Target app code should be built
+under `apps/` and shared packages should be built under `packages/`.
 
 ## 10. 2D World Domain Model
 
@@ -566,8 +568,8 @@ License statuses:
 - `commercial_cleared`
 - `unknown`
 
-Because asset cleanup is deferred, the early system should simply track license
-status without blocking Step 0 development.
+Because final art replacement is deferred, the early system should track
+license status and block target-app bundling of uncleared assets.
 
 ### 10.6 WorldObject
 
@@ -1064,40 +1066,42 @@ Token claims:
 
 Step 0 may use mocked auth, but interfaces should be shaped for the final flow.
 
-## 15. Meeting Architecture
+## 15. Media And Meeting Architecture
 
 ### 15.1 Provider Strategy
 
-The product should not start by building custom media infrastructure.
+The product should not keep SkyOffice's PeerJS media layer.
 
 Provider priority:
 
-1. Jitsi for the first embedded meeting experience.
-2. External meeting links for quick compatibility.
-3. Google Meet, Microsoft Teams, and Zoom for enterprise BYO.
-4. Native P2P for small proximity calls only if needed.
-5. Native SFU only if product strategy requires it.
-6. Broadcast mode for large rooms later.
+1. LiveKit for the first product media layer.
+2. coturn for TURN fallback.
+3. Server-issued LiveKit JWTs.
+4. Server-controlled proximity and room media policy.
+5. External meeting links for quick compatibility.
+6. Google Meet, Microsoft Teams, Zoom, and Jitsi for later tenant BYO options.
+7. Broadcast mode for large rooms later.
 
-### 15.2 MeetingProvider Interface
+### 15.2 MediaProvider Interface
 
-Provider abstraction:
+Platform media abstraction:
 
 ```text
-MeetingProvider
-  createMeeting(input)
-  getMeeting(providerMeetingId)
-  updateMeeting(providerMeetingId, input)
-  endMeeting(providerMeetingId)
-  createJoinUrl(input)
+MediaProvider
+  createRoom(input)
+  getRoom(providerRoomId)
+  updateRoom(providerRoomId, input)
+  closeRoom(providerRoomId)
   createJoinToken(input)
-  listParticipants(providerMeetingId)
-  getRecording(providerMeetingId)
-  getTranscript(providerMeetingId)
+  updateSubscriptionPolicy(input)
+  listParticipants(providerRoomId)
+  disconnectParticipant(input)
+  getRecording(providerRoomId)
+  getTranscript(providerRoomId)
   validateWebhook(request)
 ```
 
-### 15.3 MeetingRoom
+### 15.3 MediaRoom
 
 Fields:
 
@@ -1108,7 +1112,7 @@ Fields:
 - `name`
 - `provider`
 - `provider_config`
-- `meeting_mode`
+- `media_mode`
 - `capacity`
 - `moderation_policy`
 - `recording_policy`
@@ -1116,8 +1120,9 @@ Fields:
 - `guest_policy`
 - `ai_policy`
 
-Meeting modes:
+Media modes:
 
+- `proximity`
 - `instant`
 - `scheduled`
 - `persistent`
@@ -1125,18 +1130,20 @@ Meeting modes:
 - `broadcast`
 - `q_and_a`
 
-### 15.4 Jitsi Requirements
+### 15.4 LiveKit Requirements
 
-The first meeting provider should support:
+The first media provider should support:
 
 - Tenant-scoped room naming.
-- Embedded iframe launch.
-- External launch.
-- Optional JWT-authenticated Jitsi.
+- JWT-authenticated join.
+- Server-issued short-lived tokens.
+- Selective subscriptions.
+- Proximity-driven subscription changes.
+- TURN fallback through coturn.
 - Moderator configuration.
 - Lobby support if configured.
 - Meeting join audit events.
-- Basic participant lifecycle events where available.
+- Participant lifecycle events.
 
 ### 15.5 Enterprise Providers
 
@@ -1145,6 +1152,7 @@ Later providers:
 - Google Meet.
 - Microsoft Teams.
 - Zoom.
+- Jitsi.
 
 Requirements:
 
@@ -1555,7 +1563,7 @@ Metrics:
 - Peak concurrent users.
 - Realtime connection minutes.
 - Meeting join events.
-- Hosted Jitsi minutes.
+- Hosted LiveKit/SFU minutes.
 - TURN relay GB.
 - Broadcast viewer-minutes.
 - Recording minutes stored.
@@ -1601,7 +1609,7 @@ Meter or cap:
 
 - Broadcast viewer-minutes.
 - Recording storage.
-- Hosted Jitsi/SFU minutes.
+- Hosted LiveKit/SFU minutes.
 - TURN relay traffic.
 - Transcription.
 - AI summaries.
@@ -1673,7 +1681,8 @@ Track:
 - Client FPS.
 - WebSocket disconnects.
 - Meeting join success.
-- Jitsi health.
+- LiveKit health.
+- External provider bridge health.
 - Provider API errors.
 - TURN relay usage.
 - Broadcast viewer count.
@@ -1696,16 +1705,17 @@ Dashboards:
 Initial deployment:
 
 - Shared customer app frontend.
-- Shared realtime service.
-- Shared backend API later.
-- Shared Postgres later.
-- Shared Redis later.
-- Shared object storage later.
-- Optional shared Jitsi/coturn.
+- Shared world server.
+- Shared API.
+- Shared Postgres.
+- Shared Valkey/Redis.
+- Shared object storage.
+- Shared LiveKit/coturn.
 
 Enterprise deployment options later:
 
-- Dedicated Jitsi.
+- Dedicated LiveKit/coturn.
+- Dedicated external meeting provider bridge.
 - Dedicated realtime pool.
 - Dedicated database cluster.
 - Region-specific deployment.
@@ -1745,48 +1755,61 @@ Long-term targets:
 
 ## 30. Phase Plan
 
-### Phase 0: SkyOffice Fork And Major Refactor
+### Phase 0: Hard-Fork Reset
 
 Purpose:
 
-Make the SkyOffice fork maintainable and product-ready.
+Stop building on the risky SkyOffice architecture and create a clean product
+foundation before feature work resumes.
 
 Deliverables:
 
-- Forked SkyOffice codebase.
-- Clean repo/package structure.
-- Client/server/shared boundaries.
-- Data-driven object/room configuration.
-- Basic tests/build checks.
-- Realtime auth abstraction.
-- Meeting provider abstraction.
-- Playable app after refactor.
+- SkyOffice preserved under `legacy/skyoffice-original`.
+- Target `apps/` and `packages/` structure.
+- Reproducible legacy build check.
+- License audit and asset manifest.
+- Feature freeze.
+- Wikimedia OAuth 2.0 login.
+- Local user, identity, and session model.
+- PostgreSQL schema for durable product state.
+- Server-authoritative movement protocol.
+- Server-side collision, speed, zone, proximity, and transition checks.
+- Server-filtered chat delivery rules.
+- LiveKit/coturn media replacement plan and first server-issued token flow.
+- Clean protocol package.
+- Permission model rebuilt around roles, rooms, and zones.
+- Docker Compose plan for full-stack boot.
 
 Acceptance criteria:
 
-- App starts locally.
-- User can move avatar.
-- User can see basic world.
-- Realtime server runs.
-- Shared types are isolated.
-- Hard-coded objects are identified and partially abstracted.
-- Documentation explains remaining hard-coded areas.
+- Build is reproducible.
+- Tests or verification commands run in CI.
+- No non-open assets are bundled in the target app.
+- Wikimedia OAuth login works.
+- Postgres user/session model exists.
+- Client no longer sends authoritative `x/y`.
+- Server validates movement.
+- Chat delivery is server-filtered.
+- LiveKit migration plan is committed.
+- Docker Compose boots the full stack.
 
 ### Phase 1: Customer Virtual Office App MVP
 
 Purpose:
 
-Turn the refactored fork into the first product-shaped customer app.
+Build the first product-shaped customer app after Phase 0 gates pass.
 
 Deliverables:
 
-- Tenant-shaped app shell, mocked if needed.
+- Tenant-shaped app shell.
 - Basic world loading.
 - Avatar movement.
 - Presence.
 - Object interactions.
-- Jitsi meeting zone prototype.
+- LiveKit meeting/proximity zone prototype.
 - Config-driven office layout.
+- Basic room and zone permissions.
+- Basic server-side chat modes.
 
 ### Phase 2: SaaS Foundation Connection
 
@@ -1826,7 +1849,8 @@ Deliverables:
 
 - Tenant-specific worlds.
 - Tenant branding.
-- Configurable meeting provider.
+- Configurable media policy.
+- Later BYO meeting provider settings.
 - Room permissions.
 - Guest access.
 - Usage limits.
@@ -1901,7 +1925,8 @@ Deliverables:
 - Asset license metadata.
 - Public launch art pack.
 
-This phase is intentionally much later than Step 0.
+Final art direction and a public launch art pack can happen much later than
+Step 0. The license quarantine itself is a Step 0 requirement.
 
 ## 31. MVP Scope
 
@@ -1913,10 +1938,11 @@ The first MVP should include:
 - Avatar movement.
 - Presence.
 - Data-driven object config.
-- Meeting zone concept.
-- Jitsi embedded meeting prototype.
-- Mocked tenant/user identity if needed.
-- Basic realtime token abstraction.
+- LiveKit meeting/proximity zone concept.
+- Wikimedia-authenticated user/session flow.
+- Basic realtime/world token abstraction.
+- Server-authoritative movement.
+- Server-filtered chat.
 - Basic usage events.
 - Basic semantic map shape.
 
@@ -1924,7 +1950,7 @@ The first MVP should not include:
 
 - Full SaaS billing.
 - Full map editor.
-- Production asset cleanup.
+- Final production art pack replacement.
 - Google/Teams/Zoom integrations.
 - Broadcast events.
 - Production AI agents.
@@ -1963,7 +1989,8 @@ Native audio/video can become a large infrastructure burden.
 
 Mitigation:
 
-Use Jitsi first and offer BYO Google/Teams/Zoom later.
+Use LiveKit/coturn with server-issued tokens first, keep media policy
+server-controlled, and offer BYO Google/Teams/Zoom/Jitsi later.
 
 ### 32.4 Map Editor Scope Risk
 
@@ -1984,7 +2011,8 @@ Development assets may not be safe for commercial launch.
 
 Mitigation:
 
-Track asset status early, but defer cleanup until commercial readiness.
+Quarantine inherited assets under `legacy/`, do not copy them into the target
+app, and require a manifest entry before any target-app asset is bundled.
 
 ### 32.6 AI Safety Risk
 
@@ -2027,10 +2055,9 @@ The first step is not adding features. The first step is the **SkyOffice fork
 and major refactor**.
 
 After that, the product can progressively connect to the SaaS Foundation,
-support tenant-custom worlds, integrate Jitsi and enterprise meeting providers,
-add world management, expose AI-friendly APIs, and eventually support
-broadcast events.
+support tenant-custom worlds, add external meeting-provider integrations, add
+world management, expose AI-friendly APIs, and eventually support broadcast
+events.
 
 The long-term product is not just a 2D office. It is a configurable spatial
 work platform that tenants can shape and that AI agents can understand safely.
-

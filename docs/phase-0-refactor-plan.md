@@ -1,403 +1,378 @@
-# Phase 0 Refactor Plan - SkyOffice Fork To Customer Virtual Office App
+# Phase 0 Hard-Fork Reset Plan
 
-## 1. Phase Purpose
+## 1. Purpose
 
-Phase 0 turns the imported SkyOffice fork into a maintainable foundation for
-the Customer Virtual Office App.
+Phase 0 is a hard-fork reset. It is not a feature sprint and it is not a design
+polish pass.
 
-This phase is not a feature sprint. It is a product-risk reduction phase. The
-goal is to preserve the existing playable experience while separating concerns,
-documenting hard-coded behavior, and preparing the codebase for tenant-aware
-worlds, meeting providers, and future SaaS Foundation integration.
+The goal is to stop building on the risky parts of SkyOffice and rebuild the
+core architecture before product features resume.
 
-## 2. Current Source Location
+SkyOffice remains useful as a reference for:
 
-The SkyOffice fork lives at:
+- Phaser scene structure.
+- Colyseus room concepts.
+- Basic room/player/computer/whiteboard interaction ideas.
+- The map-based virtual office metaphor.
+- Some UI interaction patterns.
+
+SkyOffice must not remain authoritative for:
+
+- Authentication.
+- Movement protocol.
+- Media.
+- Permissions.
+- Persistence.
+- Asset licensing.
+- Deployment architecture.
+
+## 2. Hard Line
+
+Forking is acceptable only if the first month is mostly deletion and
+replacement.
+
+Bad path:
 
 ```text
-apps/customer-virtual-office/
+Fork SkyOffice
+Add Wikimedia OAuth
+Add more rooms
+Add better graphics
+Keep PeerJS
+Keep client-position updates
+Keep bundled assets
 ```
 
-The fork was imported from:
+Good path:
 
 ```text
-https://github.com/kevinshen56714/SkyOffice.git
+Fork SkyOffice
+Stabilize build
+Remove risky assets
+Replace auth
+Replace movement protocol
+Replace media layer
+Add persistence
+Then build product features
 ```
 
-Imported upstream HEAD:
+## 3. Repository Strategy
+
+Target structure:
 
 ```text
-3f66b8bffad889ee9fc2340f9bcad28146299f47
-```
+legacy/
+  skyoffice-original/
+
+apps/
+  web/
+  world-server/
+  api/
+  media-gateway/
 
-## 3. Phase 0 Principles
-
-1. Keep upstream history.
-2. Keep the app playable after each change.
-3. Avoid feature expansion before structure is clear.
-4. Preserve current assets for internal development.
-5. Mark licensing cleanup as later work.
-6. Replace hard-coded behavior with interfaces and configuration gradually.
-7. Add seams for tenant identity, world config, and meeting providers before
-   connecting real SaaS infrastructure.
-
-## 4. Current Fork Inventory
-
-### 4.1 Root App
-
-Key files:
-
-```text
-apps/customer-virtual-office/package.json
-apps/customer-virtual-office/yarn.lock
-apps/customer-virtual-office/readme.md
-```
-
-Current root scripts:
-
-- `start` runs the Colyseus server through `ts-node-dev`.
-- `heroku-postbuild` builds the server.
-- `test` is a placeholder that exits with an error.
-
-Current root package identity is still SkyOffice. This should be renamed later,
-but not in the same commit as the import.
-
-### 4.2 Client
-
-Client path:
-
-```text
-apps/customer-virtual-office/client/
-```
-
-Current stack:
-
-- Vite.
-- React.
-- Phaser.
-- Redux Toolkit.
-- Colyseus client.
-- PeerJS.
-- MUI.
-
-Important paths:
-
-```text
-client/src/scenes/
-client/src/services/Network.ts
-client/src/web/WebRTC.ts
-client/src/web/ShareScreenManager.ts
-client/src/items/
-client/src/stores/
-client/public/assets/
-```
-
-### 4.3 Realtime Server
-
-Server path:
-
-```text
-apps/customer-virtual-office/server/
-```
-
-Current stack:
-
-- Express.
-- Colyseus.
-- Colyseus monitor.
-- bcrypt for custom room passwords.
-
-Important files:
-
-```text
-server/index.ts
-server/rooms/SkyOffice.ts
-server/rooms/schema/OfficeState.ts
-server/rooms/commands/
-```
-
-### 4.4 Shared Types
-
-Shared types path:
-
-```text
-apps/customer-virtual-office/types/
-```
-
-Important files:
-
-```text
-types/Rooms.ts
-types/IOfficeState.ts
-types/Messages.ts
-```
-
-## 5. Known Prototype Assumptions To Refactor
-
-### 5.1 Hard-Coded Office Objects
-
-Current server behavior:
-
-```text
-server/rooms/SkyOffice.ts
-```
-
-The room currently creates a fixed number of computers and whiteboards:
-
-- 5 computers.
-- 3 whiteboards.
-
-Target behavior:
-
-- Load world objects from data.
-- Support object types beyond computers and whiteboards.
-- Keep current object behavior as default seed config until persistence exists.
-
-### 5.2 Room Password Auth
-
-Current behavior:
-
-- Custom rooms can use a password.
-- Passwords are stored as in-memory hashed room state.
-- Auth is not tenant/user/RBAC-aware.
-
-Target behavior:
-
-- Keep password rooms only as a development compatibility layer.
-- Introduce a realtime auth interface.
-- Later validate short-lived platform-issued realtime tokens.
-
-### 5.3 Lobby/Public/Custom Room Model
-
-Current behavior:
-
-- Uses Colyseus `LobbyRoom`.
-- Defines `PUBLIC` and `CUSTOM` room types.
-- Client discovers custom rooms via realtime listing.
-
-Target behavior:
-
-- Keep current flow during Step 0.
-- Later map room types to tenant worlds and spaces.
-- Replace global lobby assumptions with tenant-scoped world discovery.
-
-### 5.4 Static Map And Object Binding
-
-Current behavior:
-
-- Phaser map loads static assets.
-- Computers and whiteboards are derived from Tiled object layers.
-- IDs are assigned by layer object order.
-
-Target behavior:
-
-- Normalize object IDs.
-- Load map metadata from world config.
-- Preserve Tiled compatibility.
-- Prepare for backend-persisted map versions.
-
-### 5.5 PeerJS Media
-
-Current behavior:
-
-- PeerJS is used for video and screen sharing.
-- It is tightly coupled to client stores and item interactions.
-
-Target behavior:
-
-- Do not deepen PeerJS coupling.
-- Introduce a meeting/media provider abstraction.
-- Use Jitsi first for meeting zones.
-- Revisit native P2P only after product flow is validated.
-
-### 5.6 Asset Licensing
-
-Current behavior:
-
-- SkyOffice assets are imported with the fork.
-
-Target behavior:
-
-- Keep assets for internal development.
-- Mark production asset cleanup as Phase 9.
-- Do not block Phase 0 on sprite or tileset replacement.
-
-## 6. Phase 0 Workstreams
-
-### 6.1 Preserve Fork And Provenance
-
-Status: started.
-
-Tasks:
-
-- Import SkyOffice with history preserved.
-- Document upstream remote and imported commit.
-- Document how future upstream pulls should happen.
-- Avoid editing imported files in the same commit as the import.
-
-Acceptance criteria:
-
-- `git log --graph` shows SkyOffice upstream commits.
-- `apps/customer-virtual-office/` contains the imported app.
-- Fork maintenance docs exist.
-
-### 6.2 Establish Project Structure
-
-Tasks:
-
-- Decide whether to keep the fork as a nested app package for now.
-- Add root-level workspace tooling only after import is stable.
-- Avoid moving hundreds of files before build verification.
-- Create future target structure documentation before code moves.
-
-Target future structure:
-
-```text
-apps/customer-virtual-office/
-  client/
-  server/
-  types/
-  docs/
 packages/
-  world-schema/
-  meeting-providers/
-  realtime-protocol/
+  protocol/
+  map-engine/
+  auth-wikimedia/
+  shared-types/
+
+infra/
+  docker-compose.yml
 ```
 
-Acceptance criteria:
+Current status:
 
-- Current app still starts.
-- New package boundaries are documented before broad moves.
-- File movement happens in small commits.
+- `legacy/skyoffice-original/` contains the imported SkyOffice subtree.
+- `apps/*` and `packages/*` are scaffolded as target destinations.
+- Feature work is frozen until hard-fork gates pass.
 
-### 6.3 Add Baseline Verification
+## 4. Target Architecture
 
-Status: completed initial baseline on 2026-05-23.
+Target stack:
 
-Tasks:
+- React or Svelte frontend.
+- Phaser world renderer.
+- Colyseus authoritative world server.
+- Fastify API server.
+- Wikimedia OAuth 2.0.
+- Local PostgreSQL-backed user/session model.
+- PostgreSQL durable state.
+- Valkey/Redis for ephemeral coordination and queues.
+- LiveKit for WebRTC SFU.
+- coturn for TURN fallback.
+- S3-compatible asset storage.
+- Docker Compose for local full-stack boot.
+- AGPL-3.0-or-later for new app code.
+- MIT notices preserved for inherited SkyOffice code.
 
-- Install dependencies.
-- Run client build.
-- Run server TypeScript build.
-- Document failures before fixing them.
-- Add a local verification checklist.
+SkyOffice is MIT-licensed upstream. New app code may be AGPL-3.0-or-later, but
+reused SkyOffice code must preserve original copyright and MIT notices.
 
-Acceptance criteria:
+## 5. Week Plan
 
-- We know the current build state of upstream SkyOffice.
-- Any baseline failures are recorded.
-- Future refactor commits can be checked against the baseline.
+### Week 1: Stabilize, Cut, Audit, Freeze
 
-Initial result:
+Goals:
 
-- Root dependency install passed.
-- Client dependency install passed.
-- Server TypeScript build passed.
-- Client production build passed.
-- Vite reported a large bundle warning, but not a build failure.
+- Make baseline build reproducible.
+- Keep SkyOffice only as legacy reference.
+- Remove non-essential features from the target plan.
+- Audit licenses.
+- Freeze feature work.
 
-Detailed notes are in `docs/phase-0-baseline-verification.md`.
+Required outputs:
 
-### 6.4 Introduce World Configuration Boundary
+- Legacy build verification script.
+- License audit.
+- Root license policy.
+- Hard-fork directory structure.
+- CI target plan.
+- List of code to keep, delete, or replace.
 
-Tasks:
+Week 1 gates:
 
-- Define a `WorldConfig` shape.
-- Represent computers and whiteboards as config-driven objects.
-- Keep current hard-coded defaults as a seed config.
-- Avoid backend persistence in Phase 0.
+- Build is reproducible.
+- Tests/verification command exists.
+- License mismatch is documented.
+- Bundled asset risk is documented.
+- No product features are added.
 
-Acceptance criteria:
+### Week 2: Auth, Persistence, Authoritative Movement
 
-- Server room can initialize interactive objects from config.
-- Current public room behavior remains equivalent.
-- Object count and type are no longer embedded directly in room setup logic.
+Goals:
 
-### 6.5 Introduce Realtime Auth Boundary
+- Replace password-only room auth.
+- Add Wikimedia OAuth 2.0 flow.
+- Add local users, identities, and sessions.
+- Add PostgreSQL schema.
+- Replace client-authoritative movement with server-authoritative movement.
 
-Tasks:
+Required outputs:
 
-- Define a `RealtimeAuthContext`.
-- Define a `RealtimeAuthProvider` interface.
-- Implement development auth that preserves current behavior.
-- Prepare token validation hook for later SaaS Foundation integration.
+- `oauth_identities` table.
+- `users` table.
+- `sessions` table.
+- `spaces`, `rooms`, `maps`, `map_versions` tables.
+- Movement intent protocol.
+- Server-side movement simulation.
+- Collision checks.
+- Speed limit checks.
+- Zone permission checks.
+- Room transition checks.
 
-Acceptance criteria:
+Week 2 gates:
 
-- `onAuth` delegates to an auth module.
-- Current password behavior still works where needed.
-- Future platform token auth has a clear insertion point.
+- Wikimedia OAuth login works.
+- Local session cookie works.
+- Postgres user/session model exists.
+- Client no longer sends authoritative `x/y`.
+- Server validates movement.
 
-### 6.6 Introduce Meeting Provider Boundary
+### Week 3-4: Media, Protocol, Permissions
 
-Tasks:
+Goals:
 
-- Define a `MeetingProvider` interface.
-- Add a placeholder provider for Jitsi.
-- Avoid implementing full enterprise providers.
-- Avoid expanding PeerJS usage.
+- Replace PeerJS with LiveKit/coturn plan and first integration.
+- Define clean client/server protocol.
+- Rebuild permissions.
+- Move chat delivery rules server-side.
 
-Acceptance criteria:
+Required outputs:
 
-- Meeting zones can target a provider abstraction.
-- Jitsi is the first intended provider.
-- Google Meet, Teams, and Zoom are represented as future provider types.
+- LiveKit token endpoint.
+- coturn local config.
+- Media room policy.
+- Protocol package.
+- Permission resource model.
+- Role mapping.
+- Chat delivery policy.
+- Moderation event model.
 
-### 6.7 Rename Product Internals Carefully
+Week 3-4 gates:
 
-Tasks:
+- PeerJS removed from target app.
+- LiveKit migration plan is committed.
+- Server-issued LiveKit tokens exist.
+- Protocol package owns movement/chat/media events.
+- Chat delivery is server-filtered.
+- Permissions are rebuilt around roles and room/zone access.
 
-- Keep package names untouched during import.
-- Rename from `skyoffice` to Aedventure/Customer Virtual Office in a separate
-  commit.
-- Preserve references to upstream where legally or historically relevant.
+## 6. Immediate Refactors
 
-Acceptance criteria:
+### 6.1 Movement
 
-- Package metadata is updated without breaking scripts.
-- Upstream attribution remains clear.
+This is non-negotiable.
 
-### 6.8 Document Asset Status
+Legacy SkyOffice currently accepts:
 
-Tasks:
+```json
+{ "x": 705, "y": 500, "anim": "adam_walk_down" }
+```
 
-- Add asset status documentation.
-- Mark all inherited assets as development-only until reviewed.
-- Defer replacement/licensing cleanup to Phase 9.
+The target client sends:
 
-Acceptance criteria:
+```json
+{ "type": "move", "direction": "down", "seq": 42 }
+```
 
-- Developers know assets are not commercial-cleared.
-- Asset cleanup is tracked but not blocking Phase 0.
+The server computes:
 
-## 7. Phase 0 Commit Strategy
+- New position.
+- Collision.
+- Speed limit.
+- Zone permission.
+- Proximity.
+- Room transition.
 
-Recommended commit sequence:
+The client may predict locally for feel, but the server is authoritative.
 
-1. Add platform specs.
-2. Import SkyOffice with history preserved.
-3. Add Phase 0 docs and fork maintenance notes.
-4. Capture baseline build/install results.
-5. Add verification checklist.
-6. Add world config interfaces.
-7. Move hard-coded room objects behind config.
-8. Add realtime auth interface.
-9. Add meeting provider interface.
-10. Rename product/package metadata.
+### 6.2 Auth
 
-Each code commit should keep the app runnable or explicitly document why it is
-a temporary breaking commit.
+Legacy room-password auth must be replaced.
 
-## 8. Phase 0 Exit Criteria
+Target:
 
-Phase 0 is complete when:
+- Wikimedia OAuth 2.0 authorization-code flow.
+- Local user table.
+- Local session cookie.
+- Role mapping.
+- Room permissions.
+- Moderation state.
 
-- SkyOffice fork is imported with upstream history preserved.
-- App can be run locally.
-- Baseline build state is documented.
-- Hard-coded room object initialization is moved behind a config boundary.
-- Realtime auth has an abstraction point.
-- Meeting provider abstraction exists.
-- Current playable behavior remains available.
-- Asset licensing cleanup is documented as deferred.
-- Next phase can start building the Customer Virtual Office App MVP.
+Wikimedia API docs currently point app credential creation to OAuth 2.0
+credentials and redirect URI registration. They also note PKCE requirements for
+browser/mobile/desktop flows and secret handling requirements. See:
+
+- https://api.wikimedia.org/wiki/Managing_API_keys
+- https://api.wikimedia.org/wiki/Security
+
+### 6.3 Media
+
+Legacy PeerJS must not remain the final media layer.
+
+Target:
+
+- LiveKit.
+- coturn.
+- Server-issued LiveKit tokens.
+- Server-controlled proximity subscriptions.
+
+LiveKit is open source, Apache-2.0, provides a WebRTC SFU, supports JWT
+authentication, TURN connectivity, Docker/Kubernetes deployment, and selective
+subscription. See:
+
+- https://github.com/livekit/livekit
+- https://docs.livekit.io/concepts/authentication/
+
+### 6.4 Persistence
+
+Postgres is required immediately.
+
+Tables:
+
+- `users`
+- `spaces`
+- `rooms`
+- `maps`
+- `map_versions`
+- `room_memberships`
+- `roles`
+- `permissions`
+- `moderation_events`
+- `assets`
+- `oauth_identities`
+- `sessions`
+
+Colyseus manages live state. Postgres manages durable product state.
+
+### 6.5 Chat
+
+Legacy broadcast-to-everyone chat must be replaced with server delivery rules.
+
+Chat modes:
+
+- Public room chat.
+- Proximity chat.
+- Private zone chat.
+- Moderator announcements.
+- Direct messages later.
+
+Proximity is a permission boundary, not a UI filter.
+
+### 6.6 Assets
+
+Bundled non-open assets must be removed from the final target app.
+
+Required:
+
+- Remove bundled non-open assets.
+- Replace with CC0, CC-BY, or GPL-compatible assets.
+- Create asset license manifest.
+- Keep art separate from engine.
+
+Legacy SkyOffice credits LimeZu assets. Those assets must be treated as
+development-only until legally cleared. They are not compatible with a fully
+open-source distribution if redistribution restrictions apply.
+
+## 7. Keep / Delete / Replace
+
+Keep:
+
+- Phaser scene structure.
+- Colyseus as realtime room layer.
+- Basic room/player/computer/whiteboard concepts.
+- Some UI interaction patterns.
+- Map-based virtual office metaphor.
+
+Delete or replace:
+
+- PeerJS.
+- Client-authoritative movement.
+- Password-only room auth.
+- Hard-coded computers/whiteboards.
+- Non-open bundled assets.
+- In-memory-only platform model.
+- Old dependency setup.
+- Deployment assumptions.
+
+## 8. Acceptance Gates
+
+Continue with the fork only if these are true after the first serious refactor
+sprint:
+
+- Build is reproducible.
+- Tests run in CI.
+- No non-open assets remain bundled in the target app.
+- Wikimedia OAuth login works.
+- Postgres user/session model exists.
+- Client no longer sends authoritative `x/y`.
+- Server validates movement.
+- Chat delivery is server-filtered.
+- LiveKit migration plan is committed.
+- Docker Compose boots the full stack.
+
+## 9. Feature Freeze
+
+No new product features until the hard-fork gates pass.
+
+Frozen work includes:
+
+- New rooms.
+- Admin features.
+- Design polish.
+- Enterprise meeting integrations.
+- AI features.
+- Broadcast mode.
+- Tenant customization UI.
+
+Exceptions:
+
+- Build verification.
+- License audit.
+- Auth replacement.
+- Persistence.
+- Movement protocol.
+- Media replacement.
+- Permission model.
+- CI and Docker Compose.
+

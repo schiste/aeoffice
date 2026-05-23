@@ -44,7 +44,7 @@ Pinned Yarn version:
 From:
 
 ```text
-apps/customer-virtual-office/
+legacy/skyoffice-original/
 ```
 
 Root dependency install:
@@ -62,7 +62,7 @@ Server TypeScript build:
 From:
 
 ```text
-apps/customer-virtual-office/client/
+legacy/skyoffice-original/client/
 ```
 
 Client dependency install:
@@ -154,12 +154,14 @@ clear.
 
 The imported SkyOffice fork is buildable in the current environment.
 
-This gives Phase 0 a stable starting point:
+This gives Phase 0 a stable legacy-reference starting point:
 
 - Refactor commits should keep the server TypeScript build passing.
 - Refactor commits should keep the client production build passing.
 - If a temporary break is unavoidable, it should be called out explicitly in
   the commit message and resolved quickly.
+- The new target app stack must get its own verification commands as it is
+  rebuilt under `apps/` and `packages/`.
 
 ## 7. Immediate Follow-Up Tasks
 
@@ -190,3 +192,14 @@ When `SKIP_INSTALL=1` is used, the script intentionally calls local build
 binaries directly instead of invoking Yarn through npm. This keeps the normal
 refactor verification loop offline and avoids registry lookups after
 dependencies are installed.
+
+This script verifies `legacy/skyoffice-original/`, not the target app. It is a
+guardrail for understanding the imported reference, not a long-term product CI
+pipeline.
+
+After the hard-fork reset moved SkyOffice under `legacy/skyoffice-original/`,
+the offline verification path was rerun successfully:
+
+```bash
+SKIP_INSTALL=1 scripts/verify-skyoffice-baseline.sh
+```

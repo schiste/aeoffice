@@ -2,15 +2,15 @@
 
 ## 1. Import Strategy
 
-SkyOffice is imported as a non-squashed Git subtree at:
+SkyOffice is imported as a non-squashed Git subtree and then moved to:
 
 ```text
-apps/customer-virtual-office/
+legacy/skyoffice-original/
 ```
 
 This keeps the upstream SkyOffice commits visible in this repository's Git
-history while allowing this project to keep documentation and future platform
-code at the repository root.
+history while making clear that SkyOffice is reference code, not the target
+application architecture.
 
 Upstream remote:
 
@@ -34,7 +34,7 @@ A subtree import:
 - Keeps upstream attribution clear.
 - Allows future upstream pulls.
 - Avoids nested `.git` directories.
-- Lets our app live under `apps/customer-virtual-office/`.
+- Lets the imported code live under `legacy/skyoffice-original/`.
 
 ## 3. Future Upstream Pulls
 
@@ -47,10 +47,15 @@ git fetch skyoffice
 To merge upstream changes into the app subtree:
 
 ```bash
-git subtree pull --prefix=apps/customer-virtual-office skyoffice master
+git subtree pull --prefix=legacy/skyoffice-original skyoffice master
 ```
 
 Do not use `--squash` if the goal is to keep upstream commit history.
+
+Because the subtree was originally imported under `apps/customer-virtual-office`
+and then moved to `legacy/skyoffice-original`, future upstream pulls may require
+careful path handling. Prefer testing upstream sync on a throwaway branch before
+doing it on `main`.
 
 ## 4. Commit Hygiene
 
@@ -74,10 +79,11 @@ Preferred sequence:
 ## 5. Asset Policy
 
 All inherited SkyOffice assets should be treated as development-only until a
-commercial licensing review is complete.
+commercial and open-source redistribution review is complete.
 
-Do not remove or replace assets during Phase 0 unless they block local
-development. Production asset cleanup is a later commercial-readiness phase.
+The target app must not bundle non-open assets. Legacy assets may remain under
+`legacy/skyoffice-original/` temporarily for reference, but new app code should
+load only assets that are covered by the future asset license manifest.
 
 ## 6. Local Backup Note
 
@@ -92,4 +98,3 @@ Temporary backup path:
 
 This backup is not part of the project and can be deleted later if no longer
 needed.
-
