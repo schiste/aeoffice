@@ -41,3 +41,17 @@ Virtual Office App itself.
 - Implementing production AI agents in Step 0.
 - Building a large-scale broadcast system before validating the core virtual
   office experience.
+
+## Phase 0 Baseline Check
+
+Run the imported SkyOffice baseline verification with:
+
+```bash
+scripts/verify-skyoffice-baseline.sh
+```
+
+After dependencies are already installed, use:
+
+```bash
+SKIP_INSTALL=1 scripts/verify-skyoffice-baseline.sh
+```

@@ -165,11 +165,28 @@ This gives Phase 0 a stable starting point:
 
 Recommended next checks:
 
-1. Add a repeatable root verification command or script.
-2. Run the dev server locally and confirm the app is playable.
-3. Capture a screenshot or browser smoke test once the dev server runs.
-4. Identify the first narrow refactor target:
+1. Run the dev server locally and confirm the app is playable.
+2. Capture a screenshot or browser smoke test once the dev server runs.
+3. Identify the first narrow refactor target:
    - world config boundary,
    - realtime auth boundary,
    - or meeting provider boundary.
 
+## 8. Repeatable Verification Script
+
+The baseline can now be re-run with:
+
+```bash
+scripts/verify-skyoffice-baseline.sh
+```
+
+If dependencies are already installed:
+
+```bash
+SKIP_INSTALL=1 scripts/verify-skyoffice-baseline.sh
+```
+
+When `SKIP_INSTALL=1` is used, the script intentionally calls local build
+binaries directly instead of invoking Yarn through npm. This keeps the normal
+refactor verification loop offline and avoids registry lookups after
+dependencies are installed.
