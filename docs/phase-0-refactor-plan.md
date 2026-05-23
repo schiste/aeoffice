@@ -300,8 +300,6 @@ Detailed notes are in `docs/phase-0-baseline-verification.md`.
 
 ### 6.4 Introduce World Configuration Boundary
 
-Status: started.
-
 Tasks:
 
 - Define a `WorldConfig` shape.
@@ -314,15 +312,6 @@ Acceptance criteria:
 - Server room can initialize interactive objects from config.
 - Current public room behavior remains equivalent.
 - Object count and type are no longer embedded directly in room setup logic.
-
-Initial implementation:
-
-- Added `server/world/OfficeWorldConfig.ts`.
-- Moved the current 5-computer and 3-whiteboard seed into
-  `defaultOfficeWorldConfig`.
-- `SkyOffice` now seeds interactive objects from config instead of inline
-  loops.
-- Baseline verification still passes.
 
 ### 6.5 Introduce Realtime Auth Boundary
 
