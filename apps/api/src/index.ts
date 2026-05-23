@@ -420,6 +420,12 @@ export {
   PostgresPlatformStore,
 } from "./postgres-store"
 
+export {
+  type PgClientLike,
+  type PgQueryResult,
+  PgSqlExecutor,
+} from "./pg-executor"
+
 function createSessionCookie(
   name: string,
   session: SessionRecord,

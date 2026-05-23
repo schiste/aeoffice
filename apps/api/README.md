@@ -25,6 +25,7 @@ Current implementation:
   should use Postgres through the migration schema.
 - `PostgresPlatformStore` maps the identity/session store contract to SQL
   through an injected executor, keeping driver choice out of domain logic.
+- `PgSqlExecutor` adapts a `pg`-style pool/client to that executor contract.
 
 Current persistence foundation:
 
@@ -34,4 +35,4 @@ Current persistence foundation:
 
 Next step:
 
-- Wire `PostgresPlatformStore` to a concrete `pg` pool and add Fastify routes.
+- Add Fastify routes and wire runtime configuration.
