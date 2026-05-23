@@ -12,8 +12,16 @@ Responsibilities:
 
 Secrets must never be exposed in frontend code.
 
+Reference docs:
+
+- https://www.mediawiki.org/wiki/Wikimedia_APIs/Authentication
+- https://www.mediawiki.org/wiki/OAuth/For_Developers
+
 Current implementation:
 
+- `WikimediaOAuthClient` builds authorization-code URLs, validates callback
+  state, exchanges authorization codes for tokens through an injected HTTP
+  client, and fetches `oauth2/resource/profile`.
 - `normalizeWikimediaProfile` converts the OAuth profile into the local
   identity shape used by `apps/api`.
 - `mapWikimediaGroupsToRoles` supports explicit group-to-role mappings.
@@ -22,5 +30,4 @@ Current implementation:
 
 Next step:
 
-- Add OAuth authorization URL, callback validation, token exchange, and profile
-  fetch helpers once runtime HTTP dependencies are installed.
+- Wire the helper into API routes with server-side state/session storage.

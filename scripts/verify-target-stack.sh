@@ -25,6 +25,9 @@ ln -sfn "../../packages/shared-types" "$ROOT_DIR/node_modules/@aedventure/shared
 echo "Running map-engine movement checks..."
 node "$ROOT_DIR/packages/map-engine/test/movement.test.js"
 
+echo "Running Wikimedia OAuth checks..."
+node "$ROOT_DIR/packages/auth-wikimedia/test/oauth-flow.test.js"
+
 echo "Running policy checks..."
 node "$ROOT_DIR/packages/policy/test/chat-policy.test.js"
 
