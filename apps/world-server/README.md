@@ -13,3 +13,14 @@ Responsibilities:
 
 Durable state belongs in Postgres through `apps/api`.
 
+Current implementation:
+
+- `AuthoritativeWorld` is a pure in-memory movement state machine.
+- It accepts protocol movement intents, not client coordinates.
+- It delegates collision and zone permission checks to `packages/map-engine`.
+- It emits `player_state`, `movement_rejected`, or `protocol_error` messages.
+
+Next step:
+
+- Wrap `AuthoritativeWorld` in a Colyseus room adapter after API/session token
+  boundaries exist.

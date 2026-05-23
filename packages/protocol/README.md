@@ -16,3 +16,11 @@ The first required protocol replacement is movement:
 { "type": "move", "direction": "down", "seq": 42 }
 ```
 
+Current implementation:
+
+- `MoveIntentMessage` validates the client movement intent.
+- `PlayerStateMessage` broadcasts server-authoritative position.
+- `MovementRejectedMessage` rejects invalid movement without accepting client
+  coordinates.
+- Runtime guards reject the old client-controlled `{ "x": 705, "y": 500 }`
+  style payload.

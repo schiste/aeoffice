@@ -1,0 +1,17 @@
+{
+  "files": [],
+  "references": [
+    {
+      "path": "packages/shared-types"
+    },
+    {
+      "path": "packages/protocol"
+    },
+    {
+      "path": "packages/map-engine"
+    },
+    {
+      "path": "apps/world-server"
+    }
+  ]
+}

@@ -58,6 +58,15 @@ architecture before product feature work resumes.
 
 ## Phase 0 Baseline Check
 
+Run the target stack verification with:
+
+```bash
+scripts/verify-target-stack.sh
+```
+
+This builds the new TypeScript workspace and runs the first authoritative
+movement checks for `packages/map-engine` and `apps/world-server`.
+
 Run the imported SkyOffice baseline verification with:
 
 ```bash

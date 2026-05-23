@@ -1,0 +1,23 @@
+{
+  "name": "aedventure-virtual-office",
+  "version": "0.1.0",
+  "private": true,
+  "license": "AGPL-3.0-or-later",
+  "type": "commonjs",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "check": "scripts/verify-target-stack.sh",
+    "check:target": "scripts/verify-target-stack.sh",
+    "check:legacy": "SKIP_INSTALL=1 scripts/verify-skyoffice-baseline.sh",
+    "build": "tsc -b"
+  },
+  "devDependencies": {
+    "typescript": "^4.8.2"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
