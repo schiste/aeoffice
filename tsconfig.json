@@ -11,6 +11,12 @@
       "path": "packages/map-engine"
     },
     {
+      "path": "packages/auth-wikimedia"
+    },
+    {
+      "path": "apps/api"
+    },
+    {
       "path": "apps/world-server"
     }
   ]

@@ -12,3 +12,15 @@ Responsibilities:
 
 Secrets must never be exposed in frontend code.
 
+Current implementation:
+
+- `normalizeWikimediaProfile` converts the OAuth profile into the local
+  identity shape used by `apps/api`.
+- `mapWikimediaGroupsToRoles` supports explicit group-to-role mappings.
+- The package does not assign privileged tenant roles by default; mappings
+  must be provided by the API/control-plane layer.
+
+Next step:
+
+- Add OAuth authorization URL, callback validation, token exchange, and profile
+  fetch helpers once runtime HTTP dependencies are installed.

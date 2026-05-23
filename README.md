@@ -64,8 +64,12 @@ Run the target stack verification with:
 scripts/verify-target-stack.sh
 ```
 
-This builds the new TypeScript workspace and runs the first authoritative
-movement checks for `packages/map-engine` and `apps/world-server`.
+This builds the new TypeScript workspace and runs checks for:
+
+- protocol message validation
+- map-engine movement, collision, and zone permissions
+- authoritative world-server movement
+- API Wikimedia sign-in, sessions, and world-token issuance
 
 Run the imported SkyOffice baseline verification with:
 

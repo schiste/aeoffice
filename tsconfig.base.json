@@ -19,6 +19,9 @@
       "@aedventure/map-engine": [
         "packages/map-engine/src"
       ],
+      "@aedventure/auth-wikimedia": [
+        "packages/auth-wikimedia/src"
+      ],
       "@aedventure/shared-types": [
         "packages/shared-types/src"
       ]
