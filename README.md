@@ -12,6 +12,14 @@ Virtual Office App itself.
 ## Canonical Documentation
 
 - [Global Product and Technical Specification](docs/customer-virtual-office-platform-spec.md)
+- [Phase 0 Refactor Plan](docs/phase-0-refactor-plan.md)
+- [SkyOffice Fork Maintenance](docs/skyoffice-fork-maintenance.md)
+
+## Source Layout
+
+- `apps/customer-virtual-office/` - SkyOffice fork imported with upstream Git
+  history preserved as a subtree.
+- `docs/` - product, architecture, and phase planning documents.
 
 ## Starting Position
 
@@ -32,4 +40,3 @@ Virtual Office App itself.
 - Implementing production AI agents in Step 0.
 - Building a large-scale broadcast system before validating the core virtual
   office experience.
-
