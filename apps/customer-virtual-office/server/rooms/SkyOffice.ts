@@ -16,6 +16,7 @@ import {
   WhiteboardRemoveUserCommand,
 } from './commands/WhiteboardUpdateArrayCommand'
 import ChatMessageUpdateCommand from './commands/ChatMessageUpdateCommand'
+import { defaultOfficeWorldConfig, OfficeWorldConfig } from '../world/OfficeWorldConfig'
 
 export class SkyOffice extends Room<OfficeState> {
   private dispatcher = new Dispatcher(this)
@@ -38,16 +39,7 @@ export class SkyOffice extends Room<OfficeState> {
     this.setMetadata({ name, description, hasPassword })
 
     this.setState(new OfficeState())
-
-    // HARD-CODED: Add 5 computers in a room
-    for (let i = 0; i < 5; i++) {
-      this.state.computers.set(String(i), new Computer())
-    }
-
-    // HARD-CODED: Add 3 whiteboards in a room
-    for (let i = 0; i < 3; i++) {
-      this.state.whiteboards.set(String(i), new Whiteboard())
-    }
+    this.seedInteractiveObjects(defaultOfficeWorldConfig)
 
     // when a player connect to a computer, add to the computer connectedUser array
     this.onMessage(Message.CONNECT_TO_COMPUTER, (client, message: { computerId: string }) => {
@@ -197,5 +189,15 @@ export class SkyOffice extends Room<OfficeState> {
 
     console.log('room', this.roomId, 'disposing...')
     this.dispatcher.stop()
+  }
+
+  private seedInteractiveObjects(worldConfig: OfficeWorldConfig) {
+    worldConfig.interactiveObjects.computers.forEach((computer) => {
+      this.state.computers.set(computer.id, new Computer())
+    })
+
+    worldConfig.interactiveObjects.whiteboards.forEach((whiteboard) => {
+      this.state.whiteboards.set(whiteboard.id, new Whiteboard())
+    })
   }
 }
