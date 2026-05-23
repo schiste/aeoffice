@@ -19,10 +19,14 @@ Current implementation:
 - It accepts protocol movement intents, not client coordinates.
 - It delegates collision and zone permission checks to `packages/map-engine`.
 - It delegates chat delivery permissions and recipients to `packages/policy`.
+- `WorldAdmissionService` admits players from verified API-issued world-token
+  claims.
+- `UnsignedLocalWorldTokenVerifier` is a development-only verifier for local
+  tests.
 - It emits `player_state`, `movement_rejected`, `chat_delivered`,
   `chat_rejected`, or `protocol_error` messages.
 
 Next step:
 
-- Wrap `AuthoritativeWorld` in a Colyseus room adapter after API/session token
-  boundaries exist.
+- Replace the local verifier with production JWT verification.
+- Wrap `AuthoritativeWorld` in a Colyseus room adapter.

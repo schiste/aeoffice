@@ -1,5 +1,9 @@
 const assert = require("assert")
-const { AuthoritativeWorld } = require("../dist/index.js")
+const {
+  AuthoritativeWorld,
+  UnsignedLocalWorldTokenVerifier,
+  WorldAdmissionService,
+} = require("../dist/index.js")
 const { CHAT_PERMISSIONS } = require("@aedventure/policy")
 
 const world = new AuthoritativeWorld({
@@ -194,3 +198,70 @@ const legacyChatShape = chatWorld.handleClientMessage(
 )
 
 assert.equal(legacyChatShape.type, "protocol_error")
+
+const admissionWorld = new AuthoritativeWorld({
+  map: {
+    width: 128,
+    height: 128,
+    tileSize: 32,
+    blockedTiles: [],
+  },
+  zones: [],
+  playerSize: { width: 16, height: 16 },
+  speedPxPerSecond: 64,
+  defaultAvatarId: "adam",
+  tickMs: 250,
+  defaultRoomId: "room-1",
+  proximityChatRadiusPx: 64,
+})
+const admission = new WorldAdmissionService(
+  admissionWorld,
+  new UnsignedLocalWorldTokenVerifier(),
+)
+
+const validClaims = {
+  sub: "usr_1",
+  sessionId: "sess_1",
+  roomId: "room-1",
+  permissions: [CHAT_PERMISSIONS.roomSend],
+  roles: ["space:member"],
+  expiresAt: "2026-05-23T10:05:00.000Z",
+}
+const admitted = admission.admit({
+  token: `unsigned-local.${JSON.stringify(validClaims)}`,
+  playerId: "admitted-player",
+  spawn: { x: 0, y: 0 },
+  requestedRoomId: "room-1",
+  nowMs: Date.parse("2026-05-23T10:00:00.000Z"),
+})
+
+assert.equal(admitted.status, "admitted")
+assert.equal(admitted.player.userId, "usr_1")
+assert.equal(admitted.player.roomId, "room-1")
+assert.deepEqual(admitted.player.permissions, [CHAT_PERMISSIONS.roomSend])
+assert.deepEqual(admitted.player.roles, ["space:member"])
+
+const wrongRoom = admission.admit({
+  token: `unsigned-local.${JSON.stringify(validClaims)}`,
+  playerId: "wrong-room-player",
+  spawn: { x: 0, y: 0 },
+  requestedRoomId: "room-2",
+  nowMs: Date.parse("2026-05-23T10:00:00.000Z"),
+})
+
+assert.equal(wrongRoom.status, "denied")
+assert.equal(wrongRoom.reason, "room_mismatch")
+
+const expired = admission.admit({
+  token: `unsigned-local.${JSON.stringify({
+    ...validClaims,
+    expiresAt: "2026-05-23T09:59:00.000Z",
+  })}`,
+  playerId: "expired-player",
+  spawn: { x: 0, y: 0 },
+  requestedRoomId: "room-1",
+  nowMs: Date.parse("2026-05-23T10:00:00.000Z"),
+})
+
+assert.equal(expired.status, "denied")
+assert.equal(expired.reason, "expired_token")

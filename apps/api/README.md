@@ -17,7 +17,8 @@ Current implementation:
   updates local users, OAuth identities, and sessions.
 - Blocked Wikimedia users are denied by default.
 - API sessions issue secure, HTTP-only cookie descriptors.
-- World tokens are short-lived claims derived from local sessions.
+- World tokens are short-lived claims derived from local sessions and shared
+  through `packages/shared-types`.
 - `InMemoryPlatformStore` is only a test/dev adapter; production persistence
   should use Postgres through the migration schema.
 

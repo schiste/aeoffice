@@ -23,6 +23,12 @@ import {
   evaluateChatDelivery,
   type ParticipantPolicyContext,
 } from "@aedventure/policy"
+import {
+  isWorldTokenClaims,
+  type RoomId,
+  type UserId,
+  type WorldTokenClaims,
+} from "@aedventure/shared-types"
 
 export interface WorldServerConfig {
   readonly map: CollisionMap
@@ -37,29 +43,35 @@ export interface WorldServerConfig {
 
 export interface AddPlayerInput {
   readonly playerId: string
+  readonly userId?: UserId
   readonly spawn: Vector2
   readonly avatarId?: string
   readonly roomId?: string
   readonly permissions?: readonly string[]
+  readonly roles?: readonly string[]
 }
 
 export interface PlayerSnapshot {
   readonly playerId: string
+  readonly userId?: UserId
   readonly position: Vector2
   readonly roomId: string
   readonly direction: Direction
   readonly zoneIds: readonly string[]
   readonly permissions: readonly string[]
+  readonly roles: readonly string[]
   readonly lastSeqAck: number
 }
 
 interface PlayerState {
   playerId: string
+  userId?: UserId
   position: Vector2
   roomId: string
   direction: Direction
   zoneIds: readonly string[]
   permissions: readonly string[]
+  roles: readonly string[]
   avatarId: string
   lastSeqAck: number
   lastProcessedAt?: number
@@ -73,6 +85,7 @@ export class AuthoritativeWorld {
   addPlayer(input: AddPlayerInput): PlayerSnapshot {
     const state: PlayerState = {
       playerId: input.playerId,
+      userId: input.userId,
       position: input.spawn,
       roomId: input.roomId ?? this.config.defaultRoomId,
       direction: "down",
@@ -82,6 +95,7 @@ export class AuthoritativeWorld {
         this.config.playerSize,
       ).map((zone) => zone.id),
       permissions: input.permissions ?? [],
+      roles: input.roles ?? [],
       avatarId: input.avatarId ?? this.config.defaultAvatarId,
       lastSeqAck: 0,
     }
@@ -211,6 +225,111 @@ export class AuthoritativeWorld {
   }
 }
 
+export interface WorldTokenVerifier {
+  verify(token: string): WorldTokenClaims
+}
+
+export interface WorldAdmissionInput {
+  readonly token: string
+  readonly playerId: string
+  readonly spawn: Vector2
+  readonly nowMs: number
+  readonly avatarId?: string
+  readonly requestedRoomId?: RoomId
+}
+
+export type WorldAdmissionDeniedReason =
+  | "invalid_token"
+  | "expired_token"
+  | "room_mismatch"
+
+export interface WorldAdmissionAllowed {
+  readonly status: "admitted"
+  readonly player: PlayerSnapshot
+  readonly claims: WorldTokenClaims
+}
+
+export interface WorldAdmissionDenied {
+  readonly status: "denied"
+  readonly reason: WorldAdmissionDeniedReason
+}
+
+export type WorldAdmissionResult =
+  | WorldAdmissionAllowed
+  | WorldAdmissionDenied
+
+export class WorldAdmissionService {
+  constructor(
+    private readonly world: AuthoritativeWorld,
+    private readonly verifier: WorldTokenVerifier,
+  ) {}
+
+  admit(input: WorldAdmissionInput): WorldAdmissionResult {
+    let claims: WorldTokenClaims
+
+    try {
+      claims = this.verifier.verify(input.token)
+    } catch {
+      return {
+        status: "denied",
+        reason: "invalid_token",
+      }
+    }
+
+    if (Date.parse(claims.expiresAt) <= input.nowMs) {
+      return {
+        status: "denied",
+        reason: "expired_token",
+      }
+    }
+
+    if (
+      claims.roomId !== undefined &&
+      input.requestedRoomId !== undefined &&
+      claims.roomId !== input.requestedRoomId
+    ) {
+      return {
+        status: "denied",
+        reason: "room_mismatch",
+      }
+    }
+
+    const player = this.world.addPlayer({
+      playerId: input.playerId,
+      userId: claims.sub,
+      spawn: input.spawn,
+      avatarId: input.avatarId,
+      roomId: input.requestedRoomId ?? claims.roomId,
+      permissions: claims.permissions,
+      roles: claims.roles,
+    })
+
+    return {
+      status: "admitted",
+      player,
+      claims,
+    }
+  }
+}
+
+export class UnsignedLocalWorldTokenVerifier implements WorldTokenVerifier {
+  verify(token: string): WorldTokenClaims {
+    const prefix = "unsigned-local."
+
+    if (!token.startsWith(prefix)) {
+      throw new Error("Unsupported token format.")
+    }
+
+    const parsed = JSON.parse(token.slice(prefix.length)) as unknown
+
+    if (!isWorldTokenClaims(parsed)) {
+      throw new Error("Invalid world token claims.")
+    }
+
+    return parsed
+  }
+}
+
 function playerStateMessage(
   state: PlayerState,
   seqAck: number,
@@ -277,11 +396,13 @@ function protocolError(
 function snapshot(state: PlayerState): PlayerSnapshot {
   return {
     playerId: state.playerId,
+    userId: state.userId,
     position: state.position,
     roomId: state.roomId,
     direction: state.direction,
     zoneIds: state.zoneIds,
     permissions: state.permissions,
+    roles: state.roles,
     lastSeqAck: state.lastSeqAck,
   }
 }

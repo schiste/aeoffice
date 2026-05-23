@@ -5,12 +5,17 @@ import {
   mapWikimediaGroupsToRoles,
   normalizeWikimediaProfile,
 } from "@aedventure/auth-wikimedia"
-import type { RoomId, SpaceId, UserId } from "@aedventure/shared-types"
+import type {
+  PermissionKey,
+  RoleKey,
+  RoomId,
+  SessionId,
+  SpaceId,
+  UserId,
+  WorldTokenClaims,
+} from "@aedventure/shared-types"
 
-export type SessionId = string
 export type OAuthIdentityId = string
-export type PermissionKey = string
-export type RoleKey = string
 
 export interface UserRecord {
   readonly id: UserId
@@ -49,16 +54,6 @@ export interface SessionCookie {
   readonly secure: true
   readonly sameSite: "lax" | "strict"
   readonly path: "/"
-  readonly expiresAt: string
-}
-
-export interface WorldTokenClaims {
-  readonly sub: UserId
-  readonly sessionId: SessionId
-  readonly spaceId?: SpaceId
-  readonly roomId?: RoomId
-  readonly permissions: readonly PermissionKey[]
-  readonly roles: readonly RoleKey[]
   readonly expiresAt: string
 }
 
@@ -198,11 +193,16 @@ export class AuthenticationService {
         })
 
     const session = this.options.store.createSession({
-      id: this.options.idGenerator.nextId("sess"),
+      id: this.options.idGenerator.nextId("sess") as SessionId,
       userId: user.id,
       now,
       expiresAt: iso(nowMs + this.options.policy.sessionTtlMs),
     })
+
+    const roleKeys = mapWikimediaGroupsToRoles(
+      identity,
+      this.options.roleMappings ?? [],
+    ) as readonly RoleKey[]
 
     return {
       status: "signed_in",
@@ -213,10 +213,7 @@ export class AuthenticationService {
         this.options.policy.sessionCookieName,
         session,
       ),
-      roleKeys: mapWikimediaGroupsToRoles(
-        identity,
-        this.options.roleMappings ?? [],
-      ),
+      roleKeys,
     }
   }
 
