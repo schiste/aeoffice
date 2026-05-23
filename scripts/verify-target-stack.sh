@@ -34,4 +34,7 @@ node "$ROOT_DIR/apps/world-server/test/authoritative-world.test.js"
 echo "Running API auth/session checks..."
 node "$ROOT_DIR/apps/api/test/authentication.test.js"
 
+echo "Running media-gateway checks..."
+node "$ROOT_DIR/apps/media-gateway/test/media-gateway.test.js"
+
 echo "Target stack verification passed."

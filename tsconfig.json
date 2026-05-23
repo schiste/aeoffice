@@ -20,6 +20,9 @@
       "path": "apps/api"
     },
     {
+      "path": "apps/media-gateway"
+    },
+    {
       "path": "apps/world-server"
     }
   ]

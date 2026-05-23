@@ -11,3 +11,21 @@ Responsibilities:
 
 PeerJS is not part of the target architecture.
 
+Current implementation:
+
+- `MediaGatewayService` evaluates media join requests through
+  `packages/policy`.
+- It issues short-lived media token claims for room, proximity, and zone media.
+- It records publish/subscribe grants in the token claim.
+- `UnsignedLocalMediaTokenSigner` is a development-only signer used by tests.
+
+Current non-goals:
+
+- No production LiveKit JWT signing yet.
+- No runtime HTTP server yet.
+- No PeerJS compatibility layer.
+
+Next step:
+
+- Replace the local signer with a real LiveKit JWT signer once runtime
+  dependencies and secret handling are added.

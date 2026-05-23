@@ -17,3 +17,7 @@ Expected services:
 - coturn.
 - S3-compatible object storage.
 
+Current implementation:
+
+- `coturn/turnserver.conf` is a local configuration skeleton.
+- Static TURN secrets must come from environment or a secret manager.

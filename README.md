@@ -72,6 +72,7 @@ This builds the new TypeScript workspace and runs checks for:
 - policy chat delivery and permission checks
 - authoritative world-server movement
 - API Wikimedia sign-in, sessions, and world-token issuance
+- media-gateway media policy and token claim issuance
 
 Run the imported SkyOffice baseline verification with:
 
