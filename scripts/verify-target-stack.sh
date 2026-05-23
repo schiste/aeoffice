@@ -39,4 +39,6 @@ node "$ROOT_DIR/apps/api/test/postgres-store.test.js"
 echo "Running media-gateway checks..."
 node "$ROOT_DIR/apps/media-gateway/test/media-gateway.test.js"
 
+"$ROOT_DIR/scripts/verify-infra-config.sh"
+
 echo "Target stack verification passed."
