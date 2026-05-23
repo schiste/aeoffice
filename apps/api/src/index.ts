@@ -414,6 +414,12 @@ export const DEFAULT_AUTHENTICATION_POLICY: AuthenticationPolicy = {
   sessionCookieName: "aedventure_session",
 }
 
+export {
+  type SqlExecutor,
+  type SqlQuery,
+  PostgresPlatformStore,
+} from "./postgres-store"
+
 function createSessionCookie(
   name: string,
   session: SessionRecord,

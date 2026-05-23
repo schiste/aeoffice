@@ -23,6 +23,8 @@ Current implementation:
   handlers for future Fastify routes.
 - `InMemoryPlatformStore` is only a test/dev adapter; production persistence
   should use Postgres through the migration schema.
+- `PostgresPlatformStore` maps the identity/session store contract to SQL
+  through an injected executor, keeping driver choice out of domain logic.
 
 Current persistence foundation:
 
@@ -32,4 +34,4 @@ Current persistence foundation:
 
 Next step:
 
-- Add Fastify routes and a Postgres-backed `PlatformStore` implementation.
+- Wire `PostgresPlatformStore` to a concrete `pg` pool and add Fastify routes.
