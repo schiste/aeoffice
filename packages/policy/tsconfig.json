@@ -7,13 +7,7 @@
   },
   "references": [
     {
-      "path": "../../packages/protocol"
-    },
-    {
-      "path": "../../packages/map-engine"
-    },
-    {
-      "path": "../../packages/policy"
+      "path": "../protocol"
     }
   ],
   "include": [

@@ -19,10 +19,14 @@ mkdir -p "$ROOT_DIR/node_modules/@aedventure"
 ln -sfn "../../packages/protocol" "$ROOT_DIR/node_modules/@aedventure/protocol"
 ln -sfn "../../packages/map-engine" "$ROOT_DIR/node_modules/@aedventure/map-engine"
 ln -sfn "../../packages/auth-wikimedia" "$ROOT_DIR/node_modules/@aedventure/auth-wikimedia"
+ln -sfn "../../packages/policy" "$ROOT_DIR/node_modules/@aedventure/policy"
 ln -sfn "../../packages/shared-types" "$ROOT_DIR/node_modules/@aedventure/shared-types"
 
 echo "Running map-engine movement checks..."
 node "$ROOT_DIR/packages/map-engine/test/movement.test.js"
+
+echo "Running policy checks..."
+node "$ROOT_DIR/packages/policy/test/chat-policy.test.js"
 
 echo "Running authoritative world-server checks..."
 node "$ROOT_DIR/apps/world-server/test/authoritative-world.test.js"

@@ -47,6 +47,11 @@ packages/auth-wikimedia
   profile normalization
   group/role mapping helpers
 
+packages/policy
+  permission checks
+  chat delivery policy
+  media join policy later
+
 packages/shared-types
   shared domain types
 ```
@@ -139,4 +144,3 @@ The client may hide UI, but server checks decide:
 - Moderate.
 - Transition spaces.
 - Access map/object metadata.
-

@@ -1,6 +1,9 @@
 import {
   animationForDirection,
+  isChatSendMessage,
   isMoveIntentMessage,
+  type ChatRejectedMessage,
+  type ChatSendMessage,
   type ClientMessage,
   type Direction,
   type MovementRejectedMessage,
@@ -14,7 +17,12 @@ import {
   type Vector2,
   type Zone,
   simulateMovement,
+  zonesAtPosition,
 } from "@aedventure/map-engine"
+import {
+  evaluateChatDelivery,
+  type ParticipantPolicyContext,
+} from "@aedventure/policy"
 
 export interface WorldServerConfig {
   readonly map: CollisionMap
@@ -23,18 +31,22 @@ export interface WorldServerConfig {
   readonly speedPxPerSecond: number
   readonly defaultAvatarId: string
   readonly tickMs: number
+  readonly defaultRoomId: string
+  readonly proximityChatRadiusPx: number
 }
 
 export interface AddPlayerInput {
   readonly playerId: string
   readonly spawn: Vector2
   readonly avatarId?: string
+  readonly roomId?: string
   readonly permissions?: readonly string[]
 }
 
 export interface PlayerSnapshot {
   readonly playerId: string
   readonly position: Vector2
+  readonly roomId: string
   readonly direction: Direction
   readonly zoneIds: readonly string[]
   readonly permissions: readonly string[]
@@ -44,6 +56,7 @@ export interface PlayerSnapshot {
 interface PlayerState {
   playerId: string
   position: Vector2
+  roomId: string
   direction: Direction
   zoneIds: readonly string[]
   permissions: readonly string[]
@@ -61,8 +74,13 @@ export class AuthoritativeWorld {
     const state: PlayerState = {
       playerId: input.playerId,
       position: input.spawn,
+      roomId: input.roomId ?? this.config.defaultRoomId,
       direction: "down",
-      zoneIds: [],
+      zoneIds: zonesAtPosition(
+        this.config.zones ?? [],
+        input.spawn,
+        this.config.playerSize,
+      ).map((zone) => zone.id),
       permissions: input.permissions ?? [],
       avatarId: input.avatarId ?? this.config.defaultAvatarId,
       lastSeqAck: 0,
@@ -98,6 +116,26 @@ export class AuthoritativeWorld {
       )
     }
 
+    if (isMoveIntentMessage(message)) {
+      return this.handleMoveIntent(state, message, nowMs)
+    }
+
+    if (isChatSendMessage(message)) {
+      return this.handleChatMessage(state, message, nowMs)
+    }
+
+    return protocolError(
+      "invalid_payload",
+      "Expected move intent or chat message.",
+      nowMs,
+    )
+  }
+
+  private handleMoveIntent(
+    state: PlayerState,
+    message: ClientMessage,
+    nowMs: number,
+  ): ServerMessage {
     if (!isMoveIntentMessage(message)) {
       return protocolError("invalid_payload", "Expected move intent message.", nowMs)
     }
@@ -123,7 +161,7 @@ export class AuthoritativeWorld {
 
     if (!result.accepted) {
       return movementRejected(
-        playerId,
+        state.playerId,
         result.reason ?? "collision",
         state.position,
         message.seq,
@@ -139,6 +177,37 @@ export class AuthoritativeWorld {
     )
 
     return playerStateMessage(state, message.seq, nowMs)
+  }
+
+  private handleChatMessage(
+    state: PlayerState,
+    message: ChatSendMessage,
+    nowMs: number,
+  ): ServerMessage {
+    const decision = evaluateChatDelivery({
+      sender: participantContext(state),
+      participants: [...this.players.values()].map(participantContext),
+      message,
+      config: {
+        proximityRadiusPx: this.config.proximityChatRadiusPx,
+      },
+    })
+
+    if (!decision.allowed) {
+      return chatRejected(state.playerId, decision.reason, message.seq, nowMs)
+    }
+
+    return {
+      type: "chat_delivered",
+      messageId: `${state.playerId}:${message.seq}`,
+      fromPlayerId: state.playerId,
+      scope: message.scope,
+      body: message.body.trim(),
+      recipientPlayerIds: decision.recipientPlayerIds,
+      zoneId: message.zoneId,
+      seqAck: message.seq,
+      serverTime: nowMs,
+    }
   }
 }
 
@@ -177,6 +246,21 @@ function movementRejected(
   }
 }
 
+function chatRejected(
+  playerId: string,
+  reason: ChatRejectedMessage["reason"],
+  seqAck: number,
+  serverTime: number,
+): ChatRejectedMessage {
+  return {
+    type: "chat_rejected",
+    playerId,
+    reason,
+    seqAck,
+    serverTime,
+  }
+}
+
 function protocolError(
   code: ProtocolErrorMessage["code"],
   message: string,
@@ -194,10 +278,21 @@ function snapshot(state: PlayerState): PlayerSnapshot {
   return {
     playerId: state.playerId,
     position: state.position,
+    roomId: state.roomId,
     direction: state.direction,
     zoneIds: state.zoneIds,
     permissions: state.permissions,
     lastSeqAck: state.lastSeqAck,
+  }
+}
+
+function participantContext(state: PlayerState): ParticipantPolicyContext {
+  return {
+    playerId: state.playerId,
+    roomId: state.roomId,
+    zoneIds: state.zoneIds,
+    permissions: state.permissions,
+    position: state.position,
   }
 }
 

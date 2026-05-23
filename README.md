@@ -27,6 +27,7 @@ architecture before product feature work resumes.
 - `packages/protocol/` - future client/server protocol definitions.
 - `packages/map-engine/` - future map parsing, collision, zones, and navigation.
 - `packages/auth-wikimedia/` - future Wikimedia OAuth 2.0 integration.
+- `packages/policy/` - server-side permission and delivery policy decisions.
 - `packages/shared-types/` - future shared application types.
 - `infra/` - future Docker Compose and deployment scaffolding.
 - `assets/ASSET_MANIFEST.md` - required manifest for any target-app assets.
@@ -68,6 +69,7 @@ This builds the new TypeScript workspace and runs checks for:
 
 - protocol message validation
 - map-engine movement, collision, and zone permissions
+- policy chat delivery and permission checks
 - authoritative world-server movement
 - API Wikimedia sign-in, sessions, and world-token issuance
 

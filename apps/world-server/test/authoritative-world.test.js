@@ -1,5 +1,6 @@
 const assert = require("assert")
 const { AuthoritativeWorld } = require("../dist/index.js")
+const { CHAT_PERMISSIONS } = require("@aedventure/policy")
 
 const world = new AuthoritativeWorld({
   map: {
@@ -19,6 +20,8 @@ const world = new AuthoritativeWorld({
   speedPxPerSecond: 64,
   defaultAvatarId: "adam",
   tickMs: 250,
+  defaultRoomId: "room-1",
+  proximityChatRadiusPx: 64,
 })
 
 world.addPlayer({
@@ -55,6 +58,8 @@ const permittedWorld = new AuthoritativeWorld({
   speedPxPerSecond: 64,
   defaultAvatarId: "adam",
   tickMs: 250,
+  defaultRoomId: "room-1",
+  proximityChatRadiusPx: 64,
 })
 
 permittedWorld.addPlayer({
@@ -104,3 +109,88 @@ const invalid = permittedWorld.handleClientMessage(
 
 assert.equal(invalid.type, "protocol_error")
 assert.equal(invalid.code, "invalid_payload")
+
+const chatWorld = new AuthoritativeWorld({
+  map: {
+    width: 256,
+    height: 256,
+    tileSize: 32,
+    blockedTiles: [],
+  },
+  zones: [
+    {
+      id: "zone-a",
+      bounds: { x: 0, y: 0, width: 128, height: 128 },
+    },
+  ],
+  playerSize: { width: 16, height: 16 },
+  speedPxPerSecond: 64,
+  defaultAvatarId: "adam",
+  tickMs: 250,
+  defaultRoomId: "room-1",
+  proximityChatRadiusPx: 64,
+})
+
+chatWorld.addPlayer({
+  playerId: "sender",
+  spawn: { x: 0, y: 0 },
+  permissions: [
+    CHAT_PERMISSIONS.roomSend,
+    CHAT_PERMISSIONS.proximitySend,
+    CHAT_PERMISSIONS.zoneSend,
+  ],
+})
+
+chatWorld.addPlayer({
+  playerId: "near",
+  spawn: { x: 32, y: 0 },
+  permissions: [
+    CHAT_PERMISSIONS.roomReceive,
+    CHAT_PERMISSIONS.proximityReceive,
+    CHAT_PERMISSIONS.zoneReceive,
+  ],
+})
+
+chatWorld.addPlayer({
+  playerId: "far",
+  spawn: { x: 200, y: 0 },
+  permissions: [
+    CHAT_PERMISSIONS.roomReceive,
+    CHAT_PERMISSIONS.proximityReceive,
+  ],
+})
+
+const roomChat = chatWorld.handleClientMessage(
+  "sender",
+  { type: "chat_send", scope: "room", body: "Hello room", seq: 10 },
+  2000,
+)
+
+assert.equal(roomChat.type, "chat_delivered")
+assert.deepEqual(roomChat.recipientPlayerIds, ["near", "far"])
+
+const proximityChat = chatWorld.handleClientMessage(
+  "sender",
+  { type: "chat_send", scope: "proximity", body: "Hello nearby", seq: 11 },
+  2001,
+)
+
+assert.equal(proximityChat.type, "chat_delivered")
+assert.deepEqual(proximityChat.recipientPlayerIds, ["near"])
+
+const zoneChat = chatWorld.handleClientMessage(
+  "sender",
+  { type: "chat_send", scope: "zone", zoneId: "zone-a", body: "Hello zone", seq: 12 },
+  2002,
+)
+
+assert.equal(zoneChat.type, "chat_delivered")
+assert.deepEqual(zoneChat.recipientPlayerIds, ["near"])
+
+const legacyChatShape = chatWorld.handleClientMessage(
+  "sender",
+  { type: "chat_send", message: "client decided recipients", seq: 13 },
+  2003,
+)
+
+assert.equal(legacyChatShape.type, "protocol_error")

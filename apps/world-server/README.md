@@ -18,7 +18,9 @@ Current implementation:
 - `AuthoritativeWorld` is a pure in-memory movement state machine.
 - It accepts protocol movement intents, not client coordinates.
 - It delegates collision and zone permission checks to `packages/map-engine`.
-- It emits `player_state`, `movement_rejected`, or `protocol_error` messages.
+- It delegates chat delivery permissions and recipients to `packages/policy`.
+- It emits `player_state`, `movement_rejected`, `chat_delivered`,
+  `chat_rejected`, or `protocol_error` messages.
 
 Next step:
 

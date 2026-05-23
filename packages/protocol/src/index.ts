@@ -1,14 +1,23 @@
 export const PROTOCOL_VERSION = 1
 
 export const DIRECTIONS = ["up", "down", "left", "right"] as const
+export const CHAT_SCOPES = [
+  "room",
+  "proximity",
+  "zone",
+  "moderator_announcement",
+] as const
 
 export type Direction = (typeof DIRECTIONS)[number]
+export type ChatScope = (typeof CHAT_SCOPES)[number]
 
-export type ClientMessage = MoveIntentMessage
+export type ClientMessage = MoveIntentMessage | ChatSendMessage
 
 export type ServerMessage =
   | PlayerStateMessage
   | MovementRejectedMessage
+  | ChatDeliveredMessage
+  | ChatRejectedMessage
   | ProtocolErrorMessage
 
 export interface MoveIntentMessage {
@@ -46,6 +55,43 @@ export interface MovementRejectedMessage {
   readonly serverTime: number
 }
 
+export interface ChatSendMessage {
+  readonly type: "chat_send"
+  readonly scope: ChatScope
+  readonly body: string
+  readonly seq: number
+  readonly zoneId?: string
+  readonly protocolVersion?: typeof PROTOCOL_VERSION
+}
+
+export type ChatRejectedReason =
+  | "invalid_message"
+  | "empty_body"
+  | "missing_permission"
+  | "out_of_scope"
+  | "no_recipients"
+  | "unknown_player"
+
+export interface ChatDeliveredMessage {
+  readonly type: "chat_delivered"
+  readonly messageId: string
+  readonly fromPlayerId: string
+  readonly scope: ChatScope
+  readonly body: string
+  readonly recipientPlayerIds: readonly string[]
+  readonly seqAck: number
+  readonly serverTime: number
+  readonly zoneId?: string
+}
+
+export interface ChatRejectedMessage {
+  readonly type: "chat_rejected"
+  readonly playerId: string
+  readonly reason: ChatRejectedReason
+  readonly seqAck: number
+  readonly serverTime: number
+}
+
 export interface ProtocolErrorMessage {
   readonly type: "protocol_error"
   readonly code: "unsupported_message" | "invalid_payload"
@@ -55,6 +101,10 @@ export interface ProtocolErrorMessage {
 
 export function isDirection(value: unknown): value is Direction {
   return typeof value === "string" && DIRECTIONS.includes(value as Direction)
+}
+
+export function isChatScope(value: unknown): value is ChatScope {
+  return typeof value === "string" && CHAT_SCOPES.includes(value as ChatScope)
 }
 
 export function isMoveIntentMessage(value: unknown): value is MoveIntentMessage {
@@ -68,6 +118,23 @@ export function isMoveIntentMessage(value: unknown): value is MoveIntentMessage 
     typeof seq === "number" &&
     Number.isInteger(seq) &&
     seq >= 0
+  )
+}
+
+export function isChatSendMessage(value: unknown): value is ChatSendMessage {
+  if (!isRecord(value)) return false
+
+  const seq = value.seq
+  const zoneId = value.zoneId
+
+  return (
+    value.type === "chat_send" &&
+    isChatScope(value.scope) &&
+    typeof value.body === "string" &&
+    typeof seq === "number" &&
+    Number.isInteger(seq) &&
+    seq >= 0 &&
+    (zoneId === undefined || typeof zoneId === "string")
   )
 }
 

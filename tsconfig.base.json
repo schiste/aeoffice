@@ -22,6 +22,9 @@
       "@aedventure/auth-wikimedia": [
         "packages/auth-wikimedia/src"
       ],
+      "@aedventure/policy": [
+        "packages/policy/src"
+      ],
       "@aedventure/shared-types": [
         "packages/shared-types/src"
       ]

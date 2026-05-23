@@ -24,3 +24,7 @@ Current implementation:
   coordinates.
 - Runtime guards reject the old client-controlled `{ "x": 705, "y": 500 }`
   style payload.
+- `ChatSendMessage` represents room, proximity, zone, and moderator
+  announcement chat requests.
+- Chat delivery responses include server-computed recipients or explicit
+  rejection reasons.
