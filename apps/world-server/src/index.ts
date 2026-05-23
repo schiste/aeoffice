@@ -258,6 +258,45 @@ export type WorldAdmissionResult =
   | WorldAdmissionAllowed
   | WorldAdmissionDenied
 
+export interface WorldRoomJoinRequest {
+  readonly clientId: string
+  readonly token: string
+  readonly playerId: string
+  readonly spawn: Vector2
+  readonly nowMs: number
+  readonly avatarId?: string
+  readonly requestedRoomId?: RoomId
+}
+
+export type WorldRoomJoinResult =
+  | {
+      readonly status: "joined"
+      readonly clientId: string
+      readonly player: PlayerSnapshot
+    }
+  | {
+      readonly status: "denied"
+      readonly clientId: string
+      readonly reason: WorldAdmissionDeniedReason
+    }
+
+export type WorldRoomEvent =
+  | {
+      readonly type: "send"
+      readonly clientIds: readonly string[]
+      readonly message: ServerMessage
+    }
+  | {
+      readonly type: "broadcast"
+      readonly exceptClientId?: string
+      readonly message: ServerMessage
+    }
+
+interface WorldRoomClient {
+  readonly clientId: string
+  readonly playerId: string
+}
+
 export class WorldAdmissionService {
   constructor(
     private readonly world: AuthoritativeWorld,
@@ -312,6 +351,81 @@ export class WorldAdmissionService {
   }
 }
 
+export class WorldRoomController {
+  private readonly clients = new Map<string, WorldRoomClient>()
+  private readonly playerClients = new Map<string, string>()
+
+  constructor(
+    private readonly world: AuthoritativeWorld,
+    private readonly admission: WorldAdmissionService,
+  ) {}
+
+  join(input: WorldRoomJoinRequest): WorldRoomJoinResult {
+    const admission = this.admission.admit({
+      token: input.token,
+      playerId: input.playerId,
+      spawn: input.spawn,
+      nowMs: input.nowMs,
+      avatarId: input.avatarId,
+      requestedRoomId: input.requestedRoomId,
+    })
+
+    if (admission.status === "denied") {
+      return {
+        status: "denied",
+        clientId: input.clientId,
+        reason: admission.reason,
+      }
+    }
+
+    this.clients.set(input.clientId, {
+      clientId: input.clientId,
+      playerId: input.playerId,
+    })
+    this.playerClients.set(input.playerId, input.clientId)
+
+    return {
+      status: "joined",
+      clientId: input.clientId,
+      player: admission.player,
+    }
+  }
+
+  leave(clientId: string): boolean {
+    const client = this.clients.get(clientId)
+
+    if (!client) {
+      return false
+    }
+
+    this.clients.delete(clientId)
+    this.playerClients.delete(client.playerId)
+    return this.world.removePlayer(client.playerId)
+  }
+
+  receive(clientId: string, message: unknown, nowMs: number): readonly WorldRoomEvent[] {
+    const client = this.clients.get(clientId)
+
+    if (!client) {
+      return [
+        {
+          type: "send",
+          clientIds: [clientId],
+          message: protocolError(
+            "invalid_payload",
+            "Client is not admitted to this world room.",
+            nowMs,
+          ),
+        },
+      ]
+    }
+
+    const response = this.world.handleClientMessage(client.playerId, message, nowMs)
+
+    return routeServerMessage(response, clientId, this.playerClients)
+  }
+}
+
 export class UnsignedLocalWorldTokenVerifier implements WorldTokenVerifier {
   verify(token: string): WorldTokenClaims {
     const prefix = "unsigned-local."
@@ -328,6 +442,48 @@ export class UnsignedLocalWorldTokenVerifier implements WorldTokenVerifier {
 
     return parsed
   }
+}
+
+function routeServerMessage(
+  message: ServerMessage,
+  senderClientId: string,
+  playerClients: ReadonlyMap<string, string>,
+): readonly WorldRoomEvent[] {
+  if (message.type === "chat_delivered") {
+    const recipientClientIds = message.recipientPlayerIds
+      .map((playerId) => playerClients.get(playerId))
+      .filter((clientId): clientId is string => clientId !== undefined)
+
+    return [
+      {
+        type: "send",
+        clientIds: [senderClientId],
+        message,
+      },
+      {
+        type: "send",
+        clientIds: recipientClientIds,
+        message,
+      },
+    ]
+  }
+
+  if (message.type === "player_state") {
+    return [
+      {
+        type: "broadcast",
+        message,
+      },
+    ]
+  }
+
+  return [
+    {
+      type: "send",
+      clientIds: [senderClientId],
+      message,
+    },
+  ]
 }
 
 function playerStateMessage(

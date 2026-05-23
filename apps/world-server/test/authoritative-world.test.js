@@ -3,6 +3,7 @@ const {
   AuthoritativeWorld,
   UnsignedLocalWorldTokenVerifier,
   WorldAdmissionService,
+  WorldRoomController,
 } = require("../dist/index.js")
 const { CHAT_PERMISSIONS } = require("@aedventure/policy")
 
@@ -265,3 +266,111 @@ const expired = admission.admit({
 
 assert.equal(expired.status, "denied")
 assert.equal(expired.reason, "expired_token")
+
+const roomWorld = new AuthoritativeWorld({
+  map: {
+    width: 256,
+    height: 256,
+    tileSize: 32,
+    blockedTiles: [],
+  },
+  zones: [],
+  playerSize: { width: 16, height: 16 },
+  speedPxPerSecond: 64,
+  defaultAvatarId: "adam",
+  tickMs: 250,
+  defaultRoomId: "room-1",
+  proximityChatRadiusPx: 64,
+})
+const roomAdmission = new WorldAdmissionService(
+  roomWorld,
+  new UnsignedLocalWorldTokenVerifier(),
+)
+const controller = new WorldRoomController(roomWorld, roomAdmission)
+
+const senderToken = `unsigned-local.${JSON.stringify({
+  sub: "usr_sender",
+  sessionId: "sess_sender",
+  roomId: "room-1",
+  permissions: [CHAT_PERMISSIONS.roomSend],
+  roles: ["space:member"],
+  expiresAt: "2026-05-23T10:05:00.000Z",
+})}`
+const receiverToken = `unsigned-local.${JSON.stringify({
+  sub: "usr_receiver",
+  sessionId: "sess_receiver",
+  roomId: "room-1",
+  permissions: [CHAT_PERMISSIONS.roomReceive],
+  roles: ["space:member"],
+  expiresAt: "2026-05-23T10:05:00.000Z",
+})}`
+
+const badJoin = controller.join({
+  clientId: "bad-client",
+  token: "not-a-token",
+  playerId: "bad-player",
+  spawn: { x: 0, y: 0 },
+  requestedRoomId: "room-1",
+  nowMs: Date.parse("2026-05-23T10:00:00.000Z"),
+})
+
+assert.equal(badJoin.status, "denied")
+assert.equal(badJoin.reason, "invalid_token")
+
+const senderJoin = controller.join({
+  clientId: "client-sender",
+  token: senderToken,
+  playerId: "player-sender",
+  spawn: { x: 0, y: 0 },
+  requestedRoomId: "room-1",
+  nowMs: Date.parse("2026-05-23T10:00:00.000Z"),
+})
+const receiverJoin = controller.join({
+  clientId: "client-receiver",
+  token: receiverToken,
+  playerId: "player-receiver",
+  spawn: { x: 32, y: 0 },
+  requestedRoomId: "room-1",
+  nowMs: Date.parse("2026-05-23T10:00:00.000Z"),
+})
+
+assert.equal(senderJoin.status, "joined")
+assert.equal(receiverJoin.status, "joined")
+
+const moveEvents = controller.receive(
+  "client-sender",
+  { type: "move", direction: "right", seq: 1 },
+  Date.parse("2026-05-23T10:00:01.000Z"),
+)
+
+assert.equal(moveEvents.length, 1)
+assert.equal(moveEvents[0].type, "broadcast")
+assert.equal(moveEvents[0].message.type, "player_state")
+assert.equal(moveEvents[0].message.playerId, "player-sender")
+assert.equal(moveEvents[0].message.x, 16)
+
+const chatEvents = controller.receive(
+  "client-sender",
+  { type: "chat_send", scope: "room", body: "Server-routed hello", seq: 2 },
+  Date.parse("2026-05-23T10:00:02.000Z"),
+)
+
+assert.equal(chatEvents.length, 2)
+assert.equal(chatEvents[0].type, "send")
+assert.deepEqual(chatEvents[0].clientIds, ["client-sender"])
+assert.equal(chatEvents[1].type, "send")
+assert.deepEqual(chatEvents[1].clientIds, ["client-receiver"])
+assert.equal(chatEvents[1].message.type, "chat_delivered")
+
+const unknownClientEvents = controller.receive(
+  "missing-client",
+  { type: "move", direction: "right", seq: 3 },
+  Date.parse("2026-05-23T10:00:03.000Z"),
+)
+
+assert.equal(unknownClientEvents[0].type, "send")
+assert.deepEqual(unknownClientEvents[0].clientIds, ["missing-client"])
+assert.equal(unknownClientEvents[0].message.type, "protocol_error")
+
+assert.equal(controller.leave("client-sender"), true)
+assert.equal(roomWorld.getPlayer("player-sender"), undefined)
