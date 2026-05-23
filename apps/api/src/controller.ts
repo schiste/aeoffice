@@ -1,10 +1,9 @@
 import type { WikimediaOAuthProfile } from "@aedventure/auth-wikimedia"
 import type {
-  PermissionKey,
-  RoleKey,
   RoomId,
   SessionId,
   SpaceId,
+  TenantId,
 } from "@aedventure/shared-types"
 import type {
   AuthenticationService,
@@ -12,6 +11,10 @@ import type {
   SessionCookie,
   SignInSuccess,
 } from "./index"
+import type {
+  ResolveUserAccessInput,
+  ResolvedUserAccess,
+} from "./permission-store"
 
 export interface ApiResponse<TBody> {
   readonly status: number
@@ -26,9 +29,8 @@ export interface SignInRequest {
 
 export interface IssueWorldTokenRequest {
   readonly sessionId: SessionId
-  readonly permissions: readonly PermissionKey[]
-  readonly roles: readonly RoleKey[]
   readonly nowMs: number
+  readonly tenantId?: TenantId
   readonly spaceId?: SpaceId
   readonly roomId?: RoomId
 }
@@ -50,8 +52,17 @@ export interface WorldTokenResponseBody {
   readonly claims: IssuedWorldToken["claims"]
 }
 
+export interface PermissionResolver {
+  resolveUserAccess(
+    input: ResolveUserAccessInput,
+  ): Promise<ResolvedUserAccess>
+}
+
 export class ApiController {
-  constructor(private readonly auth: AuthenticationService) {}
+  constructor(
+    private readonly auth: AuthenticationService,
+    private readonly permissionResolver: PermissionResolver,
+  ) {}
 
   async signInWithWikimediaProfile(
     request: SignInRequest,
@@ -84,9 +95,19 @@ export class ApiController {
     request: IssueWorldTokenRequest,
   ): Promise<ApiResponse<WorldTokenResponseBody | DeniedResponseBody>> {
     try {
+      const session = await this.auth.getActiveSession(
+        request.sessionId,
+        request.nowMs,
+      )
+      const access = await this.permissionResolver.resolveUserAccess({
+        userId: session.userId,
+        tenantId: request.tenantId,
+        spaceId: request.spaceId,
+        roomId: request.roomId,
+      })
       const issued = await this.auth.issueWorldToken(request.sessionId, {
-        permissions: request.permissions,
-        roles: request.roles,
+        permissions: access.permissions,
+        roles: access.roles,
         nowMs: request.nowMs,
         spaceId: request.spaceId,
         roomId: request.roomId,

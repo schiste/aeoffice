@@ -227,19 +227,7 @@ export class AuthenticationService {
       readonly roomId?: RoomId
     },
   ): Promise<IssuedWorldToken> {
-    const session = await this.options.store.findSessionById(sessionId)
-
-    if (!session) {
-      throw new Error("Cannot issue world token for unknown session.")
-    }
-
-    if (session.revokedAt) {
-      throw new Error("Cannot issue world token for revoked session.")
-    }
-
-    if (Date.parse(session.expiresAt) <= input.nowMs) {
-      throw new Error("Cannot issue world token for expired session.")
-    }
+    const session = await this.getActiveSession(sessionId, input.nowMs)
 
     const claims: WorldTokenClaims = {
       sub: session.userId,
@@ -255,6 +243,27 @@ export class AuthenticationService {
       token: this.options.tokenSigner.sign(claims),
       claims,
     }
+  }
+
+  async getActiveSession(
+    sessionId: SessionId,
+    nowMs: number,
+  ): Promise<SessionRecord> {
+    const session = await this.options.store.findSessionById(sessionId)
+
+    if (!session) {
+      throw new Error("Cannot issue world token for unknown session.")
+    }
+
+    if (session.revokedAt) {
+      throw new Error("Cannot issue world token for revoked session.")
+    }
+
+    if (Date.parse(session.expiresAt) <= nowMs) {
+      throw new Error("Cannot issue world token for expired session.")
+    }
+
+    return session
   }
 
   private async createUserForIdentity(
@@ -418,6 +427,7 @@ export {
   type ApiResponse,
   type DeniedResponseBody,
   type IssueWorldTokenRequest,
+  type PermissionResolver,
   type SignInRequest,
   type SignInResponseBody,
   type WorldTokenResponseBody,

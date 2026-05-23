@@ -83,6 +83,16 @@ async function invoke(handler, request) {
 }
 
 async function main() {
+  const permissionStore = {
+    calls: [],
+    async resolveUserAccess(input) {
+      this.calls.push(input)
+      return {
+        roles: ["space:event-organizer"],
+        permissions: ["room:lobby:enter"],
+      }
+    },
+  }
   const auth = new AuthenticationService({
     store: new InMemoryPlatformStore(),
     idGenerator: new SequentialIdGenerator(),
@@ -106,7 +116,7 @@ async function main() {
   const app = new RecordingApp()
 
   registerApiRoutes(app, {
-    apiController: new ApiController(auth),
+    apiController: new ApiController(auth, permissionStore),
     wikimediaOAuthController: new WikimediaOAuthController({
       oauth,
       auth,
@@ -146,27 +156,34 @@ async function main() {
   const token = await invoke(app.route("POST", "/world-token"), {
     body: {
       sessionId: callback.body.sessionId,
-      permissions: ["room:lobby:enter"],
-      roles: callback.body.roles,
+      tenantId: "tenant-wiki",
+      spaceId: "space-main",
       roomId: "room-lobby",
     },
   })
 
   assert.equal(token.statusCode, 200)
   assert.equal(token.body.claims.sessionId, callback.body.sessionId)
+  assert.equal(token.body.claims.spaceId, "space-main")
   assert.equal(token.body.claims.roomId, "room-lobby")
+  assert.deepEqual(token.body.claims.permissions, ["room:lobby:enter"])
+  assert.deepEqual(token.body.claims.roles, ["space:event-organizer"])
+  assert.deepEqual(permissionStore.calls[0], {
+    userId: callback.body.userId,
+    tenantId: "tenant-wiki",
+    spaceId: "space-main",
+    roomId: "room-lobby",
+  })
 
   const invalidToken = await invoke(app.route("POST", "/world-token"), {
     body: {
-      sessionId: callback.body.sessionId,
-      permissions: "room:lobby:enter",
-      roles: [],
+      roomId: "room-lobby",
     },
   })
 
   assert.equal(invalidToken.statusCode, 400)
   assert.equal(invalidToken.body.error, "bad_request")
-  assert.match(invalidToken.body.reason, /permissions/)
+  assert.match(invalidToken.body.reason, /sessionId/)
 }
 
 main().catch((error) => {

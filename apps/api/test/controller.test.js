@@ -11,6 +11,16 @@ const { ApiController } = require("../dist/controller.js")
 const nowMs = Date.parse("2026-05-23T10:00:00.000Z")
 
 async function main() {
+  const permissionStore = {
+    calls: [],
+    async resolveUserAccess(input) {
+      this.calls.push(input)
+      return {
+        roles: ["space:event-organizer"],
+        permissions: ["room:lobby:enter"],
+      }
+    },
+  }
   const auth = new AuthenticationService({
     store: new InMemoryPlatformStore(),
     idGenerator: new SequentialIdGenerator(),
@@ -23,7 +33,7 @@ async function main() {
       },
     ],
   })
-  const controller = new ApiController(auth)
+  const controller = new ApiController(auth, permissionStore)
 
   const signIn = await controller.signInWithWikimediaProfile({
     profile: {
@@ -44,16 +54,25 @@ async function main() {
 
   const token = await controller.issueWorldToken({
     sessionId: signIn.body.sessionId,
-    permissions: ["room:lobby:enter"],
-    roles: signIn.body.roles,
+    tenantId: "tenant-wiki",
+    spaceId: "space-main",
     roomId: "room-lobby",
     nowMs,
   })
 
   assert.equal(token.status, 200)
   assert.equal(token.body.claims.sessionId, signIn.body.sessionId)
+  assert.equal(token.body.claims.spaceId, "space-main")
   assert.equal(token.body.claims.roomId, "room-lobby")
+  assert.deepEqual(token.body.claims.permissions, ["room:lobby:enter"])
+  assert.deepEqual(token.body.claims.roles, ["space:event-organizer"])
   assert.ok(token.body.token.startsWith("unsigned-local."))
+  assert.deepEqual(permissionStore.calls[0], {
+    userId: signIn.body.userId,
+    tenantId: "tenant-wiki",
+    spaceId: "space-main",
+    roomId: "room-lobby",
+  })
 
   const blocked = await controller.signInWithWikimediaProfile({
     profile: {
@@ -70,8 +89,6 @@ async function main() {
 
   const badToken = await controller.issueWorldToken({
     sessionId: "missing_session",
-    permissions: [],
-    roles: [],
     nowMs,
   })
 

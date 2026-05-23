@@ -20,7 +20,9 @@ Current implementation:
 - World tokens are short-lived claims derived from local sessions and shared
   through `packages/shared-types`.
 - `ApiController` exposes dependency-light HTTP-shaped sign-in and world-token
-  handlers for future Fastify routes.
+  handlers for future Fastify routes. World-token issuance resolves roles and
+  permissions server-side through `PermissionStore`; clients do not submit
+  token permissions.
 - `WikimediaOAuthController` starts Wikimedia OAuth redirects, validates
   callback state, exchanges codes through `packages/auth-wikimedia`, and creates
   local sessions.

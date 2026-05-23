@@ -1,9 +1,8 @@
 import type {
-  PermissionKey,
-  RoleKey,
   RoomId,
   SessionId,
   SpaceId,
+  TenantId,
 } from "@aedventure/shared-types"
 import type {
   ApiController,
@@ -119,9 +118,8 @@ function issueWorldTokenRequest(
 
   return {
     sessionId: requiredString(body.sessionId, "sessionId") as SessionId,
-    permissions: stringArray(body.permissions, "permissions") as PermissionKey[],
-    roles: stringArray(body.roles, "roles") as RoleKey[],
     nowMs: clock.nowMs(),
+    tenantId: optionalString(body.tenantId) as TenantId | undefined,
     spaceId: optionalString(body.spaceId) as SpaceId | undefined,
     roomId: optionalString(body.roomId) as RoomId | undefined,
   }
@@ -167,14 +165,6 @@ function requiredString(value: unknown, fieldName: string): string {
   const parsed = optionalString(value)
   if (!parsed) throw new Error(`Missing required field: ${fieldName}.`)
   return parsed
-}
-
-function stringArray(value: unknown, fieldName: string): readonly string[] {
-  if (Array.isArray(value) && value.every((item) => typeof item === "string")) {
-    return value
-  }
-
-  throw new Error(`Missing required string array field: ${fieldName}.`)
 }
 
 function codeChallengeMethod(value: unknown): "S256" | "plain" | undefined {
