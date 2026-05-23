@@ -31,6 +31,8 @@ Current implementation:
 - `PostgresPlatformStore` maps the identity/session store contract to SQL
   through an injected executor, keeping driver choice out of domain logic.
 - `PgSqlExecutor` adapts a `pg`-style pool/client to that executor contract.
+- `PostgresWorldStore` maps spaces, rooms, maps, and map versions to the
+  durable schema, including active map-version publication.
 
 Current persistence foundation:
 

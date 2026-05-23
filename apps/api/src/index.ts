@@ -432,6 +432,22 @@ export {
 } from "./postgres-store"
 
 export {
+  type CreateMapInput,
+  type CreateMapVersionInput,
+  type CreateRoomInput,
+  type CreateSpaceInput,
+  type MapDocument,
+  type MapVersionRecord,
+  type MapVersionStatus,
+  type PublishMapVersionInput,
+  type RoomRecord,
+  type SpaceRecord,
+  type WorldMapRecord,
+  type WorldStore,
+  PostgresWorldStore,
+} from "./world-store"
+
+export {
   type PgClientLike,
   type PgQueryResult,
   PgSqlExecutor,

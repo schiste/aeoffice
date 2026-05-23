@@ -21,6 +21,11 @@ class RecordingExecutor {
     this.queries.push(query)
     return this.oneOrNoneRows.shift()
   }
+
+  async many(query) {
+    this.queries.push(query)
+    return []
+  }
 }
 
 async function main() {

@@ -41,6 +41,7 @@ node "$ROOT_DIR/apps/api/test/postgres-store.test.js"
 node "$ROOT_DIR/apps/api/test/pg-executor.test.js"
 node "$ROOT_DIR/apps/api/test/wikimedia-oauth-controller.test.js"
 node "$ROOT_DIR/apps/api/test/routes.test.js"
+node "$ROOT_DIR/apps/api/test/world-store.test.js"
 
 echo "Running media-gateway checks..."
 node "$ROOT_DIR/apps/media-gateway/test/media-gateway.test.js"

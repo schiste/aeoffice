@@ -62,6 +62,16 @@ async function main() {
       }),
     /exactly one/,
   )
+
+  const manyClient = new RecordingPgClient([{ rows: [{ id: 1 }, { id: 2 }] }])
+  const manyExecutor = new PgSqlExecutor(manyClient)
+
+  const rows = await manyExecutor.many({
+    text: "select * from rooms where space_id = $1",
+    values: ["space_1"],
+  })
+
+  assert.equal(rows.length, 2)
 }
 
 main().catch((error) => {

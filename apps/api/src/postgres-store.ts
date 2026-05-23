@@ -20,6 +20,7 @@ export interface SqlQuery {
 export interface SqlExecutor {
   oneOrNone<TRow>(query: SqlQuery): Promise<TRow | undefined>
   one<TRow>(query: SqlQuery): Promise<TRow>
+  many<TRow>(query: SqlQuery): Promise<readonly TRow[]>
 }
 
 type SqlTimestamp = string | Date

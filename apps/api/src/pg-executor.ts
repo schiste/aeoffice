@@ -33,4 +33,9 @@ export class PgSqlExecutor implements SqlExecutor {
 
     return result.rows[0]
   }
+
+  async many<TRow>(query: SqlQuery): Promise<readonly TRow[]> {
+    const result = await this.client.query<TRow>(query.text, query.values)
+    return result.rows
+  }
 }

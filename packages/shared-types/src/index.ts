@@ -8,6 +8,7 @@ export type SessionId = Brand<string, "SessionId">
 export type SpaceId = Brand<string, "SpaceId">
 export type RoomId = Brand<string, "RoomId">
 export type MapId = Brand<string, "MapId">
+export type MapVersionId = Brand<string, "MapVersionId">
 export type ZoneId = Brand<string, "ZoneId">
 export type PlayerId = Brand<string, "PlayerId">
 export type PermissionKey = Brand<string, "PermissionKey">
