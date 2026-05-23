@@ -448,6 +448,24 @@ export {
 } from "./world-store"
 
 export {
+  type AssignUserRoleInput,
+  type CreatePermissionInput,
+  type CreateRoleInput,
+  type GrantRolePermissionInput,
+  type PermissionId,
+  type PermissionRecord,
+  type PermissionStore,
+  type ResolveUserAccessInput,
+  type ResolvedUserAccess,
+  type RoleId,
+  type RolePermissionRecord,
+  type RoleRecord,
+  type UserRoleAssignmentId,
+  type UserRoleAssignmentRecord,
+  PostgresPermissionStore,
+} from "./permission-store"
+
+export {
   type PgClientLike,
   type PgQueryResult,
   PgSqlExecutor,

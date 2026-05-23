@@ -33,6 +33,8 @@ Current implementation:
 - `PgSqlExecutor` adapts a `pg`-style pool/client to that executor contract.
 - `PostgresWorldStore` maps spaces, rooms, maps, and map versions to the
   durable schema, including active map-version publication.
+- `PostgresPermissionStore` maps roles, permissions, role grants, user
+  assignments, and effective access resolution to the durable schema.
 
 Current persistence foundation:
 
