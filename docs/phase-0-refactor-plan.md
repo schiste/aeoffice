@@ -272,6 +272,8 @@ Acceptance criteria:
 
 ### 6.3 Add Baseline Verification
 
+Status: completed initial baseline on 2026-05-23.
+
 Tasks:
 
 - Install dependencies.
@@ -285,6 +287,16 @@ Acceptance criteria:
 - We know the current build state of upstream SkyOffice.
 - Any baseline failures are recorded.
 - Future refactor commits can be checked against the baseline.
+
+Initial result:
+
+- Root dependency install passed.
+- Client dependency install passed.
+- Server TypeScript build passed.
+- Client production build passed.
+- Vite reported a large bundle warning, but not a build failure.
+
+Detailed notes are in `docs/phase-0-baseline-verification.md`.
 
 ### 6.4 Introduce World Configuration Boundary
 
@@ -389,4 +401,3 @@ Phase 0 is complete when:
 - Current playable behavior remains available.
 - Asset licensing cleanup is documented as deferred.
 - Next phase can start building the Customer Virtual Office App MVP.
-
