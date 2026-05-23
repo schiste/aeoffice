@@ -426,6 +426,23 @@ export {
   PgSqlExecutor,
 } from "./pg-executor"
 
+export {
+  type BeginWikimediaSignInBody,
+  type BeginWikimediaSignInRequest,
+  type CompleteWikimediaSignInBody,
+  type CompleteWikimediaSignInRequest,
+  type CreateOAuthStateInput,
+  type ConsumeOAuthStateInput,
+  type OAuthDeniedBody,
+  type OAuthStateGenerator,
+  type OAuthStateRecord,
+  type OAuthStateStore,
+  type WikimediaOAuthControllerOptions,
+  InMemoryOAuthStateStore,
+  SequentialOAuthStateGenerator,
+  WikimediaOAuthController,
+} from "./wikimedia-oauth-controller"
+
 function createSessionCookie(
   name: string,
   session: SessionRecord,

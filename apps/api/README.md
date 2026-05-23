@@ -21,6 +21,9 @@ Current implementation:
   through `packages/shared-types`.
 - `ApiController` exposes dependency-light HTTP-shaped sign-in and world-token
   handlers for future Fastify routes.
+- `WikimediaOAuthController` starts Wikimedia OAuth redirects, validates
+  callback state, exchanges codes through `packages/auth-wikimedia`, and creates
+  local sessions.
 - `InMemoryPlatformStore` is only a test/dev adapter; production persistence
   should use Postgres through the migration schema.
 - `PostgresPlatformStore` maps the identity/session store contract to SQL
@@ -35,4 +38,4 @@ Current persistence foundation:
 
 Next step:
 
-- Add Fastify routes and wire runtime configuration.
+- Add Fastify route registration and wire runtime configuration.
