@@ -19,6 +19,8 @@ Current implementation:
 - API sessions issue secure, HTTP-only cookie descriptors.
 - World tokens are short-lived claims derived from local sessions and shared
   through `packages/shared-types`.
+- `ApiController` exposes dependency-light HTTP-shaped sign-in and world-token
+  handlers for future Fastify routes.
 - `InMemoryPlatformStore` is only a test/dev adapter; production persistence
   should use Postgres through the migration schema.
 
