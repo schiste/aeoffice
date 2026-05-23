@@ -24,6 +24,8 @@ Current implementation:
 - `WikimediaOAuthController` starts Wikimedia OAuth redirects, validates
   callback state, exchanges codes through `packages/auth-wikimedia`, and creates
   local sessions.
+- `registerApiRoutes` maps Fastify-shaped request/reply objects to the API and
+  Wikimedia OAuth controllers without taking a direct Fastify dependency yet.
 - `InMemoryPlatformStore` is only a test/dev adapter; production persistence
   should use Postgres through the migration schema.
 - `PostgresPlatformStore` maps the identity/session store contract to SQL
@@ -38,4 +40,5 @@ Current persistence foundation:
 
 Next step:
 
-- Add Fastify route registration and wire runtime configuration.
+- Install/wire Fastify runtime configuration and replace request body/session
+  placeholders with production middleware.

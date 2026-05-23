@@ -415,6 +415,17 @@ export const DEFAULT_AUTHENTICATION_POLICY: AuthenticationPolicy = {
 }
 
 export {
+  type ApiResponse,
+  type DeniedResponseBody,
+  type IssueWorldTokenRequest,
+  type SignInRequest,
+  type SignInResponseBody,
+  type WorldTokenResponseBody,
+  ApiController,
+  serializeSessionCookie,
+} from "./controller"
+
+export {
   type SqlExecutor,
   type SqlQuery,
   PostgresPlatformStore,
@@ -442,6 +453,16 @@ export {
   SequentialOAuthStateGenerator,
   WikimediaOAuthController,
 } from "./wikimedia-oauth-controller"
+
+export {
+  type ApiRoutesOptions,
+  type Clock,
+  type FastifyHandler,
+  type FastifyLike,
+  type FastifyReplyLike,
+  type FastifyRequestLike,
+  registerApiRoutes,
+} from "./routes"
 
 function createSessionCookie(
   name: string,
