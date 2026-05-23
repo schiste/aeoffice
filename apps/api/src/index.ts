@@ -98,17 +98,17 @@ export interface PlatformStore {
   findOAuthIdentity(
     provider: "wikimedia",
     providerSubject: string,
-  ): OAuthIdentityRecord | undefined
-  findUserById(userId: UserId): UserRecord | undefined
-  findSessionById(sessionId: SessionId): SessionRecord | undefined
-  createUser(input: CreateUserInput): UserRecord
-  updateUser(userId: UserId, input: UpdateUserInput): UserRecord
-  createOAuthIdentity(input: CreateOAuthIdentityInput): OAuthIdentityRecord
+  ): Promise<OAuthIdentityRecord | undefined>
+  findUserById(userId: UserId): Promise<UserRecord | undefined>
+  findSessionById(sessionId: SessionId): Promise<SessionRecord | undefined>
+  createUser(input: CreateUserInput): Promise<UserRecord>
+  updateUser(userId: UserId, input: UpdateUserInput): Promise<UserRecord>
+  createOAuthIdentity(input: CreateOAuthIdentityInput): Promise<OAuthIdentityRecord>
   updateOAuthIdentity(
     identityId: OAuthIdentityId,
     input: UpdateOAuthIdentityInput,
-  ): OAuthIdentityRecord
-  createSession(input: CreateSessionInput): SessionRecord
+  ): Promise<OAuthIdentityRecord>
+  createSession(input: CreateSessionInput): Promise<SessionRecord>
 }
 
 export interface CreateUserInput {
@@ -156,10 +156,10 @@ export interface AuthenticationServiceOptions {
 export class AuthenticationService {
   constructor(private readonly options: AuthenticationServiceOptions) {}
 
-  signInWithWikimediaProfile(
+  async signInWithWikimediaProfile(
     profile: WikimediaOAuthProfile,
     nowMs: number,
-  ): SignInResult {
+  ): Promise<SignInResult> {
     const identity = normalizeWikimediaProfile(profile)
 
     if (identity.blocked && this.options.policy.denyBlockedWikimediaUsers) {
@@ -171,28 +171,28 @@ export class AuthenticationService {
     }
 
     const now = iso(nowMs)
-    const existingIdentity = this.options.store.findOAuthIdentity(
+    const existingIdentity = await this.options.store.findOAuthIdentity(
       identity.provider,
       identity.providerSubject,
     )
 
     const user = existingIdentity
-      ? this.updateExistingUser(existingIdentity, identity, now)
-      : this.createUserForIdentity(identity, now)
+      ? await this.updateExistingUser(existingIdentity, identity, now)
+      : await this.createUserForIdentity(identity, now)
 
     const storedIdentity = existingIdentity
-      ? this.options.store.updateOAuthIdentity(existingIdentity.id, {
+      ? await this.options.store.updateOAuthIdentity(existingIdentity.id, {
           identity,
           now,
         })
-      : this.options.store.createOAuthIdentity({
+      : await this.options.store.createOAuthIdentity({
           id: this.options.idGenerator.nextId("oid"),
           userId: user.id,
           identity,
           now,
         })
 
-    const session = this.options.store.createSession({
+    const session = await this.options.store.createSession({
       id: this.options.idGenerator.nextId("sess") as SessionId,
       userId: user.id,
       now,
@@ -217,7 +217,7 @@ export class AuthenticationService {
     }
   }
 
-  issueWorldToken(
+  async issueWorldToken(
     sessionId: SessionId,
     input: {
       readonly permissions: readonly PermissionKey[]
@@ -226,8 +226,8 @@ export class AuthenticationService {
       readonly spaceId?: SpaceId
       readonly roomId?: RoomId
     },
-  ): IssuedWorldToken {
-    const session = this.options.store.findSessionById(sessionId)
+  ): Promise<IssuedWorldToken> {
+    const session = await this.options.store.findSessionById(sessionId)
 
     if (!session) {
       throw new Error("Cannot issue world token for unknown session.")
@@ -257,10 +257,10 @@ export class AuthenticationService {
     }
   }
 
-  private createUserForIdentity(
+  private async createUserForIdentity(
     identity: NormalizedWikimediaIdentity,
     now: string,
-  ): UserRecord {
+  ): Promise<UserRecord> {
     return this.options.store.createUser({
       id: this.options.idGenerator.nextId("usr") as UserId,
       username: identity.username,
@@ -270,11 +270,11 @@ export class AuthenticationService {
     })
   }
 
-  private updateExistingUser(
+  private async updateExistingUser(
     existingIdentity: OAuthIdentityRecord,
     identity: NormalizedWikimediaIdentity,
     now: string,
-  ): UserRecord {
+  ): Promise<UserRecord> {
     return this.options.store.updateUser(existingIdentity.userId, {
       username: identity.username,
       displayName: identity.username,
@@ -289,10 +289,10 @@ export class InMemoryPlatformStore implements PlatformStore {
   private readonly oauthIdentities = new Map<OAuthIdentityId, OAuthIdentityRecord>()
   private readonly sessions = new Map<SessionId, SessionRecord>()
 
-  findOAuthIdentity(
+  async findOAuthIdentity(
     provider: "wikimedia",
     providerSubject: string,
-  ): OAuthIdentityRecord | undefined {
+  ): Promise<OAuthIdentityRecord | undefined> {
     return [...this.oauthIdentities.values()].find(
       (identity) =>
         identity.provider === provider &&
@@ -300,15 +300,17 @@ export class InMemoryPlatformStore implements PlatformStore {
     )
   }
 
-  findUserById(userId: UserId): UserRecord | undefined {
+  async findUserById(userId: UserId): Promise<UserRecord | undefined> {
     return this.users.get(userId)
   }
 
-  findSessionById(sessionId: SessionId): SessionRecord | undefined {
+  async findSessionById(
+    sessionId: SessionId,
+  ): Promise<SessionRecord | undefined> {
     return this.sessions.get(sessionId)
   }
 
-  createUser(input: CreateUserInput): UserRecord {
+  async createUser(input: CreateUserInput): Promise<UserRecord> {
     const user: UserRecord = {
       id: input.id,
       username: input.username,
@@ -322,7 +324,7 @@ export class InMemoryPlatformStore implements PlatformStore {
     return user
   }
 
-  updateUser(userId: UserId, input: UpdateUserInput): UserRecord {
+  async updateUser(userId: UserId, input: UpdateUserInput): Promise<UserRecord> {
     const existing = required(this.users.get(userId), "Unknown user.")
     const updated: UserRecord = {
       ...existing,
@@ -336,7 +338,9 @@ export class InMemoryPlatformStore implements PlatformStore {
     return updated
   }
 
-  createOAuthIdentity(input: CreateOAuthIdentityInput): OAuthIdentityRecord {
+  async createOAuthIdentity(
+    input: CreateOAuthIdentityInput,
+  ): Promise<OAuthIdentityRecord> {
     const identity: OAuthIdentityRecord = {
       id: input.id,
       userId: input.userId,
@@ -353,10 +357,10 @@ export class InMemoryPlatformStore implements PlatformStore {
     return identity
   }
 
-  updateOAuthIdentity(
+  async updateOAuthIdentity(
     identityId: OAuthIdentityId,
     input: UpdateOAuthIdentityInput,
-  ): OAuthIdentityRecord {
+  ): Promise<OAuthIdentityRecord> {
     const existing = required(
       this.oauthIdentities.get(identityId),
       "Unknown OAuth identity.",
@@ -373,7 +377,7 @@ export class InMemoryPlatformStore implements PlatformStore {
     return updated
   }
 
-  createSession(input: CreateSessionInput): SessionRecord {
+  async createSession(input: CreateSessionInput): Promise<SessionRecord> {
     const session: SessionRecord = {
       id: input.id,
       userId: input.userId,

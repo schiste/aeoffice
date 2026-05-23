@@ -53,10 +53,10 @@ export interface WorldTokenResponseBody {
 export class ApiController {
   constructor(private readonly auth: AuthenticationService) {}
 
-  signInWithWikimediaProfile(
+  async signInWithWikimediaProfile(
     request: SignInRequest,
-  ): ApiResponse<SignInResponseBody | DeniedResponseBody> {
-    const result = this.auth.signInWithWikimediaProfile(
+  ): Promise<ApiResponse<SignInResponseBody | DeniedResponseBody>> {
+    const result = await this.auth.signInWithWikimediaProfile(
       request.profile,
       request.nowMs,
     )
@@ -80,11 +80,11 @@ export class ApiController {
     }
   }
 
-  issueWorldToken(
+  async issueWorldToken(
     request: IssueWorldTokenRequest,
-  ): ApiResponse<WorldTokenResponseBody | DeniedResponseBody> {
+  ): Promise<ApiResponse<WorldTokenResponseBody | DeniedResponseBody>> {
     try {
-      const issued = this.auth.issueWorldToken(request.sessionId, {
+      const issued = await this.auth.issueWorldToken(request.sessionId, {
         permissions: request.permissions,
         roles: request.roles,
         nowMs: request.nowMs,
