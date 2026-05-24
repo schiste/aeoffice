@@ -92,3 +92,14 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   walking out of the compiled zone auto-clears meeting media. Browser console
   warnings/errors stayed at zero. The standalone web-game client still cannot
   run because the skill runtime cannot resolve the `playwright` package.
+- Basic media UX is now wired around the existing `/media/media-token` route:
+  the browser stores token metadata for the active meeting zone, displays room,
+  endpoint, participant count, and token expiry, and keeps the raw token out of
+  `render_game_to_text`.
+- Mic/camera controls now model local device intent after token issuance. They
+  default off, enable only when the server grants publish permission, reset on
+  leave/reset/out-of-zone, and feed the media placeholder panel.
+- Playwright MCP verified token issuance, mic/camera toggles, leave cleanup,
+  desktop `1280x900`, and mobile `390x760`; browser console warnings/errors
+  stayed at zero. The standalone web-game client remains blocked by missing
+  `playwright`.

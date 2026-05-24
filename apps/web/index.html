@@ -69,6 +69,47 @@
           </div>
         </section>
 
+        <section id="media-panel" class="media-panel" aria-label="Media session" data-state="idle">
+          <div class="media-heading">
+            <div class="media-state">
+              <span>Media session</span>
+              <strong id="media-panel-status">Not connected</strong>
+            </div>
+            <div class="device-actions">
+              <button id="toggle-mic" type="button" aria-pressed="false" disabled>
+                Mic off
+              </button>
+              <button id="toggle-camera" type="button" aria-pressed="false" disabled>
+                Camera off
+              </button>
+            </div>
+          </div>
+          <div class="media-stage">
+            <div id="local-preview" class="local-preview" data-camera="off">
+              <span class="preview-avatar" aria-hidden="true">BA</span>
+              <strong id="preview-status">No media session</strong>
+            </div>
+            <dl class="media-meta">
+              <div>
+                <dt>Room</dt>
+                <dd id="media-room">None</dd>
+              </div>
+              <div>
+                <dt>Endpoint</dt>
+                <dd id="media-endpoint">None</dd>
+              </div>
+              <div>
+                <dt>Participants</dt>
+                <dd id="media-participants">0</dd>
+              </div>
+              <div>
+                <dt>Token</dt>
+                <dd id="media-token-status">Not issued</dd>
+              </div>
+            </dl>
+          </div>
+        </section>
+
         <div class="controls" aria-label="Movement controls">
           <button data-direction="up" type="button">↑</button>
           <button data-direction="left" type="button">←</button>

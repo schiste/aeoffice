@@ -128,6 +128,10 @@ interface AppState {
   activeZone?: FixtureZone
   meetingJoined: boolean
   meetingZoneId?: string
+  mediaRequestPending: boolean
+  mediaSession?: MediaSession
+  micEnabled: boolean
+  cameraEnabled: boolean
   lastMediaRoom?: string
   lastChatBody?: string
   lastMovementRejection?: {
@@ -153,12 +157,28 @@ interface ChatRecord {
 type MediaTokenResponse =
   | {
       readonly status: "issued"
+      readonly liveKitUrl: string
+      readonly token: string
       readonly room: string
+      readonly canPublish: boolean
+      readonly canSubscribe: boolean
+      readonly participantPlayerIds: readonly string[]
+      readonly expiresAt: string
     }
   | {
       readonly status: "denied"
       readonly reason?: string
     }
+
+interface MediaSession {
+  readonly liveKitUrl: string
+  readonly token: string
+  readonly room: string
+  readonly canPublish: boolean
+  readonly canSubscribe: boolean
+  readonly participantPlayerIds: readonly string[]
+  readonly expiresAt: string
+}
 
 const MOVE_REPEAT_MS = 250
 const MOVEMENT_REJECTION_FEEDBACK_MS = 1200
@@ -188,6 +208,10 @@ const state: AppState = {
   activeZone: undefined,
   meetingJoined: false,
   meetingZoneId: undefined,
+  mediaRequestPending: false,
+  mediaSession: undefined,
+  micEnabled: false,
+  cameraEnabled: false,
   lastMediaRoom: undefined,
   lastChatBody: undefined,
   lastMovementRejection: undefined,
@@ -221,6 +245,16 @@ const elements = {
   meetingStatus: mustQuery<HTMLElement>("#meeting-status"),
   joinMeeting: mustQuery<HTMLButtonElement>("#join-meeting"),
   leaveMeeting: mustQuery<HTMLButtonElement>("#leave-meeting"),
+  mediaPanel: mustQuery<HTMLElement>("#media-panel"),
+  mediaPanelStatus: mustQuery<HTMLElement>("#media-panel-status"),
+  mediaRoom: mustQuery<HTMLElement>("#media-room"),
+  mediaEndpoint: mustQuery<HTMLElement>("#media-endpoint"),
+  mediaParticipants: mustQuery<HTMLElement>("#media-participants"),
+  mediaTokenStatus: mustQuery<HTMLElement>("#media-token-status"),
+  localPreview: mustQuery<HTMLElement>("#local-preview"),
+  previewStatus: mustQuery<HTMLElement>("#preview-status"),
+  toggleMic: mustQuery<HTMLButtonElement>("#toggle-mic"),
+  toggleCamera: mustQuery<HTMLButtonElement>("#toggle-camera"),
   zoomOut: mustQuery<HTMLButtonElement>("#zoom-out"),
   zoomReset: mustQuery<HTMLButtonElement>("#zoom-reset"),
   zoomIn: mustQuery<HTMLButtonElement>("#zoom-in"),
@@ -231,6 +265,8 @@ elements.start.addEventListener("click", () => queueAction(() => startDemo()))
 elements.reset.addEventListener("click", () => queueAction(() => resetDemo()))
 elements.joinMeeting.addEventListener("click", () => queueAction(() => joinMeeting()))
 elements.leaveMeeting.addEventListener("click", () => queueAction(() => leaveMeeting()))
+elements.toggleMic.addEventListener("click", () => toggleMic())
+elements.toggleCamera.addEventListener("click", () => toggleCamera())
 document.querySelectorAll<HTMLButtonElement>("[data-direction]").forEach((button) => {
   button.addEventListener("click", () =>
     requestMove(button.dataset.direction as Direction),
@@ -278,6 +314,7 @@ loadFixtureMap().catch((error: unknown) => {
 })
 renderViewportControls(renderer.getViewportState())
 renderMeetingControls()
+renderMediaPanel()
 
 async function startDemo(): Promise<void> {
   elements.start.disabled = true
@@ -472,7 +509,8 @@ async function resetDemo(): Promise<void> {
   state.activeZone = undefined
   state.meetingJoined = false
   state.meetingZoneId = undefined
-  state.lastMediaRoom = undefined
+  state.mediaRequestPending = false
+  clearMediaSession()
   state.lastChatBody = undefined
   state.lastMovementRejection = undefined
   state.players.clear()
@@ -482,6 +520,7 @@ async function resetDemo(): Promise<void> {
   setConnectionStatus("session", "idle", "Disconnected")
   setConnectionStatus("world", "idle", "Not joined")
   setConnectionStatus("media", "idle", "Not ready")
+  renderMediaPanel()
   elements.start.textContent = "Join demo"
   elements.start.disabled = false
   elements.reset.disabled = true
@@ -599,7 +638,9 @@ async function joinMeeting(): Promise<void> {
   }
 
   elements.joinMeeting.disabled = true
+  state.mediaRequestPending = true
   setConnectionStatus("media", "pending", "Requesting media")
+  renderMediaPanel()
 
   try {
     const media = await postMediaToken({
@@ -614,26 +655,39 @@ async function joinMeeting(): Promise<void> {
       setConnectionStatus("media", "ready", "Media ready")
       state.meetingJoined = true
       state.meetingZoneId = zone.id
+      state.mediaSession = {
+        liveKitUrl: media.liveKitUrl,
+        token: media.token,
+        room: media.room,
+        canPublish: media.canPublish,
+        canSubscribe: media.canSubscribe,
+        participantPlayerIds: media.participantPlayerIds,
+        expiresAt: media.expiresAt,
+      }
+      state.micEnabled = false
+      state.cameraEnabled = false
       state.lastMediaRoom = media.room
       publishToast(`Joined ${zoneDisplayName(zone)}`, "success")
     } else {
       setConnectionStatus("media", "blocked", "Media denied")
       state.meetingJoined = false
       state.meetingZoneId = undefined
-      state.lastMediaRoom = undefined
+      clearMediaSession()
       publishToast(`Media denied: ${media.reason ?? "unknown"}`, "warning")
     }
   } catch (error: unknown) {
     setConnectionStatus("media", "blocked", "Media failed")
     state.meetingJoined = false
     state.meetingZoneId = undefined
-    state.lastMediaRoom = undefined
+    clearMediaSession()
     publishToast(
       error instanceof Error ? error.message : "Unable to request meeting media",
       "error",
     )
   } finally {
+    state.mediaRequestPending = false
     renderMeetingControls()
+    renderMediaPanel()
   }
 }
 
@@ -644,9 +698,10 @@ async function leaveMeeting(): Promise<void> {
 function leaveMeetingLocally(message: string): void {
   state.meetingJoined = false
   state.meetingZoneId = undefined
-  state.lastMediaRoom = undefined
+  clearMediaSession()
   setConnectionStatus("media", "idle", "Not ready")
   renderMeetingControls()
+  renderMediaPanel()
   publishToast(message, "info")
 }
 
@@ -901,6 +956,82 @@ function renderMeetingControls(): void {
   elements.leaveMeeting.disabled = !state.meetingJoined
 }
 
+function toggleMic(): void {
+  if (!state.mediaSession || !state.mediaSession.canPublish) {
+    publishToast("Join meeting media before changing mic state", "warning")
+    return
+  }
+
+  state.micEnabled = !state.micEnabled
+  renderMediaPanel()
+  publishToast(state.micEnabled ? "Mic on" : "Mic off", "info")
+}
+
+function toggleCamera(): void {
+  if (!state.mediaSession || !state.mediaSession.canPublish) {
+    publishToast("Join meeting media before changing camera state", "warning")
+    return
+  }
+
+  state.cameraEnabled = !state.cameraEnabled
+  renderMediaPanel()
+  publishToast(state.cameraEnabled ? "Camera on" : "Camera off", "info")
+}
+
+function clearMediaSession(): void {
+  state.mediaSession = undefined
+  state.micEnabled = false
+  state.cameraEnabled = false
+  state.lastMediaRoom = undefined
+}
+
+function renderMediaPanel(): void {
+  const session = state.mediaSession
+  const tokenState = state.mediaRequestPending
+    ? "Requesting token"
+    : session
+      ? "Token issued"
+      : "Not issued"
+  const panelState = state.mediaRequestPending
+    ? "pending"
+    : session
+      ? "ready"
+      : "idle"
+
+  elements.mediaPanel.dataset.state = panelState
+  elements.mediaPanelStatus.textContent = state.mediaRequestPending
+    ? "Requesting token"
+    : session
+      ? "Ready"
+      : "Not connected"
+  elements.mediaRoom.textContent = session?.room ?? "None"
+  elements.mediaEndpoint.textContent = session?.liveKitUrl ?? "None"
+  elements.mediaParticipants.textContent = session
+    ? String(session.participantPlayerIds.length)
+    : "0"
+  elements.mediaTokenStatus.textContent = session?.expiresAt
+    ? `${tokenState}, ${formatMediaExpiry(session.expiresAt)}`
+    : tokenState
+
+  elements.toggleMic.disabled = !session?.canPublish
+  elements.toggleMic.textContent = state.micEnabled ? "Mic on" : "Mic off"
+  elements.toggleMic.setAttribute("aria-pressed", String(state.micEnabled))
+  elements.toggleCamera.disabled = !session?.canPublish
+  elements.toggleCamera.textContent = state.cameraEnabled ? "Camera on" : "Camera off"
+  elements.toggleCamera.setAttribute("aria-pressed", String(state.cameraEnabled))
+
+  elements.localPreview.dataset.camera = state.cameraEnabled ? "on" : "off"
+  elements.previewStatus.textContent = session
+    ? state.cameraEnabled
+      ? "Camera on"
+      : state.micEnabled
+        ? "Mic on"
+        : "Muted"
+    : state.mediaRequestPending
+      ? "Requesting token"
+      : "No media session"
+}
+
 function isMeetingZone(zone: FixtureZone): boolean {
   return zone.zoneType.includes("meeting")
 }
@@ -912,6 +1043,17 @@ function meetingZoneLabel(zoneId: string | undefined, currentZone: FixtureZone |
 
 function zoneDisplayName(zone: FixtureZone): string {
   return titleCaseName(zone.id)
+}
+
+function formatMediaExpiry(expiresAt: string): string {
+  const expires = new Date(expiresAt)
+
+  if (Number.isNaN(expires.getTime())) return "expires soon"
+
+  return `expires ${expires.toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+  })}`
 }
 
 function setConnectionStatus(
@@ -1072,10 +1214,35 @@ async function postMediaToken(body: Record<string, unknown>): Promise<MediaToken
     throw new Error(parsed.reason ?? `HTTP ${response.status}`)
   }
 
-  if (parsed.status === "issued" && typeof (parsed as { room?: unknown }).room === "string") {
+  const issued = parsed as {
+    readonly status?: string
+    readonly liveKitUrl?: unknown
+    readonly token?: unknown
+    readonly room?: unknown
+    readonly canPublish?: unknown
+    readonly canSubscribe?: unknown
+    readonly participantPlayerIds?: unknown
+    readonly expiresAt?: unknown
+  }
+
+  if (issued.status === "issued" && typeof issued.room === "string") {
     return {
       status: "issued",
-      room: (parsed as { room: string }).room,
+      liveKitUrl:
+        typeof issued.liveKitUrl === "string" ? issued.liveKitUrl : "unknown",
+      token: typeof issued.token === "string" ? issued.token : "",
+      room: issued.room,
+      canPublish: issued.canPublish === true,
+      canSubscribe: issued.canSubscribe === true,
+      participantPlayerIds: Array.isArray(issued.participantPlayerIds)
+        ? issued.participantPlayerIds.filter(
+            (playerId): playerId is string => typeof playerId === "string",
+          )
+        : [],
+      expiresAt:
+        typeof issued.expiresAt === "string"
+          ? issued.expiresAt
+          : new Date(Date.now()).toISOString(),
     }
   }
 
@@ -1164,6 +1331,21 @@ function renderDemoToText(): string {
       zoneId: state.meetingZoneId,
       joinDisabled: elements.joinMeeting.disabled,
       leaveDisabled: elements.leaveMeeting.disabled,
+    },
+    media: {
+      panelStatus: elements.mediaPanelStatus.textContent,
+      tokenIssued: Boolean(state.mediaSession),
+      tokenStatus: elements.mediaTokenStatus.textContent,
+      room: state.mediaSession?.room,
+      liveKitUrl: state.mediaSession?.liveKitUrl,
+      canPublish: state.mediaSession?.canPublish,
+      canSubscribe: state.mediaSession?.canSubscribe,
+      participantPlayerIds: state.mediaSession?.participantPlayerIds ?? [],
+      mic: state.micEnabled ? "on" : "off",
+      camera: state.cameraEnabled ? "on" : "off",
+      micDisabled: elements.toggleMic.disabled,
+      cameraDisabled: elements.toggleCamera.disabled,
+      previewStatus: elements.previewStatus.textContent,
     },
     viewport: renderer.getViewportState(),
     map: state.fixtureMap

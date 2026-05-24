@@ -218,6 +218,138 @@ h1 {
   cursor: not-allowed;
 }
 
+.media-panel {
+  display: grid;
+  gap: 10px;
+  border-bottom: 1px solid #dbe4e7;
+  padding: 10px 0;
+}
+
+.media-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.media-state {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.media-state span {
+  color: #587179;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.media-state strong {
+  color: #172026;
+  font-size: 15px;
+  line-height: 1.25;
+}
+
+.device-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.device-actions button {
+  min-width: 112px;
+}
+
+.device-actions button[aria-pressed="true"] {
+  border-color: #2f8f63;
+  background: #2f8f63;
+}
+
+.device-actions button:disabled {
+  cursor: not-allowed;
+}
+
+.media-stage {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.55fr) minmax(0, 1fr);
+  gap: 12px;
+  align-items: stretch;
+}
+
+.local-preview {
+  position: relative;
+  display: grid;
+  min-height: 104px;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid #c9d6da;
+  border-radius: 8px;
+  background: #e7edf0;
+  color: #172026;
+}
+
+.local-preview[data-camera="on"] {
+  border-color: rgba(47, 143, 99, 0.55);
+  background:
+    linear-gradient(135deg, rgba(47, 143, 99, 0.18), rgba(30, 79, 85, 0.12)),
+    #e7edf0;
+}
+
+.preview-avatar {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  border-radius: 50%;
+  background: #1e4f55;
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.local-preview strong {
+  align-self: end;
+  margin-bottom: 12px;
+  color: #2c3f45;
+  font-size: 13px;
+}
+
+.media-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.media-meta div {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+  border: 1px solid #dbe4e7;
+  border-radius: 6px;
+  background: #ffffff;
+  padding: 9px 10px;
+}
+
+.media-meta dt {
+  color: #587179;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.media-meta dd {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: #172026;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .controls {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -354,6 +486,21 @@ h1 {
   }
 
   .meeting-actions button {
+    min-width: 0;
+  }
+
+  .media-heading,
+  .media-stage {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .device-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .device-actions button {
     min-width: 0;
   }
 
