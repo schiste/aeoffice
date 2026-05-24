@@ -226,14 +226,17 @@
             <details class="tool-section call-tool" open data-mobile-collapsible>
               <summary>Call</summary>
               <section class="call-panel" aria-label="Call controls">
-                <section class="meeting-panel" aria-label="Meeting zone">
+                <section id="meeting-panel" class="meeting-panel" aria-label="Meeting zone" data-state="outside">
                   <div class="meeting-state">
                     <span>Meeting zone</span>
                     <strong id="meeting-status">Outside meeting zone</strong>
                   </div>
+                  <p id="meeting-hint" class="meeting-hint">
+                    Walk into a marked meeting area to make the call controls available.
+                  </p>
                   <div class="meeting-actions">
-                    <button id="join-meeting" type="button" disabled>Join meeting</button>
-                    <button id="leave-meeting" type="button" disabled>Leave meeting</button>
+                    <button id="join-meeting" type="button" disabled>Join call</button>
+                    <button id="leave-meeting" type="button" disabled>Leave call</button>
                   </div>
                 </section>
 
@@ -248,6 +251,9 @@
                       <span>Media session</span>
                       <strong id="media-panel-status">Inactive</strong>
                     </div>
+                    <p id="media-availability" class="media-availability">
+                      Walk into a meeting zone to prepare mic and camera.
+                    </p>
                     <div class="device-actions">
                       <button id="toggle-mic" type="button" aria-pressed="false" disabled>
                         Mic off

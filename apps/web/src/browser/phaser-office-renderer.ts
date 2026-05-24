@@ -666,24 +666,37 @@ class OfficeScene extends Phaser.Scene {
     this.zones.forEach((zone) => {
       const active = this.activeZoneIds.has(zone.id)
       const hovered = this.hoveredZoneId === zone.id
+      const meetingZone = zone.zoneType.includes("meeting")
       const x = zone.xStart * this.tileSize
       const y = zone.yStart * this.tileSize
       const width = (zone.xEnd - zone.xStart) * this.tileSize
       const height = (zone.yEnd - zone.yStart) * this.tileSize
-      const fillAlpha = active ? 0.2 : hovered ? 0.15 : 0.06
-      const lineAlpha = active ? 0.98 : hovered ? 0.82 : 0.42
-      const lineWidth = active ? 3 : hovered ? 3 : 2
-      const color = active ? 0x2f8f63 : hovered ? 0x4b9a70 : 0x2f7c83
+      const fillAlpha = active ? 0.24 : hovered ? 0.15 : meetingZone ? 0.08 : 0.05
+      const lineAlpha = active ? 1 : hovered ? 0.82 : meetingZone ? 0.5 : 0.34
+      const lineWidth = active ? 3 : hovered ? 3 : meetingZone ? 2 : 1
+      const color = active ? 0x2f8f63 : hovered ? 0x4b9a70 : meetingZone ? 0x2f8f63 : 0x2f7c83
 
+      if (active) {
+        this.zoneGraphics?.lineStyle(10, color, 0.13)
+        this.zoneGraphics?.strokeRect(x - 4, y - 4, width + 8, height + 8)
+        this.zoneGraphics?.lineStyle(6, color, 0.18)
+        this.zoneGraphics?.strokeRect(x - 2, y - 2, width + 4, height + 4)
+      } else if (meetingZone) {
+        this.zoneGraphics?.lineStyle(5, color, 0.08)
+        this.zoneGraphics?.strokeRect(x - 2, y - 2, width + 4, height + 4)
+      }
       this.zoneGraphics?.fillStyle(color, fillAlpha)
       this.zoneGraphics?.fillRect(x, y, width, height)
       this.zoneGraphics?.lineStyle(lineWidth, color, lineAlpha)
       this.zoneGraphics?.strokeRect(x, y, width, height)
       if (active || hovered) {
+        const labelCopy = active && meetingZone
+          ? "Join call available"
+          : readableZoneLabel(zone)
         const label = this.add.text(
           x,
           y + 7,
-          readableZoneLabel(zone),
+          labelCopy,
           {
             color: active ? "#0f4f38" : "#1e5f55",
             fontFamily: "Aptos, Segoe UI, sans-serif",

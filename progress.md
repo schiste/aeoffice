@@ -289,6 +289,21 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   frontend smoke now asserts the same core generated-room UX path. Full
   `npm run check` passed; the known large Phaser/Vite chunk warning remains
   non-blocking.
+- Meeting-zone UX pass is now applied. Phaser meeting zones have a passive
+  boundary glow and an active "Join call available" label when the local player
+  enters the zone.
+- The Call module now has explicit outside/available/pending/joined panel
+  states. Entering a meeting zone enables Join call, explains that media is
+  available because the user is in that zone, and lets mic/camera controls act
+  as pre-call device intent before LiveKit wiring.
+- Joining the meeting still uses the server-issued `/media/media-token` flow;
+  prepared mic/camera state carries into the granted call session, while Leave
+  call and zone exit clear local media state.
+- Verification passed: browser meeting-zone QA on the local app with
+  available/joined/mobile screenshots, updated `npm run check`, and the
+  repository frontend smoke now covers zone availability, pre-call mic/camera
+  controls, and joined-call state. The known large Phaser/Vite chunk warning
+  remains non-blocking.
 - Phaser world presentation pass is applied. Furniture now renders as
   generated object sprites with y-based depth instead of one flat object
   tilemap layer, so tables, couches, chairs, doors, plants, and players share a

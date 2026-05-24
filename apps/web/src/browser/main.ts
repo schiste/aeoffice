@@ -341,11 +341,14 @@ const elements = {
   chatStatus: mustQuery<HTMLElement>("#chat-status"),
   chatMessages: mustQuery<HTMLOListElement>("#chat-messages"),
   toastRegion: mustQuery<HTMLElement>("#toast-region"),
+  meetingPanel: mustQuery<HTMLElement>("#meeting-panel"),
   meetingStatus: mustQuery<HTMLElement>("#meeting-status"),
+  meetingHint: mustQuery<HTMLElement>("#meeting-hint"),
   joinMeeting: mustQuery<HTMLButtonElement>("#join-meeting"),
   leaveMeeting: mustQuery<HTMLButtonElement>("#leave-meeting"),
   mediaPanel: mustQuery<HTMLElement>("#media-panel"),
   mediaPanelStatus: mustQuery<HTMLElement>("#media-panel-status"),
+  mediaAvailability: mustQuery<HTMLElement>("#media-availability"),
   mediaRoom: mustQuery<HTMLElement>("#media-room"),
   mediaEndpoint: mustQuery<HTMLElement>("#media-endpoint"),
   mediaParticipants: mustQuery<HTMLElement>("#media-participants"),
@@ -883,6 +886,7 @@ async function joinMeeting(): Promise<void> {
   elements.joinMeeting.disabled = true
   state.mediaRequestPending = true
   setConnectionStatus("media", "pending", "Requesting media")
+  renderMeetingControls()
   renderMediaPanel()
 
   try {
@@ -895,7 +899,7 @@ async function joinMeeting(): Promise<void> {
     })
 
     if (media.status === "issued") {
-      setConnectionStatus("media", "ready", "In meeting")
+      setConnectionStatus("media", "ready", "In call")
       state.meetingJoined = true
       state.meetingZoneId = zone.id
       state.mediaSession = {
@@ -907,8 +911,6 @@ async function joinMeeting(): Promise<void> {
         participantPlayerIds: media.participantPlayerIds,
         expiresAt: media.expiresAt,
       }
-      state.micEnabled = false
-      state.cameraEnabled = false
       state.lastMediaRoom = media.room
       publishToast(`Joined ${zoneDisplayName(zone)}`, "success")
     } else {
@@ -1430,10 +1432,17 @@ function updateActiveZoneFromPosition(): void {
 
   state.activeZone = zone
   renderer.setActiveZones(nextZoneId ? [nextZoneId] : [])
+  if (!activeMeetingZone() && !state.mediaSession) {
+    state.micEnabled = false
+    state.cameraEnabled = false
+  }
 
   if (previousZoneId !== nextZoneId) {
     if (zone) {
       recordEvent(`Entered ${zoneDisplayName(zone)}`)
+      if (state.joined && isMeetingZone(zone)) {
+        publishToast(`Call available in ${zoneDisplayName(zone)}`, "info")
+      }
     } else {
       recordEvent("Left meeting zone")
     }
@@ -1445,6 +1454,7 @@ function updateActiveZoneFromPosition(): void {
   }
 
   renderMeetingControls()
+  renderMediaPanel()
 }
 
 function setGeneratorPreviewState(
@@ -1525,39 +1535,97 @@ function zoneContainingPoint(
   })
 }
 
+function activeMeetingZone(): FixtureZone | undefined {
+  return state.joined && state.activeZone && isMeetingZone(state.activeZone)
+    ? state.activeZone
+    : undefined
+}
+
+function meetingHintLabel(zone: FixtureZone | undefined): string {
+  if (!state.joined) {
+    return "Enter the office, then walk into a marked meeting area."
+  }
+  if (state.mediaRequestPending) {
+    return "Asking the server for access to this zone call."
+  }
+  if (state.meetingJoined) {
+    return "Call connected. Leaving the zone clears the local call state."
+  }
+  if (zone) {
+    return "Call available here. Prepare mic/camera, then join when ready."
+  }
+  return "Walk into a highlighted meeting area to unlock call controls."
+}
+
+function mediaAvailabilityLabel(zone: FixtureZone | undefined): string {
+  if (state.mediaRequestPending) {
+    return "Checking server permission for this meeting zone."
+  }
+  if (state.mediaSession) {
+    return "Server access granted. Device controls affect this call session."
+  }
+  if (zone) {
+    return `Available because you are in ${zoneDisplayName(zone)}.`
+  }
+  return "Walk into a meeting zone to prepare mic and camera."
+}
+
+function canUseDeviceControls(): boolean {
+  if (state.mediaRequestPending) return false
+  if (state.mediaSession) return state.mediaSession.canPublish
+  return Boolean(activeMeetingZone())
+}
+
 function renderMeetingControls(): void {
   const zone = state.activeZone
-  const canJoinMeeting = state.joined && Boolean(zone && isMeetingZone(zone))
+  const availableZone = activeMeetingZone()
+  const canJoinMeeting = Boolean(availableZone) && !state.mediaRequestPending
 
-  elements.meetingStatus.textContent = state.meetingJoined
-    ? `In ${meetingZoneLabel(state.meetingZoneId, zone)}`
-    : zone && isMeetingZone(zone)
-      ? `Inside ${zoneDisplayName(zone)}`
-      : "Outside meeting zone"
+  elements.meetingPanel.dataset.state = state.mediaRequestPending
+    ? "pending"
+    : state.meetingJoined
+      ? "joined"
+      : availableZone
+        ? "available"
+        : "outside"
+  elements.meetingStatus.textContent = state.mediaRequestPending
+    ? "Requesting call access"
+    : state.meetingJoined
+      ? `In ${meetingZoneLabel(state.meetingZoneId, zone)} call`
+      : availableZone
+        ? `Inside ${zoneDisplayName(availableZone)}`
+        : "Outside meeting zone"
+  elements.meetingHint.textContent = meetingHintLabel(availableZone)
   elements.joinMeeting.disabled = !canJoinMeeting || state.meetingJoined
+  elements.joinMeeting.textContent = state.meetingJoined
+    ? "In call"
+    : state.mediaRequestPending
+      ? "Joining..."
+      : "Join call"
   elements.leaveMeeting.disabled = !state.meetingJoined
+  elements.leaveMeeting.textContent = "Leave call"
 }
 
 function toggleMic(): void {
-  if (!state.mediaSession || !state.mediaSession.canPublish) {
-    publishToast("Join meeting media before changing mic state", "warning")
+  if (!canUseDeviceControls()) {
+    publishToast("Walk into a meeting zone before changing mic state", "warning")
     return
   }
 
   state.micEnabled = !state.micEnabled
   renderMediaPanel()
-  publishToast(state.micEnabled ? "Mic on" : "Mic off", "info")
+  publishToast(state.micEnabled ? "Mic ready" : "Mic muted", "info")
 }
 
 function toggleCamera(): void {
-  if (!state.mediaSession || !state.mediaSession.canPublish) {
-    publishToast("Join meeting media before changing camera state", "warning")
+  if (!canUseDeviceControls()) {
+    publishToast("Walk into a meeting zone before changing camera state", "warning")
     return
   }
 
   state.cameraEnabled = !state.cameraEnabled
   renderMediaPanel()
-  publishToast(state.cameraEnabled ? "Camera on" : "Camera off", "info")
+  publishToast(state.cameraEnabled ? "Camera ready" : "Camera off", "info")
 }
 
 function clearMediaSession(): void {
@@ -1569,37 +1637,58 @@ function clearMediaSession(): void {
 
 function renderMediaPanel(): void {
   const session = state.mediaSession
+  const availableZone = activeMeetingZone()
+  const devicesAvailable = canUseDeviceControls()
   const tokenState = state.mediaRequestPending
     ? "Requesting access"
     : session
       ? "Access granted"
-      : "No access"
+      : availableZone
+        ? `Available because you are in ${zoneDisplayName(availableZone)}`
+        : "Enter a meeting zone"
   const panelState = state.mediaRequestPending
     ? "pending"
     : session
       ? "ready"
-      : "idle"
+      : availableZone
+        ? "available"
+        : "idle"
 
   elements.mediaPanel.dataset.state = panelState
   elements.mediaPanelStatus.textContent = state.mediaRequestPending
     ? "Requesting access"
     : session
-      ? "Ready"
-      : "Inactive"
-  elements.mediaRoom.textContent = session?.room ?? "Not joined"
-  elements.mediaEndpoint.textContent = session?.liveKitUrl ?? "Not joined"
+      ? "Connected"
+      : availableZone
+        ? "Available in zone"
+        : "Inactive"
+  elements.mediaAvailability.textContent = mediaAvailabilityLabel(availableZone)
+  elements.mediaRoom.textContent =
+    session?.room ?? (availableZone ? zoneDisplayName(availableZone) : "Not joined")
+  elements.mediaEndpoint.textContent =
+    session?.liveKitUrl ?? (availableZone ? "Ready after Join" : "Not joined")
   elements.mediaParticipants.textContent = session
     ? String(session.participantPlayerIds.length)
-    : "0"
+    : availableZone
+      ? "Join to see"
+      : "0"
   elements.mediaTokenStatus.textContent = session?.expiresAt
     ? `${tokenState}, ${formatMediaExpiry(session.expiresAt)}`
     : tokenState
 
-  elements.toggleMic.disabled = !session?.canPublish
-  elements.toggleMic.textContent = state.micEnabled ? "Mic on" : "Mic off"
+  elements.toggleMic.disabled = !devicesAvailable
+  elements.toggleMic.textContent = state.micEnabled
+    ? session
+      ? "Mic on"
+      : "Mic ready"
+    : "Mic muted"
   elements.toggleMic.setAttribute("aria-pressed", String(state.micEnabled))
-  elements.toggleCamera.disabled = !session?.canPublish
-  elements.toggleCamera.textContent = state.cameraEnabled ? "Camera on" : "Camera off"
+  elements.toggleCamera.disabled = !devicesAvailable
+  elements.toggleCamera.textContent = state.cameraEnabled
+    ? session
+      ? "Camera on"
+      : "Camera ready"
+    : "Camera off"
   elements.toggleCamera.setAttribute("aria-pressed", String(state.cameraEnabled))
 
   elements.localPreview.dataset.camera = state.cameraEnabled ? "on" : "off"
@@ -1613,7 +1702,13 @@ function renderMediaPanel(): void {
         : "Muted"
     : state.mediaRequestPending
       ? "Requesting access"
-      : "Media not joined"
+      : availableZone
+        ? state.cameraEnabled
+          ? "Camera ready"
+          : state.micEnabled
+            ? "Mic ready"
+            : "Devices ready"
+        : "Enter zone"
 }
 
 function recoverFromWorldLoss(reason: string): void {
@@ -2037,13 +2132,18 @@ function renderDemoToText(): string {
       activeZoneId: state.activeZone?.id,
       activeZoneType: state.activeZone?.zoneType,
       status: elements.meetingStatus.textContent,
+      hint: elements.meetingHint.textContent,
+      panelState: elements.meetingPanel.dataset.state,
       joined: state.meetingJoined,
       zoneId: state.meetingZoneId,
       joinDisabled: elements.joinMeeting.disabled,
+      joinLabel: elements.joinMeeting.textContent,
       leaveDisabled: elements.leaveMeeting.disabled,
+      leaveLabel: elements.leaveMeeting.textContent,
     },
     media: {
       panelStatus: elements.mediaPanelStatus.textContent,
+      availability: elements.mediaAvailability.textContent,
       tokenIssued: Boolean(state.mediaSession),
       tokenStatus: elements.mediaTokenStatus.textContent,
       room: state.mediaSession?.room,
@@ -2055,6 +2155,8 @@ function renderDemoToText(): string {
       camera: state.cameraEnabled ? "on" : "off",
       micDisabled: elements.toggleMic.disabled,
       cameraDisabled: elements.toggleCamera.disabled,
+      micLabel: elements.toggleMic.textContent,
+      cameraLabel: elements.toggleCamera.textContent,
       previewStatus: elements.previewStatus.textContent,
     },
     layout: {

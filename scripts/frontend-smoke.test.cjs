@@ -103,6 +103,33 @@ async function main() {
       state.chat.messages.some((message) => message.body === SMOKE_MESSAGE),
     )
 
+    const meetingReady = await waitForTextState(
+      page,
+      (state) =>
+        state.meeting.activeZoneId === "meeting-zone" &&
+        state.meeting.panelState === "available" &&
+        state.media.tokenIssued === false &&
+        /Available because you are in Meeting Zone/.test(
+          state.media.tokenStatus || "",
+        ) &&
+        state.media.micDisabled === false &&
+        state.media.cameraDisabled === false,
+    )
+    assert.equal(meetingReady.media.panelStatus, "Available in zone")
+
+    await page.locator("#toggle-mic").click()
+    await page.locator("#toggle-camera").click()
+    const devicesReady = await waitForTextState(
+      page,
+      (state) =>
+        state.media.tokenIssued === false &&
+        state.media.mic === "on" &&
+        state.media.camera === "on" &&
+        state.media.previewStatus === "Camera ready",
+    )
+    assert.equal(devicesReady.media.micLabel, "Mic ready")
+    assert.equal(devicesReady.media.cameraLabel, "Camera ready")
+
     await page.locator("#join-meeting").click()
     const media = await waitForTextState(
       page,
@@ -112,6 +139,9 @@ async function main() {
     )
     assert.equal(media.media.canPublish, true)
     assert.equal(media.media.canSubscribe, true)
+    assert.equal(media.meeting.panelState, "joined")
+    assert.equal(media.media.mic, "on")
+    assert.equal(media.media.camera, "on")
 
     await page.locator("#reset").click()
     const reset = await waitForTextState(

@@ -822,7 +822,28 @@ h1 {
 
 .meeting-panel {
   border-bottom: 1px solid var(--line);
+  border-radius: var(--radius-md);
   padding-bottom: var(--space-3);
+}
+
+.meeting-panel[data-state="available"] {
+  border: 1px solid rgba(47, 125, 83, 0.32);
+  background: rgba(225, 241, 232, 0.72);
+  padding: var(--space-3);
+}
+
+.meeting-panel[data-state="joined"] {
+  border: 1px solid rgba(35, 102, 90, 0.42);
+  background:
+    linear-gradient(135deg, rgba(35, 102, 90, 0.12), rgba(47, 125, 83, 0.16)),
+    var(--success-soft);
+  padding: var(--space-3);
+}
+
+.meeting-panel[data-state="pending"] {
+  border: 1px solid rgba(166, 111, 25, 0.34);
+  background: var(--warning-soft);
+  padding: var(--space-3);
 }
 
 .meeting-state,
@@ -838,6 +859,15 @@ h1 {
   font-size: 15px;
   font-weight: 750;
   line-height: 1.25;
+}
+
+.meeting-hint,
+.media-availability {
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.38;
 }
 
 .meeting-actions,
@@ -860,14 +890,29 @@ h1 {
   color: var(--warning);
 }
 
+.media-panel[data-state="available"] {
+  border-color: rgba(47, 125, 83, 0.34);
+}
+
+.media-panel[data-state="available"] .media-state strong {
+  color: var(--success);
+}
+
 .device-actions button {
   min-width: 0;
   padding-inline: var(--space-2);
 }
 
+.device-actions button:not(:disabled) {
+  border-color: rgba(35, 102, 90, 0.45);
+  background: var(--surface-raised);
+  color: var(--accent-strong);
+}
+
 .device-actions button[aria-pressed="true"] {
   border-color: var(--success);
   background: var(--success);
+  color: #ffffff;
 }
 
 .media-stage {
