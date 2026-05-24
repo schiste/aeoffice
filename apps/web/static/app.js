@@ -3,12 +3,14 @@ const state = {
   playerId: "player-1",
   clientId: `browser-${Math.floor(Math.random() * 100000)}`,
   seq: 1,
-  position: { x: 32, y: 32 },
+  position: { x: 96, y: 64 },
   joined: false,
+  fixtureMap: undefined,
 }
 
 const elements = {
   start: document.querySelector("#start"),
+  map: document.querySelector("#map"),
   player: document.querySelector("#player"),
   sessionStatus: document.querySelector("#session-status"),
   worldStatus: document.querySelector("#world-status"),
@@ -27,12 +29,19 @@ elements.chatForm.addEventListener("submit", (event) => {
   sendChat(elements.chatBody.value)
 })
 
-renderPlayer()
+loadFixtureMap().catch((error) => {
+  log(error instanceof Error ? error.message : "Unable to load fixture map")
+  renderPlayer()
+})
 
 async function runSmokeLoop() {
   elements.start.disabled = true
 
   try {
+    if (!state.fixtureMap) {
+      await loadFixtureMap()
+    }
+
     const session = await postJson("/dev/sign-in", {
       subject: "wikimedia-browser-user",
       username: "Browser Ada",
@@ -121,6 +130,79 @@ async function joinMedia() {
   }
 }
 
+async function loadFixtureMap() {
+  const fixtureMap = await getJson("/dev/fixture-map")
+  state.fixtureMap = fixtureMap
+  state.position = fixtureSpawnPosition(fixtureMap, "default")
+  renderMap(fixtureMap)
+  log(
+    `Loaded ${fixtureMap.definition.style} fixture map from ${fixtureMap.catalog.tokens.length} visual token(s)`,
+  )
+}
+
+function renderMap(fixtureMap) {
+  const player = elements.player
+  const tileSize = fixtureMap.compiled.tileSize
+  const world = document.createElement("div")
+  world.className = "tile-world"
+  world.style.width = `${fixtureMap.compiled.width * tileSize}px`
+  world.style.height = `${fixtureMap.compiled.height * tileSize}px`
+
+  const tokensByGid = new Map(
+    fixtureMap.catalog.tokens.map((token) => [token.provisionalGid, token]),
+  )
+
+  renderTileLayer(world, fixtureMap.compiled.layers.floor, tokensByGid, tileSize)
+  renderTileLayer(world, fixtureMap.compiled.layers.walls, tokensByGid, tileSize)
+  renderTileLayer(world, fixtureMap.compiled.layers.objects, tokensByGid, tileSize)
+  renderZones(world, fixtureMap.compiled.zones, tileSize)
+
+  elements.map.textContent = ""
+  world.append(player)
+  elements.map.append(world)
+  renderPlayer()
+}
+
+function renderTileLayer(world, layer, tokensByGid, tileSize) {
+  layer.gids.forEach((row, y) => {
+    row.forEach((gid, x) => {
+      if (gid === 0) return
+
+      const token = tokensByGid.get(gid)
+      if (!token) return
+
+      const tile = document.createElement("div")
+      tile.className = `tile tile-${token.kind}`
+      tile.dataset.token = token.id
+      tile.title = token.id
+      tile.style.left = `${x * tileSize}px`
+      tile.style.top = `${y * tileSize}px`
+      tile.style.width = `${token.widthTiles * tileSize}px`
+      tile.style.height = `${token.heightTiles * tileSize}px`
+
+      if (token.kind === "item") {
+        tile.textContent = labelForToken(token.id)
+      }
+
+      world.append(tile)
+    })
+  })
+}
+
+function renderZones(world, zones, tileSize) {
+  zones.forEach((zone) => {
+    const element = document.createElement("div")
+    element.className = `zone zone-${zone.zoneType}`
+    element.dataset.zone = zone.id
+    element.title = zone.id
+    element.style.left = `${zone.xStart * tileSize}px`
+    element.style.top = `${zone.yStart * tileSize}px`
+    element.style.width = `${(zone.xEnd - zone.xStart) * tileSize}px`
+    element.style.height = `${(zone.yEnd - zone.yStart) * tileSize}px`
+    world.append(element)
+  })
+}
+
 function applyEvents(events) {
   events
     .filter((event) => eventVisibleToClient(event))
@@ -155,6 +237,22 @@ function renderPlayer() {
   elements.player.style.top = `${state.position.y}px`
 }
 
+function fixtureSpawnPosition(fixtureMap, spawnId) {
+  const spawn = fixtureMap.spawnPoints.find((candidate) => candidate.id === spawnId)
+  return spawn ? spawn.position : state.position
+}
+
+async function getJson(path) {
+  const response = await fetch(path)
+  const parsed = await response.json()
+
+  if (!response.ok) {
+    throw new Error(parsed.reason ?? `HTTP ${response.status}`)
+  }
+
+  return parsed
+}
+
 async function postJson(path, body) {
   const response = await fetch(path, {
     method: "POST",
@@ -176,4 +274,11 @@ function log(message) {
   const item = document.createElement("li")
   item.textContent = message
   elements.events.prepend(item)
+}
+
+function labelForToken(tokenId) {
+  if (tokenId.includes("conference_table")) return "TABLE"
+  if (tokenId.includes("chair")) return "SEAT"
+  if (tokenId.includes("coffee")) return "CAFE"
+  return "ITEM"
 }

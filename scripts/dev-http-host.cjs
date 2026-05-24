@@ -70,7 +70,7 @@ function createDevelopmentRuntime(options = {}) {
   const handler = createPrefixedFetchHandler([
     {
       prefix: "/dev",
-      handler: createDevAuthHandler(apiRuntime, options.clock),
+      handler: createDevelopmentToolsHandler(apiRuntime, options.clock),
     },
     {
       prefix: "/api",
@@ -184,6 +184,92 @@ function createDevAuthHandler(apiRuntime, clock) {
       roles: result.roleKeys,
     })
   }
+}
+
+function createDevelopmentToolsHandler(apiRuntime, clock) {
+  const authHandler = createDevAuthHandler(apiRuntime, clock)
+  const fixtureMapHandler = createDevFixtureMapHandler()
+
+  return async (request) => {
+    const url = new URL(request.url)
+
+    if (url.pathname === "/sign-in") {
+      return authHandler(request)
+    }
+
+    if (url.pathname === "/fixture-map") {
+      return fixtureMapHandler(request)
+    }
+
+    return jsonResponse(404, {
+      error: "not_found",
+      reason: "No development tool route matches this request.",
+    })
+  }
+}
+
+function createDevFixtureMapHandler() {
+  return async (request) => {
+    if (request.method !== "GET" && request.method !== "HEAD") {
+      return jsonResponse(405, {
+        error: "method_not_allowed",
+        reason: "Fixture maps only support GET and HEAD.",
+      })
+    }
+
+    const body = createDevelopmentFixtureMap()
+    return new Response(request.method === "HEAD" ? undefined : JSON.stringify(body), {
+      status: 200,
+      headers: {
+        "content-type": "application/json",
+      },
+    })
+  }
+}
+
+function createDevelopmentFixtureMap() {
+  const assetRegistry = require("../packages/asset-registry/dist/index.js")
+  const definition = developmentSemanticMapDefinition()
+  const compiled = assetRegistry.compileSemanticMapDefinition(
+    definition,
+    assetRegistry.starterVisualAssetCatalog,
+  )
+  const tokenIds = new Set(compiled.referencedTokenIds)
+
+  return {
+    definition,
+    compiled,
+    spawnPoints: developmentFixtureSpawnPoints(compiled.tileSize),
+    catalog: {
+      version: assetRegistry.starterVisualAssetCatalog.version,
+      tileSize: assetRegistry.starterVisualAssetCatalog.tileSize,
+      tokens: assetRegistry.starterVisualAssetCatalog.tokens
+        .filter((token) => tokenIds.has(token.id))
+        .map((token) => ({
+          id: token.id,
+          kind: token.kind,
+          layer: token.layer,
+          provisionalGid: token.provisionalGid,
+          widthTiles: token.widthTiles,
+          heightTiles: token.heightTiles,
+          collidable: token.collidable,
+          tags: token.tags,
+        })),
+    },
+  }
+}
+
+function developmentFixtureSpawnPoints(tileSize) {
+  return [
+    {
+      id: "default",
+      position: { x: 3 * tileSize, y: 2 * tileSize },
+    },
+    {
+      id: "guest",
+      position: { x: 3 * tileSize, y: 3 * tileSize },
+    },
+  ]
 }
 
 function createStaticWebHandler(rootDir) {
@@ -327,22 +413,24 @@ function developmentEnv(env) {
 }
 
 function developmentWorldConfig() {
+  const fixtureMap = createDevelopmentFixtureMap().compiled
+
   return {
     map: {
-      width: 512,
-      height: 512,
-      tileSize: 32,
-      blockedTiles: [
-        { x: 0, y: 0 },
-        { x: 15, y: 15 },
-      ],
+      width: fixtureMap.width * fixtureMap.tileSize,
+      height: fixtureMap.height * fixtureMap.tileSize,
+      tileSize: fixtureMap.tileSize,
+      blockedTiles: fixtureMap.blockedTiles,
     },
-    zones: [
-      {
-        id: "meeting-zone",
-        bounds: { x: 32, y: 32, width: 128, height: 96 },
+    zones: fixtureMap.zones.map((zone) => ({
+      id: zone.id,
+      bounds: {
+        x: zone.xStart * fixtureMap.tileSize,
+        y: zone.yStart * fixtureMap.tileSize,
+        width: (zone.xEnd - zone.xStart) * fixtureMap.tileSize,
+        height: (zone.yEnd - zone.yStart) * fixtureMap.tileSize,
       },
-    ],
+    })),
     playerSize: { width: 16, height: 16 },
     speedPxPerSecond: 64,
     defaultAvatarId: "adam",
@@ -372,7 +460,7 @@ async function main() {
 
   console.log(`Aedventure dev HTTP host listening on ${url}`)
   console.log(`Browser shell available at ${url}/app`)
-  console.log("Mounted local-only dev auth under /dev")
+  console.log("Mounted local-only dev tools under /dev")
   console.log("Mounted API routes under /api")
   console.log("Mounted world routes under /world")
   console.log("Mounted media routes under /media")
@@ -393,8 +481,11 @@ if (require.main === module) {
 
 module.exports = {
   createDevelopmentFetchHandler,
+  createDevelopmentFixtureMap,
   createDevelopmentRuntime,
+  createDevelopmentToolsHandler,
   createDevAuthHandler,
+  createDevFixtureMapHandler,
   createNodeRequestHandler,
   createPrefixedFetchHandler,
   createStaticWebHandler,
@@ -402,4 +493,47 @@ module.exports = {
   nodeRequestToFetchRequest,
   startDevelopmentServer,
   writeFetchResponse,
+}
+
+function developmentSemanticMapDefinition() {
+  return {
+    roomDimensions: {
+      width: 12,
+      height: 10,
+    },
+    style: "cozy_wood",
+    layers: {
+      walls: [
+        { x: 0, y: 0, type: "corner" },
+        { x: 1, y: 0, type: "straight" },
+        { x: 2, y: 0, type: "straight" },
+        { x: 3, y: 0, type: "straight" },
+        { x: 4, y: 0, type: "straight" },
+        { x: 5, y: 0, type: "straight" },
+        { x: 6, y: 0, type: "straight" },
+        { x: 7, y: 0, type: "straight" },
+        { x: 8, y: 0, type: "straight" },
+        { x: 9, y: 0, type: "straight" },
+        { x: 10, y: 0, type: "straight" },
+        { x: 11, y: 0, type: "corner" },
+      ],
+      furniture: [
+        { x: 4, y: 3, item: "large_conference_table" },
+        { x: 4, y: 2, item: "office_chair", direction: "south" },
+        { x: 5, y: 2, item: "office_chair", direction: "south" },
+        { x: 6, y: 2, item: "office_chair", direction: "south" },
+        { x: 9, y: 1, item: "coffee_machine" },
+      ],
+      zones: [
+        {
+          id: "meeting-zone",
+          xStart: 3,
+          yStart: 2,
+          xEnd: 8,
+          yEnd: 6,
+          zoneType: "meeting_private",
+        },
+      ],
+    },
+  }
 }

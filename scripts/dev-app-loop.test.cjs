@@ -42,18 +42,21 @@ async function main() {
   const rendererEvents = []
   const firstApp = appFor(runtime.handler, "client-1", rendererEvents)
   const secondApp = appFor(runtime.handler, "client-2")
+  const fixtureMap = await getFixtureMap(runtime.handler)
+  const firstSpawn = fixtureSpawnPosition(fixtureMap, "default")
+  const secondSpawn = fixtureSpawnPosition(fixtureMap, "guest")
 
   const entered = await firstApp.enterWorld({
     sessionId: firstSignIn.session.id,
     playerId: "player-1",
-    spawn: { x: 32, y: 32 },
+    spawn: firstSpawn,
     roomId: "room-lobby",
     nowMs,
   })
   await secondApp.enterWorld({
     sessionId: secondSignIn.session.id,
     playerId: "player-2",
-    spawn: { x: 64, y: 32 },
+    spawn: secondSpawn,
     roomId: "room-lobby",
     nowMs,
   })
@@ -63,8 +66,8 @@ async function main() {
   assert.ok(firstApp.getState().worldToken.startsWith("unsigned-local."))
 
   await firstApp.move("right", nowMs + 250)
-  assert.equal(firstApp.getState().players[0].x, 48)
-  assert.equal(firstApp.getState().players[0].y, 32)
+  assert.equal(firstApp.getState().players[0].x, firstSpawn.x + 16)
+  assert.equal(firstApp.getState().players[0].y, firstSpawn.y)
 
   await firstApp.sendChat("room", "Hello through dev host", nowMs + 500)
   assert.equal(firstApp.getState().chatLog.length, 1)
@@ -80,7 +83,7 @@ async function main() {
   assert.deepEqual(media.participantPlayerIds, ["player-1", "player-2"])
   assert.deepEqual(rendererEvents, [
     ["entered", "player-1"],
-    ["updated", 48, 32],
+    ["updated", firstSpawn.x + 16, firstSpawn.y],
     ["chat", "Hello through dev host"],
     ["media", "zone:room-lobby:meeting-zone"],
   ])
@@ -153,6 +156,18 @@ async function signIn(handler, subject, username) {
       id: result.sessionId,
     },
   }
+}
+
+async function getFixtureMap(handler) {
+  const response = await handler(new Request("http://dev.local/dev/fixture-map"))
+  assert.equal(response.status, 200)
+  return response.json()
+}
+
+function fixtureSpawnPosition(fixtureMap, spawnId) {
+  const spawn = fixtureMap.spawnPoints.find((candidate) => candidate.id === spawnId)
+  assert.ok(spawn, `Missing fixture spawn point ${spawnId}`)
+  return spawn.position
 }
 
 main().catch((error) => {

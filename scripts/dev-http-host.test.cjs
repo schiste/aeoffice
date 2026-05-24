@@ -112,6 +112,9 @@ async function main() {
   const appStyles = await runtime.handler(
     new Request("http://localhost/app/styles.css"),
   )
+  const fixtureMap = await runtime.handler(
+    new Request("http://localhost/dev/fixture-map"),
+  )
   const devSignIn = await runtime.handler(
     new Request("http://localhost/dev/sign-in", {
       method: "POST",
@@ -127,9 +130,28 @@ async function main() {
   assert.match(await appShell.text(), /Local Virtual Office/)
   assert.equal(appShell.headers.get("content-type"), "text/html; charset=utf-8")
   assert.equal(appScript.status, 200)
-  assert.match(await appScript.text(), /runSmokeLoop/)
+  assert.match(await appScript.text(), /loadFixtureMap/)
   assert.equal(appStyles.status, 200)
-  assert.match(await appStyles.text(), /\.map/)
+  assert.match(await appStyles.text(), /\.tile-world/)
+  assert.equal(fixtureMap.status, 200)
+  const fixtureMapBody = await fixtureMap.json()
+  assert.equal(fixtureMapBody.compiled.width, 12)
+  assert.equal(fixtureMapBody.compiled.height, 10)
+  assert.equal(fixtureMapBody.compiled.tileSize, 32)
+  assert.deepEqual(fixtureMapBody.spawnPoints[0], {
+    id: "default",
+    position: { x: 96, y: 64 },
+  })
+  assert.ok(
+    fixtureMapBody.catalog.tokens.some(
+      (token) => token.id === "item.large_conference_table",
+    ),
+  )
+  assert.ok(
+    fixtureMapBody.compiled.blockedTiles.some(
+      (tile) => tile.x === 4 && tile.y === 3,
+    ),
+  )
   assert.equal(devSignIn.status, 200)
   assert.equal(devSignInBody.username, "Dev Ada")
   assert.ok(devSignInBody.sessionId)
