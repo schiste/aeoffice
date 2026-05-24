@@ -48,12 +48,15 @@ async function main() {
     )
     assert.equal(initial.lifecycle.stageOverlay.hidden, false)
     assert.doesNotMatch(initial.lifecycle.publicMessage, /unknown_client|HTTP/i)
+    assertRenderStateContract(initial)
     assert.equal(
       await page.evaluate(() => typeof window.render_game_to_text),
       "function",
     )
+    await assertMapSwitcherVisible(page)
     const generatedMapButton = page.locator('[data-map-id="generated"]')
     assert.equal(await generatedMapButton.isDisabled(), true)
+    await assertMobileCollapsedControls(browser, url)
 
     await page.locator('[data-prompt-example*="large 12-person"]').click()
     assert.match(await page.locator("#map-prompt").inputValue(), /12-person/)
@@ -84,6 +87,11 @@ async function main() {
     )
     assert.equal(meetingRoom.lifecycle.stageOverlay.hidden, false)
     await assertNonBlankMapScreenshot(page)
+    await assertMeetingControls(page, {
+      panelState: "outside",
+      joinEnabled: false,
+      leaveEnabled: false,
+    })
 
     await page.locator("#start").click()
     const joined = await waitForTextState(
@@ -98,6 +106,10 @@ async function main() {
     assert.equal(joined.movement.repeatMs, 190)
     assert.equal(joined.viewport.canZoomIn, true)
     assert.equal(joined.viewport.canZoomOut, true)
+    assert.equal(joined.world.joined, true)
+    assert.equal(joined.world.playerCount, joined.players.length)
+    assert.deepEqual(joined.world.snapshotPlayerIds, joined.snapshotPlayerIds)
+    assertRenderStateContract(joined)
 
     const beforeMove = joined.player
     await page.keyboard.press("ArrowDown")
@@ -110,12 +122,17 @@ async function main() {
     )
 
     await page.locator("#chat-body").fill(SMOKE_MESSAGE)
+    await assertChatFormUsable(page)
     await page.locator("#chat-form").evaluate((form) => {
       form.requestSubmit()
     })
-    await waitForTextState(page, (state) =>
-      state.chat.messages.some((message) => message.body === SMOKE_MESSAGE),
+    await waitForTextState(
+      page,
+      (state) =>
+        state.chat.messages.some((message) => message.body === SMOKE_MESSAGE) &&
+        state.lastChatBody === SMOKE_MESSAGE,
     )
+    await assertChatTranscriptContains(page, SMOKE_MESSAGE)
 
     const meetingReady = await waitForTextState(
       page,
@@ -130,6 +147,11 @@ async function main() {
         state.media.cameraDisabled === false,
     )
     assert.equal(meetingReady.media.panelStatus, "Available in zone")
+    await assertMeetingControls(page, {
+      panelState: "available",
+      joinEnabled: true,
+      leaveEnabled: false,
+    })
 
     await page.locator("#toggle-mic").click()
     await page.locator("#toggle-camera").click()
@@ -185,6 +207,12 @@ async function main() {
     assert.equal(media.meeting.panelState, "joined")
     assert.equal(media.media.mic, "off")
     assert.equal(media.media.camera, "off")
+    assertRenderStateContract(media)
+    await assertMeetingControls(page, {
+      panelState: "joined",
+      joinEnabled: false,
+      leaveEnabled: true,
+    })
 
     await page.locator("#toggle-mic").click()
     await page.locator("#toggle-camera").click()
@@ -258,6 +286,7 @@ async function main() {
         state.controls.joinLabel === "In office",
     )
     assert.equal(recovered.lifecycle.stageOverlay.hidden, true)
+    assertRenderStateContract(recovered)
 
     assert.deepEqual(consoleErrors, [])
   } finally {
@@ -297,6 +326,130 @@ async function renderGameToText(page) {
 
     return JSON.parse(window.render_game_to_text())
   })
+}
+
+function assertRenderStateContract(state) {
+  assert.equal(typeof state.layout?.mode, "string")
+  assert.ok(
+    Array.isArray(state.layout?.collapsibleSections),
+    "Expected layout.collapsibleSections in render_game_to_text.",
+  )
+  assert.equal(typeof state.world?.status, "string")
+  assert.equal(typeof state.world?.joined, "boolean")
+  assert.equal(typeof state.world?.playerCount, "number")
+  assert.ok(
+    Array.isArray(state.world?.snapshotPlayerIds),
+    "Expected world.snapshotPlayerIds in render_game_to_text.",
+  )
+  assert.equal(typeof state.media?.panelStatus, "string")
+  assert.equal(typeof state.media?.tokenIssued, "boolean")
+  assert.equal(typeof state.meeting?.panelState, "string")
+  assert.equal(typeof state.map?.renderer, "string")
+}
+
+async function assertMapSwitcherVisible(page) {
+  const expectedMaps = [
+    ["lobby", "Lobby"],
+    ["meeting_room", "Meeting room"],
+    ["lounge_cafe", "Lounge/café"],
+    ["generated", "Generated room"],
+  ]
+
+  for (const [mapId, label] of expectedMaps) {
+    const button = page.locator(`[data-map-id="${mapId}"]`)
+    await expectVisible(button, `Expected ${label} map switcher to be visible.`)
+  }
+}
+
+async function assertChatFormUsable(page) {
+  await expectVisible(page.locator("#chat-form"), "Expected chat form to be visible.")
+  await expectVisible(page.locator("#chat-body"), "Expected chat input to be visible.")
+  await expectVisible(
+    page.locator('#chat-form button[type="submit"]'),
+    "Expected chat send button to be visible.",
+  )
+  assert.equal(await page.locator("#chat-body").isDisabled(), false)
+  assert.equal(await page.locator('#chat-form button[type="submit"]').isDisabled(), false)
+}
+
+async function assertChatTranscriptContains(page, body) {
+  const matchingMessages = page.locator("#chat-messages li", {
+    hasText: body,
+  })
+
+  await matchingMessages.first().waitFor({ state: "visible", timeout: 3000 })
+  assert.ok(
+    (await matchingMessages.count()) >= 1,
+    `Expected chat transcript to include "${body}".`,
+  )
+}
+
+async function assertMeetingControls(page, expected) {
+  const state = await renderGameToText(page)
+  const join = page.locator("#join-meeting")
+  const leave = page.locator("#leave-meeting")
+
+  assert.equal(state.meeting.panelState, expected.panelState)
+  await expectVisible(join, "Expected Join call control to be visible.")
+  await expectVisible(leave, "Expected Leave call control to be visible.")
+  assert.equal(await join.isDisabled(), !expected.joinEnabled)
+  assert.equal(await leave.isDisabled(), !expected.leaveEnabled)
+  assert.equal(state.meeting.joinDisabled, !expected.joinEnabled)
+  assert.equal(state.meeting.leaveDisabled, !expected.leaveEnabled)
+}
+
+async function assertMobileCollapsedControls(browser, url) {
+  const mobilePage = await browser.newPage({
+    viewport: {
+      width: 390,
+      height: 760,
+    },
+  })
+
+  try {
+    await mobilePage.goto(`${url}/app`, { waitUntil: "domcontentloaded" })
+    const mobile = await waitForTextState(
+      mobilePage,
+      (state) =>
+        state.map?.activeMapId === "lobby" &&
+        state.lifecycle?.rendererReadiness === "ready" &&
+        state.layout?.mode === "mobile",
+    )
+
+    assertRenderStateContract(mobile)
+    assert.deepEqual(
+      mobile.layout.collapsibleSections.map((section) => ({
+        label: section.label,
+        open: section.open,
+      })),
+      [
+        { label: "Call", open: false },
+        { label: "Move", open: false },
+        { label: "Chat", open: false },
+      ],
+    )
+    await expectVisible(
+      mobilePage.locator("details.call-tool summary"),
+      "Expected collapsed Call control handle on mobile.",
+    )
+    await expectVisible(
+      mobilePage.locator("details.chat-tool summary"),
+      "Expected collapsed Chat control handle on mobile.",
+    )
+    await expectVisible(
+      mobilePage.locator("details.compact-tool summary"),
+      "Expected collapsed Move control handle on mobile.",
+    )
+    assert.equal(await mobilePage.locator("#join-meeting").isVisible(), false)
+    assert.equal(await mobilePage.locator("#chat-form").isVisible(), false)
+    await assertNonBlankMapScreenshot(mobilePage)
+  } finally {
+    await mobilePage.close()
+  }
+}
+
+async function expectVisible(locator, message) {
+  assert.equal(await locator.isVisible(), true, message)
 }
 
 async function assertNonBlankMapScreenshot(page) {

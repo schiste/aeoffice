@@ -2349,6 +2349,12 @@ function renderDemoToText(): string {
       resetDisabled: elements.reset.disabled,
       joinLabel: elements.start.textContent,
     },
+    world: {
+      status: elements.worldStatus.textContent,
+      joined: state.joined,
+      playerCount: state.players.size,
+      snapshotPlayerIds: state.snapshotPlayerIds,
+    },
     lifecycle: {
       phase: state.lifecycle.phase,
       message: state.lifecycle.message,

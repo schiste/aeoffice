@@ -346,3 +346,8 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   states. Representative screenshots were visually inspected for desktop,
   laptop, tablet-ish, mobile, and narrow mobile; controls remain reachable and
   the canvas remains the primary surface.
+- Browser smoke expansion is applied. The repo smoke now asserts map switcher
+  visibility, nonblank desktop and mobile map screenshots, usable chat form and
+  transcript, meeting control enabled/disabled states outside/inside/joined
+  states, mobile collapsed Call/Chat/Move handles, and the
+  `render_game_to_text` layout/world/media contract.
