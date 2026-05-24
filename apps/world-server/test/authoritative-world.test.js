@@ -493,6 +493,41 @@ async function gatewayRouteChecks() {
   assert.equal(joined.body.status, "joined")
   assert.equal(joined.body.player.playerId, "route-player")
 
+  const joinedSecond = await invoke(app.route("POST", "/join"), {
+    body: {
+      clientId: "route-client-2",
+      token,
+      playerId: "route-player-2",
+      spawn: { x: 32, y: 0 },
+      roomId: "room-1",
+    },
+  })
+
+  assert.equal(joinedSecond.statusCode, 200)
+  assert.equal(joinedSecond.body.status, "joined")
+
+  const snapshot = await invoke(app.route("POST", "/snapshot"), {
+    body: {
+      clientId: "route-client",
+    },
+  })
+
+  assert.equal(snapshot.statusCode, 200)
+  assert.equal(snapshot.body.status, "ok")
+  assert.deepEqual(
+    snapshot.body.players.map((player) => player.playerId),
+    ["route-player", "route-player-2"],
+  )
+
+  const deniedSnapshot = await invoke(app.route("POST", "/snapshot"), {
+    body: {
+      clientId: "missing-client",
+    },
+  })
+
+  assert.equal(deniedSnapshot.statusCode, 403)
+  assert.equal(deniedSnapshot.body.reason, "unknown_client")
+
   const moved = await invoke(app.route("POST", "/message"), {
     body: {
       clientId: "route-client",

@@ -113,6 +113,10 @@ export class AuthoritativeWorld {
     return state ? snapshot(state) : undefined
   }
 
+  listPlayers(): readonly PlayerSnapshot[] {
+    return [...this.players.values()].map(snapshot)
+  }
+
   getParticipant(playerId: string): ParticipantPolicyContext | undefined {
     const state = this.players.get(playerId)
     return state ? participantContext(state) : undefined
@@ -323,6 +327,10 @@ export interface SendWorldMessageRouteRequest {
   readonly message: unknown
 }
 
+export interface SnapshotWorldRouteRequest {
+  readonly clientId: string
+}
+
 export interface LeaveWorldRouteRequest {
   readonly clientId: string
 }
@@ -330,6 +338,18 @@ export interface LeaveWorldRouteRequest {
 export interface WorldMessageRouteBody {
   readonly events: readonly WorldRoomEvent[]
 }
+
+export type WorldRoomSnapshotResult =
+  | {
+      readonly status: "ok"
+      readonly clientId: string
+      readonly players: readonly PlayerSnapshot[]
+    }
+  | {
+      readonly status: "denied"
+      readonly clientId: string
+      readonly reason: "unknown_client"
+    }
 
 export interface LeaveWorldRouteBody {
   readonly left: boolean
@@ -515,6 +535,31 @@ export class WorldRoomController {
 
     return routeServerMessage(response, clientId, this.playerClients)
   }
+
+  snapshot(clientId: string): WorldRoomSnapshotResult {
+    const client = this.clients.get(clientId)
+
+    if (!client) {
+      return {
+        status: "denied",
+        clientId,
+        reason: "unknown_client",
+      }
+    }
+
+    const requester = this.world.getPlayer(client.playerId)
+    const players = requester
+      ? this.world
+          .listPlayers()
+          .filter((player) => player.roomId === requester.roomId)
+      : []
+
+    return {
+      status: "ok",
+      clientId,
+      players,
+    }
+  }
 }
 
 export class WorldGatewayController {
@@ -552,6 +597,17 @@ export class WorldGatewayController {
     }
   }
 
+  snapshot(
+    request: SnapshotWorldRouteRequest,
+  ): WorldGatewayResponse<WorldRoomSnapshotResult> {
+    const result = this.room.snapshot(request.clientId)
+
+    return {
+      status: result.status === "ok" ? 200 : 403,
+      body: result,
+    }
+  }
+
   leave(request: LeaveWorldRouteRequest): WorldGatewayResponse<LeaveWorldRouteBody> {
     return {
       status: 200,
@@ -578,6 +634,12 @@ export function registerWorldGatewayRoutes(
         sendWorldMessageRouteRequest(request),
         options.clock.nowMs(),
       ),
+    ),
+  )
+
+  app.post("/snapshot", async (request, reply) =>
+    sendRoute(reply, async () =>
+      options.controller.snapshot(snapshotWorldRouteRequest(request)),
     ),
   )
 
@@ -661,6 +723,16 @@ function sendWorldMessageRouteRequest(
   return {
     clientId: requiredString(body.clientId, "clientId"),
     message: body.message,
+  }
+}
+
+function snapshotWorldRouteRequest(
+  request: FastifyRequestLike,
+): SnapshotWorldRouteRequest {
+  const body = asRecord(request.body)
+
+  return {
+    clientId: requiredString(body.clientId, "clientId"),
   }
 }
 

@@ -29,3 +29,5 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
 - Reusable app layer now has `CustomerVirtualOfficeApp.leaveWorld()` and
   `TransportWorldClient.leave()` so future Phaser code can use the same lifecycle
   path as the local browser demo.
+- World server now exposes a room-scoped snapshot route so clients can sync
+  visible players from server state instead of assuming who joined locally.
