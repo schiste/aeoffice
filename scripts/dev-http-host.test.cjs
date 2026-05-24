@@ -138,7 +138,7 @@ async function main() {
   assert.match(appScriptBody, /render_game_to_text/)
   assert.match(appScriptBody, /\/world\/snapshot/)
   assert.equal(appStyles.status, 200)
-  assert.match(await appStyles.text(), /\.tile-world/)
+  assert.match(await appStyles.text(), /\.phaser-world-host/)
   assert.equal(fixtureMap.status, 200)
   const fixtureMapBody = await fixtureMap.json()
   assert.equal(fixtureMapBody.compiled.width, 12)

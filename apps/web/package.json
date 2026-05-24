@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@aedventure/protocol": "0.1.0",
-    "@aedventure/shared-types": "0.1.0"
+    "@aedventure/shared-types": "0.1.0",
+    "phaser": "^4.1.0"
   }
 }

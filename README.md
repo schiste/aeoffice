@@ -20,9 +20,8 @@ architecture before product feature work resumes.
 
 - `legacy/skyoffice-original/` - SkyOffice fork imported with upstream Git
   history preserved as a subtree. This is reference code, not the target app.
-- `apps/web/` - browser-first customer app-layer orchestrator. The Phaser 4
-  world renderer and HTML/TypeScript overlays plug in after this app flow is
-  stable.
+- `apps/web/` - browser-first customer app-layer orchestrator with a Phaser 4
+  world renderer and HTML/TypeScript overlays.
 - `apps/world-server/` - future Colyseus authoritative world server.
 - `apps/api/` - API foundation with Wikimedia OAuth, sessions, seeded runtime
   permission enforcement, and persistence boundaries. Full RBAC management comes
@@ -103,6 +102,8 @@ npm run dev:http
 This starts a dependency-free Node HTTP host for local smoke testing:
 
 - Vite-built playable local browser demo is served under `/app`.
+- The local office map is rendered by Phaser 4 from `/dev/fixture-map`; the
+  asset-registry semantic catalog remains the source of truth for tile IDs.
 - Local-only dev sign-in is mounted under `/dev/sign-in`.
 - Local fixture-map data is mounted under `/dev/fixture-map`.
 - API routes are mounted under `/api`.

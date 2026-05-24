@@ -11,11 +11,14 @@ Responsibilities:
 - Connect to world-server state.
 - Connect to LiveKit only with server-issued tokens.
 
-The current implementation is a framework-free customer app orchestrator. It
-owns the app-layer flow before Phaser rendering is wired:
+The current implementation is a framework-free customer app orchestrator with a
+Phaser 4 canvas renderer:
 
 - Build the browser demo with Vite and TypeScript.
-- Render the local fixture map from the shared visual asset registry contract.
+- Render the local fixture map through Phaser tile layers from the shared visual
+  asset registry contract.
+- Generate temporary semantic placeholder tiles from asset token IDs until
+  licensed visual art is onboarded.
 - Join a local user plus demo companion for movement, chat, and media-token
   validation.
 - Request a world token from the API.

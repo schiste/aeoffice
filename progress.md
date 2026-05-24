@@ -40,3 +40,9 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   HTTP host against the generated `/app/assets/*` files.
 - Browser MCP smoke check verified the Vite-built `/app` shell loads, joins the
   local demo, syncs two players, issues a media token, sends chat, and resets.
+- Phaser 4 is now integrated in `apps/web`; `/dev/fixture-map` is rendered
+  through Phaser tile layers generated from asset-registry semantic token GIDs.
+- The old DOM tile/player renderer has been removed from `/app`; HTML now owns
+  the controls/status overlays while Phaser owns the world canvas.
+- Current Phaser art is still generated placeholder tiles from semantic token
+  IDs, so licensed sprite onboarding remains a later visual-assets task.

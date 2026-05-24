@@ -1,3 +1,5 @@
+import { PhaserOfficeRenderer } from "./phaser-office-renderer"
+
 type Direction = "up" | "down" | "left" | "right"
 
 interface Vector2 {
@@ -126,15 +128,14 @@ const elements = {
   start: mustQuery<HTMLButtonElement>("#start"),
   reset: mustQuery<HTMLButtonElement>("#reset"),
   map: mustQuery<HTMLElement>("#map"),
-  player: mustQuery<HTMLElement>("#player"),
   sessionStatus: mustQuery<HTMLElement>("#session-status"),
   worldStatus: mustQuery<HTMLElement>("#world-status"),
   mediaStatus: mustQuery<HTMLElement>("#media-status"),
   events: mustQuery<HTMLOListElement>("#events"),
   chatForm: mustQuery<HTMLFormElement>("#chat-form"),
   chatBody: mustQuery<HTMLInputElement>("#chat-body"),
-  companion: undefined as HTMLElement | undefined,
 }
+const renderer = new PhaserOfficeRenderer(elements.map)
 
 elements.start.addEventListener("click", () => queueAction(() => startDemo()))
 elements.reset.addEventListener("click", () => queueAction(() => resetDemo()))
@@ -157,7 +158,7 @@ document.addEventListener("keydown", (event) => {
 
 loadFixtureMap().catch((error: unknown) => {
   log(error instanceof Error ? error.message : "Unable to load fixture map")
-  renderPlayer()
+  renderer.updateLocalPlayer(state.position)
 })
 
 async function startDemo(): Promise<void> {
@@ -283,7 +284,7 @@ function applyWorldSnapshot(players: readonly PlayerSnapshot[]): void {
   const local = players.find((player) => player.playerId === state.playerId)
   if (local) {
     state.position = playerSnapshotPosition(local)
-    renderPlayer()
+    renderer.updateLocalPlayer(state.position)
   }
 
   const companion = players.find(
@@ -295,7 +296,7 @@ function applyWorldSnapshot(players: readonly PlayerSnapshot[]): void {
     state.companion.position = playerSnapshotPosition(companion)
   }
 
-  renderCompanion()
+  renderer.updateCompanion(state.companion)
 }
 
 function playerSnapshotPosition(player: PlayerSnapshot): Vector2 {
@@ -335,8 +336,8 @@ async function resetDemo(): Promise<void> {
     state.companion.position = fixtureSpawnPosition(state.fixtureMap, "guest")
   }
 
-  renderPlayer()
-  renderCompanion()
+  renderer.updateLocalPlayer(state.position)
+  renderer.updateCompanion(state.companion)
   log("Demo reset")
 }
 
@@ -405,83 +406,10 @@ async function loadFixtureMap(): Promise<void> {
   state.fixtureMap = fixtureMap
   state.position = fixtureSpawnPosition(fixtureMap, "default")
   state.companion.position = fixtureSpawnPosition(fixtureMap, "guest")
-  renderMap(fixtureMap)
+  renderer.renderMap(fixtureMap)
   log(
     `Loaded ${fixtureMap.definition.style} fixture map from ${fixtureMap.catalog.tokens.length} visual token(s)`,
   )
-}
-
-function renderMap(fixtureMap: FixtureMap): void {
-  const player = elements.player
-  const tileSize = fixtureMap.compiled.tileSize
-  const world = document.createElement("div")
-  world.className = "tile-world"
-  world.style.width = `${fixtureMap.compiled.width * tileSize}px`
-  world.style.height = `${fixtureMap.compiled.height * tileSize}px`
-
-  const tokensByGid = new Map(
-    fixtureMap.catalog.tokens.map((token) => [token.provisionalGid, token]),
-  )
-
-  renderTileLayer(world, fixtureMap.compiled.layers.floor, tokensByGid, tileSize)
-  renderTileLayer(world, fixtureMap.compiled.layers.walls, tokensByGid, tileSize)
-  renderTileLayer(world, fixtureMap.compiled.layers.objects, tokensByGid, tileSize)
-  renderZones(world, fixtureMap.compiled.zones, tileSize)
-
-  elements.map.textContent = ""
-  world.append(player)
-  elements.map.append(world)
-  renderPlayer()
-  renderCompanion()
-}
-
-function renderTileLayer(
-  world: HTMLElement,
-  layer: TileLayer,
-  tokensByGid: ReadonlyMap<number, FixtureToken>,
-  tileSize: number,
-): void {
-  layer.gids.forEach((row, y) => {
-    row.forEach((gid, x) => {
-      if (gid === 0) return
-
-      const token = tokensByGid.get(gid)
-      if (!token) return
-
-      const tile = document.createElement("div")
-      tile.className = `tile tile-${token.kind}`
-      tile.dataset.token = token.id
-      tile.title = token.id
-      tile.style.left = `${x * tileSize}px`
-      tile.style.top = `${y * tileSize}px`
-      tile.style.width = `${token.widthTiles * tileSize}px`
-      tile.style.height = `${token.heightTiles * tileSize}px`
-
-      if (token.kind === "item") {
-        tile.textContent = labelForToken(token.id)
-      }
-
-      world.append(tile)
-    })
-  })
-}
-
-function renderZones(
-  world: HTMLElement,
-  zones: readonly FixtureZone[],
-  tileSize: number,
-): void {
-  zones.forEach((zone) => {
-    const element = document.createElement("div")
-    element.className = `zone zone-${zone.zoneType}`
-    element.dataset.zone = zone.id
-    element.title = zone.id
-    element.style.left = `${zone.xStart * tileSize}px`
-    element.style.top = `${zone.yStart * tileSize}px`
-    element.style.width = `${(zone.xEnd - zone.xStart) * tileSize}px`
-    element.style.height = `${(zone.yEnd - zone.yStart) * tileSize}px`
-    world.append(element)
-  })
 }
 
 function applyEvents(events: readonly WorldEvent[]): void {
@@ -494,7 +422,7 @@ function applyServerMessage(message: ServerMessage): void {
   if ("type" in message && message.type === "player_state") {
     if (message.playerId !== state.playerId) return
     state.position = { x: message.x, y: message.y }
-    renderPlayer()
+    renderer.updateLocalPlayer(state.position)
     log(`Moved ${message.direction} to ${Math.round(message.x)}, ${Math.round(message.y)}`)
     return
   }
@@ -513,35 +441,6 @@ function applyServerMessage(message: ServerMessage): void {
 function eventVisibleToClient(event: WorldEvent): boolean {
   if (event.type === "broadcast") return event.exceptClientId !== state.clientId
   return Array.isArray(event.clientIds) && event.clientIds.includes(state.clientId)
-}
-
-function renderPlayer(): void {
-  elements.player.style.left = `${state.position.x}px`
-  elements.player.style.top = `${state.position.y}px`
-}
-
-function renderCompanion(): void {
-  const world = elements.map.querySelector(".tile-world")
-  if (!(world instanceof HTMLElement)) return
-
-  if (!state.companion.joined) {
-    elements.companion?.remove()
-    return
-  }
-
-  if (!elements.companion) {
-    elements.companion = document.createElement("div")
-    elements.companion.className = "player companion"
-    elements.companion.setAttribute("aria-label", "Demo companion")
-    elements.companion.title = "Demo Grace"
-  }
-
-  elements.companion.style.left = `${state.companion.position.x}px`
-  elements.companion.style.top = `${state.companion.position.y}px`
-
-  if (!elements.companion.parentElement) {
-    world.append(elements.companion)
-  }
 }
 
 function fixtureSpawnPosition(fixtureMap: FixtureMap, spawnId: string): Vector2 {
@@ -644,6 +543,7 @@ function renderDemoToText(): string {
     snapshotPlayerIds: state.snapshotPlayerIds,
     map: state.fixtureMap
       ? {
+          renderer: "phaser",
           style: state.fixtureMap.definition.style,
           width: state.fixtureMap.compiled.width,
           height: state.fixtureMap.compiled.height,
@@ -660,13 +560,6 @@ function renderDemoToText(): string {
   })
 }
 
-function labelForToken(tokenId: string): string {
-  if (tokenId.includes("conference_table")) return "TABLE"
-  if (tokenId.includes("chair")) return "SEAT"
-  if (tokenId.includes("coffee")) return "CAFE"
-  return "ITEM"
-}
-
 function mustQuery<TElement extends Element>(selector: string): TElement {
   const element = document.querySelector<TElement>(selector)
   if (!element) throw new Error(`Missing required element ${selector}`)
@@ -676,11 +569,14 @@ function mustQuery<TElement extends Element>(selector: string): TElement {
 declare global {
   interface Window {
     render_game_to_text: () => string
-    advanceTime: () => Promise<void>
+    advanceTime: (ms?: number) => Promise<void>
   }
 }
 
 window.render_game_to_text = renderDemoToText
-window.advanceTime = async () => state.pendingAction
+window.advanceTime = async () => {
+  await state.pendingAction
+  await renderer.advanceTime()
+}
 
 export {}
