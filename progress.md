@@ -167,3 +167,25 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   post-join identity changes, empty storage keys, and zero browser console
   warnings/errors. The standalone web-game client still cannot run because it
   cannot resolve the `playwright` package from the skill runtime.
+- Lifecycle handling now has an explicit room-state banner and machine-readable
+  `render_game_to_text.lifecycle` state for empty, joining, joined, leaving,
+  map-reloading, and recovery phases.
+- Reset/leave is best-effort: the browser attempts to leave the local and
+  companion world clients, then clears local runtime state, chat, media,
+  meeting state, snapshots, held movement, and remote players even if the
+  server no longer remembers the clients.
+- Rejoin and map reload are clean. Starting the demo re-syncs the current map
+  geometry before admission, map switching reloads world geometry and returns to
+  an empty-room state, and rejoin repopulates the two demo users.
+- Server restart recovery is handled through `unknown_client`/not-admitted world
+  errors. The browser clears stale room state, shows `World restarted, rejoin
+  needed`, changes the main action to `Rejoin demo`, and reconfigures geometry
+  on the next join.
+- The meeting-room companion spawn moved farther from the local player so
+  lifecycle screenshots have readable labels after rejoin.
+- Verification passed: `npm --workspace @aedventure/asset-registry run build`,
+  `npm --workspace @aedventure/web run build`, `npm run check`, Playwright MCP
+  join/reset/rejoin/map-reload/server-restart-recovery/rejoin-after-recovery
+  flows, desktop and mobile layout inspection, and zero browser console
+  warnings/errors. The standalone web-game client still cannot run because it
+  cannot resolve the `playwright` package from the skill runtime.

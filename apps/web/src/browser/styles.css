@@ -137,6 +137,49 @@ h1 {
   box-shadow: 0 0 0 3px rgba(200, 73, 60, 0.16);
 }
 
+.lifecycle-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  border-top: 1px solid #dbe4e7;
+  border-bottom: 1px solid #dbe4e7;
+  padding: 8px 0;
+}
+
+.lifecycle-banner span {
+  color: #587179;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.lifecycle-banner strong {
+  min-width: 0;
+  overflow: hidden;
+  color: #172026;
+  font-size: 14px;
+  line-height: 1.25;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lifecycle-banner[data-state="joining"] strong,
+.lifecycle-banner[data-state="map_reloading"] strong,
+.lifecycle-banner[data-state="leaving"] strong {
+  color: #7c5b20;
+}
+
+.lifecycle-banner[data-state="joined"] strong {
+  color: #1f6b49;
+}
+
+.lifecycle-banner[data-state="recovering"] strong {
+  color: #a33b31;
+}
+
 .identity-panel {
   display: grid;
   grid-template-columns: minmax(180px, 0.38fr) minmax(0, 1fr);
@@ -672,6 +715,16 @@ h1 {
   .generator-result {
     display: grid;
     grid-template-columns: 1fr;
+  }
+
+  .lifecycle-banner {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .lifecycle-banner strong {
+    text-align: left;
+    white-space: normal;
   }
 
   .identity-panel {

@@ -19,6 +19,13 @@ type StatusState = "idle" | "pending" | "ready" | "blocked"
 type ToastTone = "info" | "success" | "warning" | "error"
 type MapSwitcherId = PresetMapId | "generated"
 type AvatarId = "ember" | "cobalt" | "moss" | "violet"
+type LifecyclePhase =
+  | "empty"
+  | "joining"
+  | "joined"
+  | "leaving"
+  | "map_reloading"
+  | "recovering"
 type MovementRejectedReason =
   | "invalid_message"
   | "collision"
@@ -106,6 +113,11 @@ type ServerMessage =
       readonly seqAck: number
     }
   | {
+      readonly type: "protocol_error"
+      readonly code?: string
+      readonly message: string
+    }
+  | {
       readonly reason?: string
     }
 
@@ -143,6 +155,11 @@ interface AppState {
   fixtureMap?: FixtureMap
   players: Map<string, RenderedPlayer>
   snapshotPlayerIds: string[]
+  lifecycle: {
+    phase: LifecyclePhase
+    message: string
+    lastRecoveryReason?: string
+  }
   activeZone?: FixtureZone
   meetingJoined: boolean
   meetingZoneId?: string
@@ -244,6 +261,10 @@ const state: AppState = {
   fixtureMap: undefined,
   players: new Map(),
   snapshotPlayerIds: [],
+  lifecycle: {
+    phase: "empty",
+    message: "Room empty",
+  },
   activeZone: undefined,
   meetingJoined: false,
   meetingZoneId: undefined,
@@ -282,6 +303,8 @@ const elements = {
   sessionPill: mustQuery<HTMLElement>("#session-pill"),
   worldStatus: mustQuery<HTMLElement>("#world-status"),
   worldPill: mustQuery<HTMLElement>("#world-pill"),
+  lifecycleBanner: mustQuery<HTMLElement>("#lifecycle-banner"),
+  lifecycleStatus: mustQuery<HTMLElement>("#lifecycle-status"),
   displayName: mustQuery<HTMLInputElement>("#demo-display-name"),
   avatarButtons: [
     ...document.querySelectorAll<HTMLButtonElement>("[data-avatar-id]"),
@@ -415,10 +438,12 @@ renderMediaPanel()
 renderMapGenerationResult()
 renderMapSwitcher()
 renderIdentityControls()
+renderLifecycleStatus()
 
 async function startDemo(): Promise<void> {
   elements.start.disabled = true
   elements.start.textContent = "Joining..."
+  setLifecycleStatus("joining", "Joining room")
   setConnectionStatus("session", "pending", "Connecting")
   setConnectionStatus("world", "pending", "Joining")
   setConnectionStatus("media", "idle", "Not ready")
@@ -426,12 +451,16 @@ async function startDemo(): Promise<void> {
   try {
     if (state.joined) {
       elements.start.textContent = "Demo running"
+      setLifecycleStatus("joined", roomOccupancyLabel())
       publishToast("Demo session already joined", "info")
       return
     }
 
     if (!state.fixtureMap) {
       await switchToPresetMap("lobby", { announce: false })
+    }
+    if (state.fixtureMap) {
+      await configureDevWorldGeometry(state.fixtureMap)
     }
 
     const session = await signInDevUser(
@@ -463,16 +492,24 @@ async function startDemo(): Promise<void> {
     state.joined = true
     elements.reset.disabled = false
     setConnectionStatus("world", "ready", "Joined room-lobby")
+    setLifecycleStatus("joined", "Only you in room")
     publishToast("Joined the local world", "success")
 
     await joinCompanion()
-    await syncWorldSnapshot()
+    const synced = await syncWorldSnapshot()
+    if (!synced) return
     await move("right")
+    if (!state.joined) return
     await sendChat(elements.chatBody.value)
+    if (!state.joined) return
     elements.start.textContent = "Demo running"
     renderMeetingControls()
   } catch (error: unknown) {
     elements.start.textContent = "Join demo"
+    setLifecycleStatus(
+      state.joined ? "joined" : "empty",
+      state.joined ? roomOccupancyLabel() : roomReadyLabel(),
+    )
     setConnectionStatus(
       "session",
       state.sessionId ? "ready" : "blocked",
@@ -542,23 +579,42 @@ async function joinCompanion(): Promise<void> {
   recordEvent("Added Demo Grace as a local companion")
 }
 
-async function syncWorldSnapshot(): Promise<void> {
-  if (!state.joined) return
+async function syncWorldSnapshot(): Promise<boolean> {
+  if (!state.joined) return false
 
-  const snapshot = await postJson<{
+  let snapshot: {
     status: "ok" | "denied"
     reason?: string
     players: readonly PlayerSnapshot[]
-  }>("/world/snapshot", {
-    clientId: state.clientId,
-  })
+  }
+
+  try {
+    snapshot = await postJson<{
+      status: "ok" | "denied"
+      reason?: string
+      players: readonly PlayerSnapshot[]
+    }>("/world/snapshot", {
+      clientId: state.clientId,
+    })
+  } catch (error: unknown) {
+    if (isRecoverableWorldError(error)) {
+      recoverFromWorldLoss("unknown_client")
+      return false
+    }
+    throw error
+  }
 
   if (snapshot.status !== "ok") {
+    if (snapshot.reason === "unknown_client") {
+      recoverFromWorldLoss("unknown_client")
+      return false
+    }
     throw new Error(`World snapshot failed: ${snapshot.reason}`)
   }
 
   applyWorldSnapshot(snapshot.players)
   recordEvent(`Synced ${snapshot.players.length} player(s) from world snapshot`)
+  return true
 }
 
 function applyWorldSnapshot(players: readonly PlayerSnapshot[]): void {
@@ -582,6 +638,15 @@ function applyWorldSnapshot(players: readonly PlayerSnapshot[]): void {
 
   state.players.clear()
   players.forEach(upsertRenderedPlayer)
+  if (players.length === 0) {
+    state.joined = false
+    state.companion.joined = false
+    setConnectionStatus("world", "idle", "Room empty")
+    setLifecycleStatus("empty", "Room empty")
+    seedLocalRenderedPlayer()
+  } else {
+    setLifecycleStatus("joined", roomOccupancyLabel(players.length))
+  }
   renderPlayers()
   updateActiveZoneFromPosition()
 }
@@ -594,18 +659,26 @@ function playerSnapshotPosition(player: PlayerSnapshot): Vector2 {
 }
 
 async function resetDemo(
-  options: { readonly announce?: boolean } = {},
+  options: {
+    readonly announce?: boolean
+    readonly lifecyclePhase?: LifecyclePhase
+    readonly lifecycleMessage?: string
+  } = {},
 ): Promise<void> {
   const announce = options.announce !== false
 
   elements.reset.disabled = true
+  elements.start.disabled = true
+  if (state.joined || state.companion.joined) {
+    setLifecycleStatus("leaving", "Leaving room")
+  }
 
   if (state.companion.joined) {
-    await leaveWorld(state.companion.clientId)
+    await leaveWorldSafely(state.companion.clientId, state.companion.displayName)
   }
 
   if (state.joined) {
-    await leaveWorld(state.clientId)
+    await leaveWorldSafely(state.clientId, displayNameForLocalProfile())
   }
 
   state.sessionId = undefined
@@ -629,6 +702,10 @@ async function resetDemo(
   setConnectionStatus("session", "idle", "Disconnected")
   setConnectionStatus("world", "idle", "Not joined")
   setConnectionStatus("media", "idle", "Not ready")
+  setLifecycleStatus(
+    options.lifecyclePhase ?? "empty",
+    options.lifecycleMessage ?? "Room empty",
+  )
   renderMediaPanel()
   elements.start.textContent = "Join demo"
   elements.start.disabled = false
@@ -653,17 +730,34 @@ async function leaveWorld(clientId: string): Promise<void> {
   })
 }
 
+async function leaveWorldSafely(clientId: string, label: string): Promise<void> {
+  try {
+    await leaveWorld(clientId)
+  } catch (error: unknown) {
+    recordEvent(`${label} leave skipped: ${errorMessage(error)}`)
+  }
+}
+
 async function move(direction: Direction): Promise<void> {
   if (!state.joined) return
 
-  const body = await postJson<{ events: readonly WorldEvent[] }>("/world/message", {
-    clientId: state.clientId,
-    message: {
-      type: "move",
-      direction,
-      seq: state.seq,
-    },
-  })
+  let body: { events: readonly WorldEvent[] }
+  try {
+    body = await postJson<{ events: readonly WorldEvent[] }>("/world/message", {
+      clientId: state.clientId,
+      message: {
+        type: "move",
+        direction,
+        seq: state.seq,
+      },
+    })
+  } catch (error: unknown) {
+    if (isRecoverableWorldError(error)) {
+      recoverFromWorldLoss("unknown_client")
+      return
+    }
+    throw error
+  }
   state.seq += 1
   applyEvents(body.events ?? [])
 }
@@ -722,15 +816,24 @@ function requestMove(direction: Direction): void {
 async function sendChat(body: string): Promise<void> {
   if (!state.joined || !body.trim()) return
 
-  const response = await postJson<{ events: readonly WorldEvent[] }>("/world/message", {
-    clientId: state.clientId,
-    message: {
-      type: "chat_send",
-      scope: "room",
-      body,
-      seq: state.seq,
-    },
-  })
+  let response: { events: readonly WorldEvent[] }
+  try {
+    response = await postJson<{ events: readonly WorldEvent[] }>("/world/message", {
+      clientId: state.clientId,
+      message: {
+        type: "chat_send",
+        scope: "room",
+        body,
+        seq: state.seq,
+      },
+    })
+  } catch (error: unknown) {
+    if (isRecoverableWorldError(error)) {
+      recoverFromWorldLoss("unknown_client")
+      return
+    }
+    throw error
+  }
   state.seq += 1
   applyEvents(response.events ?? [])
 }
@@ -780,6 +883,10 @@ async function joinMeeting(): Promise<void> {
       state.lastMediaRoom = media.room
       publishToast(`Joined ${zoneDisplayName(zone)}`, "success")
     } else {
+      if (media.reason === "unknown_player") {
+        recoverFromWorldLoss("unknown_client")
+        return
+      }
       setConnectionStatus("media", "blocked", "Media denied")
       state.meetingJoined = false
       state.meetingZoneId = undefined
@@ -881,10 +988,21 @@ async function switchToFixtureMap(
   fixtureMap: FixtureMap,
   mapGeneration: MapGenerationState,
 ): Promise<void> {
-  await resetDemo({ announce: false })
-  await configureDevWorldGeometry(fixtureMap)
-  applyFixtureMap(fixtureMap, mapGeneration)
-  renderMapSwitcher()
+  setLifecycleStatus("map_reloading", `Reloading ${mapGeneration.label}`)
+  try {
+    await resetDemo({
+      announce: false,
+      lifecyclePhase: "map_reloading",
+      lifecycleMessage: `Reloading ${mapGeneration.label}`,
+    })
+    await configureDevWorldGeometry(fixtureMap)
+    applyFixtureMap(fixtureMap, mapGeneration)
+    setLifecycleStatus("empty", roomReadyLabel(mapGeneration.label))
+    renderMapSwitcher()
+  } catch (error: unknown) {
+    setLifecycleStatus("recovering", "Map reload failed")
+    throw error
+  }
 }
 
 function applyFixtureMap(
@@ -991,6 +1109,15 @@ function applyServerMessage(message: ServerMessage): void {
   if ("type" in message && message.type === "chat_delivered") {
     state.lastChatBody = message.body
     addChatMessage(message.body, message.recipientPlayerIds.length)
+    return
+  }
+
+  if ("type" in message && message.type === "protocol_error") {
+    if (isRecoverableProtocolError(message)) {
+      recoverFromWorldLoss("unknown_client")
+      return
+    }
+    publishToast(message.message, "warning")
     return
   }
 
@@ -1147,6 +1274,24 @@ function renderIdentityControls(): void {
   })
   elements.previewAvatar.textContent = initialsForName(displayName)
   elements.localPreview.dataset.avatarId = state.profile.avatarId
+}
+
+function setLifecycleStatus(
+  phase: LifecyclePhase,
+  message: string,
+  recoveryReason?: string,
+): void {
+  state.lifecycle = {
+    phase,
+    message,
+    lastRecoveryReason: recoveryReason,
+  }
+  renderLifecycleStatus()
+}
+
+function renderLifecycleStatus(): void {
+  elements.lifecycleBanner.dataset.state = state.lifecycle.phase
+  elements.lifecycleStatus.textContent = state.lifecycle.message
 }
 
 function renderMapGenerationResult(): void {
@@ -1315,6 +1460,67 @@ function renderMediaPanel(): void {
       : "No media session"
 }
 
+function recoverFromWorldLoss(reason: string): void {
+  const alreadyRecovering = state.lifecycle.phase === "recovering"
+
+  stopHeldMovement()
+  state.seq = 1
+  state.joined = false
+  state.companion.joined = false
+  state.companion.direction = "down"
+  state.snapshotPlayerIds = []
+  state.activeZone = undefined
+  state.meetingJoined = false
+  state.meetingZoneId = undefined
+  state.mediaRequestPending = false
+  state.lastMovementRejection = undefined
+  clearMediaSession()
+  chatMessages.length = 0
+  renderChatMessages()
+  state.players.clear()
+
+  if (state.fixtureMap) {
+    state.position = fixtureSpawnPosition(state.fixtureMap, "default")
+    state.companion.position = fixtureSpawnPosition(state.fixtureMap, "guest")
+  }
+
+  state.direction = "down"
+  seedLocalRenderedPlayer()
+  renderPlayers()
+  renderer.setActiveZones([])
+  setConnectionStatus(
+    "session",
+    state.sessionId ? "ready" : "idle",
+    state.sessionId ? "Connected" : "Disconnected",
+  )
+  setConnectionStatus("world", "blocked", "Rejoin required")
+  setConnectionStatus("media", "idle", "Not ready")
+  setLifecycleStatus(
+    "recovering",
+    "World restarted, rejoin needed",
+    reason,
+  )
+  elements.start.textContent = "Rejoin demo"
+  elements.start.disabled = false
+  elements.reset.disabled = true
+  renderMeetingControls()
+  renderMediaPanel()
+
+  if (!alreadyRecovering) {
+    publishToast("World server restarted. Rejoin to continue.", "warning")
+  }
+}
+
+function roomReadyLabel(label = state.mapGeneration.label): string {
+  return `${label} ready, room empty`
+}
+
+function roomOccupancyLabel(totalPlayers = state.players.size): string {
+  if (totalPlayers <= 0) return "Room empty"
+  if (totalPlayers === 1) return "Only you in room"
+  return `${totalPlayers} users in room`
+}
+
 function isMeetingZone(zone: FixtureZone): boolean {
   return zone.zoneType.includes("meeting")
 }
@@ -1467,6 +1673,17 @@ function fixtureSpawnPosition(fixtureMap: FixtureMap, spawnId: string): Vector2 
   return spawn ? spawn.position : state.position
 }
 
+class HttpJsonError extends Error {
+  constructor(
+    readonly status: number,
+    readonly reason: string,
+    readonly path: string,
+  ) {
+    super(reason)
+    this.name = "HttpJsonError"
+  }
+}
+
 async function postJson<T = Record<string, unknown>>(
   path: string,
   body: Record<string, unknown>,
@@ -1478,13 +1695,44 @@ async function postJson<T = Record<string, unknown>>(
     },
     body: JSON.stringify(body),
   })
-  const parsed = (await response.json()) as { reason?: string }
+  const parsed = await parseJsonResponse(response)
 
   if (!response.ok) {
-    throw new Error(parsed.reason ?? `HTTP ${response.status}`)
+    throw new HttpJsonError(
+      response.status,
+      parsed.reason ?? `HTTP ${response.status}`,
+      path,
+    )
   }
 
   return parsed as T
+}
+
+async function parseJsonResponse(response: Response): Promise<{ reason?: string }> {
+  try {
+    return (await response.json()) as { reason?: string }
+  } catch {
+    return {}
+  }
+}
+
+function isRecoverableWorldError(error: unknown): boolean {
+  return (
+    error instanceof HttpJsonError &&
+    (error.reason === "unknown_client" ||
+      error.reason === "unknown_player" ||
+      error.reason.includes("not admitted"))
+  )
+}
+
+function isRecoverableProtocolError(
+  message: Extract<ServerMessage, { type: "protocol_error" }>,
+): boolean {
+  return message.message.includes("not admitted")
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : "Unknown error"
 }
 
 async function postMediaToken(body: Record<string, unknown>): Promise<MediaTokenResponse> {
@@ -1589,6 +1837,13 @@ function renderDemoToText(): string {
       joinDisabled: elements.start.disabled,
       resetDisabled: elements.reset.disabled,
       joinLabel: elements.start.textContent,
+    },
+    lifecycle: {
+      phase: state.lifecycle.phase,
+      message: state.lifecycle.message,
+      lastRecoveryReason: state.lifecycle.lastRecoveryReason,
+      roomEmpty: !state.joined && state.snapshotPlayerIds.length === 0,
+      occupancy: state.joined ? state.players.size : 0,
     },
     player: {
       id: state.playerId,

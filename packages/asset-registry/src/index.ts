@@ -824,7 +824,7 @@ function presetMapDefinition(id: PresetMapId): {
         },
         spawnTiles: [
           { id: "default", tile: { x: 3, y: 3 } },
-          { id: "guest", tile: { x: 3, y: 4 } },
+          { id: "guest", tile: { x: 3, y: 6 } },
         ],
       }
     case "lounge_cafe":
