@@ -51,6 +51,11 @@ export interface AddPlayerInput {
   readonly roles?: readonly string[]
 }
 
+export interface WorldGeometryConfig {
+  readonly map: CollisionMap
+  readonly zones?: readonly Zone[]
+}
+
 export interface PlayerSnapshot {
   readonly playerId: string
   readonly userId?: UserId
@@ -80,7 +85,7 @@ interface PlayerState {
 export class AuthoritativeWorld {
   private readonly players = new Map<string, PlayerState>()
 
-  constructor(private readonly config: WorldServerConfig) {}
+  constructor(private config: WorldServerConfig) {}
 
   addPlayer(input: AddPlayerInput): PlayerSnapshot {
     const state: PlayerState = {
@@ -124,6 +129,18 @@ export class AuthoritativeWorld {
 
   listParticipants(): readonly ParticipantPolicyContext[] {
     return [...this.players.values()].map(participantContext)
+  }
+
+  reset(geometry?: WorldGeometryConfig): void {
+    this.players.clear()
+
+    if (geometry) {
+      this.config = {
+        ...this.config,
+        map: geometry.map,
+        zones: geometry.zones,
+      }
+    }
   }
 
   handleClientMessage(
@@ -512,6 +529,12 @@ export class WorldRoomController {
     this.clients.delete(clientId)
     this.playerClients.delete(client.playerId)
     return this.world.removePlayer(client.playerId)
+  }
+
+  resetRoom(geometry?: WorldGeometryConfig): void {
+    this.clients.clear()
+    this.playerClients.clear()
+    this.world.reset(geometry)
   }
 
   receive(clientId: string, message: unknown, nowMs: number): readonly WorldRoomEvent[] {

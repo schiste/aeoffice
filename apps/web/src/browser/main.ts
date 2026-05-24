@@ -5,14 +5,19 @@ import {
 } from "./phaser-office-renderer"
 import {
   compileDeterministicPromptMap,
+  compilePresetMap,
+  presetMapSummaries,
   starterVisualAssetCatalog,
   type DeterministicPromptMapResult,
+  type PresetMapId,
+  type PresetMapResult,
   type PromptMapValidation,
 } from "@aedventure/asset-registry"
 
 type Direction = "up" | "down" | "left" | "right"
 type StatusState = "idle" | "pending" | "ready" | "blocked"
 type ToastTone = "info" | "success" | "warning" | "error"
+type MapSwitcherId = PresetMapId | "generated"
 type MovementRejectedReason =
   | "invalid_message"
   | "collision"
@@ -162,7 +167,9 @@ interface ChatRecord {
 }
 
 interface MapGenerationState {
-  readonly source: "fixture" | "generated"
+  readonly source: "preset" | "generated"
+  readonly mapId: MapSwitcherId
+  readonly label: string
   readonly prompt: string
   readonly keywords: readonly string[]
   readonly validation?: PromptMapValidation
@@ -229,9 +236,11 @@ const state: AppState = {
   micEnabled: false,
   cameraEnabled: false,
   mapGeneration: {
-    source: "fixture",
-    prompt: "fixture-map",
-    keywords: [],
+    source: "preset",
+    mapId: "lobby",
+    label: "Lobby",
+    prompt: "Lobby",
+    keywords: ["lobby"],
     validation: undefined,
   },
   lastMediaRoom: undefined,
@@ -257,6 +266,9 @@ const elements = {
   sessionPill: mustQuery<HTMLElement>("#session-pill"),
   worldStatus: mustQuery<HTMLElement>("#world-status"),
   worldPill: mustQuery<HTMLElement>("#world-pill"),
+  mapSwitcherButtons: [
+    ...document.querySelectorAll<HTMLButtonElement>("[data-map-id]"),
+  ],
   mapGeneratorForm: mustQuery<HTMLFormElement>("#map-generator-form"),
   mapPrompt: mustQuery<HTMLInputElement>("#map-prompt"),
   generateMap: mustQuery<HTMLButtonElement>("#generate-map"),
@@ -292,6 +304,11 @@ const renderer = new PhaserOfficeRenderer(elements.map)
 
 elements.start.addEventListener("click", () => queueAction(() => startDemo()))
 elements.reset.addEventListener("click", () => queueAction(() => resetDemo()))
+elements.mapSwitcherButtons.forEach((button) => {
+  button.addEventListener("click", () =>
+    queueAction(() => switchMap(button.dataset.mapId as MapSwitcherId)),
+  )
+})
 elements.mapGeneratorForm.addEventListener("submit", (event) => {
   event.preventDefault()
   queueAction(() => generateMapFromPrompt())
@@ -338,9 +355,9 @@ window.addEventListener("blur", () => {
   stopHeldMovement()
 })
 
-loadFixtureMap().catch((error: unknown) => {
+switchToPresetMap("lobby", { announce: false }).catch((error: unknown) => {
   publishToast(
-    error instanceof Error ? error.message : "Unable to load fixture map",
+    error instanceof Error ? error.message : "Unable to load lobby map",
     "error",
   )
   renderPlayers()
@@ -349,6 +366,7 @@ renderViewportControls(renderer.getViewportState())
 renderMeetingControls()
 renderMediaPanel()
 renderMapGenerationResult()
+renderMapSwitcher()
 
 async function startDemo(): Promise<void> {
   elements.start.disabled = true
@@ -365,7 +383,7 @@ async function startDemo(): Promise<void> {
     }
 
     if (!state.fixtureMap) {
-      await loadFixtureMap()
+      await switchToPresetMap("lobby", { announce: false })
     }
 
     const session = await signInDevUser("wikimedia-browser-user", "Browser Ada")
@@ -522,7 +540,11 @@ function playerSnapshotPosition(player: PlayerSnapshot): Vector2 {
   }
 }
 
-async function resetDemo(): Promise<void> {
+async function resetDemo(
+  options: { readonly announce?: boolean } = {},
+): Promise<void> {
+  const announce = options.announce !== false
+
   elements.reset.disabled = true
 
   if (state.companion.joined) {
@@ -567,7 +589,9 @@ async function resetDemo(): Promise<void> {
   seedLocalRenderedPlayer()
   renderPlayers()
   updateActiveZoneFromPosition()
-  publishToast("Demo reset", "info")
+  if (announce) {
+    publishToast("Demo reset", "info")
+  }
 }
 
 async function leaveWorld(clientId: string): Promise<void> {
@@ -739,17 +763,34 @@ function leaveMeetingLocally(message: string): void {
   publishToast(message, "info")
 }
 
-async function loadFixtureMap(): Promise<void> {
-  const fixtureMap = await getJson<FixtureMap>("/dev/fixture-map")
-  applyFixtureMap(fixtureMap, {
-    source: "fixture",
-    prompt: "fixture-map",
-    keywords: [],
-    validation: validationFromFixtureMap(fixtureMap),
+async function switchMap(mapId: MapSwitcherId): Promise<void> {
+  if (mapId === "generated") {
+    await generateMapFromPrompt()
+    return
+  }
+
+  await switchToPresetMap(mapId, { announce: true })
+}
+
+async function switchToPresetMap(
+  presetId: PresetMapId,
+  options: { readonly announce?: boolean } = {},
+): Promise<void> {
+  const preset = compilePresetMap(presetId)
+  const fixtureMap = fixtureMapFromCompiledMap(preset)
+
+  await switchToFixtureMap(fixtureMap, {
+    source: "preset",
+    mapId: preset.id,
+    label: preset.label,
+    prompt: preset.label,
+    keywords: [preset.id],
+    validation: preset.validation,
   })
-  recordEvent(
-    `Loaded ${fixtureMap.definition.style} fixture map from ${fixtureMap.catalog.tokens.length} visual token(s)`,
-  )
+
+  if (options.announce !== false) {
+    publishToast(`Switched to ${preset.label}`, "success")
+  }
 }
 
 async function generateMapFromPrompt(): Promise<void> {
@@ -757,15 +798,13 @@ async function generateMapFromPrompt(): Promise<void> {
   elements.generateMap.disabled = true
 
   try {
-    if (state.joined) {
-      await resetDemo()
-    }
-
     const generated = compileDeterministicPromptMap(prompt)
-    const fixtureMap = fixtureMapFromGeneratedMap(generated)
+    const fixtureMap = fixtureMapFromCompiledMap(generated)
 
-    applyFixtureMap(fixtureMap, {
+    await switchToFixtureMap(fixtureMap, {
       source: "generated",
+      mapId: "generated",
+      label: "Generated room",
       prompt,
       keywords: generated.keywords,
       validation: generated.validation,
@@ -785,6 +824,16 @@ async function generateMapFromPrompt(): Promise<void> {
   }
 }
 
+async function switchToFixtureMap(
+  fixtureMap: FixtureMap,
+  mapGeneration: MapGenerationState,
+): Promise<void> {
+  await resetDemo({ announce: false })
+  await configureDevWorldGeometry(fixtureMap)
+  applyFixtureMap(fixtureMap, mapGeneration)
+  renderMapSwitcher()
+}
+
 function applyFixtureMap(
   fixtureMap: FixtureMap,
   mapGeneration: MapGenerationState,
@@ -800,13 +849,18 @@ function applyFixtureMap(
   renderMapGenerationResult()
 }
 
-function fixtureMapFromGeneratedMap(generated: DeterministicPromptMapResult): FixtureMap {
-  const referencedTokenIds = new Set(generated.compiled.referencedTokenIds)
+function fixtureMapFromCompiledMap(
+  compiledMap: Pick<
+    DeterministicPromptMapResult | PresetMapResult,
+    "definition" | "compiled" | "spawnPoints"
+  >,
+): FixtureMap {
+  const referencedTokenIds = new Set(compiledMap.compiled.referencedTokenIds)
 
   return {
-    definition: generated.definition,
-    compiled: generated.compiled,
-    spawnPoints: generated.spawnPoints,
+    definition: compiledMap.definition,
+    compiled: compiledMap.compiled,
+    spawnPoints: compiledMap.spawnPoints,
     catalog: {
       tokens: starterVisualAssetCatalog.tokens
         .filter((token) => referencedTokenIds.has(token.id))
@@ -821,16 +875,24 @@ function fixtureMapFromGeneratedMap(generated: DeterministicPromptMapResult): Fi
   }
 }
 
-function validationFromFixtureMap(fixtureMap: FixtureMap): PromptMapValidation {
-  return {
-    valid: true,
-    errors: [],
-    blockedTileCount: fixtureMap.compiled.blockedTiles.length,
-    spawnCount: fixtureMap.spawnPoints.length,
-    zoneCount: fixtureMap.compiled.zones.length,
-    spawnIds: fixtureMap.spawnPoints.map((spawn) => spawn.id),
-    zoneIds: fixtureMap.compiled.zones.map((zone) => zone.id),
-  }
+async function configureDevWorldGeometry(fixtureMap: FixtureMap): Promise<void> {
+  await postJson("/dev/world-geometry", {
+    map: {
+      width: fixtureMap.compiled.width * fixtureMap.compiled.tileSize,
+      height: fixtureMap.compiled.height * fixtureMap.compiled.tileSize,
+      tileSize: fixtureMap.compiled.tileSize,
+      blockedTiles: fixtureMap.compiled.blockedTiles,
+    },
+    zones: fixtureMap.compiled.zones.map((zone) => ({
+      id: zone.id,
+      bounds: {
+        x: zone.xStart * fixtureMap.compiled.tileSize,
+        y: zone.yStart * fixtureMap.compiled.tileSize,
+        width: (zone.xEnd - zone.xStart) * fixtureMap.compiled.tileSize,
+        height: (zone.yEnd - zone.yStart) * fixtureMap.compiled.tileSize,
+      },
+    })),
+  })
 }
 
 function applyEvents(events: readonly WorldEvent[]): void {
@@ -1007,6 +1069,15 @@ function renderViewportControls(viewport: RendererViewportState): void {
   elements.zoomReset.textContent = `${Math.round(viewport.zoomFactor * 100)}%`
 }
 
+function renderMapSwitcher(): void {
+  const activeMapId = state.mapGeneration.mapId
+
+  elements.mapSwitcherButtons.forEach((button) => {
+    const pressed = button.dataset.mapId === activeMapId
+    button.setAttribute("aria-pressed", String(pressed))
+  })
+}
+
 function renderMapGenerationResult(): void {
   const validation = state.mapGeneration.validation
 
@@ -1015,7 +1086,7 @@ function renderMapGenerationResult(): void {
       ? validation?.valid
         ? `Generated ${generationLabel(state.mapGeneration.keywords)}`
         : "Generated map needs review"
-      : "Fixture map loaded"
+      : `${state.mapGeneration.label} loaded`
   elements.validationBlocked.textContent = String(validation?.blockedTileCount ?? 0)
   elements.validationSpawns.textContent = validation?.valid
     ? String(validation.spawnCount)
@@ -1301,17 +1372,6 @@ function fixtureSpawnPosition(fixtureMap: FixtureMap, spawnId: string): Vector2 
   return spawn ? spawn.position : state.position
 }
 
-async function getJson<T>(path: string): Promise<T> {
-  const response = await fetch(path)
-  const parsed = (await response.json()) as { reason?: string }
-
-  if (!response.ok) {
-    throw new Error(parsed.reason ?? `HTTP ${response.status}`)
-  }
-
-  return parsed as T
-}
-
 async function postJson<T = Record<string, unknown>>(
   path: string,
   body: Record<string, unknown>,
@@ -1491,6 +1551,15 @@ function renderDemoToText(): string {
       ? {
           renderer: "phaser",
           source: state.mapGeneration.source,
+          activeMapId: state.mapGeneration.mapId,
+          label: state.mapGeneration.label,
+          availableMaps: [
+            ...presetMapSummaries.map((preset) => ({
+              id: preset.id,
+              label: preset.label,
+            })),
+            { id: "generated", label: "Generated room" },
+          ],
           prompt: state.mapGeneration.prompt,
           keywords: state.mapGeneration.keywords,
           style: state.fixtureMap.definition.style,

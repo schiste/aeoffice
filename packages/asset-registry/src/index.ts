@@ -149,6 +149,28 @@ export interface DeterministicPromptMapResult {
   readonly validation: PromptMapValidation
 }
 
+export type PresetMapId = "lobby" | "meeting_room" | "lounge_cafe"
+
+export interface PresetMapSummary {
+  readonly id: PresetMapId
+  readonly label: string
+}
+
+export interface PresetMapResult {
+  readonly id: PresetMapId
+  readonly label: string
+  readonly definition: SemanticMapDefinition
+  readonly compiled: CompiledSemanticMap
+  readonly spawnPoints: readonly PromptMapSpawnPoint[]
+  readonly validation: PromptMapValidation
+}
+
+export const presetMapSummaries: readonly PresetMapSummary[] = [
+  { id: "lobby", label: "Lobby" },
+  { id: "meeting_room", label: "Meeting room" },
+  { id: "lounge_cafe", label: "Lounge/café" },
+]
+
 const LEGACY_SKYOFFICE_SOURCE = {
   status: "legacy_reference" as const,
   sourceUrl: "https://github.com/kevinshen56714/SkyOffice",
@@ -604,6 +626,27 @@ export function compileDeterministicPromptMap(
   }
 }
 
+export function compilePresetMap(
+  id: PresetMapId,
+  catalog: VisualAssetCatalog = starterVisualAssetCatalog,
+): PresetMapResult {
+  const preset = presetMapDefinition(id)
+  const compiled = compileSemanticMapDefinition(preset.definition, catalog)
+  const spawnPoints = preset.spawnTiles.map((spawn) =>
+    tileSpawnPoint(spawn.id, spawn.tile, compiled.tileSize),
+  )
+  const validation = validatePromptMap(compiled, spawnPoints)
+
+  return {
+    id,
+    label: preset.label,
+    definition: preset.definition,
+    compiled,
+    spawnPoints,
+    validation,
+  }
+}
+
 function promptToSemanticMapDefinition(
   prompt: string,
   keywords: readonly string[],
@@ -629,7 +672,13 @@ function promptToSemanticMapDefinition(
     },
     style: "cozy_wood",
     layers: {
-      walls: perimeterWalls(width, height),
+      walls: perimeterWalls(
+        width,
+        height,
+        keywords.includes("door")
+          ? [{ edge: "left", offset: Math.floor(height / 2) }]
+          : [],
+      ),
       furniture: [
         { x: tableX, y: tableY, item: "large_conference_table" },
         ...chairPlacements(seatCount, tableX, tableY),
@@ -702,28 +751,174 @@ function requestedSeatCount(prompt: string): number {
   return Math.min(12, Math.max(2, Math.round(requested)))
 }
 
-function perimeterWalls(width: number, height: number): readonly SemanticWallPlacement[] {
+function presetMapDefinition(id: PresetMapId): {
+  readonly label: string
+  readonly definition: SemanticMapDefinition
+  readonly spawnTiles: readonly {
+    readonly id: PromptMapSpawnPoint["id"]
+    readonly tile: { readonly x: number; readonly y: number }
+  }[]
+} {
+  switch (id) {
+    case "lobby":
+      return {
+        label: "Lobby",
+        definition: {
+          roomDimensions: { width: 16, height: 10 },
+          style: "modern_light",
+          layers: {
+            walls: perimeterWalls(16, 10, [{ edge: "bottom", offset: 2 }]),
+            furniture: [
+              { x: 2, y: 9, item: "door_single" },
+              { x: 3, y: 3, item: "plant_potted" },
+              { x: 12, y: 3, item: "plant_potted" },
+              { x: 6, y: 4, item: "small_round_table" },
+              { x: 5, y: 4, item: "office_chair", direction: "east" },
+              { x: 8, y: 4, item: "office_chair", direction: "west" },
+              { x: 11, y: 6, item: "coffee_machine" },
+            ],
+            zones: [
+              {
+                id: "lobby-zone",
+                xStart: 2,
+                yStart: 2,
+                xEnd: 14,
+                yEnd: 8,
+                zoneType: "lobby",
+              },
+            ],
+          },
+        },
+        spawnTiles: [
+          { id: "default", tile: { x: 2, y: 7 } },
+          { id: "guest", tile: { x: 3, y: 7 } },
+        ],
+      }
+    case "meeting_room":
+      return {
+        label: "Meeting room",
+        definition: {
+          roomDimensions: { width: 14, height: 11 },
+          style: "cozy_wood",
+          layers: {
+            walls: perimeterWalls(14, 11, [{ edge: "left", offset: 5 }]),
+            furniture: [
+              { x: 0, y: 5, item: "door_single" },
+              { x: 5, y: 4, item: "large_conference_table" },
+              ...chairPlacements(10, 5, 4),
+              { x: 10, y: 2, item: "coffee_bar" },
+              { x: 2, y: 2, item: "plant_potted" },
+              { x: 11, y: 8, item: "plant_potted" },
+            ],
+            zones: [
+              {
+                id: "meeting-zone",
+                xStart: 3,
+                yStart: 2,
+                xEnd: 11,
+                yEnd: 8,
+                zoneType: "meeting_private",
+              },
+            ],
+          },
+        },
+        spawnTiles: [
+          { id: "default", tile: { x: 3, y: 3 } },
+          { id: "guest", tile: { x: 3, y: 4 } },
+        ],
+      }
+    case "lounge_cafe":
+      return {
+        label: "Lounge/café",
+        definition: {
+          roomDimensions: { width: 15, height: 10 },
+          style: "quiet_carpet",
+          layers: {
+            walls: perimeterWalls(15, 10, [{ edge: "left", offset: 6 }]),
+            furniture: [
+              { x: 0, y: 6, item: "door_single" },
+              { x: 10, y: 2, item: "coffee_bar" },
+              { x: 4, y: 3, item: "small_round_table" },
+              { x: 3, y: 3, item: "office_chair", direction: "east" },
+              { x: 6, y: 3, item: "office_chair", direction: "west" },
+              { x: 4, y: 6, item: "small_round_table" },
+              { x: 3, y: 6, item: "office_chair", direction: "east" },
+              { x: 6, y: 6, item: "office_chair", direction: "west" },
+              { x: 12, y: 6, item: "plant_potted" },
+              { x: 2, y: 2, item: "plant_potted" },
+            ],
+            zones: [
+              {
+                id: "lounge-zone",
+                xStart: 2,
+                yStart: 2,
+                xEnd: 13,
+                yEnd: 8,
+                zoneType: "quiet",
+              },
+            ],
+          },
+        },
+        spawnTiles: [
+          { id: "default", tile: { x: 2, y: 6 } },
+          { id: "guest", tile: { x: 2, y: 5 } },
+        ],
+      }
+  }
+}
+
+function perimeterWalls(
+  width: number,
+  height: number,
+  openings: readonly {
+    readonly edge: "top" | "bottom" | "left" | "right"
+    readonly offset: number
+  }[] = [],
+): readonly SemanticWallPlacement[] {
   const walls: SemanticWallPlacement[] = []
 
   for (let x = 0; x < width; x += 1) {
-    walls.push({
-      x,
-      y: 0,
-      type: x === 0 || x === width - 1 ? "corner" : "straight",
-    })
-    walls.push({
-      x,
-      y: height - 1,
-      type: x === 0 || x === width - 1 ? "corner" : "straight",
-    })
+    if (!hasWallOpening(openings, "top", x)) {
+      walls.push({
+        x,
+        y: 0,
+        type: x === 0 || x === width - 1 ? "corner" : "straight",
+      })
+    }
+
+    if (!hasWallOpening(openings, "bottom", x)) {
+      walls.push({
+        x,
+        y: height - 1,
+        type: x === 0 || x === width - 1 ? "corner" : "straight",
+      })
+    }
   }
 
   for (let y = 1; y < height - 1; y += 1) {
-    walls.push({ x: 0, y, type: "straight" })
-    walls.push({ x: width - 1, y, type: "straight" })
+    if (!hasWallOpening(openings, "left", y)) {
+      walls.push({ x: 0, y, type: "straight" })
+    }
+
+    if (!hasWallOpening(openings, "right", y)) {
+      walls.push({ x: width - 1, y, type: "straight" })
+    }
   }
 
   return walls
+}
+
+function hasWallOpening(
+  openings: readonly {
+    readonly edge: "top" | "bottom" | "left" | "right"
+    readonly offset: number
+  }[],
+  edge: "top" | "bottom" | "left" | "right",
+  offset: number,
+): boolean {
+  return openings.some(
+    (opening) => opening.edge === edge && opening.offset === offset,
+  )
 }
 
 function chairPlacements(

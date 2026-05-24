@@ -136,3 +136,21 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   plants, a door, and a coffee bar; browser console warnings/errors stayed at
   zero. The standalone web-game client still cannot run because it cannot
   resolve the `playwright` package from the skill runtime.
+- Map switching is now wired through semantic presets. The app exposes Lobby,
+  Meeting room, Lounge/cafe, and Generated room controls; presets live in
+  `packages/asset-registry` and compile through the same semantic map compiler
+  as prompt-generated rooms.
+- Switching maps uses the clean demo reset path, then posts the selected map's
+  pixel collision geometry and zones to `/dev/world-geometry` so the local
+  authoritative world server validates against the same layout that Phaser
+  renders.
+- Verification passed for asset-registry presets, world room reset,
+  dev fixture/world-geometry routes, the Vite browser build, and full
+  `npm run check`.
+- Playwright MCP verified desktop `1280x900` and mobile `390x760`: Lobby loads
+  by default, Meeting room can be joined with two demo players, switching to
+  Lounge/café resets the local demo world cleanly, Generated room compiles the
+  prompt map, active switcher state is reflected through `aria-pressed`, and
+  browser console warnings/errors stayed at zero. The standalone web-game
+  client still cannot run because it cannot resolve the `playwright` package
+  from the skill runtime.

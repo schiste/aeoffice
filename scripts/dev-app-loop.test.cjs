@@ -42,7 +42,8 @@ async function main() {
   const rendererEvents = []
   const firstApp = appFor(runtime.handler, "client-1", rendererEvents)
   const secondApp = appFor(runtime.handler, "client-2")
-  const fixtureMap = await getFixtureMap(runtime.handler)
+  const fixtureMap = await getFixtureMap(runtime.handler, "meeting_room")
+  await configureWorldGeometry(runtime.handler, fixtureMap)
   const firstSpawn = fixtureSpawnPosition(fixtureMap, "default")
   const secondSpawn = fixtureSpawnPosition(fixtureMap, "guest")
 
@@ -158,10 +159,39 @@ async function signIn(handler, subject, username) {
   }
 }
 
-async function getFixtureMap(handler) {
-  const response = await handler(new Request("http://dev.local/dev/fixture-map"))
+async function getFixtureMap(handler, preset = "lobby") {
+  const response = await handler(
+    new Request(`http://dev.local/dev/fixture-map?preset=${preset}`),
+  )
   assert.equal(response.status, 200)
   return response.json()
+}
+
+async function configureWorldGeometry(handler, fixtureMap) {
+  const response = await handler(
+    new Request("http://dev.local/dev/world-geometry", {
+      method: "POST",
+      body: JSON.stringify({
+        map: {
+          width: fixtureMap.compiled.width * fixtureMap.compiled.tileSize,
+          height: fixtureMap.compiled.height * fixtureMap.compiled.tileSize,
+          tileSize: fixtureMap.compiled.tileSize,
+          blockedTiles: fixtureMap.compiled.blockedTiles,
+        },
+        zones: fixtureMap.compiled.zones.map((zone) => ({
+          id: zone.id,
+          bounds: {
+            x: zone.xStart * fixtureMap.compiled.tileSize,
+            y: zone.yStart * fixtureMap.compiled.tileSize,
+            width: (zone.xEnd - zone.xStart) * fixtureMap.compiled.tileSize,
+            height: (zone.yEnd - zone.yStart) * fixtureMap.compiled.tileSize,
+          },
+        })),
+      }),
+    }),
+  )
+
+  assert.equal(response.status, 200)
 }
 
 function fixtureSpawnPosition(fixtureMap, spawnId) {

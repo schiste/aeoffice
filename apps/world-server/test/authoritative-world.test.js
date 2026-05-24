@@ -407,6 +407,36 @@ assert.equal(unknownClientEvents[0].message.type, "protocol_error")
 assert.equal(controller.leave("client-sender"), true)
 assert.equal(roomWorld.getPlayer("player-sender"), undefined)
 
+controller.resetRoom({
+  map: {
+    width: 64,
+    height: 64,
+    tileSize: 32,
+    blockedTiles: [{ x: 0, y: 0 }],
+  },
+  zones: [],
+})
+assert.deepEqual(roomWorld.listPlayers(), [])
+assert.equal(controller.snapshot("client-receiver").status, "denied")
+
+const resetJoin = controller.join({
+  clientId: "client-reset",
+  token: receiverToken,
+  playerId: "player-reset",
+  spawn: { x: 0, y: 0 },
+  requestedRoomId: "room-1",
+  nowMs: Date.parse("2026-05-23T10:00:04.000Z"),
+})
+assert.equal(resetJoin.status, "joined")
+
+const resetMove = controller.receive(
+  "client-reset",
+  { type: "move", direction: "right", seq: 1 },
+  Date.parse("2026-05-23T10:00:05.000Z"),
+)
+assert.equal(resetMove[0].message.type, "movement_rejected")
+assert.equal(resetMove[0].message.reason, "collision")
+
 class RecordingApp {
   constructor() {
     this.routes = new Map()

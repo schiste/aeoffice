@@ -70,7 +70,7 @@ function createDevelopmentRuntime(options = {}) {
   const handler = createPrefixedFetchHandler([
     {
       prefix: "/dev",
-      handler: createDevelopmentToolsHandler(apiRuntime, options.clock),
+      handler: createDevelopmentToolsHandler(apiRuntime, worldRuntime, options.clock),
     },
     {
       prefix: "/api",
@@ -186,9 +186,10 @@ function createDevAuthHandler(apiRuntime, clock) {
   }
 }
 
-function createDevelopmentToolsHandler(apiRuntime, clock) {
+function createDevelopmentToolsHandler(apiRuntime, worldRuntime, clock) {
   const authHandler = createDevAuthHandler(apiRuntime, clock)
   const fixtureMapHandler = createDevFixtureMapHandler()
+  const worldGeometryHandler = createDevWorldGeometryHandler(worldRuntime)
 
   return async (request) => {
     const url = new URL(request.url)
@@ -201,9 +202,34 @@ function createDevelopmentToolsHandler(apiRuntime, clock) {
       return fixtureMapHandler(request)
     }
 
+    if (url.pathname === "/world-geometry") {
+      return worldGeometryHandler(request)
+    }
+
     return jsonResponse(404, {
       error: "not_found",
       reason: "No development tool route matches this request.",
+    })
+  }
+}
+
+function createDevWorldGeometryHandler(worldRuntime) {
+  return async (request) => {
+    if (request.method !== "POST") {
+      return jsonResponse(405, {
+        error: "method_not_allowed",
+        reason: "World geometry updates only support POST.",
+      })
+    }
+
+    const body = await request.json()
+    const geometry = developmentWorldGeometryFromBody(body)
+    worldRuntime.controller.resetRoom(geometry)
+
+    return jsonResponse(200, {
+      status: "ok",
+      blockedTileCount: geometry.map.blockedTiles.length,
+      zoneCount: geometry.zones.length,
     })
   }
 }
@@ -217,7 +243,16 @@ function createDevFixtureMapHandler() {
       })
     }
 
-    const body = createDevelopmentFixtureMap()
+    const presetId = new URL(request.url).searchParams.get("preset") ?? "lobby"
+
+    if (!isDevelopmentPresetId(presetId)) {
+      return jsonResponse(400, {
+        error: "invalid_preset",
+        reason: `Unknown development fixture preset: ${presetId}`,
+      })
+    }
+
+    const body = createDevelopmentFixtureMap(presetId)
     return new Response(request.method === "HEAD" ? undefined : JSON.stringify(body), {
       status: 200,
       headers: {
@@ -227,19 +262,17 @@ function createDevFixtureMapHandler() {
   }
 }
 
-function createDevelopmentFixtureMap() {
+function createDevelopmentFixtureMap(presetId = "lobby") {
   const assetRegistry = require("../packages/asset-registry/dist/index.js")
-  const definition = developmentSemanticMapDefinition()
-  const compiled = assetRegistry.compileSemanticMapDefinition(
-    definition,
-    assetRegistry.starterVisualAssetCatalog,
-  )
+  const preset = assetRegistry.compilePresetMap(presetId)
+  const definition = preset.definition
+  const compiled = preset.compiled
   const tokenIds = new Set(compiled.referencedTokenIds)
 
   return {
     definition,
     compiled,
-    spawnPoints: developmentFixtureSpawnPoints(compiled.tileSize),
+    spawnPoints: preset.spawnPoints,
     catalog: {
       version: assetRegistry.starterVisualAssetCatalog.version,
       tileSize: assetRegistry.starterVisualAssetCatalog.tileSize,
@@ -259,17 +292,8 @@ function createDevelopmentFixtureMap() {
   }
 }
 
-function developmentFixtureSpawnPoints(tileSize) {
-  return [
-    {
-      id: "default",
-      position: { x: 3 * tileSize, y: 2 * tileSize },
-    },
-    {
-      id: "guest",
-      position: { x: 3 * tileSize, y: 3 * tileSize },
-    },
-  ]
+function isDevelopmentPresetId(value) {
+  return value === "lobby" || value === "meeting_room" || value === "lounge_cafe"
 }
 
 function createStaticWebHandler(rootDir) {
@@ -441,6 +465,67 @@ function developmentWorldConfig() {
   }
 }
 
+function developmentWorldGeometryFromBody(body) {
+  const record = body && typeof body === "object" && !Array.isArray(body) ? body : {}
+  const map = record.map && typeof record.map === "object" ? record.map : {}
+  const zones = Array.isArray(record.zones) ? record.zones : []
+  const width = requiredPositiveNumber(map.width, "map.width")
+  const height = requiredPositiveNumber(map.height, "map.height")
+  const tileSize = requiredPositiveNumber(map.tileSize, "map.tileSize")
+  const blockedTiles = Array.isArray(map.blockedTiles)
+    ? map.blockedTiles.map((tile, index) => ({
+        x: requiredNonNegativeNumber(tile?.x, `map.blockedTiles[${index}].x`),
+        y: requiredNonNegativeNumber(tile?.y, `map.blockedTiles[${index}].y`),
+      }))
+    : []
+
+  return {
+    map: {
+      width,
+      height,
+      tileSize,
+      blockedTiles,
+    },
+    zones: zones.map((zone, index) => ({
+      id: requiredStringValue(zone?.id, `zones[${index}].id`),
+      bounds: {
+        x: requiredNonNegativeNumber(zone?.bounds?.x, `zones[${index}].bounds.x`),
+        y: requiredNonNegativeNumber(zone?.bounds?.y, `zones[${index}].bounds.y`),
+        width: requiredPositiveNumber(zone?.bounds?.width, `zones[${index}].bounds.width`),
+        height: requiredPositiveNumber(zone?.bounds?.height, `zones[${index}].bounds.height`),
+      },
+      requiredPermission:
+        typeof zone?.requiredPermission === "string"
+          ? zone.requiredPermission
+          : undefined,
+    })),
+  }
+}
+
+function requiredStringValue(value, field) {
+  if (typeof value !== "string" || value.trim() === "") {
+    throw new Error(`Expected ${field} to be a non-empty string.`)
+  }
+
+  return value
+}
+
+function requiredPositiveNumber(value, field) {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+    throw new Error(`Expected ${field} to be a positive number.`)
+  }
+
+  return value
+}
+
+function requiredNonNegativeNumber(value, field) {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
+    throw new Error(`Expected ${field} to be a non-negative number.`)
+  }
+
+  return value
+}
+
 function createWorldParticipantDirectory(world) {
   return {
     async findParticipant(playerId) {
@@ -494,47 +579,4 @@ module.exports = {
   nodeRequestToFetchRequest,
   startDevelopmentServer,
   writeFetchResponse,
-}
-
-function developmentSemanticMapDefinition() {
-  return {
-    roomDimensions: {
-      width: 12,
-      height: 10,
-    },
-    style: "cozy_wood",
-    layers: {
-      walls: [
-        { x: 0, y: 0, type: "corner" },
-        { x: 1, y: 0, type: "straight" },
-        { x: 2, y: 0, type: "straight" },
-        { x: 3, y: 0, type: "straight" },
-        { x: 4, y: 0, type: "straight" },
-        { x: 5, y: 0, type: "straight" },
-        { x: 6, y: 0, type: "straight" },
-        { x: 7, y: 0, type: "straight" },
-        { x: 8, y: 0, type: "straight" },
-        { x: 9, y: 0, type: "straight" },
-        { x: 10, y: 0, type: "straight" },
-        { x: 11, y: 0, type: "corner" },
-      ],
-      furniture: [
-        { x: 4, y: 3, item: "large_conference_table" },
-        { x: 4, y: 2, item: "office_chair", direction: "south" },
-        { x: 5, y: 2, item: "office_chair", direction: "south" },
-        { x: 6, y: 2, item: "office_chair", direction: "south" },
-        { x: 9, y: 1, item: "coffee_machine" },
-      ],
-      zones: [
-        {
-          id: "meeting-zone",
-          xStart: 3,
-          yStart: 2,
-          xEnd: 8,
-          yEnd: 6,
-          zoneType: "meeting_private",
-        },
-      ],
-    },
-  }
 }

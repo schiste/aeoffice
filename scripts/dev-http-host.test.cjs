@@ -141,23 +141,53 @@ async function main() {
   assert.match(await appStyles.text(), /\.phaser-world-host/)
   assert.equal(fixtureMap.status, 200)
   const fixtureMapBody = await fixtureMap.json()
-  assert.equal(fixtureMapBody.compiled.width, 12)
+  assert.equal(fixtureMapBody.compiled.width, 16)
   assert.equal(fixtureMapBody.compiled.height, 10)
   assert.equal(fixtureMapBody.compiled.tileSize, 32)
   assert.deepEqual(fixtureMapBody.spawnPoints[0], {
     id: "default",
-    position: { x: 96, y: 64 },
+    position: { x: 64, y: 224 },
   })
   assert.ok(
     fixtureMapBody.catalog.tokens.some(
-      (token) => token.id === "item.large_conference_table",
+      (token) => token.id === "item.small_round_table",
     ),
   )
   assert.ok(
     fixtureMapBody.compiled.blockedTiles.some(
-      (tile) => tile.x === 4 && tile.y === 3,
+      (tile) => tile.x === 6 && tile.y === 4,
     ),
   )
+  const worldGeometry = await runtime.handler(
+    new Request("http://localhost/dev/world-geometry", {
+      method: "POST",
+      body: JSON.stringify({
+        map: {
+          width: fixtureMapBody.compiled.width * fixtureMapBody.compiled.tileSize,
+          height: fixtureMapBody.compiled.height * fixtureMapBody.compiled.tileSize,
+          tileSize: fixtureMapBody.compiled.tileSize,
+          blockedTiles: fixtureMapBody.compiled.blockedTiles,
+        },
+        zones: fixtureMapBody.compiled.zones.map((zone) => ({
+          id: zone.id,
+          bounds: {
+            x: zone.xStart * fixtureMapBody.compiled.tileSize,
+            y: zone.yStart * fixtureMapBody.compiled.tileSize,
+            width: (zone.xEnd - zone.xStart) * fixtureMapBody.compiled.tileSize,
+            height: (zone.yEnd - zone.yStart) * fixtureMapBody.compiled.tileSize,
+          },
+        })),
+      }),
+    }),
+  )
+  const worldGeometryBody = await worldGeometry.json()
+  assert.equal(worldGeometry.status, 200)
+  assert.equal(worldGeometryBody.status, "ok")
+  assert.equal(
+    worldGeometryBody.blockedTileCount,
+    fixtureMapBody.compiled.blockedTiles.length,
+  )
+  assert.equal(worldGeometryBody.zoneCount, fixtureMapBody.compiled.zones.length)
   assert.equal(devSignIn.status, 200)
   assert.equal(devSignInBody.username, "Dev Ada")
   assert.ok(devSignInBody.sessionId)

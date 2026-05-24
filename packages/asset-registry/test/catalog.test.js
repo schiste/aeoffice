@@ -2,7 +2,9 @@ const assert = require("node:assert")
 const {
   assertNoUnapprovedBundledAssets,
   compileDeterministicPromptMap,
+  compilePresetMap,
   compileSemanticMapDefinition,
+  presetMapSummaries,
   starterVisualAssetCatalog,
   validateVisualAssetCatalog,
 } = require("../dist/index.js")
@@ -158,6 +160,39 @@ assert.ok(
 )
 assert.ok(decorated.compiled.referencedTokenIds.includes("item.plant_potted"))
 assert.ok(decorated.compiled.referencedTokenIds.includes("item.door_single"))
+
+assert.deepEqual(
+  presetMapSummaries.map((preset) => preset.id),
+  ["lobby", "meeting_room", "lounge_cafe"],
+)
+for (const presetId of presetMapSummaries.map((preset) => preset.id)) {
+  const preset = compilePresetMap(presetId)
+
+  assert.equal(preset.id, presetId)
+  assert.equal(preset.validation.valid, true)
+  assert.deepEqual(preset.validation.spawnIds, ["default", "guest"])
+  assert.equal(preset.validation.zoneCount, 1)
+  assert.ok(preset.compiled.blockedTiles.length > 0)
+  assert.ok(
+    preset.compiled.referencedTokenIds.every((tokenId) =>
+      tokensById.has(tokenId),
+    ),
+  )
+}
+const lobby = compilePresetMap("lobby")
+assert.equal(lobby.definition.style, "modern_light")
+assert.equal(lobby.compiled.width, 16)
+assert.ok(lobby.compiled.referencedTokenIds.includes("item.coffee_machine"))
+
+const meetingRoom = compilePresetMap("meeting_room")
+assert.equal(meetingRoom.definition.style, "cozy_wood")
+assert.ok(meetingRoom.compiled.referencedTokenIds.includes("item.coffee_bar"))
+assert.ok(meetingRoom.validation.zoneIds.includes("meeting-zone"))
+
+const loungeCafe = compilePresetMap("lounge_cafe")
+assert.equal(loungeCafe.definition.style, "quiet_carpet")
+assert.ok(loungeCafe.compiled.referencedTokenIds.includes("item.small_round_table"))
+assert.ok(loungeCafe.validation.zoneIds.includes("lounge-zone"))
 
 assert.throws(
   () =>
