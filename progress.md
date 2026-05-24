@@ -234,3 +234,27 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   mobile controls stayed reachable, and browser console errors stayed at zero.
 - Verification passed: `npm run check`, including the updated browser frontend
   smoke and the development HTTP host app-shell assertion.
+- Asset upgrade pass is now applied. The target asset source is
+  `internal.generated.office.polished_v1`, still generated internally at runtime
+  and recorded as CC0; SkyOffice/LimeZu entries remain reference-only metadata
+  and are not bundled into the target app.
+- The semantic catalog now covers polished wood, carpet, concrete floors; wood,
+  glass, and neutral office walls; tables, chairs, plants, coffee machines,
+  coffee bars, doors, couches; and four stable avatar tokens (`ember`, `cobalt`,
+  `moss`, `violet`). Existing semantic IDs/GIDs were preserved and new IDs were
+  appended.
+- Phaser now draws polished procedural tiles instead of labeled placeholder
+  blocks. Multi-tile semantic assets are rendered as clipped segments of one
+  larger object so conference tables, round tables, coffee bars, and couches do
+  not look like repeated one-tile stamps.
+- Deterministic prompt generation now recognizes couch/sofa wording and the
+  lounge/cafe preset includes a couch while keeping map compilation and server
+  collision driven by the same semantic registry.
+- Visual QA captured Lobby, Meeting room, Lounge/cafe, Generated room, and
+  mobile screenshots on the local dev host. The app bundle contains
+  `internal.generated.office.polished_v1`, `wall.neutral.*`, and
+  `item.lounge_couch`, with no remaining placeholder source strings in the web
+  bundle. The standalone web-game client can run through a temporary symlinked
+  entrypoint with the repo `node_modules`; its direct canvas capture is still
+  black under headless WebGL, so page-level Playwright screenshots remain the
+  visual source of truth.

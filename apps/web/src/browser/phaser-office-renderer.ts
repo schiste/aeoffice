@@ -39,6 +39,18 @@ interface FixtureToken {
   readonly heightTiles: number
 }
 
+interface TileSegment {
+  readonly offsetX: number
+  readonly offsetY: number
+  readonly widthTiles: number
+  readonly heightTiles: number
+}
+
+interface MultiTileVariantGids {
+  readonly byRootGid: ReadonlyMap<number, readonly (readonly number[])[]>
+  readonly allGids: readonly number[]
+}
+
 interface FixtureZone {
   readonly id: string
   readonly xStart: number
@@ -87,15 +99,47 @@ const AVATAR_STYLES: Record<
   string,
   {
     readonly torso: number
+    readonly torsoDark: number
     readonly head: number
     readonly accent: number
+    readonly hair: number
   }
 > = {
-  ember: { torso: 0xc8493c, head: 0xffd3a3, accent: 0x6e2d24 },
-  cobalt: { torso: 0x2f6fc8, head: 0xf0c7a1, accent: 0x193d71 },
-  moss: { torso: 0x2f8f63, head: 0xd7b38e, accent: 0x1f5d42 },
-  violet: { torso: 0x7b5ac8, head: 0xe0b995, accent: 0x493376 },
-  companion: { torso: 0x2f6fc8, head: 0xf0c7a1, accent: 0x193d71 },
+  ember: {
+    torso: 0xc45b40,
+    torsoDark: 0x873727,
+    head: 0xffd3a3,
+    accent: 0xf6a04f,
+    hair: 0x5a3323,
+  },
+  cobalt: {
+    torso: 0x316f9f,
+    torsoDark: 0x1d4260,
+    head: 0xf0c7a1,
+    accent: 0x9dc7e4,
+    hair: 0x273748,
+  },
+  moss: {
+    torso: 0x3c8759,
+    torsoDark: 0x24543a,
+    head: 0xd7b38e,
+    accent: 0xa7d18f,
+    hair: 0x473522,
+  },
+  violet: {
+    torso: 0x755aa5,
+    torsoDark: 0x49336f,
+    head: 0xe0b995,
+    accent: 0xc8b4f2,
+    hair: 0x332444,
+  },
+  companion: {
+    torso: 0x316f9f,
+    torsoDark: 0x1d4260,
+    head: 0xf0c7a1,
+    accent: 0x9dc7e4,
+    hair: 0x273748,
+  },
 }
 
 export class PhaserOfficeRenderer {
@@ -275,9 +319,11 @@ class OfficeScene extends Phaser.Scene {
     this.cameras.main.centerOn(widthInPixels / 2, heightInPixels / 2)
     this.applyCameraZoom()
 
-    const multiTileFillGids = createMultiTileFillGids(fixtureMap.catalog.tokens)
+    const multiTileVariantGids = createMultiTileVariantGids(
+      fixtureMap.catalog.tokens,
+    )
 
-    this.installSemanticTileset(fixtureMap, multiTileFillGids)
+    this.installSemanticTileset(fixtureMap, multiTileVariantGids)
     const tileset = this.activeMap.addTilesetImage(
       TILESET_NAME,
       TILESET_KEY,
@@ -301,7 +347,7 @@ class OfficeScene extends Phaser.Scene {
       fixtureMap.compiled.layers.floor,
       tileset,
       tokensByGid,
-      multiTileFillGids,
+      multiTileVariantGids.byRootGid,
       0,
     )
     this.paintTileLayer(
@@ -309,7 +355,7 @@ class OfficeScene extends Phaser.Scene {
       fixtureMap.compiled.layers.walls,
       tileset,
       tokensByGid,
-      multiTileFillGids,
+      multiTileVariantGids.byRootGid,
       10,
     )
     this.paintTileLayer(
@@ -317,7 +363,7 @@ class OfficeScene extends Phaser.Scene {
       fixtureMap.compiled.layers.objects,
       tileset,
       tokensByGid,
-      multiTileFillGids,
+      multiTileVariantGids.byRootGid,
       20,
     )
     this.redrawZones()
@@ -414,7 +460,7 @@ class OfficeScene extends Phaser.Scene {
 
   private installSemanticTileset(
     fixtureMap: FixtureMap,
-    multiTileFillGids: ReadonlyMap<number, number>,
+    multiTileVariantGids: MultiTileVariantGids,
   ): void {
     if (this.textures.exists(TILESET_KEY)) {
       this.textures.remove(TILESET_KEY)
@@ -424,7 +470,7 @@ class OfficeScene extends Phaser.Scene {
     const maxGid = Math.max(
       0,
       ...fixtureMap.catalog.tokens.map((token) => token.provisionalGid),
-      ...multiTileFillGids.values(),
+      ...multiTileVariantGids.allGids,
     )
     const columns = Math.min(32, Math.max(1, Math.ceil(Math.sqrt(maxGid + 1))))
     const rows = Math.ceil((maxGid + 1) / columns)
@@ -440,14 +486,30 @@ class OfficeScene extends Phaser.Scene {
     fixtureMap.catalog.tokens.forEach((token) => {
       const frameX = (token.provisionalGid % columns) * tileSize
       const frameY = Math.floor(token.provisionalGid / columns) * tileSize
-      drawSemanticTile(context, token, frameX, frameY, tileSize, true)
+      drawSemanticTile(context, token, frameX, frameY, tileSize, {
+        offsetX: 0,
+        offsetY: 0,
+        widthTiles: token.widthTiles,
+        heightTiles: token.heightTiles,
+      })
 
-      const fillGid = multiTileFillGids.get(token.provisionalGid)
-      if (fillGid !== undefined) {
-        const fillFrameX = (fillGid % columns) * tileSize
-        const fillFrameY = Math.floor(fillGid / columns) * tileSize
-        drawSemanticTile(context, token, fillFrameX, fillFrameY, tileSize, false)
-      }
+      const variantGrid = multiTileVariantGids.byRootGid.get(
+        token.provisionalGid,
+      )
+      variantGrid?.forEach((row, offsetY) => {
+        row.forEach((variantGid, offsetX) => {
+          if (offsetX === 0 && offsetY === 0) return
+
+          const variantFrameX = (variantGid % columns) * tileSize
+          const variantFrameY = Math.floor(variantGid / columns) * tileSize
+          drawSemanticTile(context, token, variantFrameX, variantFrameY, tileSize, {
+            offsetX,
+            offsetY,
+            widthTiles: token.widthTiles,
+            heightTiles: token.heightTiles,
+          })
+        })
+      })
     })
 
     this.textures.addCanvas(TILESET_KEY, canvas)
@@ -458,7 +520,7 @@ class OfficeScene extends Phaser.Scene {
     layer: TileLayer,
     tileset: Phaser.Tilemaps.Tileset,
     tokensByGid: ReadonlyMap<number, FixtureToken>,
-    multiTileFillGids: ReadonlyMap<number, number>,
+    multiTileVariantGids: ReadonlyMap<number, readonly (readonly number[])[]>,
     depth: number,
   ): void {
     if (!this.activeMap) return
@@ -476,11 +538,11 @@ class OfficeScene extends Phaser.Scene {
         const token = tokensByGid.get(gid)
         const widthTiles = token?.widthTiles ?? 1
         const heightTiles = token?.heightTiles ?? 1
-        const fillGid = multiTileFillGids.get(gid) ?? gid
+        const variantGrid = multiTileVariantGids.get(gid)
 
         for (let offsetY = 0; offsetY < heightTiles; offsetY += 1) {
           for (let offsetX = 0; offsetX < widthTiles; offsetX += 1) {
-            const tileGid = offsetX === 0 && offsetY === 0 ? gid : fillGid
+            const tileGid = variantGrid?.[offsetY]?.[offsetX] ?? gid
             phaserLayer.putTileAt(tileGid, x + offsetX, y + offsetY, false)
           }
         }
@@ -511,8 +573,11 @@ class OfficeScene extends Phaser.Scene {
 class AvatarView {
   readonly focusTarget: Phaser.GameObjects.Container
   private readonly shadow: Phaser.GameObjects.Ellipse
+  private readonly leftFoot: Phaser.GameObjects.Ellipse
+  private readonly rightFoot: Phaser.GameObjects.Ellipse
   private readonly torso: Phaser.GameObjects.Ellipse
   private readonly head: Phaser.GameObjects.Ellipse
+  private readonly hair: Phaser.GameObjects.Ellipse
   private readonly facing: Phaser.GameObjects.Triangle
   private readonly labelBack: Phaser.GameObjects.Rectangle
   private readonly label: Phaser.GameObjects.Text
@@ -537,13 +602,17 @@ class AvatarView {
     this.focusTarget.setName(`avatar:${player.playerId}`)
     const style = avatarStyle(this.avatarId)
 
-    this.shadow = scene.add.ellipse(0, 14, 18, 6, 0x172026, 0.2)
+    this.shadow = scene.add.ellipse(0, 15, 20, 7, 0x20201d, 0.18)
+    this.leftFoot = scene.add.ellipse(-5, 12, 7, 5, style.torsoDark, 1)
+    this.rightFoot = scene.add.ellipse(5, 12, 7, 5, style.torsoDark, 1)
     this.torso = scene.add.ellipse(0, 2, AVATAR_WIDTH, AVATAR_HEIGHT, style.torso, 1)
+    this.torso.setStrokeStyle(1, style.torsoDark, 0.55)
     this.head = scene.add.ellipse(0, -10, 13, 13, style.head, 1)
-    this.facing = scene.add.triangle(0, -10, 0, -4, 5, 4, -5, 4, style.accent, 0.9)
+    this.hair = scene.add.ellipse(0, -14, 12, 6, style.hair, 1)
+    this.facing = scene.add.triangle(0, -9, 0, -4, 4, 3, -4, 3, style.accent, 0.86)
     this.label = scene.add.text(0, -31, player.name, {
-      color: "#172026",
-      fontFamily: "Inter, Arial, sans-serif",
+      color: "#20201d",
+      fontFamily: "Aptos, Segoe UI, sans-serif",
       fontSize: "10px",
       fontStyle: "700",
       align: "center",
@@ -561,8 +630,11 @@ class AvatarView {
 
     this.focusTarget.add([
       this.shadow,
+      this.leftFoot,
+      this.rightFoot,
       this.torso,
       this.head,
+      this.hair,
       this.facing,
       this.labelBack,
       this.label,
@@ -587,9 +659,13 @@ class AvatarView {
     this.label.setText(player.name)
     this.labelBack.setSize(this.label.width + 10, 15)
     this.labelBack.setStrokeStyle(1, style.torso, 0.65)
+    this.leftFoot.setFillStyle(style.torsoDark, 1)
+    this.rightFoot.setFillStyle(style.torsoDark, 1)
     this.torso.setFillStyle(style.torso, 1)
+    this.torso.setStrokeStyle(1, style.torsoDark, 0.55)
     this.head.setFillStyle(style.head, 1)
-    this.facing.setFillStyle(style.accent, 0.9)
+    this.hair.setFillStyle(style.hair, 1)
+    this.facing.setFillStyle(style.accent, 0.86)
     this.focusTarget.setDepth(AVATAR_DEPTH_BASE + player.position.y)
     this.setFacing(player.direction)
 
@@ -630,6 +706,7 @@ class AvatarView {
   private showRejected(direction: Direction): void {
     this.rejectionTween?.stop()
     this.positionTween?.stop()
+    const style = avatarStyle(this.avatarId)
     this.focusTarget.setPosition(this.lastPosition.x, this.lastPosition.y)
     this.torso.setStrokeStyle(2, 0xffd166, 1)
     this.rejectionTween = this.scene.tweens.add({
@@ -640,7 +717,7 @@ class AvatarView {
       yoyo: true,
       repeat: 1,
       ease: "Sine.easeOut",
-      onComplete: () => this.torso.setStrokeStyle(0, 0xffffff, 0),
+      onComplete: () => this.torso.setStrokeStyle(1, style.torsoDark, 0.55),
     })
   }
 
@@ -657,7 +734,13 @@ class AvatarView {
       direction === "left" ? -5 : direction === "right" ? 5 : 0,
       direction === "up" ? -15 : direction === "down" ? -5 : -10,
     )
-    this.facing.setAlpha(direction === "up" ? 0.45 : 0.9)
+    this.facing.setAlpha(direction === "up" ? 0.18 : 0.86)
+    this.hair.setPosition(
+      direction === "left" ? -3 : direction === "right" ? 3 : 0,
+      direction === "up" ? -12 : -14,
+    )
+    this.leftFoot.setPosition(direction === "right" ? -3 : -5, 12)
+    this.rightFoot.setPosition(direction === "left" ? 3 : 5, 12)
   }
 
   private startIdleTween(): void {
@@ -710,8 +793,10 @@ function fallbackAvatarId(player: RenderedPlayer): string {
 
 function avatarStyle(avatarId: string): {
   readonly torso: number
+  readonly torsoDark: number
   readonly head: number
   readonly accent: number
+  readonly hair: number
 } {
   return AVATAR_STYLES[avatarId] ?? AVATAR_STYLES.ember
 }
@@ -731,62 +816,207 @@ function drawSemanticTile(
   x: number,
   y: number,
   tileSize: number,
-  showLabel: boolean,
+  segment: TileSegment,
 ): void {
-  const style = styleForToken(token)
-  context.fillStyle = style.fill
-  context.fillRect(x, y, tileSize, tileSize)
-  context.strokeStyle = style.stroke
-  context.lineWidth = 1
-  context.strokeRect(x + 0.5, y + 0.5, tileSize - 1, tileSize - 1)
-
   if (token.kind === "floor") {
-    context.strokeStyle = "rgba(117, 79, 42, 0.22)"
-    context.beginPath()
-    context.moveTo(x, y + tileSize / 2)
-    context.lineTo(x + tileSize, y + tileSize / 2)
-    context.moveTo(x + tileSize / 2, y)
-    context.lineTo(x + tileSize / 2, y + tileSize)
-    context.stroke()
+    drawPolishedFloor(context, token, x, y, tileSize)
     return
   }
 
   if (token.kind === "wall") {
-    context.fillStyle = "rgba(23, 32, 38, 0.20)"
-    context.fillRect(x, y + tileSize - 7, tileSize, 7)
+    drawPolishedWall(context, token, x, y, tileSize)
     return
   }
 
-  if (token.kind === "item" && showLabel) {
-    drawSemanticItem(context, token, x, y, tileSize)
+  if (token.kind === "item") {
+    drawPolishedItem(context, token, x, y, tileSize, segment)
+    return
   }
+
+  drawAvatarSwatchTile(context, token, x, y, tileSize)
 }
 
-function drawSemanticItem(
+function drawPolishedFloor(
   context: CanvasRenderingContext2D,
   token: FixtureToken,
   x: number,
   y: number,
   tileSize: number,
 ): void {
-  if (token.id.includes("plant")) {
-    context.fillStyle = "#6e4b35"
-    context.fillRect(x + 11, y + 19, 10, 7)
-    context.fillStyle = "#2f8f63"
+  if (token.id.includes("wood")) {
+    context.fillStyle = "#cfa56c"
+    context.fillRect(x, y, tileSize, tileSize)
+    context.fillStyle = "rgba(106, 64, 35, 0.13)"
+    context.fillRect(x, y + 7, tileSize, 2)
+    context.fillRect(x, y + 23, tileSize, 2)
+    context.strokeStyle = "rgba(85, 52, 28, 0.28)"
+    context.lineWidth = 1
+    for (let row = 0; row < 4; row += 1) {
+      const top = y + row * 8 + 0.5
+      context.beginPath()
+      context.moveTo(x, top)
+      context.lineTo(x + tileSize, top)
+      context.stroke()
+      const seam = x + ((row % 2 === 0 ? 14 : 24))
+      context.beginPath()
+      context.moveTo(seam + 0.5, top)
+      context.lineTo(seam + 0.5, top + 8)
+      context.stroke()
+    }
+    context.fillStyle = "rgba(255, 238, 196, 0.18)"
+    context.fillRect(x + 2, y + 2, tileSize - 4, 3)
+    return
+  }
+
+  if (token.id.includes("concrete")) {
+    context.fillStyle = "#cbd3d1"
+    context.fillRect(x, y, tileSize, tileSize)
+    context.strokeStyle = "rgba(97, 111, 112, 0.28)"
+    context.lineWidth = 1
+    context.strokeRect(x + 0.5, y + 0.5, tileSize - 1, tileSize - 1)
+    context.fillStyle = "rgba(255, 255, 255, 0.22)"
+    context.fillRect(x + 3, y + 3, 6, 1)
+    context.fillRect(x + 20, y + 13, 5, 1)
+    context.fillStyle = "rgba(77, 91, 91, 0.16)"
+    context.fillRect(x + 11, y + 8, 2, 2)
+    context.fillRect(x + 25, y + 24, 2, 2)
+    return
+  }
+
+  context.fillStyle = "#94b2a2"
+  context.fillRect(x, y, tileSize, tileSize)
+  context.strokeStyle = "rgba(49, 85, 65, 0.2)"
+  context.lineWidth = 1
+  for (let offset = 0; offset <= tileSize; offset += 8) {
     context.beginPath()
-    context.arc(x + 16, y + 15, 8, 0, Math.PI * 2)
-    context.arc(x + 11, y + 14, 5, 0, Math.PI * 2)
-    context.arc(x + 21, y + 13, 5, 0, Math.PI * 2)
+    context.moveTo(x + offset + 0.5, y)
+    context.lineTo(x + offset + 0.5, y + tileSize)
+    context.moveTo(x, y + offset + 0.5)
+    context.lineTo(x + tileSize, y + offset + 0.5)
+    context.stroke()
+  }
+  context.fillStyle = "rgba(255, 255, 255, 0.08)"
+  context.fillRect(x, y, tileSize, tileSize / 2)
+}
+
+function drawPolishedWall(
+  context: CanvasRenderingContext2D,
+  token: FixtureToken,
+  x: number,
+  y: number,
+  tileSize: number,
+): void {
+  if (token.id.includes("glass")) {
+    context.fillStyle = "#98c8ce"
+    context.fillRect(x, y, tileSize, tileSize)
+    context.fillStyle = "rgba(232, 250, 255, 0.52)"
+    context.fillRect(x + 3, y + 3, tileSize - 6, tileSize - 12)
+    context.fillStyle = "rgba(48, 101, 112, 0.34)"
+    context.fillRect(x, y + tileSize - 9, tileSize, 9)
+    context.strokeStyle = "#487f88"
+    context.lineWidth = 2
+    context.strokeRect(x + 1, y + 1, tileSize - 2, tileSize - 2)
+    context.strokeStyle = "rgba(255, 255, 255, 0.72)"
+    context.lineWidth = 1
+    context.beginPath()
+    context.moveTo(x + 7, y + 4)
+    context.lineTo(x + 20, y + 18)
+    context.moveTo(x + 17, y + 3)
+    context.lineTo(x + 27, y + 13)
+    context.stroke()
+    return
+  }
+
+  if (token.id.includes("neutral")) {
+    context.fillStyle = "#d7d1c4"
+    context.fillRect(x, y, tileSize, tileSize)
+    context.fillStyle = "#ece7dc"
+    context.fillRect(x + 2, y + 2, tileSize - 4, 14)
+    context.fillStyle = "#b6aa97"
+    context.fillRect(x, y + tileSize - 8, tileSize, 8)
+    context.strokeStyle = "rgba(98, 88, 74, 0.35)"
+    context.lineWidth = 1
+    context.strokeRect(x + 0.5, y + 0.5, tileSize - 1, tileSize - 1)
+    return
+  }
+
+  context.fillStyle = "#8e6843"
+  context.fillRect(x, y, tileSize, tileSize)
+  context.fillStyle = "#b98756"
+  context.fillRect(x + 2, y + 2, tileSize - 4, 12)
+  context.fillStyle = "#6e4b31"
+  context.fillRect(x, y + tileSize - 9, tileSize, 9)
+  context.strokeStyle = "rgba(63, 38, 22, 0.34)"
+  context.lineWidth = 1
+  context.beginPath()
+  context.moveTo(x + 10.5, y + 2)
+  context.lineTo(x + 10.5, y + tileSize - 9)
+  context.moveTo(x + 21.5, y + 2)
+  context.lineTo(x + 21.5, y + tileSize - 9)
+  context.stroke()
+}
+
+function drawPolishedItem(
+  context: CanvasRenderingContext2D,
+  token: FixtureToken,
+  x: number,
+  y: number,
+  tileSize: number,
+  segment: TileSegment,
+): void {
+  context.clearRect(x, y, tileSize, tileSize)
+
+  if (token.id.includes("large_conference_table")) {
+    drawSegmentedObject(context, x, y, tileSize, segment, (originX, originY, width, height) => {
+      drawSoftShadow(context, originX + width / 2, originY + height - 9, width - 16, 10)
+      context.fillStyle = "#6d5c3a"
+      fillRoundedRect(context, originX + 8, originY + 12, width - 16, height - 22, 5)
+      context.fillStyle = "#9d8757"
+      fillRoundedRect(context, originX + 12, originY + 15, width - 24, height - 30, 3)
+      context.fillStyle = "rgba(255, 245, 210, 0.3)"
+      context.fillRect(originX + 17, originY + 18, width - 34, 4)
+      context.strokeStyle = "rgba(74, 57, 35, 0.28)"
+      context.lineWidth = 1
+      context.beginPath()
+      context.moveTo(originX + width / 3, originY + 17)
+      context.lineTo(originX + width / 3, originY + height - 18)
+      context.moveTo(originX + (width * 2) / 3, originY + 17)
+      context.lineTo(originX + (width * 2) / 3, originY + height - 18)
+      context.stroke()
+      context.fillStyle = "#4b3d27"
+      context.fillRect(originX + 16, originY + height - 17, 6, 8)
+      context.fillRect(originX + width - 22, originY + height - 17, 6, 8)
+    })
+    return
+  }
+
+  if (token.id.includes("plant")) {
+    drawSoftShadow(context, x + 16, y + 25, 18, 6)
+    context.fillStyle = "#8a6648"
+    fillRoundedRect(context, x + 10, y + 20, 12, 7, 2)
+    context.fillStyle = "#2e7d52"
+    context.beginPath()
+    context.arc(x + 16, y + 14, 8, 0, Math.PI * 2)
+    context.arc(x + 10, y + 15, 5, 0, Math.PI * 2)
+    context.arc(x + 22, y + 14, 5, 0, Math.PI * 2)
+    context.fill()
+    context.fillStyle = "#48a36e"
+    context.beginPath()
+    context.arc(x + 14, y + 11, 4, 0, Math.PI * 2)
     context.fill()
     return
   }
 
   if (token.id.includes("door")) {
-    context.fillStyle = "#8a5637"
-    context.fillRect(x + 7, y + 4, 18, 24)
-    context.strokeStyle = "#563722"
-    context.strokeRect(x + 7.5, y + 4.5, 17, 23)
-    context.fillStyle = "#f0c86a"
+    drawSoftShadow(context, x + 16, y + 28, 20, 5)
+    context.fillStyle = "#9a633d"
+    fillRoundedRect(context, x + 7, y + 4, 18, 24, 2)
+    context.fillStyle = "#b87a4f"
+    context.fillRect(x + 10, y + 7, 5, 18)
+    context.strokeStyle = "rgba(73, 43, 23, 0.42)"
+    context.lineWidth = 1
+    strokeRoundedRect(context, x + 7.5, y + 4.5, 17, 23, 2)
+    context.fillStyle = "#efc86d"
     context.beginPath()
     context.arc(x + 21, y + 17, 2, 0, Math.PI * 2)
     context.fill()
@@ -794,107 +1024,244 @@ function drawSemanticItem(
   }
 
   if (token.id.includes("coffee_bar")) {
-    context.fillStyle = "#5f4734"
-    context.fillRect(x + 3, y + 8, 26, 16)
-    context.fillStyle = "#d8c7ad"
-    context.fillRect(x + 5, y + 10, 22, 4)
-    context.fillStyle = "#ffffff"
-    context.fillRect(x + 9, y + 15, 5, 5)
-    context.fillRect(x + 18, y + 15, 5, 5)
-    drawItemLabel(context, "BAR", x, y, tileSize)
+    drawSegmentedObject(context, x, y, tileSize, segment, (originX, originY, width) => {
+      drawSoftShadow(context, originX + width / 2, originY + 25, width - 12, 6)
+      context.fillStyle = "#6b4b34"
+      fillRoundedRect(context, originX + 4, originY + 9, width - 8, 15, 4)
+      context.fillStyle = "#d8c4a2"
+      fillRoundedRect(context, originX + 7, originY + 10, width - 14, 4, 2)
+      context.fillStyle = "#2f4d49"
+      fillRoundedRect(context, originX + 10, originY + 15, 12, 6, 2)
+      context.fillStyle = "#f9f6ef"
+      context.fillRect(originX + width - 19, originY + 15, 6, 6)
+      context.fillStyle = "#efc86d"
+      context.fillRect(originX + width - 28, originY + 16, 5, 4)
+      context.fillStyle = "rgba(255, 255, 255, 0.3)"
+      context.fillRect(originX + 10, originY + 10, width - 26, 1)
+    })
     return
   }
 
   if (token.id.includes("coffee_machine")) {
-    context.fillStyle = "#4e5b60"
-    context.fillRect(x + 9, y + 7, 14, 18)
-    context.fillStyle = "#e7edf0"
+    drawSoftShadow(context, x + 16, y + 26, 16, 5)
+    context.fillStyle = "#42545a"
+    fillRoundedRect(context, x + 9, y + 7, 14, 18, 3)
+    context.fillStyle = "#d9e7e4"
     context.fillRect(x + 12, y + 10, 8, 5)
-    context.fillStyle = "#2f8f63"
+    context.fillStyle = "#24745f"
     context.fillRect(x + 12, y + 17, 8, 4)
+    context.fillStyle = "#d8c4a2"
+    context.fillRect(x + 14, y + 22, 4, 2)
     return
   }
 
   if (token.id.includes("chair")) {
-    context.fillStyle = "#6c4b32"
-    context.fillRect(x + 8, y + 9, 16, 12)
-    context.fillRect(x + 10, y + 21, 3, 5)
-    context.fillRect(x + 19, y + 21, 3, 5)
-    drawItemLabel(context, "SEAT", x, y, tileSize)
+    drawSoftShadow(context, x + 16, y + 24, 18, 5)
+    context.fillStyle = "#5b6f6d"
+    fillRoundedRect(context, x + 8, y + 8, 16, 9, 3)
+    context.fillStyle = "#344947"
+    fillRoundedRect(context, x + 10, y + 16, 12, 7, 2)
+    context.fillStyle = "#2c3837"
+    context.fillRect(x + 10, y + 23, 3, 4)
+    context.fillRect(x + 19, y + 23, 3, 4)
     return
   }
 
-  context.fillStyle = "rgba(255, 247, 234, 0.92)"
-  context.fillRect(x + 4, y + 7, tileSize - 8, tileSize - 14)
-  drawItemLabel(context, labelForToken(token.id), x, y, tileSize)
+  if (token.id.includes("couch")) {
+    drawSegmentedObject(context, x, y, tileSize, segment, (originX, originY, width) => {
+      drawSoftShadow(context, originX + width / 2, originY + 25, width - 8, 6)
+      context.fillStyle = "#6b806d"
+      fillRoundedRect(context, originX + 3, originY + 10, width - 6, 13, 5)
+      context.fillStyle = "#49604f"
+      fillRoundedRect(context, originX + 7, originY + 18, width - 14, 6, 3)
+      context.fillStyle = "#d9b77c"
+      fillRoundedRect(context, originX + 10, originY + 13, 11, 6, 2)
+      context.fillStyle = "#5e7664"
+      fillRoundedRect(context, originX + 25, originY + 13, width - 48, 6, 2)
+      context.fillStyle = "#34483b"
+      context.fillRect(originX + 7, originY + 24, 4, 4)
+      context.fillRect(originX + width - 11, originY + 24, 4, 4)
+    })
+    return
+  }
+
+  if (token.id.includes("round_table")) {
+    drawSegmentedObject(context, x, y, tileSize, segment, (originX, originY, width, height) => {
+      const centerX = originX + width / 2
+      const centerY = originY + height / 2 - 2
+      const radius = Math.min(width, height) * 0.3
+      drawSoftShadow(context, centerX, centerY + radius - 1, radius * 1.8, 9)
+      context.fillStyle = "#74563d"
+      context.beginPath()
+      context.arc(centerX, centerY + 2, radius + 3, 0, Math.PI * 2)
+      context.fill()
+      context.fillStyle = "#b78755"
+      context.beginPath()
+      context.arc(centerX, centerY, radius, 0, Math.PI * 2)
+      context.fill()
+      context.fillStyle = "rgba(255, 238, 196, 0.3)"
+      fillRoundedRect(context, centerX - radius / 2, centerY - radius / 2, radius, 4, 2)
+    })
+    return
+  }
+
+  drawSegmentedObject(context, x, y, tileSize, segment, (originX, originY, width, height) => {
+    drawSoftShadow(context, originX + width / 2, originY + height - 7, width - 8, 6)
+    context.fillStyle = "#6d5c3a"
+    fillRoundedRect(context, originX + 2, originY + 8, width - 4, height - 17, 3)
+    context.fillStyle = "#9d8757"
+    context.fillRect(originX + 5, originY + 11, width - 10, 4)
+    context.fillStyle = "rgba(255, 245, 210, 0.3)"
+    context.fillRect(originX + 8, originY + 15, width - 16, height - 27)
+  })
 }
 
-function drawItemLabel(
+function drawAvatarSwatchTile(
   context: CanvasRenderingContext2D,
-  label: string,
+  token: FixtureToken,
   x: number,
   y: number,
   tileSize: number,
 ): void {
-  context.fillStyle = "rgba(23, 32, 38, 0.86)"
-  context.font = "700 8px sans-serif"
-  context.textAlign = "center"
-  context.textBaseline = "middle"
-  context.fillText(label, x + tileSize / 2, y + tileSize / 2)
+  const swatch = token.id.includes("cobalt")
+    ? "#316f9f"
+    : token.id.includes("moss")
+      ? "#3c8759"
+      : token.id.includes("violet")
+        ? "#755aa5"
+        : "#c45b40"
+  drawSoftShadow(context, x + 16, y + 25, 18, 5)
+  context.fillStyle = swatch
+  context.beginPath()
+  context.arc(x + tileSize / 2, y + 15, 9, 0, Math.PI * 2)
+  context.fill()
+  context.fillStyle = "#f0c7a1"
+  context.beginPath()
+  context.arc(x + tileSize / 2, y + 8, 6, 0, Math.PI * 2)
+  context.fill()
 }
 
-function styleForToken(token: FixtureToken): {
-  readonly fill: string
-  readonly stroke: string
-} {
-  if (token.kind === "floor") {
-    if (token.id.includes("concrete")) {
-      return { fill: "#c9d2d6", stroke: "rgba(58, 74, 82, 0.24)" }
-    }
-    if (token.id.includes("carpet")) {
-      return { fill: "#9fb3a8", stroke: "rgba(47, 92, 73, 0.24)" }
-    }
-    return { fill: "#d7b57c", stroke: "rgba(117, 79, 42, 0.25)" }
-  }
-
-  if (token.kind === "wall") {
-    if (token.id.includes("glass")) {
-      return { fill: "#9fcbd2", stroke: "#5d99a5" }
-    }
-    return { fill: "#6f777b", stroke: "#555f63" }
-  }
-
-  if (token.kind === "item") {
-    if (token.id.includes("plant")) return { fill: "#d8e6d7", stroke: "#7ca279" }
-    if (token.id.includes("door")) return { fill: "#c79464", stroke: "#7b5538" }
-    if (token.id.includes("coffee")) return { fill: "#b98d62", stroke: "#75583e" }
-    return { fill: "#8b5f3d", stroke: "#65462f" }
-  }
-
-  return { fill: "#c8493c", stroke: "#ffffff" }
+function drawSoftShadow(
+  context: CanvasRenderingContext2D,
+  centerX: number,
+  centerY: number,
+  width: number,
+  height: number,
+): void {
+  context.fillStyle = "rgba(32, 32, 29, 0.18)"
+  context.beginPath()
+  context.ellipse(centerX, centerY, width / 2, height / 2, 0, 0, Math.PI * 2)
+  context.fill()
 }
 
-function labelForToken(tokenId: string): string {
-  if (tokenId.includes("conference_table")) return "TABLE"
-  if (tokenId.includes("round_table")) return "TABLE"
-  if (tokenId.includes("chair")) return "SEAT"
-  if (tokenId.includes("plant")) return "PLANT"
-  if (tokenId.includes("door")) return "DOOR"
-  if (tokenId.includes("coffee_bar")) return "BAR"
-  if (tokenId.includes("coffee")) return "CAFE"
-  return "ITEM"
+function fillRoundedRect(
+  context: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  radius: number,
+): void {
+  roundedRectPath(context, x, y, width, height, radius)
+  context.fill()
 }
 
-function createMultiTileFillGids(
+function strokeRoundedRect(
+  context: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  radius: number,
+): void {
+  roundedRectPath(context, x, y, width, height, radius)
+  context.stroke()
+}
+
+function roundedRectPath(
+  context: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  radius: number,
+): void {
+  const resolvedRadius = Math.min(radius, width / 2, height / 2)
+
+  context.beginPath()
+  context.moveTo(x + resolvedRadius, y)
+  context.lineTo(x + width - resolvedRadius, y)
+  context.quadraticCurveTo(x + width, y, x + width, y + resolvedRadius)
+  context.lineTo(x + width, y + height - resolvedRadius)
+  context.quadraticCurveTo(
+    x + width,
+    y + height,
+    x + width - resolvedRadius,
+    y + height,
+  )
+  context.lineTo(x + resolvedRadius, y + height)
+  context.quadraticCurveTo(x, y + height, x, y + height - resolvedRadius)
+  context.lineTo(x, y + resolvedRadius)
+  context.quadraticCurveTo(x, y, x + resolvedRadius, y)
+  context.closePath()
+}
+
+function drawSegmentedObject(
+  context: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  tileSize: number,
+  segment: TileSegment,
+  draw: (
+    originX: number,
+    originY: number,
+    width: number,
+    height: number,
+  ) => void,
+): void {
+  context.save()
+  context.beginPath()
+  context.rect(x, y, tileSize, tileSize)
+  context.clip()
+  draw(
+    x - segment.offsetX * tileSize,
+    y - segment.offsetY * tileSize,
+    segment.widthTiles * tileSize,
+    segment.heightTiles * tileSize,
+  )
+  context.restore()
+}
+
+function createMultiTileVariantGids(
   tokens: readonly FixtureToken[],
-): ReadonlyMap<number, number> {
+): MultiTileVariantGids {
   const maxGid = Math.max(0, ...tokens.map((token) => token.provisionalGid))
-  const fillGids = new Map<number, number>()
+  const byRootGid = new Map<number, readonly (readonly number[])[]>()
+  const allGids: number[] = []
+  let nextGid = maxGid + 1
 
   tokens.forEach((token) => {
     if (token.widthTiles <= 1 && token.heightTiles <= 1) return
-    fillGids.set(token.provisionalGid, maxGid + fillGids.size + 1)
+
+    const rows: number[][] = []
+    for (let offsetY = 0; offsetY < token.heightTiles; offsetY += 1) {
+      const row: number[] = []
+      for (let offsetX = 0; offsetX < token.widthTiles; offsetX += 1) {
+        if (offsetX === 0 && offsetY === 0) {
+          row.push(token.provisionalGid)
+          continue
+        }
+        row.push(nextGid)
+        allGids.push(nextGid)
+        nextGid += 1
+      }
+      rows.push(row)
+    }
+    byRootGid.set(token.provisionalGid, rows)
   })
 
-  return fillGids
+  return {
+    byRootGid,
+    allGids,
+  }
 }

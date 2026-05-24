@@ -14,9 +14,9 @@ indices.
 - Target assets must be added through `assets/ASSET_MANIFEST.md` before they
   are marked as bundled or approved.
 - The current target-safe visual source is
-  `internal.generated.office.placeholders`, a CC0 runtime-generated placeholder
-  set that covers basic floors, walls, chairs, tables, plants, coffee fixtures,
-  doors, and avatars.
+  `internal.generated.office.polished_v1`, a CC0 runtime-generated office asset
+  set that covers wood, carpet, concrete, wood/glass/neutral walls, chairs,
+  tables, plants, coffee fixtures, doors, couches, and four avatar styles.
 - Semantic IDs should be append-only once maps depend on them.
 
 ## Why This Exists Early

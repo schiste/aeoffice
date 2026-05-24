@@ -19,7 +19,7 @@ const sourcesById = new Map(
 const tokensById = new Map(
   starterVisualAssetCatalog.tokens.map((token) => [token.id, token]),
 )
-const internalSource = sourcesById.get("internal.generated.office.placeholders")
+const internalSource = sourcesById.get("internal.generated.office.polished_v1")
 assert.ok(internalSource)
 assert.equal(internalSource.status, "target_approved")
 assert.equal(internalSource.license, "CC0-1.0")
@@ -42,23 +42,37 @@ assert.throws(
 
 const stableTargetTokenIds = [
   "floor.wood_parquet",
+  "floor.polished_concrete",
+  "floor.soft_carpet",
   "wall.wood.straight",
   "wall.wood.corner",
+  "wall.glass.straight",
+  "wall.glass.corner",
+  "wall.neutral.straight",
+  "wall.neutral.corner",
   "item.large_conference_table",
   "item.office_chair",
   "item.coffee_machine",
   "item.plant_potted",
   "item.coffee_bar",
   "item.door_single",
+  "item.lounge_couch",
+  "avatar.ember",
+  "avatar.cobalt",
+  "avatar.moss",
+  "avatar.violet",
 ]
 for (const tokenId of stableTargetTokenIds) {
   const token = tokensById.get(tokenId)
   assert.ok(token, `Missing stable visual token ${tokenId}`)
-  assert.equal(token.sourceId, "internal.generated.office.placeholders")
+  assert.equal(token.sourceId, "internal.generated.office.polished_v1")
 }
+assert.equal(tokensById.get("wall.neutral.straight").provisionalGid, 49)
+assert.equal(tokensById.get("wall.neutral.corner").provisionalGid, 50)
 assert.equal(tokensById.get("item.plant_potted").provisionalGid, 306)
 assert.equal(tokensById.get("item.coffee_bar").provisionalGid, 307)
 assert.equal(tokensById.get("item.door_single").provisionalGid, 308)
+assert.equal(tokensById.get("item.lounge_couch").provisionalGid, 309)
 assert.equal(
   sourcesById.get("legacy.skyoffice.tileset.modern_office").bundledInTargetApp,
   false,
@@ -161,6 +175,18 @@ assert.ok(
 assert.ok(decorated.compiled.referencedTokenIds.includes("item.plant_potted"))
 assert.ok(decorated.compiled.referencedTokenIds.includes("item.door_single"))
 
+const loungePrompt = compileDeterministicPromptMap(
+  "cozy lounge room with a sofa, plants and a door",
+)
+assert.equal(loungePrompt.validation.valid, true)
+assert.ok(loungePrompt.keywords.includes("couch"))
+assert.ok(
+  loungePrompt.definition.layers.furniture.some(
+    (item) => item.item === "lounge_couch",
+  ),
+)
+assert.ok(loungePrompt.compiled.referencedTokenIds.includes("item.lounge_couch"))
+
 assert.deepEqual(
   presetMapSummaries.map((preset) => preset.id),
   ["lobby", "meeting_room", "lounge_cafe"],
@@ -192,6 +218,8 @@ assert.ok(meetingRoom.validation.zoneIds.includes("meeting-zone"))
 const loungeCafe = compilePresetMap("lounge_cafe")
 assert.equal(loungeCafe.definition.style, "quiet_carpet")
 assert.ok(loungeCafe.compiled.referencedTokenIds.includes("item.small_round_table"))
+assert.ok(loungeCafe.compiled.referencedTokenIds.includes("item.lounge_couch"))
+assert.ok(loungeCafe.compiled.referencedTokenIds.includes("wall.neutral.straight"))
 assert.ok(loungeCafe.validation.zoneIds.includes("lounge-zone"))
 
 assert.throws(

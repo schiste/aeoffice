@@ -26,13 +26,13 @@ Every target-app asset must be recorded with:
 
 ## Approved Target Assets
 
-The first target asset source is generated placeholder art. It is not copied
+The first target asset source is generated polished office art. It is not copied
 from SkyOffice, LimeZu, or another third-party sprite pack; the browser renderer
-draws a simple tileset at runtime from semantic token metadata.
+draws the tileset and avatar shapes at runtime from semantic token metadata.
 
 | Asset ID | File path | Source URL | Author | License | Attribution | Redistribution | Commercial | Modified | Notes |
 |---|---|---|---|---|---|---|---|---|---|
-| `internal.generated.office.placeholders` | `apps/web/src/browser/phaser-office-renderer.ts` | `internal://aedventure/generated-placeholder-catalog/v1` | Aedventure project | CC0-1.0 | None | yes | yes | no | Runtime-generated placeholder floors, walls, tables, chairs, plants, coffee fixtures, doors, and avatars. |
+| `internal.generated.office.polished_v1` | `apps/web/src/browser/phaser-office-renderer.ts` | `internal://aedventure/generated-office-polished/v1` | Aedventure project | CC0-1.0 | None | yes | yes | no | Runtime-generated polished floors, wood/glass/neutral walls, tables, chairs, plants, coffee fixtures, doors, couches, and four directional avatar styles. |
 
 ## Development Reference Registry
 
