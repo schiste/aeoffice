@@ -13,210 +13,236 @@
   <body>
     <main class="shell">
       <section class="world-panel" aria-label="Virtual office">
-        <div class="toolbar">
-          <div>
+        <header class="app-topbar">
+          <div class="brand-block">
             <p class="eyebrow">Virtual workspace</p>
             <h1>Aedventure Office</h1>
+          </div>
+          <div class="topbar-status">
+            <div class="status-strip" aria-label="Connection status">
+              <div id="session-pill" class="status-pill" data-state="idle">
+                <span class="status-dot" aria-hidden="true"></span>
+                <span class="status-copy">
+                  <span>Session</span>
+                  <strong id="session-status">Disconnected</strong>
+                </span>
+              </div>
+              <div id="world-pill" class="status-pill" data-state="idle">
+                <span class="status-dot" aria-hidden="true"></span>
+                <span class="status-copy">
+                  <span>World</span>
+                  <strong id="world-status">Outside room</strong>
+                </span>
+              </div>
+              <div id="media-pill" class="status-pill" data-state="idle">
+                <span class="status-dot" aria-hidden="true"></span>
+                <span class="status-copy">
+                  <span>Call</span>
+                  <strong id="media-status">Media off</strong>
+                </span>
+              </div>
+            </div>
           </div>
           <div class="toolbar-actions">
             <button id="start" type="button">Enter office</button>
             <button id="reset" type="button" disabled>Leave</button>
           </div>
-        </div>
+        </header>
 
-        <div class="status-strip" aria-label="Connection status">
-          <div id="session-pill" class="status-pill" data-state="idle">
-            <span class="status-dot" aria-hidden="true"></span>
-            <span class="status-copy">
-              <span>Session</span>
-              <strong id="session-status">Disconnected</strong>
-            </span>
-          </div>
-          <div id="world-pill" class="status-pill" data-state="idle">
-            <span class="status-dot" aria-hidden="true"></span>
-            <span class="status-copy">
-              <span>World</span>
-              <strong id="world-status">Outside room</strong>
-            </span>
-          </div>
-          <div id="media-pill" class="status-pill" data-state="idle">
-            <span class="status-dot" aria-hidden="true"></span>
-            <span class="status-copy">
-              <span>Media</span>
-              <strong id="media-status">Media off</strong>
-            </span>
-          </div>
-        </div>
-
-        <div
-          id="lifecycle-banner"
-          class="lifecycle-banner"
-          data-state="empty"
-          role="status"
-          aria-live="polite"
-        >
-          <span>Room state</span>
-          <strong id="lifecycle-status">Room empty</strong>
-        </div>
-
-        <section class="identity-panel" aria-label="Local profile">
-          <label class="name-field" for="demo-display-name">
-            <span>Name</span>
-            <input
-              id="demo-display-name"
-              name="demo-display-name"
-              autocomplete="off"
-              maxlength="24"
-              value="Browser Ada"
-            />
-          </label>
-          <div class="avatar-picker" aria-label="Avatar picker">
-            <button class="avatar-option" data-avatar-id="ember" type="button">
-              <span class="avatar-swatch avatar-swatch-ember" aria-hidden="true"></span>
-              Ember
-            </button>
-            <button class="avatar-option" data-avatar-id="cobalt" type="button">
-              <span class="avatar-swatch avatar-swatch-cobalt" aria-hidden="true"></span>
-              Cobalt
-            </button>
-            <button class="avatar-option" data-avatar-id="moss" type="button">
-              <span class="avatar-swatch avatar-swatch-moss" aria-hidden="true"></span>
-              Moss
-            </button>
-            <button class="avatar-option" data-avatar-id="violet" type="button">
-              <span class="avatar-swatch avatar-swatch-violet" aria-hidden="true"></span>
-              Violet
-            </button>
-          </div>
-        </section>
-
-        <section class="map-switcher-panel" aria-label="Map switcher">
-          <button class="map-switcher-button" data-map-id="lobby" type="button">
-            Lobby
-          </button>
-          <button class="map-switcher-button" data-map-id="meeting_room" type="button">
-            Meeting room
-          </button>
-          <button class="map-switcher-button" data-map-id="lounge_cafe" type="button">
-            Lounge/café
-          </button>
-          <button class="map-switcher-button" data-map-id="generated" type="button">
-            Generated room
-          </button>
-        </section>
-
-        <section class="generator-panel" aria-label="Room generator">
-          <form id="map-generator-form" class="generator-form">
-            <label for="map-prompt">Room prompt</label>
-            <input
-              id="map-prompt"
-              name="map-prompt"
-              autocomplete="off"
-              value="cozy 10-person meeting room with wooden walls and a coffee bar"
-            />
-            <button id="generate-map" type="submit">Generate room</button>
-          </form>
-          <div class="generator-result" aria-live="polite">
-            <strong id="map-generation-status">Lobby loaded</strong>
-            <dl class="validation-strip">
-              <div>
-                <dt>Blocked</dt>
-                <dd id="validation-blocked">0</dd>
+        <div class="app-layout">
+          <aside class="map-nav-panel" aria-label="Workspace navigation">
+            <section class="map-switcher-panel" aria-label="Spaces">
+              <div class="panel-heading">
+                <span>Spaces</span>
+                <strong>Rooms</strong>
               </div>
-              <div>
-                <dt>Spawns</dt>
-                <dd id="validation-spawns">0</dd>
-              </div>
-              <div>
-                <dt>Zones</dt>
-                <dd id="validation-zones">0</dd>
-              </div>
-            </dl>
-          </div>
-        </section>
+              <button class="map-switcher-button" data-map-id="lobby" type="button">
+                Lobby
+              </button>
+              <button
+                class="map-switcher-button"
+                data-map-id="meeting_room"
+                type="button"
+              >
+                Meeting room
+              </button>
+              <button class="map-switcher-button" data-map-id="lounge_cafe" type="button">
+                Lounge/café
+              </button>
+              <button class="map-switcher-button" data-map-id="generated" type="button">
+                Generated room
+              </button>
+            </section>
 
-        <div class="workspace">
-          <section class="canvas-panel" aria-label="Office map workspace">
-            <div id="map" class="map" aria-label="Office map"></div>
-          </section>
+            <section class="generator-panel" aria-label="Room generator">
+              <div class="panel-heading">
+                <span>Create</span>
+                <strong>Room draft</strong>
+              </div>
+              <form id="map-generator-form" class="generator-form">
+                <label for="map-prompt">Room prompt</label>
+                <input
+                  id="map-prompt"
+                  name="map-prompt"
+                  autocomplete="off"
+                  value="cozy 10-person meeting room with wooden walls and a coffee bar"
+                />
+                <button id="generate-map" type="submit">Generate room</button>
+              </form>
+              <div class="generator-result" aria-live="polite">
+                <strong id="map-generation-status">Lobby loaded</strong>
+                <dl class="validation-strip">
+                  <div>
+                    <dt>Blocked</dt>
+                    <dd id="validation-blocked">0</dd>
+                  </div>
+                  <div>
+                    <dt>Spawns</dt>
+                    <dd id="validation-spawns">0</dd>
+                  </div>
+                  <div>
+                    <dt>Zones</dt>
+                    <dd id="validation-zones">0</dd>
+                  </div>
+                </dl>
+              </div>
+            </section>
 
-          <aside class="side-panel" aria-label="Room tools and chat">
-            <details class="tool-section camera-tool" open data-mobile-collapsible>
-              <summary>Camera</summary>
-              <div class="viewport-tools" aria-label="Camera controls">
-                <button id="zoom-out" type="button" aria-label="Zoom out">−</button>
-                <button
-                  id="zoom-reset"
-                  class="zoom-reset"
-                  type="button"
-                  aria-label="Reset zoom"
-                >
-                  115%
+            <section class="identity-panel" aria-label="Local profile">
+              <div class="panel-heading">
+                <span>Profile</span>
+                <strong>Local user</strong>
+              </div>
+              <label class="name-field" for="demo-display-name">
+                <span>Name</span>
+                <input
+                  id="demo-display-name"
+                  name="demo-display-name"
+                  autocomplete="off"
+                  maxlength="24"
+                  value="Browser Ada"
+                />
+              </label>
+              <div class="avatar-picker" aria-label="Avatar picker">
+                <button class="avatar-option" data-avatar-id="ember" type="button">
+                  <span class="avatar-swatch avatar-swatch-ember" aria-hidden="true"></span>
+                  Ember
                 </button>
-                <button id="zoom-in" type="button" aria-label="Zoom in">+</button>
+                <button class="avatar-option" data-avatar-id="cobalt" type="button">
+                  <span class="avatar-swatch avatar-swatch-cobalt" aria-hidden="true"></span>
+                  Cobalt
+                </button>
+                <button class="avatar-option" data-avatar-id="moss" type="button">
+                  <span class="avatar-swatch avatar-swatch-moss" aria-hidden="true"></span>
+                  Moss
+                </button>
+                <button class="avatar-option" data-avatar-id="violet" type="button">
+                  <span class="avatar-swatch avatar-swatch-violet" aria-hidden="true"></span>
+                  Violet
+                </button>
               </div>
-            </details>
+            </section>
+          </aside>
 
-            <details class="tool-section meeting-tool" open data-mobile-collapsible>
-              <summary>Meeting</summary>
-              <section class="meeting-panel" aria-label="Meeting zone">
-                <div class="meeting-state">
-                  <span>Meeting zone</span>
-                  <strong id="meeting-status">Outside meeting zone</strong>
-                </div>
-                <div class="meeting-actions">
-                  <button id="join-meeting" type="button" disabled>Join meeting</button>
-                  <button id="leave-meeting" type="button" disabled>Leave meeting</button>
+          <section class="workspace" aria-label="Office stage">
+            <div class="stage-toolbar">
+              <div
+                id="lifecycle-banner"
+                class="lifecycle-banner"
+                data-state="empty"
+                role="status"
+                aria-live="polite"
+              >
+                <span>Room state</span>
+                <strong id="lifecycle-status">Room empty</strong>
+              </div>
+              <section class="map-tools-panel camera-tool" aria-label="Map view controls">
+                <span>View</span>
+                <div class="viewport-tools" aria-label="Camera controls">
+                  <button id="zoom-out" type="button" aria-label="Zoom out">−</button>
+                  <button
+                    id="zoom-reset"
+                    class="zoom-reset"
+                    type="button"
+                    aria-label="Reset zoom"
+                  >
+                    115%
+                  </button>
+                  <button id="zoom-in" type="button" aria-label="Zoom in">+</button>
                 </div>
               </section>
-            </details>
+            </div>
 
-            <details class="tool-section media-tool" open data-mobile-collapsible>
-              <summary>Media</summary>
-              <section
-                id="media-panel"
-                class="media-panel"
-                aria-label="Media session"
-                data-state="idle"
-              >
-                <div class="media-heading">
-                  <div class="media-state">
-                    <span>Media session</span>
-                    <strong id="media-panel-status">Inactive</strong>
+            <section class="canvas-panel" aria-label="Office map workspace">
+              <div id="map" class="map" aria-label="Office map"></div>
+            </section>
+          </section>
+
+          <aside class="side-panel" aria-label="Collaboration">
+            <div class="side-panel-header">
+              <span>Collaboration</span>
+              <strong>Room tools</strong>
+            </div>
+
+            <details class="tool-section call-tool" open data-mobile-collapsible>
+              <summary>Call</summary>
+              <section class="call-panel" aria-label="Call controls">
+                <section class="meeting-panel" aria-label="Meeting zone">
+                  <div class="meeting-state">
+                    <span>Meeting zone</span>
+                    <strong id="meeting-status">Outside meeting zone</strong>
                   </div>
-                  <div class="device-actions">
-                    <button id="toggle-mic" type="button" aria-pressed="false" disabled>
-                      Mic off
-                    </button>
-                    <button id="toggle-camera" type="button" aria-pressed="false" disabled>
-                      Camera off
-                    </button>
+                  <div class="meeting-actions">
+                    <button id="join-meeting" type="button" disabled>Join meeting</button>
+                    <button id="leave-meeting" type="button" disabled>Leave meeting</button>
                   </div>
-                </div>
-                <div class="media-stage">
-                  <div id="local-preview" class="local-preview" data-camera="off">
-                    <span class="preview-avatar" aria-hidden="true">BA</span>
-                    <strong id="preview-status">Media not joined</strong>
+                </section>
+
+                <section
+                  id="media-panel"
+                  class="media-panel"
+                  aria-label="Media session"
+                  data-state="idle"
+                >
+                  <div class="media-heading">
+                    <div class="media-state">
+                      <span>Media session</span>
+                      <strong id="media-panel-status">Inactive</strong>
+                    </div>
+                    <div class="device-actions">
+                      <button id="toggle-mic" type="button" aria-pressed="false" disabled>
+                        Mic off
+                      </button>
+                      <button id="toggle-camera" type="button" aria-pressed="false" disabled>
+                        Camera off
+                      </button>
+                    </div>
                   </div>
-                  <dl class="media-meta">
-                    <div>
-                      <dt>Room</dt>
-                      <dd id="media-room">Not joined</dd>
+                  <div class="media-stage">
+                    <div id="local-preview" class="local-preview" data-camera="off">
+                      <span class="preview-avatar" aria-hidden="true">BA</span>
+                      <strong id="preview-status">Media not joined</strong>
                     </div>
-                    <div>
-                      <dt>Endpoint</dt>
-                      <dd id="media-endpoint">Not joined</dd>
-                    </div>
-                    <div>
-                      <dt>Participants</dt>
-                      <dd id="media-participants">0</dd>
-                    </div>
-                    <div>
-                      <dt>Token</dt>
-                      <dd id="media-token-status">No access</dd>
-                    </div>
-                  </dl>
-                </div>
+                    <dl class="media-meta">
+                      <div>
+                        <dt>Room</dt>
+                        <dd id="media-room">Not joined</dd>
+                      </div>
+                      <div>
+                        <dt>Endpoint</dt>
+                        <dd id="media-endpoint">Not joined</dd>
+                      </div>
+                      <div>
+                        <dt>Participants</dt>
+                        <dd id="media-participants">0</dd>
+                      </div>
+                      <div>
+                        <dt>Access</dt>
+                        <dd id="media-token-status">No access</dd>
+                      </div>
+                    </dl>
+                  </div>
+                </section>
               </section>
             </details>
 

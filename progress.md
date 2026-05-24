@@ -258,6 +258,20 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   entrypoint with the repo `node_modules`; its direct canvas capture is still
   black under headless WebGL, so page-level Playwright screenshots remain the
   visual source of truth.
+- Primary app layout pass is now applied. The browser app uses a product-level
+  layout with a left workspace navigation rail, central Phaser stage, and right
+  collaboration rail instead of a stack of test controls.
+- Meeting and media controls are consolidated into one Call module; chat is
+  visually integrated into the collaboration rail; profile/setup controls are
+  compact and secondary in the left rail; movement remains available as a
+  collapsed fallback instead of primary UX.
+- Mobile now keeps the canvas-first flow and presents collaboration as a
+  bottom-tray style set of collapsed Call/Chat/Move handles, with the tray
+  layered above transient toasts so controls remain visible.
+- Verification passed: `git diff --check`, the browser layout Playwright QA
+  script against the local app on `127.0.0.1:8787`, and full `npm run check`
+  including the repository frontend smoke. The known large Phaser/Vite chunk
+  warning remains non-blocking.
 - Phaser world presentation pass is applied. Furniture now renders as
   generated object sprites with y-based depth instead of one flat object
   tilemap layer, so tables, couches, chairs, doors, plants, and players share a
