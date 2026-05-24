@@ -331,3 +331,18 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
 - Zoom controls now move in 10% steps and disable at min/max zoom. Browser QA
   verified stable idle camera scroll, held movement, collision bump feedback,
   zoom limits/reset, and desktop/mobile screenshots.
+- Responsive QA pass started. Added a repository-owned responsive Playwright
+  sweep for desktop `1440x960`, laptop `1280x800`, tablet-ish `900x700`,
+  mobile `390x760`, and narrow mobile `360x740`; it checks canvas prominence,
+  reachable controls, text overflow, control overlap, and captures empty/joined
+  screenshots for each viewport.
+- First responsive sweep found that narrow mobile wasted too much horizontal
+  space in nested shell/panel padding. Added a `max-width: 380px` spacing
+  breakpoint so the Phaser map keeps more width and height on 360px screens.
+- Screenshot review found transient toasts visually competing with the
+  collaboration rail. The rail now sits above toasts, keeping chat/call controls
+  visually clean while toasts can still appear over non-control map space.
+- Responsive QA now passes for all requested viewports in both empty and joined
+  states. Representative screenshots were visually inspected for desktop,
+  laptop, tablet-ish, mobile, and narrow mobile; controls remain reachable and
+  the canvas remains the primary surface.

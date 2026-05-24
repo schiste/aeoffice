@@ -773,6 +773,8 @@ h1 {
 }
 
 .side-panel {
+  position: relative;
+  z-index: 12;
   display: grid;
   min-width: 0;
   gap: var(--space-3);
@@ -1148,7 +1150,7 @@ h1 {
 
 .toast-region {
   position: fixed;
-  z-index: 20;
+  z-index: 8;
   right: 18px;
   bottom: 18px;
   display: grid;
@@ -1255,7 +1257,7 @@ h1 {
     overflow: auto;
     gap: var(--space-2);
     border-radius: 14px;
-    background: rgba(255, 253, 247, 0.97);
+    background: var(--surface-main);
     box-shadow: 0 -12px 34px rgba(58, 47, 32, 0.18);
   }
 
@@ -1368,5 +1370,40 @@ h1 {
   .chat-messages li {
     grid-template-columns: 1fr;
     gap: 3px;
+  }
+}
+
+@media (max-width: 380px) {
+  .shell {
+    padding: 8px;
+  }
+
+  .world-panel {
+    padding: var(--space-2);
+  }
+
+  .app-topbar,
+  .app-layout {
+    gap: 10px;
+  }
+
+  h1 {
+    font-size: 26px;
+  }
+
+  .map-tools-panel,
+  .lifecycle-banner,
+  .stage-overlay {
+    padding: 8px;
+  }
+
+  .stage-overlay {
+    right: var(--space-2);
+    left: var(--space-2);
+    bottom: var(--space-2);
+  }
+
+  .map {
+    min-height: 330px;
   }
 }
