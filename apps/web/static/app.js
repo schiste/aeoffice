@@ -19,6 +19,7 @@ const state = {
 
 const elements = {
   start: document.querySelector("#start"),
+  reset: document.querySelector("#reset"),
   map: document.querySelector("#map"),
   player: document.querySelector("#player"),
   sessionStatus: document.querySelector("#session-status"),
@@ -31,6 +32,7 @@ const elements = {
 }
 
 elements.start.addEventListener("click", () => queueAction(() => startDemo()))
+elements.reset.addEventListener("click", () => queueAction(() => resetDemo()))
 document.querySelectorAll("[data-direction]").forEach((button) => {
   button.addEventListener("click", () =>
     queueAction(() => move(button.dataset.direction)),
@@ -88,6 +90,7 @@ async function startDemo() {
     }
 
     state.joined = true
+    elements.reset.disabled = false
     elements.worldStatus.textContent = "joined room-lobby"
     log("Joined the local world as Browser Ada")
 
@@ -101,6 +104,7 @@ async function startDemo() {
     log(error instanceof Error ? error.message : "Unknown browser shell error")
   } finally {
     elements.start.disabled = state.joined
+    elements.reset.disabled = !state.joined
   }
 }
 
@@ -147,6 +151,46 @@ async function joinCompanion() {
   }
   renderCompanion()
   log("Added Demo Grace as a local companion")
+}
+
+async function resetDemo() {
+  elements.reset.disabled = true
+
+  if (state.companion.joined) {
+    await leaveWorld(state.companion.clientId)
+  }
+
+  if (state.joined) {
+    await leaveWorld(state.clientId)
+  }
+
+  state.sessionId = undefined
+  state.seq = 1
+  state.joined = false
+  state.companion.joined = false
+  state.lastMediaRoom = undefined
+  state.lastChatBody = undefined
+  elements.sessionStatus.textContent = "idle"
+  elements.worldStatus.textContent = "not joined"
+  elements.mediaStatus.textContent = "not issued"
+  elements.start.textContent = "Join demo"
+  elements.start.disabled = false
+  elements.reset.disabled = true
+
+  if (state.fixtureMap) {
+    state.position = fixtureSpawnPosition(state.fixtureMap, "default")
+    state.companion.position = fixtureSpawnPosition(state.fixtureMap, "guest")
+  }
+
+  renderPlayer()
+  renderCompanion()
+  log("Demo reset")
+}
+
+async function leaveWorld(clientId) {
+  return postJson("/world/leave", {
+    clientId,
+  })
 }
 
 async function move(direction) {
@@ -411,6 +455,11 @@ function renderDemoToText() {
     sessionStatus: elements.sessionStatus.textContent,
     worldStatus: elements.worldStatus.textContent,
     mediaStatus: elements.mediaStatus.textContent,
+    controls: {
+      joinDisabled: elements.start.disabled,
+      resetDisabled: elements.reset.disabled,
+      joinLabel: elements.start.textContent,
+    },
     player: {
       id: state.playerId,
       x: Math.round(state.position.x),

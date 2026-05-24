@@ -22,3 +22,7 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   hidden, after join the local player and companion are visible, chat delivers to
   one recipient, media joins `zone:room-lobby:meeting-zone`, and delayed
   movement updates the server-authoritative player position.
+- Continuing with lifecycle controls: reset leaves both local demo participants
+  through `/world/leave` and makes the demo rejoinable without refresh.
+- Playwright MCP verified join -> reset -> rejoin. Reset hides the companion,
+  restores idle/not-joined/not-issued statuses, and re-enables Join demo.

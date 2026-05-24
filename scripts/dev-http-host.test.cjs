@@ -134,6 +134,7 @@ async function main() {
   assert.match(appScriptBody, /loadFixtureMap/)
   assert.match(appScriptBody, /render_game_to_text/)
   assert.match(appScriptBody, /joinCompanion/)
+  assert.match(appScriptBody, /resetDemo/)
   assert.equal(appStyles.status, 200)
   assert.match(await appStyles.text(), /\.tile-world/)
   assert.equal(fixtureMap.status, 200)

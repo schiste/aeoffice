@@ -53,6 +53,11 @@ button:disabled {
   margin-bottom: 16px;
 }
 
+.toolbar-actions {
+  display: flex;
+  gap: 8px;
+}
+
 .eyebrow {
   margin: 0 0 4px;
   color: #587179;
@@ -223,6 +228,11 @@ h1 {
   .chat {
     grid-template-columns: 1fr;
     display: grid;
+  }
+
+  .toolbar-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
   }
 
   .status-grid,
