@@ -135,6 +135,19 @@ AI map-generation notes:
   asset dictionary, generate normalized map data, and store a draft map version.
 - AI-generated zones must become server-side policy zones. The client can render
   them, but cannot directly grant media access or update authoritative collision.
+- Phase 0 may define schemas, package boundaries, and fixtures for future MDI
+  work, but it must not implement live prompt-to-map generation.
+
+AI map-generation development rollout:
+
+1. Define MDI schema and fixture examples.
+2. Define append-only asset dictionary shape and license fields.
+3. Build deterministic token validation before any model call.
+4. Build deterministic MDI-to-normalized-map compiler.
+5. Add validation reports and draft map-version persistence.
+6. Add admin preview.
+7. Add structured-output model integration behind a feature flag.
+8. Add publish workflow, audit logging, tenant limits, and rollback.
 
 SkyOffice is MIT-licensed upstream. New app code may be AGPL-3.0-or-later, but
 reused SkyOffice code must preserve original copyright and MIT notices.

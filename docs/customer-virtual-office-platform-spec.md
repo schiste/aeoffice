@@ -1937,6 +1937,8 @@ Acceptance criteria:
 - Chat delivery is server-filtered.
 - LiveKit migration plan is committed.
 - Docker Compose boots the full stack.
+- AI map generation remains documentation/schema preparation only; production
+  prompt-to-map generation is not built in Phase 0.
 
 ### Phase 1: Customer Virtual Office App MVP
 
@@ -1958,12 +1960,15 @@ Deliverables:
 - Browser-first client using Phaser 4 and TypeScript.
 - Simple in-world UI overlays using vanilla HTML/TypeScript and Tailwind CSS
   where useful.
+- Hand-authored MDI fixture can compile into a previewable map if this does not
+  delay core movement/auth/media gates.
 
 Explicitly deferred:
 
 - Tauri desktop packaging.
 - Full SaaS/admin backoffice UI framework decision.
 - Large-room broadcast UX beyond core media policy.
+- Live AI prompt-to-map generation.
 
 ### Phase 2: SaaS Foundation Connection
 
@@ -1992,6 +1997,8 @@ Deliverables:
 - Save/load world config from backend.
 - Basic admin API.
 - Remaining hard-coded SkyOffice state removed or isolated.
+- Store asset dictionary entries needed for map compilation.
+- Store draft map versions produced by importers or hand-authored MDI fixtures.
 
 ### Phase 4: Tenant Customization
 
@@ -2022,6 +2029,7 @@ Deliverables:
 - Basic map/object/zone management.
 - Publish/rollback flow.
 - Validation checks.
+- MDI preview and validation report display for admin users.
 
 ### Phase 6: AI-Friendly APIs
 
@@ -2040,6 +2048,31 @@ Deliverables:
 - AI map-generation draft API using the Map Definition Interface.
 - Asset dictionary exposure for allowed semantic map tokens.
 - MDI compiler and validation reports for generated maps.
+
+Rollout gates:
+
+- MDI JSON Schema exists with positive and negative fixture tests.
+- Asset dictionary is tenant-aware, append-only, license-aware, and exposes only
+  allowed semantic tokens to the model.
+- Compiler converts MDI to normalized map layers, objects, zones, spawn
+  candidates, collision data, and semantic metadata without client authority.
+- Validation rejects out-of-bounds objects, unknown tokens, overlaps, unsafe
+  spawns, inaccessible layouts, and media zones without explicit policy.
+- Generated output is stored only as a draft map version.
+- Publishing requires RBAC permission, validation success, and audit logging.
+- Preview clients render compiled output but cannot update authoritative
+  collision, zones, or media policies.
+
+Recommended development sequence:
+
+1. Define MDI schema and examples without any LLM call.
+2. Build the asset dictionary package and token validation.
+3. Build the deterministic MDI compiler using fixtures.
+4. Add map validation reports.
+5. Add draft map-version persistence.
+6. Add admin preview UI.
+7. Add model structured-output integration behind a feature flag.
+8. Add tenant rate limits, audit logs, and rollback workflow.
 
 ### Phase 7: Enterprise Meeting Integrations
 
