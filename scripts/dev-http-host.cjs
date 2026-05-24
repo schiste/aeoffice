@@ -1,7 +1,10 @@
 const { createServer } = require("node:http")
+const { readFile } = require("node:fs/promises")
+const { resolve, sep } = require("node:path")
 
 const DEFAULT_HOSTNAME = "127.0.0.1"
 const DEFAULT_PORT = 8787
+const WEB_STATIC_DIR = resolve(__dirname, "../apps/web/static")
 
 function createPrefixedFetchHandler(routes) {
   return async (request) => {
@@ -66,6 +69,10 @@ function createDevelopmentRuntime(options = {}) {
 
   const handler = createPrefixedFetchHandler([
     {
+      prefix: "/dev",
+      handler: createDevAuthHandler(apiRuntime, options.clock),
+    },
+    {
       prefix: "/api",
       handler: api.createApiFetchHandler(apiRuntime),
     },
@@ -76,6 +83,14 @@ function createDevelopmentRuntime(options = {}) {
     {
       prefix: "/world",
       handler: worldServer.createWorldFetchHandler(worldRuntime),
+    },
+    {
+      prefix: "/app",
+      handler: createStaticWebHandler(WEB_STATIC_DIR),
+    },
+    {
+      prefix: "/",
+      handler: createStaticWebHandler(WEB_STATIC_DIR),
     },
   ])
 
@@ -121,6 +136,92 @@ function rewriteRequestPath(request, prefix) {
 
   url.pathname = nextPath.startsWith("/") ? nextPath : `/${nextPath}`
   return new Request(url, init)
+}
+
+function createDevAuthHandler(apiRuntime, clock) {
+  return async (request) => {
+    const url = new URL(request.url)
+
+    if (request.method !== "POST" || url.pathname !== "/sign-in") {
+      return jsonResponse(404, {
+        error: "not_found",
+        reason: "No development auth route matches this request.",
+      })
+    }
+
+    const input = await request.json()
+    const profile =
+      input && typeof input === "object" && !Array.isArray(input) ? input : {}
+    const subject =
+      typeof profile.subject === "string" && profile.subject.trim()
+        ? profile.subject
+        : "wikimedia-local-user"
+    const username =
+      typeof profile.username === "string" && profile.username.trim()
+        ? profile.username
+        : "Local User"
+    const result = await apiRuntime.auth.signInWithWikimediaProfile(
+      {
+        sub: subject,
+        username,
+        blocked: false,
+        groups: [],
+      },
+      clock?.nowMs() ?? Date.now(),
+    )
+
+    if (result.status === "denied") {
+      return jsonResponse(403, {
+        error: "sign_in_denied",
+        reason: result.reason,
+      })
+    }
+
+    return jsonResponse(200, {
+      userId: result.user.id,
+      username: result.user.username,
+      sessionId: result.session.id,
+      roles: result.roleKeys,
+    })
+  }
+}
+
+function createStaticWebHandler(rootDir) {
+  return async (request) => {
+    if (request.method !== "GET" && request.method !== "HEAD") {
+      return jsonResponse(405, {
+        error: "method_not_allowed",
+        reason: "Static app assets only support GET and HEAD.",
+      })
+    }
+
+    const url = new URL(request.url)
+    const pathname = url.pathname === "/" ? "/index.html" : url.pathname
+    const filePath = resolve(rootDir, `.${decodeURIComponent(pathname)}`)
+
+    if (!filePath.startsWith(`${rootDir}${sep}`) && filePath !== rootDir) {
+      return jsonResponse(403, {
+        error: "forbidden",
+        reason: "Static asset path is outside the web root.",
+      })
+    }
+
+    try {
+      const body = await readFile(filePath)
+
+      return new Response(request.method === "HEAD" ? undefined : body, {
+        status: 200,
+        headers: {
+          "content-type": contentType(filePath),
+        },
+      })
+    } catch {
+      return jsonResponse(404, {
+        error: "not_found",
+        reason: "Static app asset was not found.",
+      })
+    }
+  }
 }
 
 function nodeRequestToFetchRequest(incoming) {
@@ -172,6 +273,13 @@ function jsonResponse(status, body) {
       "content-type": "application/json",
     },
   })
+}
+
+function contentType(filePath) {
+  if (filePath.endsWith(".html")) return "text/html; charset=utf-8"
+  if (filePath.endsWith(".css")) return "text/css; charset=utf-8"
+  if (filePath.endsWith(".js")) return "text/javascript; charset=utf-8"
+  return "application/octet-stream"
 }
 
 function headerValue(value) {
@@ -263,6 +371,8 @@ async function main() {
   const { server, url } = await startDevelopmentServer({ hostname, port })
 
   console.log(`Aedventure dev HTTP host listening on ${url}`)
+  console.log(`Browser shell available at ${url}/app`)
+  console.log("Mounted local-only dev auth under /dev")
   console.log("Mounted API routes under /api")
   console.log("Mounted world routes under /world")
   console.log("Mounted media routes under /media")
@@ -284,8 +394,10 @@ if (require.main === module) {
 module.exports = {
   createDevelopmentFetchHandler,
   createDevelopmentRuntime,
+  createDevAuthHandler,
   createNodeRequestHandler,
   createPrefixedFetchHandler,
+  createStaticWebHandler,
   jsonResponse,
   nodeRequestToFetchRequest,
   startDevelopmentServer,

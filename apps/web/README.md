@@ -14,6 +14,7 @@ Responsibilities:
 The current implementation is a framework-free customer app orchestrator. It
 owns the app-layer flow before Phaser rendering is wired:
 
+- Serve a dependency-free local browser shell from `static/`.
 - Request a world token from the API.
 - Join the world-server with that server-issued token.
 - Send movement and chat protocol intents.

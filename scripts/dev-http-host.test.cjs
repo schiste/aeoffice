@@ -1,5 +1,6 @@
 const assert = require("node:assert")
 const {
+  createDevelopmentRuntime,
   createNodeRequestHandler,
   createPrefixedFetchHandler,
   writeFetchResponse,
@@ -104,6 +105,34 @@ async function main() {
     method: "GET",
     path: "/health",
   })
+
+  const runtime = createDevelopmentRuntime()
+  const appShell = await runtime.handler(new Request("http://localhost/app"))
+  const appScript = await runtime.handler(new Request("http://localhost/app/app.js"))
+  const appStyles = await runtime.handler(
+    new Request("http://localhost/app/styles.css"),
+  )
+  const devSignIn = await runtime.handler(
+    new Request("http://localhost/dev/sign-in", {
+      method: "POST",
+      body: JSON.stringify({
+        subject: "wikimedia-dev-user",
+        username: "Dev Ada",
+      }),
+    }),
+  )
+  const devSignInBody = await devSignIn.json()
+
+  assert.equal(appShell.status, 200)
+  assert.match(await appShell.text(), /Local Virtual Office/)
+  assert.equal(appShell.headers.get("content-type"), "text/html; charset=utf-8")
+  assert.equal(appScript.status, 200)
+  assert.match(await appScript.text(), /runSmokeLoop/)
+  assert.equal(appStyles.status, 200)
+  assert.match(await appStyles.text(), /\.map/)
+  assert.equal(devSignIn.status, 200)
+  assert.equal(devSignInBody.username, "Dev Ada")
+  assert.ok(devSignInBody.sessionId)
 }
 
 class FakeOutgoing {

@@ -30,12 +30,12 @@ async function main() {
     },
   })
   const firstSignIn = await signIn(
-    runtime.apiRuntime.auth,
+    runtime.handler,
     "wikimedia-user-1",
     "Ada",
   )
   const secondSignIn = await signIn(
-    runtime.apiRuntime.auth,
+    runtime.handler,
     "wikimedia-user-2",
     "Grace",
   )
@@ -134,19 +134,25 @@ function fetchAgainst(handler) {
   }
 }
 
-async function signIn(auth, subject, username) {
-  const result = await auth.signInWithWikimediaProfile(
-    {
-      sub: subject,
-      username,
-      blocked: false,
-      groups: [],
-    },
-    nowMs,
+async function signIn(handler, subject, username) {
+  const response = await handler(
+    new Request("http://dev.local/dev/sign-in", {
+      method: "POST",
+      body: JSON.stringify({
+        subject,
+        username,
+      }),
+    }),
   )
+  const result = await response.json()
 
-  assert.equal(result.status, "signed_in")
-  return result
+  assert.equal(response.status, 200)
+  assert.equal(result.username, username)
+  return {
+    session: {
+      id: result.sessionId,
+    },
+  }
 }
 
 main().catch((error) => {

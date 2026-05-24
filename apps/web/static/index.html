@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Aedventure Local Office</title>
+    <link rel="stylesheet" href="/app/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="world-panel" aria-label="Local office smoke test">
+        <div class="toolbar">
+          <div>
+            <p class="eyebrow">Customer app layer</p>
+            <h1>Local Virtual Office</h1>
+          </div>
+          <button id="start" type="button">Start smoke loop</button>
+        </div>
+
+        <div class="status-grid">
+          <div>
+            <span>Session</span>
+            <strong id="session-status">idle</strong>
+          </div>
+          <div>
+            <span>World</span>
+            <strong id="world-status">not joined</strong>
+          </div>
+          <div>
+            <span>Media</span>
+            <strong id="media-status">not issued</strong>
+          </div>
+        </div>
+
+        <div class="map" aria-label="Office map">
+          <div class="zone"></div>
+          <div id="player" class="player" aria-label="Local player"></div>
+        </div>
+
+        <div class="controls" aria-label="Movement controls">
+          <button data-direction="up" type="button">Up</button>
+          <button data-direction="left" type="button">Left</button>
+          <button data-direction="right" type="button">Right</button>
+          <button data-direction="down" type="button">Down</button>
+        </div>
+
+        <form id="chat-form" class="chat">
+          <input
+            id="chat-body"
+            name="chat-body"
+            autocomplete="off"
+            value="Hello from the browser shell"
+          />
+          <button type="submit">Send</button>
+        </form>
+
+        <ol id="events" class="events" aria-label="Event log"></ol>
+      </section>
+    </main>
+
+    <script src="/app/app.js"></script>
+  </body>
+</html>

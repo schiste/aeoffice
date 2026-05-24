@@ -88,7 +88,8 @@ This builds the new TypeScript workspace and runs checks for:
 - API Wikimedia sign-in, sessions, and world-token issuance
 - world-server admission from API-issued world-token claims
 - media-gateway media policy and token claim issuance
-- dependency-free local HTTP host mounting API and media Fetch handlers
+- dependency-free local HTTP host mounting browser, API, world, and media
+  handlers
 - local shared-infra configuration shape
 
 ## Local App-Layer HTTP Host
@@ -101,13 +102,15 @@ npm run dev:http
 
 This starts a dependency-free Node HTTP host for local smoke testing:
 
+- Browser shell is served under `/app`.
+- Local-only dev sign-in is mounted under `/dev/sign-in`.
 - API routes are mounted under `/api`.
 - World transport routes are mounted under `/world`.
 - Media gateway routes are mounted under `/media`.
 - The host uses the same standard Fetch handlers covered by the target stack
   verification.
 - The target verification also runs a full local app-layer smoke flow across
-  `/api`, `/world`, and `/media`.
+  `/dev`, `/api`, `/world`, and `/media`.
 
 Run the imported SkyOffice baseline verification with:
 
