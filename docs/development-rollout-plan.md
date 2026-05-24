@@ -124,6 +124,7 @@ Owns:
 - Maps.
 - Map versions.
 - Asset dictionary.
+- Visual asset registry and semantic token IDs.
 - Minimal permission resolution needed for runtime world admission.
 - Moderation/audit events.
 
@@ -133,11 +134,15 @@ Current state:
 - Postgres API store adapter exists.
 - World map store boundary exists.
 - Persistent RBAC store boundary exists.
+- Starter visual asset registry exists with SkyOffice assets marked as
+  development-only references.
 
 Next gates:
 
 - Add concrete DB migrations runner.
 - Add repository tests for tenant isolation.
+- Replace reference-only visual tokens with approved target assets before
+  bundling art in the customer app.
 - Add audit events for map publishing and AI generation later.
 - Do not build RBAC management workflows until the control-plane phase.
 
@@ -150,6 +155,7 @@ Owns:
 - Vanilla HTML/TypeScript in-world overlays.
 - Tailwind CSS v4 where useful.
 - Optional React/Svelte only for complex admin/backoffice surfaces.
+- Target-approved visual asset loading through the shared asset registry.
 
 Current state:
 
@@ -159,6 +165,7 @@ Next gates:
 
 - Build a minimal browser MVP that connects to API/world-server.
 - Render a fixture map.
+- Use semantic visual tokens rather than hard-coded legacy asset paths.
 - Send movement intents only.
 - Receive authoritative player state.
 - Join media only with server-issued tokens.
@@ -180,12 +187,13 @@ Owns:
 Current state:
 
 - Architecture and phase rollout are documented.
+- Starter semantic visual asset catalog exists.
 - Production prompt-to-map generation is frozen until later phases.
 
 Next gates:
 
 - Define MDI JSON Schema and fixtures.
-- Build deterministic compiler without model calls.
+- Build deterministic compiler without model calls using semantic visual tokens.
 - Validate generated collision, zones, and spawn safety.
 - Store compiled output as draft map versions.
 - Add model calls behind a tenant feature flag.

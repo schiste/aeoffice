@@ -75,6 +75,7 @@ apps/
 
 packages/
   protocol/
+  asset-registry/
   map-engine/
   auth-wikimedia/
   shared-types/
@@ -87,6 +88,8 @@ Current status:
 
 - `legacy/skyoffice-original/` contains the imported SkyOffice subtree.
 - `apps/*` and `packages/*` are scaffolded as target destinations.
+- `packages/asset-registry/` defines semantic visual asset tokens while keeping
+  legacy SkyOffice art as development-only references.
 - Feature work is frozen until hard-fork gates pass.
 
 ## 4. Target Architecture

@@ -19,6 +19,9 @@
       "@aedventure/map-engine": [
         "packages/map-engine/src"
       ],
+      "@aedventure/asset-registry": [
+        "packages/asset-registry/src"
+      ],
       "@aedventure/auth-wikimedia": [
         "packages/auth-wikimedia/src"
       ],

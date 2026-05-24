@@ -18,6 +18,7 @@ echo "Building target TypeScript workspace..."
 mkdir -p "$ROOT_DIR/node_modules/@aedventure"
 ln -sfn "../../packages/protocol" "$ROOT_DIR/node_modules/@aedventure/protocol"
 ln -sfn "../../packages/map-engine" "$ROOT_DIR/node_modules/@aedventure/map-engine"
+ln -sfn "../../packages/asset-registry" "$ROOT_DIR/node_modules/@aedventure/asset-registry"
 ln -sfn "../../packages/auth-wikimedia" "$ROOT_DIR/node_modules/@aedventure/auth-wikimedia"
 ln -sfn "../../packages/policy" "$ROOT_DIR/node_modules/@aedventure/policy"
 ln -sfn "../../packages/shared-types" "$ROOT_DIR/node_modules/@aedventure/shared-types"
@@ -28,6 +29,9 @@ ln -sfn "../../apps/world-server" "$ROOT_DIR/node_modules/@aedventure/world-serv
 
 echo "Running map-engine movement checks..."
 node "$ROOT_DIR/packages/map-engine/test/movement.test.js"
+
+echo "Running asset-registry checks..."
+node "$ROOT_DIR/packages/asset-registry/test/catalog.test.js"
 
 echo "Running Wikimedia OAuth checks..."
 node "$ROOT_DIR/packages/auth-wikimedia/test/oauth-flow.test.js"

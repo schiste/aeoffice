@@ -32,3 +32,12 @@ No target-app assets have been approved yet.
 |---|---|---|---|---|---|---|---|---|---|
 | _none_ | _n/a_ | _n/a_ | _n/a_ | _n/a_ | _n/a_ | _n/a_ | _n/a_ | _n/a_ | Target app must not copy legacy assets until reviewed. |
 
+## Development Reference Registry
+
+`packages/asset-registry` may reference legacy SkyOffice assets as
+`legacy_reference` metadata so renderer and map-compiler work can start against
+stable semantic IDs.
+
+These references do not approve the files for target-app redistribution and do
+not allow copying them from `legacy/skyoffice-original/` into `apps/`,
+`packages/`, or deployable web assets.

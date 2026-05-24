@@ -11,6 +11,9 @@
       "path": "packages/map-engine"
     },
     {
+      "path": "packages/asset-registry"
+    },
+    {
       "path": "packages/auth-wikimedia"
     },
     {
