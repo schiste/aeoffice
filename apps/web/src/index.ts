@@ -171,6 +171,10 @@ export interface HttpClientOptions {
   readonly credentials?: "include" | "same-origin" | "omit"
 }
 
+export interface HttpWorldTransportOptions extends HttpClientOptions {
+  readonly clientId: string
+}
+
 export interface EnterWorldInput {
   readonly sessionId: SessionId
   readonly playerId: string
@@ -438,6 +442,46 @@ export class TransportWorldClient implements WorldClient {
   }
 }
 
+export class HttpWorldTransport implements WorldTransport {
+  constructor(private readonly options: HttpWorldTransportOptions) {}
+
+  async request(input: WorldTransportRequest): Promise<WorldTransportResponse> {
+    if (input.type === "join") {
+      const body = await postJson(this.options, "/join", {
+        clientId: this.options.clientId,
+        token: input.input.token,
+        playerId: input.input.playerId,
+        spawn: input.input.spawn,
+        avatarId: input.input.avatarId,
+        roomId: input.input.roomId,
+      })
+
+      return {
+        type: "join_result",
+        result: joinResultFromResponse(body),
+      }
+    }
+
+    const body = await postJson(this.options, "/message", {
+      clientId: this.options.clientId,
+      message: input.message,
+    })
+
+    return {
+      type: "messages",
+      messages: messagesForClient(body, this.options.clientId),
+    }
+  }
+
+  async leave(): Promise<boolean> {
+    const body = await postJson(this.options, "/leave", {
+      clientId: this.options.clientId,
+    })
+
+    return isRecord(body) && body.left === true
+  }
+}
+
 async function postJson(
   options: HttpClientOptions,
   path: string,
@@ -504,6 +548,99 @@ function isAppMediaTokenResult(value: unknown): value is AppMediaTokenResult {
     value.participantPlayerIds.every((playerId) => typeof playerId === "string") &&
     typeof value.expiresAt === "string"
   )
+}
+
+function joinResultFromResponse(value: unknown): JoinWorldResult {
+  if (!isRecord(value) || typeof value.status !== "string") {
+    throw new Error("World server returned an invalid join response.")
+  }
+
+  if (value.status === "denied") {
+    if (typeof value.reason !== "string") {
+      throw new Error("World server returned an invalid join denial.")
+    }
+
+    return {
+      status: "denied",
+      reason: value.reason,
+    }
+  }
+
+  if (value.status !== "joined" || !isRecord(value.player)) {
+    throw new Error("World server returned an invalid joined response.")
+  }
+
+  return {
+    status: "joined",
+    player: playerViewFromSnapshot(value.player),
+  }
+}
+
+function playerViewFromSnapshot(value: Record<string, unknown>): PlayerView {
+  const position = value.position
+
+  if (
+    typeof value.playerId !== "string" ||
+    !isRecord(position) ||
+    typeof position.x !== "number" ||
+    typeof position.y !== "number" ||
+    typeof value.roomId !== "string" ||
+    typeof value.direction !== "string" ||
+    typeof value.lastSeqAck !== "number" ||
+    !Array.isArray(value.zoneIds) ||
+    !Array.isArray(value.permissions) ||
+    !Array.isArray(value.roles)
+  ) {
+    throw new Error("World server returned an invalid player snapshot.")
+  }
+
+  return {
+    playerId: value.playerId,
+    userId: typeof value.userId === "string" ? (value.userId as UserId) : undefined,
+    x: position.x,
+    y: position.y,
+    roomId: value.roomId,
+    direction: value.direction as Direction,
+    zoneIds: stringArray(value.zoneIds),
+    permissions: stringArray(value.permissions) as readonly PermissionKey[],
+    roles: stringArray(value.roles) as readonly RoleKey[],
+    lastSeqAck: value.lastSeqAck,
+  }
+}
+
+function messagesForClient(
+  value: unknown,
+  clientId: string,
+): readonly ServerMessage[] {
+  if (!isRecord(value) || !Array.isArray(value.events)) {
+    throw new Error("World server returned an invalid message response.")
+  }
+
+  return value.events
+    .filter((event) => eventVisibleToClient(event, clientId))
+    .map((event) => (event as { message: ServerMessage }).message)
+}
+
+function eventVisibleToClient(event: unknown, clientId: string): boolean {
+  if (!isRecord(event) || !isRecord(event.message)) return false
+
+  if (event.type === "broadcast") {
+    return event.exceptClientId !== clientId
+  }
+
+  return (
+    event.type === "send" &&
+    Array.isArray(event.clientIds) &&
+    event.clientIds.includes(clientId)
+  )
+}
+
+function stringArray(values: readonly unknown[]): readonly string[] {
+  if (values.every((value) => typeof value === "string")) {
+    return values as readonly string[]
+  }
+
+  throw new Error("Expected string array from world server.")
 }
 
 function isDeniedResponse(value: unknown): boolean {

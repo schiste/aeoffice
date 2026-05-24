@@ -1,6 +1,8 @@
 const assert = require("assert")
 const {
   AuthoritativeWorld,
+  createWorldFetchHandler,
+  createWorldGatewayRuntime,
   UnsignedLocalWorldTokenVerifier,
   WorldAdmissionService,
   WorldRoomController,
@@ -374,3 +376,129 @@ assert.equal(unknownClientEvents[0].message.type, "protocol_error")
 
 assert.equal(controller.leave("client-sender"), true)
 assert.equal(roomWorld.getPlayer("player-sender"), undefined)
+
+class RecordingApp {
+  constructor() {
+    this.routes = new Map()
+  }
+
+  post(path, handler) {
+    this.routes.set(`POST ${path}`, handler)
+  }
+
+  route(method, path) {
+    const handler = this.routes.get(`${method} ${path}`)
+    assert.ok(handler, `Expected route ${method} ${path}`)
+    return handler
+  }
+}
+
+class RecordingReply {
+  constructor() {
+    this.statusCode = undefined
+    this.body = undefined
+  }
+
+  status(code) {
+    this.statusCode = code
+    return this
+  }
+
+  send(body) {
+    this.body = body
+    return this
+  }
+}
+
+async function invoke(handler, request) {
+  const reply = new RecordingReply()
+  await handler(request, reply)
+  return reply
+}
+
+async function gatewayRouteChecks() {
+  const runtime = createWorldGatewayRuntime({
+    config: {
+      map: {
+        width: 256,
+        height: 256,
+        tileSize: 32,
+        blockedTiles: [],
+      },
+      zones: [],
+      playerSize: { width: 16, height: 16 },
+      speedPxPerSecond: 64,
+      defaultAvatarId: "adam",
+      tickMs: 250,
+      defaultRoomId: "room-1",
+      proximityChatRadiusPx: 64,
+    },
+    clock: {
+      nowMs: () => Date.parse("2026-05-23T10:00:00.000Z"),
+    },
+  })
+  const app = new RecordingApp()
+  const token = `unsigned-local.${JSON.stringify({
+    sub: "usr_route",
+    sessionId: "sess_route",
+    roomId: "room-1",
+    permissions: [CHAT_PERMISSIONS.roomSend],
+    roles: ["space:member"],
+    expiresAt: "2026-05-23T10:05:00.000Z",
+  })}`
+
+  runtime.registerRoutes(app)
+
+  const joined = await invoke(app.route("POST", "/join"), {
+    body: {
+      clientId: "route-client",
+      token,
+      playerId: "route-player",
+      spawn: { x: 0, y: 0 },
+      roomId: "room-1",
+    },
+  })
+
+  assert.equal(joined.statusCode, 200)
+  assert.equal(joined.body.status, "joined")
+  assert.equal(joined.body.player.playerId, "route-player")
+
+  const moved = await invoke(app.route("POST", "/message"), {
+    body: {
+      clientId: "route-client",
+      message: { type: "move", direction: "right", seq: 1 },
+    },
+  })
+
+  assert.equal(moved.statusCode, 200)
+  assert.equal(moved.body.events[0].type, "broadcast")
+  assert.equal(moved.body.events[0].message.type, "player_state")
+
+  const handle = createWorldFetchHandler(runtime)
+  const left = await handle(
+    new Request("https://world.example.test/leave", {
+      method: "POST",
+      body: JSON.stringify({ clientId: "route-client" }),
+    }),
+  )
+  const leftBody = await left.json()
+
+  assert.equal(left.status, 200)
+  assert.equal(leftBody.left, true)
+
+  const missing = await handle(
+    new Request("https://world.example.test/missing", {
+      method: "POST",
+      body: "{}",
+    }),
+  )
+  const missingBody = await missing.json()
+
+  assert.equal(missing.status, 404)
+  assert.equal(missingBody.error, "not_found")
+}
+
+gatewayRouteChecks().catch((error) => {
+  console.error(error)
+  process.exit(1)
+})

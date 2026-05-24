@@ -301,6 +301,85 @@ export type WorldRoomEvent =
       readonly message: ServerMessage
     }
 
+export interface WorldGatewayResponse<TBody> {
+  readonly status: number
+  readonly body: TBody
+}
+
+export interface JoinWorldRouteRequest {
+  readonly clientId: string
+  readonly token: string
+  readonly playerId: string
+  readonly spawn: Vector2
+  readonly avatarId?: string
+  readonly roomId?: RoomId
+}
+
+export interface SendWorldMessageRouteRequest {
+  readonly clientId: string
+  readonly message: unknown
+}
+
+export interface LeaveWorldRouteRequest {
+  readonly clientId: string
+}
+
+export interface WorldMessageRouteBody {
+  readonly events: readonly WorldRoomEvent[]
+}
+
+export interface LeaveWorldRouteBody {
+  readonly left: boolean
+}
+
+export interface WorldRouteErrorBody {
+  readonly error: string
+  readonly reason: string
+}
+
+export interface Clock {
+  nowMs(): number
+}
+
+export interface WorldGatewayRoutesOptions {
+  readonly controller: WorldGatewayController
+  readonly clock: Clock
+}
+
+export interface WorldGatewayRuntime {
+  readonly world: AuthoritativeWorld
+  readonly admission: WorldAdmissionService
+  readonly controller: WorldRoomController
+  readonly gateway: WorldGatewayController
+  readonly registerRoutes: (app: FastifyLike) => void
+}
+
+export interface CreateWorldGatewayRuntimeOptions {
+  readonly config: WorldServerConfig
+  readonly verifier?: WorldTokenVerifier
+  readonly clock?: Clock
+}
+
+export interface FastifyLike {
+  post(path: string, handler: FastifyHandler): void
+}
+
+export interface FastifyRequestLike {
+  readonly body?: unknown
+}
+
+export interface FastifyReplyLike {
+  status(code: number): FastifyReplyLike
+  send(body: unknown): unknown
+}
+
+export type FastifyHandler = (
+  request: FastifyRequestLike,
+  reply: FastifyReplyLike,
+) => Promise<unknown>
+
+export type WorldFetchHandler = (request: Request) => Promise<Response>
+
 interface WorldRoomClient {
   readonly clientId: string
   readonly playerId: string
@@ -435,6 +514,109 @@ export class WorldRoomController {
   }
 }
 
+export class WorldGatewayController {
+  constructor(private readonly room: WorldRoomController) {}
+
+  join(
+    request: JoinWorldRouteRequest,
+    nowMs: number,
+  ): WorldGatewayResponse<WorldRoomJoinResult> {
+    const result = this.room.join({
+      clientId: request.clientId,
+      token: request.token,
+      playerId: request.playerId,
+      spawn: request.spawn,
+      avatarId: request.avatarId,
+      requestedRoomId: request.roomId,
+      nowMs,
+    })
+
+    return {
+      status: result.status === "joined" ? 200 : 403,
+      body: result,
+    }
+  }
+
+  sendMessage(
+    request: SendWorldMessageRouteRequest,
+    nowMs: number,
+  ): WorldGatewayResponse<WorldMessageRouteBody> {
+    return {
+      status: 200,
+      body: {
+        events: this.room.receive(request.clientId, request.message, nowMs),
+      },
+    }
+  }
+
+  leave(request: LeaveWorldRouteRequest): WorldGatewayResponse<LeaveWorldRouteBody> {
+    return {
+      status: 200,
+      body: {
+        left: this.room.leave(request.clientId),
+      },
+    }
+  }
+}
+
+export function registerWorldGatewayRoutes(
+  app: FastifyLike,
+  options: WorldGatewayRoutesOptions,
+): void {
+  app.post("/join", async (request, reply) =>
+    sendRoute(reply, async () =>
+      options.controller.join(joinWorldRouteRequest(request), options.clock.nowMs()),
+    ),
+  )
+
+  app.post("/message", async (request, reply) =>
+    sendRoute(reply, async () =>
+      options.controller.sendMessage(
+        sendWorldMessageRouteRequest(request),
+        options.clock.nowMs(),
+      ),
+    ),
+  )
+
+  app.post("/leave", async (request, reply) =>
+    sendRoute(reply, async () =>
+      options.controller.leave(leaveWorldRouteRequest(request)),
+    ),
+  )
+}
+
+export function createWorldGatewayRuntime(
+  options: CreateWorldGatewayRuntimeOptions,
+): WorldGatewayRuntime {
+  const world = new AuthoritativeWorld(options.config)
+  const admission = new WorldAdmissionService(
+    world,
+    options.verifier ?? new UnsignedLocalWorldTokenVerifier(),
+  )
+  const controller = new WorldRoomController(world, admission)
+  const gateway = new WorldGatewayController(controller)
+  const routeOptions: WorldGatewayRoutesOptions = {
+    controller: gateway,
+    clock: options.clock ?? systemClock,
+  }
+
+  return {
+    world,
+    admission,
+    controller,
+    gateway,
+    registerRoutes: (app) => registerWorldGatewayRoutes(app, routeOptions),
+  }
+}
+
+export function createWorldFetchHandler(
+  runtime: Pick<WorldGatewayRuntime, "registerRoutes">,
+): WorldFetchHandler {
+  const app = new FetchRouteRegistry()
+  runtime.registerRoutes(app)
+  return (request) => app.handle(request)
+}
+
 export class UnsignedLocalWorldTokenVerifier implements WorldTokenVerifier {
   verify(token: string): WorldTokenClaims {
     const prefix = "unsigned-local."
@@ -451,6 +633,167 @@ export class UnsignedLocalWorldTokenVerifier implements WorldTokenVerifier {
 
     return parsed
   }
+}
+
+function joinWorldRouteRequest(
+  request: FastifyRequestLike,
+): JoinWorldRouteRequest {
+  const body = asRecord(request.body)
+
+  return {
+    clientId: requiredString(body.clientId, "clientId"),
+    token: requiredString(body.token, "token"),
+    playerId: requiredString(body.playerId, "playerId"),
+    spawn: requiredVector2(body.spawn, "spawn"),
+    avatarId: optionalString(body.avatarId),
+    roomId: optionalString(body.roomId) as RoomId | undefined,
+  }
+}
+
+function sendWorldMessageRouteRequest(
+  request: FastifyRequestLike,
+): SendWorldMessageRouteRequest {
+  const body = asRecord(request.body)
+
+  return {
+    clientId: requiredString(body.clientId, "clientId"),
+    message: body.message,
+  }
+}
+
+function leaveWorldRouteRequest(
+  request: FastifyRequestLike,
+): LeaveWorldRouteRequest {
+  const body = asRecord(request.body)
+
+  return {
+    clientId: requiredString(body.clientId, "clientId"),
+  }
+}
+
+async function sendRoute(
+  reply: FastifyReplyLike,
+  handler: () => Promise<WorldGatewayResponse<unknown>> | WorldGatewayResponse<unknown>,
+): Promise<unknown> {
+  try {
+    const response = await handler()
+    reply.status(response.status)
+    return reply.send(response.body)
+  } catch (error) {
+    reply.status(400)
+    return reply.send({
+      error: "bad_request",
+      reason: error instanceof Error ? error.message : "Invalid request.",
+    })
+  }
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {}
+  return value as Record<string, unknown>
+}
+
+function optionalString(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() ? value : undefined
+}
+
+function requiredString(value: unknown, fieldName: string): string {
+  const parsed = optionalString(value)
+  if (!parsed) throw new Error(`Missing required field: ${fieldName}.`)
+  return parsed
+}
+
+function requiredVector2(value: unknown, fieldName: string): Vector2 {
+  const parsed = asRecord(value)
+
+  if (typeof parsed.x !== "number" || typeof parsed.y !== "number") {
+    throw new Error(`Missing required vector field: ${fieldName}.`)
+  }
+
+  return {
+    x: parsed.x,
+    y: parsed.y,
+  }
+}
+
+class FetchRouteRegistry implements FastifyLike {
+  private readonly routes = new Map<string, FastifyHandler>()
+
+  post(path: string, handler: FastifyHandler): void {
+    this.routes.set(routeKey("POST", path), handler)
+  }
+
+  async handle(request: Request): Promise<Response> {
+    const url = new URL(request.url)
+    const handler = this.routes.get(routeKey(request.method, url.pathname))
+
+    if (!handler) {
+      return jsonResponse(404, {
+        error: "not_found",
+        reason: "No world route matches this request.",
+      })
+    }
+
+    try {
+      const reply = new FetchReply()
+      await handler(
+        {
+          body: await requestBody(request),
+        },
+        reply,
+      )
+      return reply.toResponse()
+    } catch (error) {
+      return jsonResponse(400, {
+        error: "bad_request",
+        reason: error instanceof Error ? error.message : "Invalid request.",
+      })
+    }
+  }
+}
+
+class FetchReply implements FastifyReplyLike {
+  private statusCode = 200
+  private body: unknown
+
+  status(code: number): FastifyReplyLike {
+    this.statusCode = code
+    return this
+  }
+
+  send(body: unknown): unknown {
+    this.body = body
+    return this
+  }
+
+  toResponse(): Response {
+    return jsonResponse(this.statusCode, this.body ?? null)
+  }
+}
+
+async function requestBody(request: Request): Promise<unknown> {
+  if (request.method === "GET" || request.method === "HEAD") return undefined
+
+  const text = await request.text()
+  if (!text.trim()) return undefined
+  return JSON.parse(text)
+}
+
+function routeKey(method: string, path: string): string {
+  return `${method.toUpperCase()} ${path}`
+}
+
+function jsonResponse(status: number, body: unknown): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: {
+      "content-type": "application/json",
+    },
+  })
+}
+
+const systemClock: Clock = {
+  nowMs: () => Date.now(),
 }
 
 function routeServerMessage(

@@ -22,6 +22,13 @@ async function main() {
         return jsonResponse(200, { mounted: "media" })
       },
     },
+    {
+      prefix: "/world",
+      handler: async (request) => {
+        calls.push(["world", request.method, new URL(request.url).pathname])
+        return jsonResponse(200, { mounted: "world" })
+      },
+    },
   ])
 
   const api = await handle(
@@ -37,15 +44,24 @@ async function main() {
     }),
   )
   const missing = await handle(new Request("http://localhost/unknown"))
+  const world = await handle(
+    new Request("http://localhost/world/join", {
+      method: "POST",
+      body: JSON.stringify({ playerId: "player-1" }),
+    }),
+  )
 
   assert.equal(api.status, 200)
   assert.deepEqual(await api.json(), { mounted: "api" })
   assert.equal(media.status, 200)
   assert.deepEqual(await media.json(), { mounted: "media" })
+  assert.equal(world.status, 200)
+  assert.deepEqual(await world.json(), { mounted: "world" })
   assert.equal(missing.status, 404)
   assert.deepEqual(calls, [
     ["api", "POST", "/world-token"],
     ["media", "POST", "/media-token"],
+    ["world", "POST", "/join"],
   ])
 
   const fakeOutgoing = new FakeOutgoing()

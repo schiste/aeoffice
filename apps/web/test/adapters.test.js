@@ -2,6 +2,7 @@ const assert = require("assert")
 const {
   HttpAppApiClient,
   HttpMediaGatewayClient,
+  HttpWorldTransport,
   TransportWorldClient,
 } = require("../dist/index.js")
 
@@ -164,6 +165,92 @@ async function main() {
   assert.equal(messages[0].type, "player_state")
   assert.equal(transportCalls[0].type, "join")
   assert.equal(transportCalls[1].type, "message")
+
+  const worldCalls = []
+  const httpWorldTransport = new HttpWorldTransport({
+    baseUrl: "https://office.example.test/world",
+    clientId: "client-1",
+    fetch: async (url, init) => {
+      worldCalls.push({ url, init })
+      if (url.endsWith("/join")) {
+        return jsonResponse(200, {
+          status: "joined",
+          clientId: "client-1",
+          player: {
+            playerId: "player-1",
+            userId: "usr_1",
+            position: { x: 32, y: 32 },
+            roomId: "room-lobby",
+            direction: "down",
+            zoneIds: ["meeting-zone"],
+            permissions: ["chat:room:send"],
+            roles: ["space:member"],
+            lastSeqAck: 0,
+          },
+        })
+      }
+
+      if (url.endsWith("/message")) {
+        return jsonResponse(200, {
+          events: [
+            {
+              type: "send",
+              clientIds: ["other-client"],
+              message: {
+                type: "chat_rejected",
+                playerId: "player-1",
+                reason: "missing_permission",
+                seqAck: 2,
+                serverTime: nowMs,
+              },
+            },
+            {
+              type: "broadcast",
+              message: {
+                type: "player_state",
+                playerId: "player-1",
+                x: 48,
+                y: 32,
+                direction: "right",
+                anim: "adam_walk_right",
+                seqAck: 1,
+                serverTime: nowMs + 250,
+              },
+            },
+          ],
+        })
+      }
+
+      return jsonResponse(200, { left: true })
+    },
+  })
+  const httpWorld = new TransportWorldClient(httpWorldTransport)
+  const httpJoined = await httpWorld.join({
+    token: "world-token-1",
+    playerId: "player-1",
+    spawn: { x: 32, y: 32 },
+    roomId: "room-lobby",
+    nowMs,
+  })
+  const httpMessages = await httpWorld.send(
+    { type: "move", direction: "right", seq: 1 },
+    nowMs + 250,
+  )
+  const left = await httpWorldTransport.leave()
+
+  assert.equal(httpJoined.status, "joined")
+  assert.equal(httpJoined.player.x, 32)
+  assert.equal(httpMessages.length, 1)
+  assert.equal(httpMessages[0].type, "player_state")
+  assert.equal(left, true)
+  assert.equal(worldCalls[0].url, "https://office.example.test/world/join")
+  assert.deepEqual(JSON.parse(worldCalls[0].init.body), {
+    clientId: "client-1",
+    token: "world-token-1",
+    playerId: "player-1",
+    spawn: { x: 32, y: 32 },
+    roomId: "room-lobby",
+  })
 }
 
 function jsonResponse(status, body, ok = status >= 200 && status < 300) {

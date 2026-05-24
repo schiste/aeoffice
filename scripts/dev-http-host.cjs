@@ -42,14 +42,18 @@ function createNodeRequestHandler(fetchHandler) {
 function createDevelopmentFetchHandler(env = process.env) {
   const api = require("../apps/api/dist/index.js")
   const media = require("../apps/media-gateway/dist/index.js")
+  const worldServer = require("../apps/world-server/dist/index.js")
   const resolvedEnv = developmentEnv(env)
   const apiRuntime = api.createApiRuntimeFromConfig({
     config: api.apiRuntimeConfigFromEnv(resolvedEnv),
     fetch: runtimeFetch,
   })
+  const worldRuntime = worldServer.createWorldGatewayRuntime({
+    config: developmentWorldConfig(),
+  })
   const mediaRuntime = media.createMediaGatewayRuntime({
     config: media.mediaGatewayConfigFromEnv(resolvedEnv),
-    participantDirectory: createStaticParticipantDirectory(),
+    participantDirectory: createWorldParticipantDirectory(worldRuntime.world),
   })
 
   return createPrefixedFetchHandler([
@@ -60,6 +64,10 @@ function createDevelopmentFetchHandler(env = process.env) {
     {
       prefix: "/media",
       handler: media.createMediaGatewayFetchHandler(mediaRuntime),
+    },
+    {
+      prefix: "/world",
+      handler: worldServer.createWorldFetchHandler(worldRuntime),
     },
   ])
 }
@@ -195,34 +203,39 @@ function developmentEnv(env) {
   }
 }
 
-function createStaticParticipantDirectory() {
-  const participants = [
-    {
-      playerId: "player-1",
-      roomId: "room-lobby",
-      zoneIds: ["meeting-zone"],
-      permissions: [
-        "media:zone:join",
-        "media:zone:publish",
-        "media:zone:subscribe",
+function developmentWorldConfig() {
+  return {
+    map: {
+      width: 512,
+      height: 512,
+      tileSize: 32,
+      blockedTiles: [
+        { x: 0, y: 0 },
+        { x: 15, y: 15 },
       ],
-      position: { x: 32, y: 32 },
     },
-    {
-      playerId: "player-2",
-      roomId: "room-lobby",
-      zoneIds: ["meeting-zone"],
-      permissions: ["media:zone:join", "media:zone:subscribe"],
-      position: { x: 64, y: 32 },
-    },
-  ]
+    zones: [
+      {
+        id: "meeting-zone",
+        bounds: { x: 32, y: 32, width: 128, height: 96 },
+      },
+    ],
+    playerSize: { width: 16, height: 16 },
+    speedPxPerSecond: 64,
+    defaultAvatarId: "adam",
+    tickMs: 250,
+    defaultRoomId: "room-lobby",
+    proximityChatRadiusPx: 96,
+  }
+}
 
+function createWorldParticipantDirectory(world) {
   return {
     async findParticipant(playerId) {
-      return participants.find((participant) => participant.playerId === playerId)
+      return world.getParticipant(playerId)
     },
     async listParticipantsFor(requester) {
-      return participants.filter(
+      return world.listParticipants().filter(
         (participant) => participant.roomId === requester.roomId,
       )
     },
@@ -235,7 +248,9 @@ async function main() {
   const { server, url } = await startDevelopmentServer({ hostname, port })
 
   console.log(`Aedventure dev HTTP host listening on ${url}`)
-  console.log("Mounted API routes under /api and media routes under /media")
+  console.log("Mounted API routes under /api")
+  console.log("Mounted world routes under /world")
+  console.log("Mounted media routes under /media")
 
   for (const signal of ["SIGINT", "SIGTERM"]) {
     process.once(signal, () => {

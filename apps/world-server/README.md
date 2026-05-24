@@ -25,10 +25,14 @@ Current implementation:
   tests.
 - `WorldRoomController` is a dependency-light room adapter that models join,
   leave, client message routing, direct sends, and broadcasts.
+- `WorldGatewayController`, `registerWorldGatewayRoutes`, and
+  `createWorldFetchHandler` expose join, message, and leave through
+  dependency-free route contracts for local app-layer smoke testing.
 - It emits `player_state`, `movement_rejected`, `chat_delivered`,
   `chat_rejected`, or `protocol_error` messages.
 
 Next step:
 
 - Replace the local verifier with production JWT verification.
-- Wrap `WorldRoomController` in a real Colyseus `Room` class.
+- Wrap `WorldRoomController` in a real Colyseus `Room` class or WebSocket
+  transport after the local app-layer loop is stable.

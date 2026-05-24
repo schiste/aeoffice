@@ -102,6 +102,7 @@ npm run dev:http
 This starts a dependency-free Node HTTP host for local smoke testing:
 
 - API routes are mounted under `/api`.
+- World transport routes are mounted under `/world`.
 - Media gateway routes are mounted under `/media`.
 - The host uses the same standard Fetch handlers covered by the target stack
   verification.

@@ -23,6 +23,8 @@ owns the app-layer flow before Phaser rendering is wired:
 Runtime adapters are intentionally narrow:
 
 - `HttpAppApiClient` calls the API for world tokens.
+- `HttpWorldTransport` calls dependency-free world transport routes for local
+  app-layer smoke testing.
 - `HttpMediaGatewayClient` calls the media gateway for LiveKit tokens.
 - `TransportWorldClient` wraps the future Colyseus/WebSocket transport.
 
