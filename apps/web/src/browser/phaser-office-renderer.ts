@@ -1,5 +1,7 @@
 import Phaser from "phaser"
 
+export type Direction = "up" | "down" | "left" | "right"
+
 interface Vector2 {
   readonly x: number
   readonly y: number
@@ -46,24 +48,33 @@ interface FixtureZone {
   readonly zoneType: string
 }
 
-interface CompanionState {
-  readonly joined: boolean
+export interface RenderedPlayer {
+  readonly playerId: string
+  readonly name: string
   readonly position: Vector2
+  readonly direction: Direction
+  readonly local: boolean
 }
 
 const TILESET_KEY = "semantic-fixture-tiles"
 const TILESET_NAME = "semantic-fixture-tileset"
-const PLAYER_MARKER_SIZE = 16
+const AVATAR_WIDTH = 18
+const AVATAR_HEIGHT = 24
+const AVATAR_DEPTH_BASE = 1000
 
 export class PhaserOfficeRenderer {
   private readonly scene: OfficeScene
   private readonly game: Phaser.Game
   private readonly ready: Promise<OfficeScene>
-  private localPlayerPosition: Vector2 = { x: 96, y: 64 }
-  private companionState: CompanionState = {
-    joined: false,
-    position: { x: 96, y: 96 },
-  }
+  private players: readonly RenderedPlayer[] = [
+    {
+      playerId: "player-1",
+      name: "Browser Ada",
+      position: { x: 96, y: 96 },
+      direction: "down",
+      local: true,
+    },
+  ]
 
   constructor(parent: HTMLElement) {
     parent.classList.add("phaser-world-host")
@@ -91,25 +102,14 @@ export class PhaserOfficeRenderer {
 
   renderMap(fixtureMap: FixtureMap): void {
     void this.ready.then((scene) => {
-      scene.renderFixtureMap(
-        fixtureMap,
-        this.localPlayerPosition,
-        this.companionState,
-      )
+      scene.renderFixtureMap(fixtureMap, this.players)
     })
   }
 
-  updateLocalPlayer(position: Vector2): void {
-    this.localPlayerPosition = position
+  updatePlayers(players: readonly RenderedPlayer[]): void {
+    this.players = players
     void this.ready.then((scene) => {
-      scene.updateLocalPlayer(position)
-    })
-  }
-
-  updateCompanion(state: CompanionState): void {
-    this.companionState = state
-    void this.ready.then((scene) => {
-      scene.updateCompanion(state)
+      scene.updatePlayers(players)
     })
   }
 
@@ -125,8 +125,7 @@ export class PhaserOfficeRenderer {
 }
 
 class OfficeScene extends Phaser.Scene {
-  private localPlayer?: Phaser.GameObjects.Ellipse
-  private companion?: Phaser.GameObjects.Ellipse
+  private readonly avatars = new Map<string, AvatarView>()
   private zoneGraphics?: Phaser.GameObjects.Graphics
   private activeMap?: Phaser.Tilemaps.Tilemap
 
@@ -141,13 +140,14 @@ class OfficeScene extends Phaser.Scene {
 
   renderFixtureMap(
     fixtureMap: FixtureMap,
-    localPlayerPosition: Vector2,
-    companionState: CompanionState,
+    players: readonly RenderedPlayer[],
   ): void {
     const tileSize = fixtureMap.compiled.tileSize
     const widthInPixels = fixtureMap.compiled.width * tileSize
     const heightInPixels = fixtureMap.compiled.height * tileSize
 
+    this.avatars.forEach((avatar) => avatar.destroy())
+    this.avatars.clear()
     this.children.removeAll(true)
     this.activeMap = this.make.tilemap({
       tileWidth: tileSize,
@@ -205,28 +205,28 @@ class OfficeScene extends Phaser.Scene {
       20,
     )
     this.renderZones(fixtureMap.compiled.zones, tileSize)
-    this.localPlayer = this.createPlayerMarker(0xc8493c, "Local player")
-    this.companion = this.createPlayerMarker(0x2f6fc8, "Demo companion")
-
-    this.updateLocalPlayer(localPlayerPosition)
-    this.updateCompanion(companionState)
+    this.updatePlayers(players)
   }
 
-  updateLocalPlayer(position: Vector2): void {
-    this.localPlayer?.setPosition(
-      position.x + PLAYER_MARKER_SIZE / 2,
-      position.y + PLAYER_MARKER_SIZE / 2,
-    )
-  }
+  updatePlayers(players: readonly RenderedPlayer[]): void {
+    const visiblePlayerIds = new Set(players.map((player) => player.playerId))
 
-  updateCompanion(state: CompanionState): void {
-    if (!this.companion) return
+    this.avatars.forEach((avatar, playerId) => {
+      if (visiblePlayerIds.has(playerId)) return
+      avatar.destroy()
+      this.avatars.delete(playerId)
+    })
 
-    this.companion.setVisible(state.joined)
-    this.companion.setPosition(
-      state.position.x + PLAYER_MARKER_SIZE / 2,
-      state.position.y + PLAYER_MARKER_SIZE / 2,
-    )
+    players.forEach((player) => {
+      let avatar = this.avatars.get(player.playerId)
+
+      if (!avatar) {
+        avatar = new AvatarView(this, player)
+        this.avatars.set(player.playerId, avatar)
+      }
+
+      avatar.update(player)
+    })
   }
 
   private installSemanticTileset(
@@ -324,22 +324,142 @@ class OfficeScene extends Phaser.Scene {
     })
   }
 
-  private createPlayerMarker(
-    color: number,
-    name: string,
-  ): Phaser.GameObjects.Ellipse {
-    const marker = this.add.ellipse(
+}
+
+class AvatarView {
+  private readonly container: Phaser.GameObjects.Container
+  private readonly shadow: Phaser.GameObjects.Ellipse
+  private readonly torso: Phaser.GameObjects.Ellipse
+  private readonly head: Phaser.GameObjects.Ellipse
+  private readonly facing: Phaser.GameObjects.Triangle
+  private readonly labelBack: Phaser.GameObjects.Rectangle
+  private readonly label: Phaser.GameObjects.Text
+  private idleTween?: Phaser.Tweens.Tween
+  private walkTween?: Phaser.Tweens.Tween
+  private lastPosition: Vector2
+  private lastDirection: Direction
+  private local: boolean
+
+  constructor(
+    private readonly scene: Phaser.Scene,
+    player: RenderedPlayer,
+  ) {
+    this.local = player.local
+    this.lastPosition = player.position
+    this.lastDirection = player.direction
+    this.container = scene.add.container(player.position.x, player.position.y)
+    this.container.setName(`avatar:${player.playerId}`)
+
+    this.shadow = scene.add.ellipse(0, 14, 18, 6, 0x172026, 0.2)
+    this.torso = scene.add.ellipse(0, 2, AVATAR_WIDTH, AVATAR_HEIGHT, 0xc8493c, 1)
+    this.head = scene.add.ellipse(0, -10, 13, 13, 0xffd3a3, 1)
+    this.facing = scene.add.triangle(0, -10, 0, -4, 5, 4, -5, 4, 0x172026, 0.9)
+    this.label = scene.add.text(0, -31, player.name, {
+      color: "#172026",
+      fontFamily: "Inter, Arial, sans-serif",
+      fontSize: "10px",
+      fontStyle: "700",
+      align: "center",
+    })
+    this.label.setOrigin(0.5, 0.5)
+    this.labelBack = scene.add.rectangle(
       0,
-      0,
-      PLAYER_MARKER_SIZE,
-      PLAYER_MARKER_SIZE,
-      color,
-      1,
+      -31,
+      this.label.width + 10,
+      15,
+      0xffffff,
+      0.86,
     )
-    marker.setName(name)
-    marker.setDepth(40)
-    marker.setStrokeStyle(2, 0xffffff, 1)
-    return marker
+    this.labelBack.setStrokeStyle(1, player.local ? 0xc8493c : 0x2f6fc8, 0.65)
+
+    this.container.add([
+      this.shadow,
+      this.torso,
+      this.head,
+      this.facing,
+      this.labelBack,
+      this.label,
+    ])
+    this.startIdleTween()
+    this.update(player)
+  }
+
+  update(player: RenderedPlayer): void {
+    const moved =
+      player.position.x !== this.lastPosition.x ||
+      player.position.y !== this.lastPosition.y
+    const identityChanged = player.local !== this.local
+
+    this.local = player.local
+    this.label.setText(player.name)
+    this.labelBack.setSize(this.label.width + 10, 15)
+    this.labelBack.setStrokeStyle(1, player.local ? 0xc8493c : 0x2f6fc8, 0.65)
+    this.torso.setFillStyle(player.local ? 0xc8493c : 0x2f6fc8, 1)
+    this.container.setPosition(player.position.x, player.position.y)
+    this.container.setDepth(AVATAR_DEPTH_BASE + player.position.y)
+    this.setFacing(player.direction)
+
+    if (moved || identityChanged || player.direction !== this.lastDirection) {
+      this.startWalkTween()
+    } else if (!this.walkTween?.isPlaying()) {
+      this.startIdleTween()
+    }
+
+    this.lastPosition = player.position
+    this.lastDirection = player.direction
+  }
+
+  destroy(): void {
+    this.idleTween?.stop()
+    this.walkTween?.stop()
+    this.container.destroy(true)
+  }
+
+  private setFacing(direction: Direction): void {
+    const rotations: Record<Direction, number> = {
+      down: Math.PI,
+      left: Math.PI / 2,
+      right: -Math.PI / 2,
+      up: 0,
+    }
+
+    this.facing.setRotation(rotations[direction])
+    this.facing.setPosition(
+      direction === "left" ? -5 : direction === "right" ? 5 : 0,
+      direction === "up" ? -15 : direction === "down" ? -5 : -10,
+    )
+    this.facing.setAlpha(direction === "up" ? 0.45 : 0.9)
+  }
+
+  private startIdleTween(): void {
+    if (this.idleTween?.isPlaying()) return
+
+    this.walkTween?.stop()
+    this.container.setScale(1, 1)
+    this.idleTween = this.scene.tweens.add({
+      targets: this.container,
+      scaleY: 1.03,
+      duration: 900,
+      yoyo: true,
+      repeat: -1,
+      ease: "Sine.easeInOut",
+    })
+  }
+
+  private startWalkTween(): void {
+    this.idleTween?.stop()
+    this.walkTween?.stop()
+    this.container.setScale(1, 1)
+    this.walkTween = this.scene.tweens.add({
+      targets: this.container,
+      scaleX: 1.05,
+      scaleY: 0.95,
+      duration: 120,
+      yoyo: true,
+      repeat: 1,
+      ease: "Sine.easeInOut",
+      onComplete: () => this.startIdleTween(),
+    })
   }
 }
 

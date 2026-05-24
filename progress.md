@@ -46,3 +46,6 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   the controls/status overlays while Phaser owns the world canvas.
 - Current Phaser art is still generated placeholder tiles from semantic token
   IDs, so licensed sprite onboarding remains a later visual-assets task.
+- Player rendering is now keyed by world player IDs instead of hard-coded local
+  and companion slots. `/world/snapshot` drives local/remote avatar visibility,
+  labels, facing direction, placeholder idle/walk tweens, and y-based z-order.

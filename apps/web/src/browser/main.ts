@@ -1,4 +1,7 @@
-import { PhaserOfficeRenderer } from "./phaser-office-renderer"
+import {
+  PhaserOfficeRenderer,
+  type RenderedPlayer,
+} from "./phaser-office-renderer"
 
 type Direction = "up" | "down" | "left" | "right"
 
@@ -79,9 +82,11 @@ type ServerMessage =
 
 interface PlayerSnapshot {
   readonly playerId: string
+  readonly userId?: string
   readonly position?: Vector2
   readonly x?: number
   readonly y?: number
+  readonly direction?: Direction
 }
 
 interface AppState {
@@ -90,14 +95,17 @@ interface AppState {
   clientId: string
   seq: number
   position: Vector2
+  direction: Direction
   joined: boolean
   companion: {
     playerId: string
     clientId: string
     position: Vector2
+    direction: Direction
     joined: boolean
   }
   fixtureMap?: FixtureMap
+  players: Map<string, RenderedPlayer>
   snapshotPlayerIds: string[]
   lastMediaRoom?: string
   lastChatBody?: string
@@ -110,14 +118,17 @@ const state: AppState = {
   clientId: `browser-${Math.floor(Math.random() * 100000)}`,
   seq: 1,
   position: { x: 96, y: 64 },
+  direction: "down",
   joined: false,
   companion: {
     playerId: "player-2",
     clientId: `companion-${Math.floor(Math.random() * 100000)}`,
     position: { x: 96, y: 96 },
+    direction: "down",
     joined: false,
   },
   fixtureMap: undefined,
+  players: new Map(),
   snapshotPlayerIds: [],
   lastMediaRoom: undefined,
   lastChatBody: undefined,
@@ -158,7 +169,7 @@ document.addEventListener("keydown", (event) => {
 
 loadFixtureMap().catch((error: unknown) => {
   log(error instanceof Error ? error.message : "Unable to load fixture map")
-  renderer.updateLocalPlayer(state.position)
+  renderPlayers()
 })
 
 async function startDemo(): Promise<void> {
@@ -194,6 +205,10 @@ async function startDemo(): Promise<void> {
       throw new Error(`World admission failed: ${joined.reason}`)
     }
 
+    state.position = playerSnapshotPosition(joined.player)
+    state.direction = joined.player.direction ?? "down"
+    upsertRenderedPlayer(joined.player)
+    renderPlayers()
     state.joined = true
     elements.reset.disabled = false
     elements.worldStatus.textContent = "joined room-lobby"
@@ -256,6 +271,9 @@ async function joinCompanion(): Promise<void> {
 
   state.companion.joined = true
   state.companion.position = playerSnapshotPosition(joined.player)
+  state.companion.direction = joined.player.direction ?? "down"
+  upsertRenderedPlayer(joined.player)
+  renderPlayers()
   log("Added Demo Grace as a local companion")
 }
 
@@ -284,7 +302,7 @@ function applyWorldSnapshot(players: readonly PlayerSnapshot[]): void {
   const local = players.find((player) => player.playerId === state.playerId)
   if (local) {
     state.position = playerSnapshotPosition(local)
-    renderer.updateLocalPlayer(state.position)
+    state.direction = local.direction ?? state.direction
   }
 
   const companion = players.find(
@@ -294,9 +312,12 @@ function applyWorldSnapshot(players: readonly PlayerSnapshot[]): void {
 
   if (companion) {
     state.companion.position = playerSnapshotPosition(companion)
+    state.companion.direction = companion.direction ?? state.companion.direction
   }
 
-  renderer.updateCompanion(state.companion)
+  state.players.clear()
+  players.forEach(upsertRenderedPlayer)
+  renderPlayers()
 }
 
 function playerSnapshotPosition(player: PlayerSnapshot): Vector2 {
@@ -319,8 +340,10 @@ async function resetDemo(): Promise<void> {
 
   state.sessionId = undefined
   state.seq = 1
+  state.direction = "down"
   state.joined = false
   state.companion.joined = false
+  state.companion.direction = "down"
   state.snapshotPlayerIds = []
   state.lastMediaRoom = undefined
   state.lastChatBody = undefined
@@ -336,8 +359,8 @@ async function resetDemo(): Promise<void> {
     state.companion.position = fixtureSpawnPosition(state.fixtureMap, "guest")
   }
 
-  renderer.updateLocalPlayer(state.position)
-  renderer.updateCompanion(state.companion)
+  seedLocalRenderedPlayer()
+  renderPlayers()
   log("Demo reset")
 }
 
@@ -406,7 +429,9 @@ async function loadFixtureMap(): Promise<void> {
   state.fixtureMap = fixtureMap
   state.position = fixtureSpawnPosition(fixtureMap, "default")
   state.companion.position = fixtureSpawnPosition(fixtureMap, "guest")
+  seedLocalRenderedPlayer()
   renderer.renderMap(fixtureMap)
+  renderPlayers()
   log(
     `Loaded ${fixtureMap.definition.style} fixture map from ${fixtureMap.catalog.tokens.length} visual token(s)`,
   )
@@ -420,9 +445,24 @@ function applyEvents(events: readonly WorldEvent[]): void {
 
 function applyServerMessage(message: ServerMessage): void {
   if ("type" in message && message.type === "player_state") {
-    if (message.playerId !== state.playerId) return
-    state.position = { x: message.x, y: message.y }
-    renderer.updateLocalPlayer(state.position)
+    const position = { x: message.x, y: message.y }
+
+    if (message.playerId === state.playerId) {
+      state.position = position
+      state.direction = message.direction
+    }
+
+    if (message.playerId === state.companion.playerId) {
+      state.companion.position = position
+      state.companion.direction = message.direction
+    }
+
+    upsertRenderedPlayer({
+      playerId: message.playerId,
+      position,
+      direction: message.direction,
+    })
+    renderPlayers()
     log(`Moved ${message.direction} to ${Math.round(message.x)}, ${Math.round(message.y)}`)
     return
   }
@@ -441,6 +481,47 @@ function applyServerMessage(message: ServerMessage): void {
 function eventVisibleToClient(event: WorldEvent): boolean {
   if (event.type === "broadcast") return event.exceptClientId !== state.clientId
   return Array.isArray(event.clientIds) && event.clientIds.includes(state.clientId)
+}
+
+function seedLocalRenderedPlayer(): void {
+  upsertRenderedPlayer({
+    playerId: state.playerId,
+    position: state.position,
+    direction: state.direction,
+  })
+}
+
+function upsertRenderedPlayer(player: PlayerSnapshot): void {
+  const position = playerSnapshotPosition(player)
+  const direction = player.direction ?? "down"
+
+  state.players.set(player.playerId, {
+    playerId: player.playerId,
+    name: displayNameForPlayer(player),
+    position,
+    direction,
+    local: player.playerId === state.playerId,
+  })
+}
+
+function renderPlayers(): void {
+  renderer.updatePlayers([...state.players.values()])
+}
+
+function displayNameForPlayer(player: Pick<PlayerSnapshot, "playerId" | "userId">): string {
+  if (player.playerId === state.playerId) return "Browser Ada"
+  if (player.playerId === state.companion.playerId) return "Demo Grace"
+  if (player.userId) return titleCaseName(player.userId)
+  return titleCaseName(player.playerId)
+}
+
+function titleCaseName(value: string): string {
+  return value
+    .replace(/^wikimedia-/, "")
+    .split(/[-_\s]+/)
+    .filter(Boolean)
+    .map((part) => `${part[0]?.toUpperCase() ?? ""}${part.slice(1)}`)
+    .join(" ")
 }
 
 function fixtureSpawnPosition(fixtureMap: FixtureMap, spawnId: string): Vector2 {
@@ -533,13 +614,23 @@ function renderDemoToText(): string {
       id: state.playerId,
       x: Math.round(state.position.x),
       y: Math.round(state.position.y),
+      direction: state.direction,
     },
     companion: {
       id: state.companion.playerId,
       joined: state.companion.joined,
       x: Math.round(state.companion.position.x),
       y: Math.round(state.companion.position.y),
+      direction: state.companion.direction,
     },
+    players: [...state.players.values()].map((player) => ({
+      id: player.playerId,
+      name: player.name,
+      x: Math.round(player.position.x),
+      y: Math.round(player.position.y),
+      direction: player.direction,
+      local: player.local,
+    })),
     snapshotPlayerIds: state.snapshotPlayerIds,
     map: state.fixtureMap
       ? {
