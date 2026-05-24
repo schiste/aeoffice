@@ -108,10 +108,6 @@ async function main() {
 
   const runtime = createDevelopmentRuntime()
   const appShell = await runtime.handler(new Request("http://localhost/app"))
-  const appScript = await runtime.handler(new Request("http://localhost/app/app.js"))
-  const appStyles = await runtime.handler(
-    new Request("http://localhost/app/styles.css"),
-  )
   const fixtureMap = await runtime.handler(
     new Request("http://localhost/dev/fixture-map"),
   )
@@ -127,15 +123,20 @@ async function main() {
   const devSignInBody = await devSignIn.json()
 
   assert.equal(appShell.status, 200)
-  assert.match(await appShell.text(), /Local Virtual Office/)
+  const appShellBody = await appShell.text()
+  assert.match(appShellBody, /Local Virtual Office/)
+  assert.match(appShellBody, /type="module"/)
   assert.equal(appShell.headers.get("content-type"), "text/html; charset=utf-8")
+  const appScript = await runtime.handler(
+    new Request(`http://localhost${assetPathFromHtml(appShellBody, "src")}`),
+  )
+  const appStyles = await runtime.handler(
+    new Request(`http://localhost${assetPathFromHtml(appShellBody, "href")}`),
+  )
   assert.equal(appScript.status, 200)
   const appScriptBody = await appScript.text()
-  assert.match(appScriptBody, /loadFixtureMap/)
   assert.match(appScriptBody, /render_game_to_text/)
-  assert.match(appScriptBody, /joinCompanion/)
-  assert.match(appScriptBody, /resetDemo/)
-  assert.match(appScriptBody, /syncWorldSnapshot/)
+  assert.match(appScriptBody, /\/world\/snapshot/)
   assert.equal(appStyles.status, 200)
   assert.match(await appStyles.text(), /\.tile-world/)
   assert.equal(fixtureMap.status, 200)
@@ -160,6 +161,12 @@ async function main() {
   assert.equal(devSignIn.status, 200)
   assert.equal(devSignInBody.username, "Dev Ada")
   assert.ok(devSignInBody.sessionId)
+}
+
+function assetPathFromHtml(html, attribute) {
+  const match = html.match(new RegExp(`${attribute}="(/app/assets/[^"]+)"`))
+  assert.ok(match, `Expected ${attribute} app asset in HTML.`)
+  return match[1]
 }
 
 class FakeOutgoing {

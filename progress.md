@@ -33,3 +33,10 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   visible players from server state instead of assuming who joined locally.
 - Browser demo now calls `/world/snapshot` after companion join and records the
   server-confirmed player IDs in `render_game_to_text`.
+- Static `/app` files have been promoted into a Vite + TypeScript browser app
+  under `apps/web`, while the dev host still preserves `/dev`, `/api`, `/world`,
+  `/media`, `/app`, and `/` routes.
+- `npm run check` now builds the Vite browser bundle before validating the dev
+  HTTP host against the generated `/app/assets/*` files.
+- Browser MCP smoke check verified the Vite-built `/app` shell loads, joins the
+  local demo, syncs two players, issues a media token, sends chat, and resets.

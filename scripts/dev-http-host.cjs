@@ -4,7 +4,7 @@ const { resolve, sep } = require("node:path")
 
 const DEFAULT_HOSTNAME = "127.0.0.1"
 const DEFAULT_PORT = 8787
-const WEB_STATIC_DIR = resolve(__dirname, "../apps/web/static")
+const WEB_APP_DIST_DIR = resolve(__dirname, "../apps/web/dist-app")
 
 function createPrefixedFetchHandler(routes) {
   return async (request) => {
@@ -86,11 +86,11 @@ function createDevelopmentRuntime(options = {}) {
     },
     {
       prefix: "/app",
-      handler: createStaticWebHandler(WEB_STATIC_DIR),
+      handler: createStaticWebHandler(WEB_APP_DIST_DIR),
     },
     {
       prefix: "/",
-      handler: createStaticWebHandler(WEB_STATIC_DIR),
+      handler: createStaticWebHandler(WEB_APP_DIST_DIR),
     },
   ])
 
@@ -365,6 +365,7 @@ function contentType(filePath) {
   if (filePath.endsWith(".html")) return "text/html; charset=utf-8"
   if (filePath.endsWith(".css")) return "text/css; charset=utf-8"
   if (filePath.endsWith(".js")) return "text/javascript; charset=utf-8"
+  if (filePath.endsWith(".svg")) return "image/svg+xml"
   return "application/octet-stream"
 }
 

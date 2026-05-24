@@ -14,7 +14,7 @@ Responsibilities:
 The current implementation is a framework-free customer app orchestrator. It
 owns the app-layer flow before Phaser rendering is wired:
 
-- Serve a dependency-free local browser demo from `static/`.
+- Build the browser demo with Vite and TypeScript.
 - Render the local fixture map from the shared visual asset registry contract.
 - Join a local user plus demo companion for movement, chat, and media-token
   validation.

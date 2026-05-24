@@ -102,7 +102,7 @@ npm run dev:http
 
 This starts a dependency-free Node HTTP host for local smoke testing:
 
-- Playable local browser demo is served under `/app`.
+- Vite-built playable local browser demo is served under `/app`.
 - Local-only dev sign-in is mounted under `/dev/sign-in`.
 - Local fixture-map data is mounted under `/dev/fixture-map`.
 - API routes are mounted under `/api`.
@@ -112,6 +112,8 @@ This starts a dependency-free Node HTTP host for local smoke testing:
   verification.
 - The target verification also runs a full local app-layer smoke flow across
   `/dev`, `/api`, `/world`, and `/media`.
+- Run `npm run build` before `npm run dev:http` if you changed browser source;
+  `npm run check` does this as part of target verification.
 
 Run the imported SkyOffice baseline verification with:
 

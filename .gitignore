@@ -2,6 +2,7 @@
 node_modules/
 dist/
 build/
+dist-app/
 .env
 .env.*
 !.env.example

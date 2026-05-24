@@ -1,4 +1,108 @@
-const state = {
+type Direction = "up" | "down" | "left" | "right"
+
+interface Vector2 {
+  readonly x: number
+  readonly y: number
+}
+
+interface FixtureMap {
+  readonly definition: {
+    readonly style: string
+  }
+  readonly compiled: {
+    readonly width: number
+    readonly height: number
+    readonly tileSize: number
+    readonly blockedTiles: readonly Vector2[]
+    readonly layers: {
+      readonly floor: TileLayer
+      readonly walls: TileLayer
+      readonly objects: TileLayer
+    }
+    readonly zones: readonly FixtureZone[]
+  }
+  readonly spawnPoints: readonly {
+    readonly id: string
+    readonly position: Vector2
+  }[]
+  readonly catalog: {
+    readonly tokens: readonly FixtureToken[]
+  }
+}
+
+interface TileLayer {
+  readonly gids: readonly (readonly number[])[]
+}
+
+interface FixtureToken {
+  readonly id: string
+  readonly kind: "floor" | "wall" | "item" | "avatar"
+  readonly provisionalGid: number
+  readonly widthTiles: number
+  readonly heightTiles: number
+}
+
+interface FixtureZone {
+  readonly id: string
+  readonly xStart: number
+  readonly yStart: number
+  readonly xEnd: number
+  readonly yEnd: number
+  readonly zoneType: string
+}
+
+interface WorldEvent {
+  readonly type: "broadcast" | "send"
+  readonly exceptClientId?: string
+  readonly clientIds?: readonly string[]
+  readonly message: ServerMessage
+}
+
+type ServerMessage =
+  | {
+      readonly type: "player_state"
+      readonly playerId: string
+      readonly x: number
+      readonly y: number
+      readonly direction: Direction
+    }
+  | {
+      readonly type: "chat_delivered"
+      readonly body: string
+      readonly recipientPlayerIds: readonly string[]
+    }
+  | {
+      readonly reason?: string
+    }
+
+interface PlayerSnapshot {
+  readonly playerId: string
+  readonly position?: Vector2
+  readonly x?: number
+  readonly y?: number
+}
+
+interface AppState {
+  sessionId?: string
+  playerId: string
+  clientId: string
+  seq: number
+  position: Vector2
+  joined: boolean
+  companion: {
+    playerId: string
+    clientId: string
+    position: Vector2
+    joined: boolean
+  }
+  fixtureMap?: FixtureMap
+  snapshotPlayerIds: string[]
+  lastMediaRoom?: string
+  lastChatBody?: string
+  pendingAction: Promise<void>
+}
+
+const state: AppState = {
   sessionId: undefined,
   playerId: "player-1",
   clientId: `browser-${Math.floor(Math.random() * 100000)}`,
@@ -19,24 +123,24 @@ const state = {
 }
 
 const elements = {
-  start: document.querySelector("#start"),
-  reset: document.querySelector("#reset"),
-  map: document.querySelector("#map"),
-  player: document.querySelector("#player"),
-  sessionStatus: document.querySelector("#session-status"),
-  worldStatus: document.querySelector("#world-status"),
-  mediaStatus: document.querySelector("#media-status"),
-  events: document.querySelector("#events"),
-  chatForm: document.querySelector("#chat-form"),
-  chatBody: document.querySelector("#chat-body"),
-  companion: undefined,
+  start: mustQuery<HTMLButtonElement>("#start"),
+  reset: mustQuery<HTMLButtonElement>("#reset"),
+  map: mustQuery<HTMLElement>("#map"),
+  player: mustQuery<HTMLElement>("#player"),
+  sessionStatus: mustQuery<HTMLElement>("#session-status"),
+  worldStatus: mustQuery<HTMLElement>("#world-status"),
+  mediaStatus: mustQuery<HTMLElement>("#media-status"),
+  events: mustQuery<HTMLOListElement>("#events"),
+  chatForm: mustQuery<HTMLFormElement>("#chat-form"),
+  chatBody: mustQuery<HTMLInputElement>("#chat-body"),
+  companion: undefined as HTMLElement | undefined,
 }
 
 elements.start.addEventListener("click", () => queueAction(() => startDemo()))
 elements.reset.addEventListener("click", () => queueAction(() => resetDemo()))
-document.querySelectorAll("[data-direction]").forEach((button) => {
+document.querySelectorAll<HTMLButtonElement>("[data-direction]").forEach((button) => {
   button.addEventListener("click", () =>
-    queueAction(() => move(button.dataset.direction)),
+    queueAction(() => move(button.dataset.direction as Direction)),
   )
 })
 elements.chatForm.addEventListener("submit", (event) => {
@@ -51,12 +155,12 @@ document.addEventListener("keydown", (event) => {
   queueAction(() => move(direction))
 })
 
-loadFixtureMap().catch((error) => {
+loadFixtureMap().catch((error: unknown) => {
   log(error instanceof Error ? error.message : "Unable to load fixture map")
   renderPlayer()
 })
 
-async function startDemo() {
+async function startDemo(): Promise<void> {
   elements.start.disabled = true
   elements.start.textContent = "Joining..."
 
@@ -77,7 +181,6 @@ async function startDemo() {
     log(`Signed in as ${session.username}`)
 
     const token = await issueWorldToken(state.sessionId)
-
     const joined = await joinWorld({
       clientId: state.clientId,
       token: token.token,
@@ -101,7 +204,7 @@ async function startDemo() {
     await sendChat(elements.chatBody.value)
     await joinMedia()
     elements.start.textContent = "Demo running"
-  } catch (error) {
+  } catch (error: unknown) {
     elements.start.textContent = "Join demo"
     log(error instanceof Error ? error.message : "Unknown browser shell error")
   } finally {
@@ -110,25 +213,29 @@ async function startDemo() {
   }
 }
 
-async function signInDevUser(subject, username) {
-  return postJson("/dev/sign-in", {
+async function signInDevUser(subject: string, username: string) {
+  return postJson<{ sessionId: string; username: string }>("/dev/sign-in", {
     subject,
     username,
   })
 }
 
-async function issueWorldToken(sessionId) {
-  return postJson("/api/world-token", {
+async function issueWorldToken(sessionId: string) {
+  return postJson<{ token: string }>("/api/world-token", {
     sessionId,
     roomId: "room-lobby",
   })
 }
 
-async function joinWorld(input) {
-  return postJson("/world/join", input)
+async function joinWorld(input: Record<string, unknown>) {
+  return postJson<{
+    status: "joined" | "denied"
+    reason?: string
+    player: PlayerSnapshot
+  }>("/world/join", input)
 }
 
-async function joinCompanion() {
+async function joinCompanion(): Promise<void> {
   const companionSession = await signInDevUser(
     "wikimedia-browser-companion",
     "Demo Grace",
@@ -147,17 +254,18 @@ async function joinCompanion() {
   }
 
   state.companion.joined = true
-  state.companion.position = {
-    x: joined.player.position?.x ?? joined.player.x ?? state.companion.position.x,
-    y: joined.player.position?.y ?? joined.player.y ?? state.companion.position.y,
-  }
+  state.companion.position = playerSnapshotPosition(joined.player)
   log("Added Demo Grace as a local companion")
 }
 
-async function syncWorldSnapshot() {
+async function syncWorldSnapshot(): Promise<void> {
   if (!state.joined) return
 
-  const snapshot = await postJson("/world/snapshot", {
+  const snapshot = await postJson<{
+    status: "ok" | "denied"
+    reason?: string
+    players: readonly PlayerSnapshot[]
+  }>("/world/snapshot", {
     clientId: state.clientId,
   })
 
@@ -169,7 +277,7 @@ async function syncWorldSnapshot() {
   log(`Synced ${snapshot.players.length} player(s) from world snapshot`)
 }
 
-function applyWorldSnapshot(players) {
+function applyWorldSnapshot(players: readonly PlayerSnapshot[]): void {
   state.snapshotPlayerIds = players.map((player) => player.playerId)
 
   const local = players.find((player) => player.playerId === state.playerId)
@@ -190,14 +298,14 @@ function applyWorldSnapshot(players) {
   renderCompanion()
 }
 
-function playerSnapshotPosition(player) {
+function playerSnapshotPosition(player: PlayerSnapshot): Vector2 {
   return {
-    x: player.position?.x ?? player.x,
-    y: player.position?.y ?? player.y,
+    x: player.position?.x ?? player.x ?? 0,
+    y: player.position?.y ?? player.y ?? 0,
   }
 }
 
-async function resetDemo() {
+async function resetDemo(): Promise<void> {
   elements.reset.disabled = true
 
   if (state.companion.joined) {
@@ -232,16 +340,16 @@ async function resetDemo() {
   log("Demo reset")
 }
 
-async function leaveWorld(clientId) {
-  return postJson("/world/leave", {
+async function leaveWorld(clientId: string): Promise<void> {
+  await postJson("/world/leave", {
     clientId,
   })
 }
 
-async function move(direction) {
+async function move(direction: Direction): Promise<void> {
   if (!state.joined) return
 
-  const body = await postJson("/world/message", {
+  const body = await postJson<{ events: readonly WorldEvent[] }>("/world/message", {
     clientId: state.clientId,
     message: {
       type: "move",
@@ -253,10 +361,10 @@ async function move(direction) {
   applyEvents(body.events ?? [])
 }
 
-async function sendChat(body) {
+async function sendChat(body: string): Promise<void> {
   if (!state.joined || !body.trim()) return
 
-  const response = await postJson("/world/message", {
+  const response = await postJson<{ events: readonly WorldEvent[] }>("/world/message", {
     clientId: state.clientId,
     message: {
       type: "chat_send",
@@ -269,8 +377,12 @@ async function sendChat(body) {
   applyEvents(response.events ?? [])
 }
 
-async function joinMedia() {
-  const media = await postJson("/media/media-token", {
+async function joinMedia(): Promise<void> {
+  const media = await postJson<{
+    status: "issued" | "denied"
+    room?: string
+    reason?: string
+  }>("/media/media-token", {
     playerId: state.playerId,
     mode: "zone",
     zoneId: "meeting-zone",
@@ -278,18 +390,18 @@ async function joinMedia() {
     subscribe: true,
   })
 
-  if (media.status === "issued") {
+  if (media.status === "issued" && media.room) {
     elements.mediaStatus.textContent = media.room
     state.lastMediaRoom = media.room
     log(`Issued media token for ${media.room}`)
   } else {
-    elements.mediaStatus.textContent = media.reason
-    log(`Media denied: ${media.reason}`)
+    elements.mediaStatus.textContent = media.reason ?? "denied"
+    log(`Media denied: ${media.reason ?? "unknown"}`)
   }
 }
 
-async function loadFixtureMap() {
-  const fixtureMap = await getJson("/dev/fixture-map")
+async function loadFixtureMap(): Promise<void> {
+  const fixtureMap = await getJson<FixtureMap>("/dev/fixture-map")
   state.fixtureMap = fixtureMap
   state.position = fixtureSpawnPosition(fixtureMap, "default")
   state.companion.position = fixtureSpawnPosition(fixtureMap, "guest")
@@ -299,7 +411,7 @@ async function loadFixtureMap() {
   )
 }
 
-function renderMap(fixtureMap) {
+function renderMap(fixtureMap: FixtureMap): void {
   const player = elements.player
   const tileSize = fixtureMap.compiled.tileSize
   const world = document.createElement("div")
@@ -323,7 +435,12 @@ function renderMap(fixtureMap) {
   renderCompanion()
 }
 
-function renderTileLayer(world, layer, tokensByGid, tileSize) {
+function renderTileLayer(
+  world: HTMLElement,
+  layer: TileLayer,
+  tokensByGid: ReadonlyMap<number, FixtureToken>,
+  tileSize: number,
+): void {
   layer.gids.forEach((row, y) => {
     row.forEach((gid, x) => {
       if (gid === 0) return
@@ -349,7 +466,11 @@ function renderTileLayer(world, layer, tokensByGid, tileSize) {
   })
 }
 
-function renderZones(world, zones, tileSize) {
+function renderZones(
+  world: HTMLElement,
+  zones: readonly FixtureZone[],
+  tileSize: number,
+): void {
   zones.forEach((zone) => {
     const element = document.createElement("div")
     element.className = `zone zone-${zone.zoneType}`
@@ -363,44 +484,45 @@ function renderZones(world, zones, tileSize) {
   })
 }
 
-function applyEvents(events) {
+function applyEvents(events: readonly WorldEvent[]): void {
   events
     .filter((event) => eventVisibleToClient(event))
     .forEach((event) => applyServerMessage(event.message))
 }
 
-function applyServerMessage(message) {
-  if (message.type === "player_state" && message.playerId === state.playerId) {
+function applyServerMessage(message: ServerMessage): void {
+  if ("type" in message && message.type === "player_state") {
+    if (message.playerId !== state.playerId) return
     state.position = { x: message.x, y: message.y }
     renderPlayer()
     log(`Moved ${message.direction} to ${Math.round(message.x)}, ${Math.round(message.y)}`)
     return
   }
 
-  if (message.type === "chat_delivered") {
+  if ("type" in message && message.type === "chat_delivered") {
     state.lastChatBody = message.body
     log(`Chat delivered to ${message.recipientPlayerIds.length} recipient(s)`)
     return
   }
 
-  if (message.reason) {
+  if ("reason" in message && message.reason) {
     log(`Rejected: ${message.reason}`)
   }
 }
 
-function eventVisibleToClient(event) {
+function eventVisibleToClient(event: WorldEvent): boolean {
   if (event.type === "broadcast") return event.exceptClientId !== state.clientId
   return Array.isArray(event.clientIds) && event.clientIds.includes(state.clientId)
 }
 
-function renderPlayer() {
+function renderPlayer(): void {
   elements.player.style.left = `${state.position.x}px`
   elements.player.style.top = `${state.position.y}px`
 }
 
-function renderCompanion() {
+function renderCompanion(): void {
   const world = elements.map.querySelector(".tile-world")
-  if (!world) return
+  if (!(world instanceof HTMLElement)) return
 
   if (!state.companion.joined) {
     elements.companion?.remove()
@@ -422,23 +544,26 @@ function renderCompanion() {
   }
 }
 
-function fixtureSpawnPosition(fixtureMap, spawnId) {
+function fixtureSpawnPosition(fixtureMap: FixtureMap, spawnId: string): Vector2 {
   const spawn = fixtureMap.spawnPoints.find((candidate) => candidate.id === spawnId)
   return spawn ? spawn.position : state.position
 }
 
-async function getJson(path) {
+async function getJson<T>(path: string): Promise<T> {
   const response = await fetch(path)
-  const parsed = await response.json()
+  const parsed = (await response.json()) as { reason?: string }
 
   if (!response.ok) {
     throw new Error(parsed.reason ?? `HTTP ${response.status}`)
   }
 
-  return parsed
+  return parsed as T
 }
 
-async function postJson(path, body) {
+async function postJson<T = Record<string, unknown>>(
+  path: string,
+  body: Record<string, unknown>,
+): Promise<T> {
   const response = await fetch(path, {
     method: "POST",
     headers: {
@@ -446,31 +571,31 @@ async function postJson(path, body) {
     },
     body: JSON.stringify(body),
   })
-  const parsed = await response.json()
+  const parsed = (await response.json()) as { reason?: string }
 
   if (!response.ok) {
     throw new Error(parsed.reason ?? `HTTP ${response.status}`)
   }
 
-  return parsed
+  return parsed as T
 }
 
-function log(message) {
+function log(message: string): void {
   const item = document.createElement("li")
   item.textContent = message
   elements.events.prepend(item)
 }
 
-function queueAction(action) {
+function queueAction(action: () => Promise<void>): Promise<void> {
   state.pendingAction = state.pendingAction
     .then(action)
-    .catch((error) => {
+    .catch((error: unknown) => {
       log(error instanceof Error ? error.message : "Unknown demo action error")
     })
   return state.pendingAction
 }
 
-function directionForKey(key) {
+function directionForKey(key: string): Direction | undefined {
   switch (key) {
     case "ArrowUp":
     case "w":
@@ -493,7 +618,7 @@ function directionForKey(key) {
   }
 }
 
-function renderDemoToText() {
+function renderDemoToText(): string {
   return JSON.stringify({
     coordinateSystem: "pixel origin top-left, x right, y down",
     joined: state.joined,
@@ -535,12 +660,27 @@ function renderDemoToText() {
   })
 }
 
-window.render_game_to_text = renderDemoToText
-window.advanceTime = async () => state.pendingAction
-
-function labelForToken(tokenId) {
+function labelForToken(tokenId: string): string {
   if (tokenId.includes("conference_table")) return "TABLE"
   if (tokenId.includes("chair")) return "SEAT"
   if (tokenId.includes("coffee")) return "CAFE"
   return "ITEM"
 }
+
+function mustQuery<TElement extends Element>(selector: string): TElement {
+  const element = document.querySelector<TElement>(selector)
+  if (!element) throw new Error(`Missing required element ${selector}`)
+  return element
+}
+
+declare global {
+  interface Window {
+    render_game_to_text: () => string
+    advanceTime: () => Promise<void>
+  }
+}
+
+window.render_game_to_text = renderDemoToText
+window.advanceTime = async () => state.pendingAction
+
+export {}
