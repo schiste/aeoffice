@@ -1,6 +1,7 @@
 import {
   PhaserOfficeRenderer,
   type RenderedPlayer,
+  type RendererViewportState,
 } from "./phaser-office-renderer"
 
 type Direction = "up" | "down" | "left" | "right"
@@ -181,6 +182,9 @@ const elements = {
   events: mustQuery<HTMLOListElement>("#events"),
   chatForm: mustQuery<HTMLFormElement>("#chat-form"),
   chatBody: mustQuery<HTMLInputElement>("#chat-body"),
+  zoomOut: mustQuery<HTMLButtonElement>("#zoom-out"),
+  zoomReset: mustQuery<HTMLButtonElement>("#zoom-reset"),
+  zoomIn: mustQuery<HTMLButtonElement>("#zoom-in"),
 }
 const renderer = new PhaserOfficeRenderer(elements.map)
 
@@ -194,6 +198,15 @@ document.querySelectorAll<HTMLButtonElement>("[data-direction]").forEach((button
 elements.chatForm.addEventListener("submit", (event) => {
   event.preventDefault()
   queueAction(() => sendChat(elements.chatBody.value))
+})
+elements.zoomOut.addEventListener("click", () => {
+  renderViewportControls(renderer.zoomOut())
+})
+elements.zoomReset.addEventListener("click", () => {
+  renderViewportControls(renderer.resetZoom())
+})
+elements.zoomIn.addEventListener("click", () => {
+  renderViewportControls(renderer.zoomIn())
 })
 document.addEventListener("keydown", (event) => {
   const direction = directionForKey(event.key)
@@ -219,6 +232,7 @@ loadFixtureMap().catch((error: unknown) => {
   log(error instanceof Error ? error.message : "Unable to load fixture map")
   renderPlayers()
 })
+renderViewportControls(renderer.getViewportState())
 
 async function startDemo(): Promise<void> {
   elements.start.disabled = true
@@ -616,6 +630,7 @@ function upsertRenderedPlayer(player: PlayerSnapshot): void {
 function renderPlayers(): void {
   const players = [...state.players.values()]
   renderer.updatePlayers(players)
+  renderViewportControls(renderer.getViewportState())
 
   players.forEach((player) => {
     if (!player.rejected) return
@@ -699,6 +714,10 @@ function movementRejectionLabel(reason: MovementRejectedReason): string {
     case "invalid_message":
       return "Movement ignored because the request was invalid"
   }
+}
+
+function renderViewportControls(viewport: RendererViewportState): void {
+  elements.zoomReset.textContent = `${Math.round(viewport.zoomFactor * 100)}%`
 }
 
 function titleCaseName(value: string): string {
@@ -823,6 +842,7 @@ function renderDemoToText(): string {
       inFlight: movementInput.inFlight,
       lastRejectedReason: state.lastMovementRejection?.reason,
     },
+    viewport: renderer.getViewportState(),
     map: state.fixtureMap
       ? {
           renderer: "phaser",

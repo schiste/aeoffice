@@ -104,7 +104,8 @@ h1 {
   align-items: center;
   justify-content: center;
   width: 100%;
-  aspect-ratio: 16 / 9;
+  height: min(58vh, 560px);
+  min-height: 280px;
   overflow: hidden;
   padding: 0;
   border: 1px solid #c9d6da;
@@ -113,9 +114,26 @@ h1 {
 }
 
 .phaser-world-host canvas {
-  border: 1px solid #b6c8c9;
-  box-shadow: 0 8px 18px rgba(23, 32, 38, 0.12);
+  display: block;
+  width: 100%;
+  height: 100%;
   image-rendering: pixelated;
+}
+
+.viewport-tools {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.viewport-tools button {
+  width: 44px;
+  min-height: 36px;
+}
+
+.viewport-tools .zoom-reset {
+  width: 72px;
 }
 
 .controls {
@@ -174,5 +192,10 @@ h1 {
   .status-grid,
   .controls {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .map {
+    height: min(52vh, 420px);
+    min-height: 240px;
   }
 }

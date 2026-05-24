@@ -57,16 +57,38 @@ export interface RenderedPlayer {
   readonly rejected?: boolean
 }
 
+export interface RendererViewportState {
+  readonly viewportWidth: number
+  readonly viewportHeight: number
+  readonly mapWidth: number
+  readonly mapHeight: number
+  readonly zoomFactor: number
+  readonly effectiveZoom: number
+  readonly scrollX: number
+  readonly scrollY: number
+  readonly followingPlayerId?: string
+}
+
 const TILESET_KEY = "semantic-fixture-tiles"
 const TILESET_NAME = "semantic-fixture-tileset"
 const AVATAR_WIDTH = 18
 const AVATAR_HEIGHT = 24
 const AVATAR_DEPTH_BASE = 1000
+const DEFAULT_VIEWPORT_WIDTH = 640
+const DEFAULT_VIEWPORT_HEIGHT = 360
+const MIN_VIEWPORT_WIDTH = 320
+const MIN_VIEWPORT_HEIGHT = 220
+const DEFAULT_ZOOM_FACTOR = 1.15
+const MIN_ZOOM_FACTOR = 0.75
+const MAX_ZOOM_FACTOR = 2
+const MAX_EFFECTIVE_ZOOM = 3.25
 
 export class PhaserOfficeRenderer {
   private readonly scene: OfficeScene
   private readonly game: Phaser.Game
   private readonly ready: Promise<OfficeScene>
+  private readonly resizeObserver: ResizeObserver
+  private zoomFactor = DEFAULT_ZOOM_FACTOR
   private players: readonly RenderedPlayer[] = [
     {
       playerId: "player-1",
@@ -77,7 +99,7 @@ export class PhaserOfficeRenderer {
     },
   ]
 
-  constructor(parent: HTMLElement) {
+  constructor(private readonly parent: HTMLElement) {
     parent.classList.add("phaser-world-host")
     this.scene = new OfficeScene((scene) => {
       this.resolveReady(scene)
@@ -88,17 +110,19 @@ export class PhaserOfficeRenderer {
     this.game = new Phaser.Game({
       type: Phaser.AUTO,
       parent,
-      width: 384,
-      height: 320,
+      width: DEFAULT_VIEWPORT_WIDTH,
+      height: DEFAULT_VIEWPORT_HEIGHT,
       backgroundColor: "#e7edf0",
       banner: false,
       pixelArt: true,
       scale: {
-        mode: Phaser.Scale.FIT,
-        autoCenter: Phaser.Scale.CENTER_BOTH,
+        mode: Phaser.Scale.NONE,
       },
       scene: this.scene,
     })
+    this.resizeObserver = new ResizeObserver(() => this.resizeToParent())
+    this.resizeObserver.observe(parent)
+    this.resizeToParent()
   }
 
   renderMap(fixtureMap: FixtureMap): void {
@@ -114,12 +138,51 @@ export class PhaserOfficeRenderer {
     })
   }
 
+  zoomIn(): RendererViewportState {
+    return this.setZoomFactor(this.zoomFactor + 0.15)
+  }
+
+  zoomOut(): RendererViewportState {
+    return this.setZoomFactor(this.zoomFactor - 0.15)
+  }
+
+  resetZoom(): RendererViewportState {
+    return this.setZoomFactor(DEFAULT_ZOOM_FACTOR)
+  }
+
+  getViewportState(): RendererViewportState {
+    return this.scene.getViewportState()
+  }
+
   async advanceTime(): Promise<void> {
     await this.ready
   }
 
   destroy(): void {
+    this.resizeObserver.disconnect()
     this.game.destroy(true)
+  }
+
+  private setZoomFactor(zoomFactor: number): RendererViewportState {
+    this.zoomFactor = clamp(zoomFactor, MIN_ZOOM_FACTOR, MAX_ZOOM_FACTOR)
+    this.scene.setZoomFactor(this.zoomFactor)
+    return this.getViewportState()
+  }
+
+  private resizeToParent(): void {
+    const rect = this.parent.getBoundingClientRect()
+    const width = Math.max(
+      MIN_VIEWPORT_WIDTH,
+      Math.round(rect.width || this.parent.clientWidth || DEFAULT_VIEWPORT_WIDTH),
+    )
+    const height = Math.max(
+      MIN_VIEWPORT_HEIGHT,
+      Math.round(rect.height || this.parent.clientHeight || DEFAULT_VIEWPORT_HEIGHT),
+    )
+
+    this.game.scale.resize(width, height)
+    this.scene.resizeViewport(width, height)
+    this.scene.setZoomFactor(this.zoomFactor)
   }
 
   private resolveReady: (scene: OfficeScene) => void = () => undefined
@@ -129,13 +192,29 @@ class OfficeScene extends Phaser.Scene {
   private readonly avatars = new Map<string, AvatarView>()
   private zoneGraphics?: Phaser.GameObjects.Graphics
   private activeMap?: Phaser.Tilemaps.Tilemap
+  private viewportSize: Vector2 = {
+    x: DEFAULT_VIEWPORT_WIDTH,
+    y: DEFAULT_VIEWPORT_HEIGHT,
+  }
+  private mapSize: Vector2 = {
+    x: 384,
+    y: 320,
+  }
+  private zoomFactor = DEFAULT_ZOOM_FACTOR
+  private effectiveZoom = DEFAULT_ZOOM_FACTOR
+  private followingPlayerId?: string
+  private cameraReady = false
 
   constructor(private readonly onReady: (scene: OfficeScene) => void) {
     super({ key: "OfficeScene" })
   }
 
   create(): void {
+    this.cameraReady = true
     this.cameras.main.setBackgroundColor("#e7edf0")
+    this.cameras.main.roundPixels = true
+    this.cameras.main.setSize(this.viewportSize.x, this.viewportSize.y)
+    this.applyCameraZoom()
     this.onReady(this)
   }
 
@@ -146,9 +225,15 @@ class OfficeScene extends Phaser.Scene {
     const tileSize = fixtureMap.compiled.tileSize
     const widthInPixels = fixtureMap.compiled.width * tileSize
     const heightInPixels = fixtureMap.compiled.height * tileSize
+    this.mapSize = {
+      x: widthInPixels,
+      y: heightInPixels,
+    }
 
     this.avatars.forEach((avatar) => avatar.destroy())
     this.avatars.clear()
+    this.followingPlayerId = undefined
+    this.cameras.main.stopFollow()
     this.children.removeAll(true)
     this.activeMap = this.make.tilemap({
       tileWidth: tileSize,
@@ -156,9 +241,9 @@ class OfficeScene extends Phaser.Scene {
       width: fixtureMap.compiled.width,
       height: fixtureMap.compiled.height,
     })
-    this.game.scale.resize(widthInPixels, heightInPixels)
     this.cameras.main.setBounds(0, 0, widthInPixels, heightInPixels)
     this.cameras.main.centerOn(widthInPixels / 2, heightInPixels / 2)
+    this.applyCameraZoom()
 
     const multiTileFillGids = createMultiTileFillGids(fixtureMap.catalog.tokens)
 
@@ -217,6 +302,10 @@ class OfficeScene extends Phaser.Scene {
       avatar.destroy()
       this.avatars.delete(playerId)
     })
+    if (this.followingPlayerId && !visiblePlayerIds.has(this.followingPlayerId)) {
+      this.followingPlayerId = undefined
+      this.cameras.main.stopFollow()
+    }
 
     players.forEach((player) => {
       let avatar = this.avatars.get(player.playerId)
@@ -227,7 +316,65 @@ class OfficeScene extends Phaser.Scene {
       }
 
       avatar.update(player)
+      if (player.local) {
+        this.followPlayer(player.playerId, avatar)
+      }
     })
+  }
+
+  resizeViewport(width: number, height: number): void {
+    this.viewportSize = { x: width, y: height }
+    if (this.cameraReady) {
+      this.cameras.main.setSize(width, height)
+    }
+    this.applyCameraZoom()
+  }
+
+  setZoomFactor(zoomFactor: number): void {
+    this.zoomFactor = clamp(zoomFactor, MIN_ZOOM_FACTOR, MAX_ZOOM_FACTOR)
+    this.applyCameraZoom()
+  }
+
+  getViewportState(): RendererViewportState {
+    const camera = this.cameraReady ? this.cameras.main : undefined
+
+    return {
+      viewportWidth: Math.round(this.viewportSize.x),
+      viewportHeight: Math.round(this.viewportSize.y),
+      mapWidth: Math.round(this.mapSize.x),
+      mapHeight: Math.round(this.mapSize.y),
+      zoomFactor: roundTo(this.zoomFactor, 2),
+      effectiveZoom: roundTo(this.effectiveZoom, 2),
+      scrollX: Math.round(camera?.scrollX ?? 0),
+      scrollY: Math.round(camera?.scrollY ?? 0),
+      followingPlayerId: this.followingPlayerId,
+    }
+  }
+
+  private followPlayer(playerId: string, avatar: AvatarView): void {
+    if (this.followingPlayerId === playerId) return
+
+    this.followingPlayerId = playerId
+    this.cameras.main.startFollow(avatar.focusTarget, true, 0.2, 0.2)
+  }
+
+  private applyCameraZoom(): void {
+    this.effectiveZoom = this.computeEffectiveZoom()
+
+    if (!this.cameraReady) return
+
+    const camera = this.cameras.main
+    camera.setZoom(this.effectiveZoom)
+    camera.setBounds(0, 0, this.mapSize.x, this.mapSize.y)
+  }
+
+  private computeEffectiveZoom(): number {
+    const fitZoom = Math.min(
+      this.viewportSize.x / this.mapSize.x,
+      this.viewportSize.y / this.mapSize.y,
+    )
+
+    return clamp(fitZoom * this.zoomFactor, MIN_ZOOM_FACTOR, MAX_EFFECTIVE_ZOOM)
   }
 
   private installSemanticTileset(
@@ -328,7 +475,7 @@ class OfficeScene extends Phaser.Scene {
 }
 
 class AvatarView {
-  private readonly container: Phaser.GameObjects.Container
+  readonly focusTarget: Phaser.GameObjects.Container
   private readonly shadow: Phaser.GameObjects.Ellipse
   private readonly torso: Phaser.GameObjects.Ellipse
   private readonly head: Phaser.GameObjects.Ellipse
@@ -350,8 +497,8 @@ class AvatarView {
     this.local = player.local
     this.lastPosition = player.position
     this.lastDirection = player.direction
-    this.container = scene.add.container(player.position.x, player.position.y)
-    this.container.setName(`avatar:${player.playerId}`)
+    this.focusTarget = scene.add.container(player.position.x, player.position.y)
+    this.focusTarget.setName(`avatar:${player.playerId}`)
 
     this.shadow = scene.add.ellipse(0, 14, 18, 6, 0x172026, 0.2)
     this.torso = scene.add.ellipse(0, 2, AVATAR_WIDTH, AVATAR_HEIGHT, 0xc8493c, 1)
@@ -375,7 +522,7 @@ class AvatarView {
     )
     this.labelBack.setStrokeStyle(1, player.local ? 0xc8493c : 0x2f6fc8, 0.65)
 
-    this.container.add([
+    this.focusTarget.add([
       this.shadow,
       this.torso,
       this.head,
@@ -398,7 +545,7 @@ class AvatarView {
     this.labelBack.setSize(this.label.width + 10, 15)
     this.labelBack.setStrokeStyle(1, player.local ? 0xc8493c : 0x2f6fc8, 0.65)
     this.torso.setFillStyle(player.local ? 0xc8493c : 0x2f6fc8, 1)
-    this.container.setDepth(AVATAR_DEPTH_BASE + player.position.y)
+    this.focusTarget.setDepth(AVATAR_DEPTH_BASE + player.position.y)
     this.setFacing(player.direction)
 
     if (moved || identityChanged || player.direction !== this.lastDirection) {
@@ -421,13 +568,13 @@ class AvatarView {
     this.walkTween?.stop()
     this.positionTween?.stop()
     this.rejectionTween?.stop()
-    this.container.destroy(true)
+    this.focusTarget.destroy(true)
   }
 
   private interpolateTo(position: Vector2): void {
     this.positionTween?.stop()
     this.positionTween = this.scene.tweens.add({
-      targets: this.container,
+      targets: this.focusTarget,
       x: position.x,
       y: position.y,
       duration: 135,
@@ -438,12 +585,12 @@ class AvatarView {
   private showRejected(direction: Direction): void {
     this.rejectionTween?.stop()
     this.positionTween?.stop()
-    this.container.setPosition(this.lastPosition.x, this.lastPosition.y)
+    this.focusTarget.setPosition(this.lastPosition.x, this.lastPosition.y)
     this.torso.setStrokeStyle(2, 0xffd166, 1)
     this.rejectionTween = this.scene.tweens.add({
-      targets: this.container,
-      x: this.container.x + facingNudgeX(direction),
-      y: this.container.y + facingNudgeY(direction),
+      targets: this.focusTarget,
+      x: this.focusTarget.x + facingNudgeX(direction),
+      y: this.focusTarget.y + facingNudgeY(direction),
       duration: 45,
       yoyo: true,
       repeat: 1,
@@ -472,9 +619,9 @@ class AvatarView {
     if (this.idleTween?.isPlaying()) return
 
     this.walkTween?.stop()
-    this.container.setScale(1, 1)
+    this.focusTarget.setScale(1, 1)
     this.idleTween = this.scene.tweens.add({
-      targets: this.container,
+      targets: this.focusTarget,
       scaleY: 1.03,
       duration: 900,
       yoyo: true,
@@ -486,9 +633,9 @@ class AvatarView {
   private startWalkTween(): void {
     this.idleTween?.stop()
     this.walkTween?.stop()
-    this.container.setScale(1, 1)
+    this.focusTarget.setScale(1, 1)
     this.walkTween = this.scene.tweens.add({
-      targets: this.container,
+      targets: this.focusTarget,
       scaleX: 1.05,
       scaleY: 0.95,
       duration: 120,
@@ -510,6 +657,15 @@ function facingNudgeY(direction: Direction): number {
   if (direction === "up") return -4
   if (direction === "down") return 4
   return 0
+}
+
+function clamp(value: number, minimum: number, maximum: number): number {
+  return Math.min(maximum, Math.max(minimum, value))
+}
+
+function roundTo(value: number, digits: number): number {
+  const scale = 10 ** digits
+  return Math.round(value * scale) / scale
 }
 
 function drawSemanticTile(

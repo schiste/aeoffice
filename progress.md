@@ -62,3 +62,11 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   bundled web-game client script could not run because `playwright` is not
   installed in the skill/runtime path, so Playwright MCP was used for the
   browser pass.
+- Camera/viewport behavior now lives in the Phaser renderer: the camera follows
+  the local avatar, viewport size is driven by the map container, and zoom uses a
+  fit-to-container base multiplied by user controls outside the canvas.
+- Browser MCP verified desktop `1280x900` and mobile `390x760` layouts. The
+  zoom controls update from `115%` to `160%`, `render_game_to_text` exposes
+  viewport dimensions/effective zoom/camera scroll/follow target, and the
+  browser console stayed clean. The standalone web-game client still cannot run
+  because the skill runtime cannot resolve the `playwright` package.
