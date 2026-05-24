@@ -1762,6 +1762,19 @@ Purpose:
 Stop building on the risky SkyOffice architecture and create a clean product
 foundation before feature work resumes.
 
+Stack orientation:
+
+- The product codebase should be TypeScript-first across protocol, policy, API,
+  world-server, client, and tests.
+- The infrastructure should remain best-fit rather than TypeScript-only:
+  Postgres for durable state, Valkey for ephemeral coordination, LiveKit/coturn
+  for realtime media, S3-compatible storage/CDN for assets, and Tauri 2 only as
+  a later desktop packaging wrapper.
+- Phaser 4 is the preferred browser world renderer. `TilemapGPULayer` should be
+  evaluated for orthographic static layers, but the map engine must still model
+  semantic maps, zones, permissions, portals, and navigation independently of
+  any one renderer.
+
 Deliverables:
 
 - SkyOffice preserved under `legacy/skyoffice-original`.
@@ -1810,6 +1823,15 @@ Deliverables:
 - Config-driven office layout.
 - Basic room and zone permissions.
 - Basic server-side chat modes.
+- Browser-first client using Phaser 4 and TypeScript.
+- Simple in-world UI overlays using vanilla HTML/TypeScript and Tailwind CSS
+  where useful.
+
+Explicitly deferred:
+
+- Tauri desktop packaging.
+- Full SaaS/admin backoffice UI framework decision.
+- Large-room broadcast UX beyond core media policy.
 
 ### Phase 2: SaaS Foundation Connection
 

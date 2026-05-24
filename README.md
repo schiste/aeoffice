@@ -19,7 +19,8 @@ architecture before product feature work resumes.
 
 - `legacy/skyoffice-original/` - SkyOffice fork imported with upstream Git
   history preserved as a subtree. This is reference code, not the target app.
-- `apps/web/` - future React or Svelte frontend with Phaser world renderer.
+- `apps/web/` - future browser-first Phaser 4 world renderer with TypeScript
+  protocol client and simple HTML/TypeScript overlays.
 - `apps/world-server/` - future Colyseus authoritative world server.
 - `apps/api/` - future Fastify API with Wikimedia OAuth, sessions, RBAC, and
   persistence.
@@ -56,6 +57,16 @@ architecture before product feature work resumes.
 - Implementing enterprise Google Meet, Teams, or Zoom integrations in Step 0.
 - Building a large-scale broadcast system before the core protocol and
   persistence layers are clean.
+- Building a Tauri desktop wrapper before the browser MVP is stable.
+
+## Stack Orientation
+
+The target is a TypeScript-first product layer, not an all-TypeScript runtime.
+Application logic, protocol contracts, policies, API boundaries, world
+simulation, and client code should stay in TypeScript where practical. Durable
+state, media, cache, and desktop packaging use the best-fit tools already in the
+plan: Postgres, Valkey, LiveKit/coturn, S3-compatible storage, and eventually
+Tauri.
 
 ## Phase 0 Baseline Check
 

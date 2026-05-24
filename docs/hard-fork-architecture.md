@@ -2,10 +2,19 @@
 
 ## 1. Target Runtime
 
+The target architecture is a Unified TypeScript Product Layer over best-fit
+infrastructure services. TypeScript should own product logic, protocol
+contracts, policy decisions, and UI composition. It should not force
+infrastructure choices where dedicated systems are better: LiveKit remains
+Go-based media infrastructure, Postgres remains SQL durable state, and Tauri
+uses Rust for a later desktop wrapper.
+
 ```text
 apps/web
-  React or Svelte frontend
-  Phaser world renderer
+  Phaser 4 world renderer
+  TypeScript protocol client
+  vanilla HTML/TypeScript overlays for simple in-world UI
+  React/Svelte remains allowed for complex admin or SaaS backoffice UI
   local input prediction only
 
 apps/world-server
@@ -54,7 +63,30 @@ packages/policy
 
 packages/shared-types
   shared domain types
+
+optional later wrapper
+  Tauri 2 desktop shell after web MVP stabilizes
 ```
+
+## 1.1 Client Rendering Strategy
+
+The default web client should be Phaser 4 plus TypeScript.
+
+Rendering targets:
+
+- Orthographic office maps should prefer Phaser 4 `TilemapGPULayer` when a map
+  layer uses one tileset, does not need frequent tile mutation, and fits the GPU
+  layer restrictions.
+- Isometric, hexagonal, highly dynamic, or multi-tileset layers should fall back
+  to normal Phaser tilemap rendering or a custom renderer after profiling.
+- UI overlays should start as vanilla HTML/TypeScript with Tailwind CSS v4 where
+  it keeps code readable. Complex backoffice surfaces may still use React or
+  Svelte if the SaaS Foundation or admin UI benefits from components, routing,
+  and richer state management.
+
+Client-side Phaser can predict movement and detect local proximity for user
+experience. It must not grant room, zone, chat, or media access. Those decisions
+remain server-side.
 
 ## 2. Movement Protocol
 
@@ -111,11 +143,15 @@ The target app uses LiveKit for media.
 
 Flow:
 
-1. User enters proximity or meeting zone.
-2. World server/API decides media permission.
-3. Media gateway creates LiveKit JWT.
-4. Client connects to LiveKit with server-issued token.
-5. Server controls which rooms/zones produce media access.
+1. Client reports movement intent to the world server.
+2. World server computes position, proximity, and zone membership.
+3. World server/API decides media permission.
+4. Media gateway creates a server-issued LiveKit JWT.
+5. Client connects to LiveKit with that token.
+6. Server policy controls which rooms/zones produce media access.
+
+Phaser may trigger the user experience around proximity, but LiveKit access is
+never opened by Phaser alone.
 
 ## 5. Persistence Boundary
 
@@ -144,3 +180,26 @@ The client may hide UI, but server checks decide:
 - Moderate.
 - Transition spaces.
 - Access map/object metadata.
+
+## 7. Desktop Boundary
+
+Tauri 2 is a later packaging target, not a Phase 0 requirement.
+
+Use it only after the browser MVP has stable:
+
+- Authentication and session handling.
+- World rendering and protocol client.
+- Media policy flow.
+- Asset loading and cache strategy.
+
+The desktop wrapper must not introduce a second product runtime. It should wrap
+the same web app and call the same backend APIs unless an explicit offline/local
+feature is approved later.
+
+## 8. Reference Notes
+
+- Phaser 4 includes `TilemapGPULayer`, but it is WebGL-only, orthographic, and
+  optimized for static single-tileset layers.
+- LiveKit access tokens are JWT-based and must be generated on a backend.
+- Tauri can produce small desktop apps because it uses the OS web renderer, but
+  actual package size depends on platform and bundled dependencies.

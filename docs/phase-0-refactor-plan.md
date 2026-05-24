@@ -88,10 +88,21 @@ Current status:
 
 ## 4. Target Architecture
 
+Target stack principle:
+
+- Use a Unified TypeScript Product Layer for app logic, shared protocol,
+  policies, API controllers, world simulation, and UI/client code.
+- Keep best-fit infrastructure where it belongs: Postgres for durable state,
+  Valkey for ephemeral coordination, LiveKit/coturn for media, and S3-compatible
+  object storage for assets.
+- Do not describe the system as "all TypeScript"; describe it as
+  "TypeScript-first product code over proven infrastructure services."
+
 Target stack:
 
-- React or Svelte frontend.
-- Phaser world renderer.
+- Phaser 4 world renderer.
+- Vanilla HTML/TypeScript overlays for simple in-world UI.
+- React or Svelte remains allowed for complex admin/SaaS backoffice surfaces.
 - Colyseus authoritative world server.
 - Fastify API server.
 - Wikimedia OAuth 2.0.
@@ -102,8 +113,18 @@ Target stack:
 - coturn for TURN fallback.
 - S3-compatible asset storage.
 - Docker Compose for local full-stack boot.
+- Tauri 2 desktop wrapper later, after the web MVP stabilizes.
 - AGPL-3.0-or-later for new app code.
 - MIT notices preserved for inherited SkyOffice code.
+
+Client rendering notes:
+
+- Prefer Phaser 4 `TilemapGPULayer` for orthographic static map layers that fit
+  its constraints.
+- Do not assume `TilemapGPULayer` solves isometric, hexagonal, dynamic, or
+  multi-tileset maps.
+- Phaser may improve local user experience, but server-side world/API/media
+  policy remains the authority.
 
 SkyOffice is MIT-licensed upstream. New app code may be AGPL-3.0-or-later, but
 reused SkyOffice code must preserve original copyright and MIT notices.
@@ -363,6 +384,7 @@ Frozen work includes:
 - Enterprise meeting integrations.
 - AI features.
 - Broadcast mode.
+- Tauri desktop packaging.
 - Tenant customization UI.
 
 Exceptions:
@@ -375,4 +397,3 @@ Exceptions:
 - Media replacement.
 - Permission model.
 - CI and Docker Compose.
-
