@@ -58,6 +58,9 @@ echo "Running browser app-layer checks..."
 node "$ROOT_DIR/apps/web/test/customer-office-app.test.js"
 node "$ROOT_DIR/apps/web/test/adapters.test.js"
 
+echo "Running development HTTP host checks..."
+node "$ROOT_DIR/scripts/dev-http-host.test.cjs"
+
 "$ROOT_DIR/scripts/verify-infra-config.sh"
 
 echo "Target stack verification passed."

@@ -27,7 +27,7 @@ architecture before product feature work resumes.
 - `apps/api/` - API foundation with Wikimedia OAuth, sessions, seeded runtime
   permission enforcement, and persistence boundaries. Full RBAC management comes
   later via the SaaS/control-plane phase.
-- `apps/media-gateway/` - future LiveKit token service and media policy layer.
+- `apps/media-gateway/` - LiveKit token service and media policy layer.
 - `packages/protocol/` - future client/server protocol definitions.
 - `packages/map-engine/` - future map parsing, collision, zones, and navigation.
 - `packages/auth-wikimedia/` - future Wikimedia OAuth 2.0 integration.
@@ -88,7 +88,23 @@ This builds the new TypeScript workspace and runs checks for:
 - API Wikimedia sign-in, sessions, and world-token issuance
 - world-server admission from API-issued world-token claims
 - media-gateway media policy and token claim issuance
+- dependency-free local HTTP host mounting API and media Fetch handlers
 - local shared-infra configuration shape
+
+## Local App-Layer HTTP Host
+
+After building the target workspace, run:
+
+```bash
+npm run dev:http
+```
+
+This starts a dependency-free Node HTTP host for local smoke testing:
+
+- API routes are mounted under `/api`.
+- Media gateway routes are mounted under `/media`.
+- The host uses the same standard Fetch handlers covered by the target stack
+  verification.
 
 Run the imported SkyOffice baseline verification with:
 
