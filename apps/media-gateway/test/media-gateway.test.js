@@ -1,5 +1,7 @@
 const assert = require("assert")
 const {
+  createMediaGatewayRuntime,
+  mediaGatewayConfigFromEnv,
   MediaGatewayController,
   MediaGatewayService,
   UnsignedLocalMediaTokenSigner,
@@ -226,6 +228,35 @@ async function routeChecks() {
   assert.equal(badRequest.statusCode, 400)
   assert.equal(badRequest.body.status, "denied")
   assert.equal(badRequest.body.reason, "bad_request")
+
+  const runtimeApp = new RecordingApp()
+  const runtime = createMediaGatewayRuntime({
+    config: mediaGatewayConfigFromEnv({
+      AEDVENTURE_LIVEKIT_URL: "ws://runtime-livekit.local:7880",
+      AEDVENTURE_MEDIA_TOKEN_TTL_MS: "600000",
+      AEDVENTURE_PROXIMITY_RADIUS_PX: "128",
+    }),
+    participantDirectory,
+    clock: {
+      nowMs: () => nowMs,
+    },
+  })
+
+  runtime.registerRoutes(runtimeApp)
+
+  const runtimeIssued = await invoke(runtimeApp.route("POST", "/media-token"), {
+    body: {
+      playerId: "p1",
+      mode: "room",
+      publish: true,
+      subscribe: true,
+    },
+  })
+
+  assert.equal(runtimeIssued.statusCode, 200)
+  assert.equal(runtimeIssued.body.status, "issued")
+  assert.equal(runtimeIssued.body.liveKitUrl, "ws://runtime-livekit.local:7880")
+  assert.equal(runtimeIssued.body.expiresAt, "2026-05-23T10:10:00.000Z")
 }
 
 routeChecks().catch((error) => {

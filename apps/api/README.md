@@ -28,6 +28,9 @@ Current implementation:
   local sessions.
 - `registerApiRoutes` maps Fastify-shaped request/reply objects to the API and
   Wikimedia OAuth controllers without taking a direct Fastify dependency yet.
+- `apiRuntimeConfigFromEnv` and `createApiRuntimeFromConfig` compose the
+  framework-neutral API runtime from environment-shaped config, fetch-backed
+  Wikimedia OAuth calls, and seeded app-layer permissions.
 - `InMemoryPlatformStore` is only a test/dev adapter; production persistence
   should use Postgres through the migration schema.
 - `PostgresPlatformStore` maps the identity/session store contract to SQL
@@ -46,5 +49,5 @@ Current persistence foundation:
 
 Next step:
 
-- Install/wire Fastify runtime configuration and replace request body/session
-  placeholders with production middleware.
+- Add the concrete Fastify process entrypoint and replace in-memory adapters
+  with Postgres, signed sessions, and production middleware.

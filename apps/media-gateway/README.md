@@ -19,6 +19,9 @@ Current implementation:
   server-side before issuing any token.
 - `registerMediaGatewayRoutes` exposes the framework-neutral `/media-token`
   route contract used by the browser app adapter.
+- `mediaGatewayConfigFromEnv` and `createMediaGatewayRuntime` compose the
+  gateway from environment-shaped config, a participant directory, and a token
+  signer.
 - It issues short-lived media token claims for room, proximity, and zone media.
 - It records publish/subscribe grants in the token claim.
 - `UnsignedLocalMediaTokenSigner` is a development-only signer used by tests.
@@ -31,5 +34,6 @@ Current non-goals:
 
 Next step:
 
-- Replace the local signer with a real LiveKit JWT signer once runtime
-  dependencies and secret handling are added.
+- Add the concrete Fastify process entrypoint and replace the local signer with
+  a real LiveKit JWT signer once runtime dependencies and secret handling are
+  added.

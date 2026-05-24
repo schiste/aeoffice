@@ -1,7 +1,9 @@
 import {
   type NormalizedWikimediaIdentity,
   type WikimediaGroupRoleMapping,
-  type WikimediaOAuthClient,
+  WikimediaOAuthClient,
+  type WikimediaOAuthConfig,
+  type WikimediaOAuthHttpClient,
   type WikimediaOAuthProfile,
   mapWikimediaGroupsToRoles,
   normalizeWikimediaProfile,
@@ -22,7 +24,10 @@ import {
   type Clock,
   type FastifyLike,
 } from "./routes"
-import { SeededPermissionResolver } from "./seeded-permission-resolver"
+import {
+  SeededPermissionResolver,
+  type SeededPermissionResolverOptions,
+} from "./seeded-permission-resolver"
 import {
   InMemoryOAuthStateStore,
   SequentialOAuthStateGenerator,
@@ -455,6 +460,81 @@ export interface CreateInMemoryApiRuntimeOptions {
   readonly oauthStateTtlMs?: number
 }
 
+export interface RuntimeFetchRequest {
+  readonly method: "GET" | "POST"
+  readonly headers: Readonly<Record<string, string>>
+  readonly body?: string
+}
+
+export interface RuntimeFetchResponse {
+  readonly ok: boolean
+  readonly status: number
+  json(): Promise<unknown>
+}
+
+export interface RuntimeFetch {
+  (url: string, request: RuntimeFetchRequest): Promise<RuntimeFetchResponse>
+}
+
+export interface ApiRuntimeConfig {
+  readonly wikimediaOAuth: WikimediaOAuthConfig
+  readonly sessionTtlMs?: number
+  readonly worldTokenTtlMs?: number
+  readonly denyBlockedWikimediaUsers?: boolean
+  readonly sessionCookieName?: string
+  readonly oauthStateTtlMs?: number
+  readonly roleMappings?: readonly WikimediaGroupRoleMapping[]
+  readonly seededAccess?: SeededPermissionResolverOptions
+}
+
+export interface CreateApiRuntimeFromConfigOptions {
+  readonly config: ApiRuntimeConfig
+  readonly fetch: RuntimeFetch
+  readonly clock?: Clock
+  readonly platformStore?: PlatformStore
+  readonly permissionResolver?: PermissionResolver
+}
+
+export class FetchWikimediaOAuthHttpClient implements WikimediaOAuthHttpClient {
+  constructor(private readonly fetch: RuntimeFetch) {}
+
+  postForm(
+    url: string,
+    body: URLSearchParams,
+    headers: Readonly<Record<string, string>>,
+  ): Promise<unknown> {
+    return this.jsonRequest(url, {
+      method: "POST",
+      headers,
+      body: body.toString(),
+    })
+  }
+
+  getJson(
+    url: string,
+    headers: Readonly<Record<string, string>>,
+  ): Promise<unknown> {
+    return this.jsonRequest(url, {
+      method: "GET",
+      headers,
+    })
+  }
+
+  private async jsonRequest(
+    url: string,
+    request: RuntimeFetchRequest,
+  ): Promise<unknown> {
+    const response = await this.fetch(url, request)
+    const body = await response.json()
+
+    if (!response.ok) {
+      throw new Error(`Wikimedia OAuth HTTP request failed: ${response.status}.`)
+    }
+
+    return body
+  }
+}
+
 export function createInMemoryApiRuntime(
   options: CreateInMemoryApiRuntimeOptions,
 ): ApiRuntime {
@@ -487,6 +567,54 @@ export function createInMemoryApiRuntime(
     wikimediaOAuthController,
     permissionResolver,
     registerRoutes: (app) => registerApiRoutes(app, routeOptions),
+  }
+}
+
+export function createApiRuntimeFromConfig(
+  options: CreateApiRuntimeFromConfigOptions,
+): ApiRuntime {
+  return createInMemoryApiRuntime({
+    oauth: new WikimediaOAuthClient(
+      options.config.wikimediaOAuth,
+      new FetchWikimediaOAuthHttpClient(options.fetch),
+    ),
+    clock: options.clock,
+    platformStore: options.platformStore,
+    permissionResolver:
+      options.permissionResolver ??
+      new SeededPermissionResolver(options.config.seededAccess),
+    authenticationPolicy: authenticationPolicyFromConfig(options.config),
+    roleMappings: options.config.roleMappings,
+    oauthStateTtlMs: options.config.oauthStateTtlMs,
+  })
+}
+
+export function apiRuntimeConfigFromEnv(
+  env: Readonly<Record<string, string | undefined>>,
+): ApiRuntimeConfig {
+  const defaultRoles = csv(env.AEDVENTURE_DEFAULT_ROLE_KEYS)
+  const defaultPermissions = csv(env.AEDVENTURE_DEFAULT_PERMISSION_KEYS)
+
+  return {
+    wikimediaOAuth: {
+      clientId: requiredEnv(env, "WIKIMEDIA_OAUTH_CLIENT_ID"),
+      clientSecret: optionalEnv(env.WIKIMEDIA_OAUTH_CLIENT_SECRET),
+      redirectUri: optionalEnv(env.WIKIMEDIA_OAUTH_REDIRECT_URI),
+      scopes: csv(env.WIKIMEDIA_OAUTH_SCOPES),
+    },
+    sessionTtlMs: optionalPositiveInteger(env.AEDVENTURE_SESSION_TTL_MS),
+    worldTokenTtlMs: optionalPositiveInteger(env.AEDVENTURE_WORLD_TOKEN_TTL_MS),
+    oauthStateTtlMs: optionalPositiveInteger(env.AEDVENTURE_OAUTH_STATE_TTL_MS),
+    sessionCookieName: optionalEnv(env.AEDVENTURE_SESSION_COOKIE_NAME),
+    seededAccess:
+      defaultRoles.length > 0 || defaultPermissions.length > 0
+        ? {
+            defaultAccess: {
+              roles: defaultRoles as readonly RoleKey[],
+              permissions: defaultPermissions as readonly PermissionKey[],
+            },
+          }
+        : undefined,
   }
 }
 
@@ -607,4 +735,52 @@ function iso(ms: number): string {
 
 const systemClock: Clock = {
   nowMs: () => Date.now(),
+}
+
+function authenticationPolicyFromConfig(
+  config: ApiRuntimeConfig,
+): AuthenticationPolicy {
+  return {
+    sessionTtlMs: config.sessionTtlMs ?? DEFAULT_AUTHENTICATION_POLICY.sessionTtlMs,
+    worldTokenTtlMs:
+      config.worldTokenTtlMs ?? DEFAULT_AUTHENTICATION_POLICY.worldTokenTtlMs,
+    denyBlockedWikimediaUsers:
+      config.denyBlockedWikimediaUsers ??
+      DEFAULT_AUTHENTICATION_POLICY.denyBlockedWikimediaUsers,
+    sessionCookieName:
+      config.sessionCookieName ?? DEFAULT_AUTHENTICATION_POLICY.sessionCookieName,
+  }
+}
+
+function requiredEnv(
+  env: Readonly<Record<string, string | undefined>>,
+  name: string,
+): string {
+  const value = optionalEnv(env[name])
+  if (!value) throw new Error(`Missing required environment variable: ${name}.`)
+  return value
+}
+
+function optionalEnv(value: string | undefined): string | undefined {
+  const trimmed = value?.trim()
+  return trimmed ? trimmed : undefined
+}
+
+function optionalPositiveInteger(value: string | undefined): number | undefined {
+  const trimmed = optionalEnv(value)
+  if (!trimmed) return undefined
+
+  const parsed = Number(trimmed)
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw new Error(`Expected positive integer environment value, got ${trimmed}.`)
+  }
+
+  return parsed
+}
+
+function csv(value: string | undefined): readonly string[] {
+  return (optionalEnv(value) ?? "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0)
 }

@@ -147,6 +147,19 @@ export interface MediaGatewayRoutesOptions {
   readonly clock: Clock
 }
 
+export interface MediaGatewayRuntime {
+  readonly service: MediaGatewayService
+  readonly controller: MediaGatewayController
+  readonly registerRoutes: (app: FastifyLike) => void
+}
+
+export interface CreateMediaGatewayRuntimeOptions {
+  readonly config: MediaGatewayConfig
+  readonly participantDirectory: ParticipantDirectory
+  readonly signer?: MediaTokenSigner
+  readonly clock?: Clock
+}
+
 export interface Clock {
   nowMs(): number
 }
@@ -180,6 +193,41 @@ export function registerMediaGatewayRoutes(
       ),
     ),
   )
+}
+
+export function createMediaGatewayRuntime(
+  options: CreateMediaGatewayRuntimeOptions,
+): MediaGatewayRuntime {
+  const service = new MediaGatewayService(
+    options.config,
+    options.signer ?? new UnsignedLocalMediaTokenSigner(),
+  )
+  const controller = new MediaGatewayController(
+    service,
+    options.participantDirectory,
+  )
+  const routeOptions: MediaGatewayRoutesOptions = {
+    controller,
+    clock: options.clock ?? systemClock,
+  }
+
+  return {
+    service,
+    controller,
+    registerRoutes: (app) => registerMediaGatewayRoutes(app, routeOptions),
+  }
+}
+
+export function mediaGatewayConfigFromEnv(
+  env: Readonly<Record<string, string | undefined>>,
+): MediaGatewayConfig {
+  return {
+    liveKitUrl: optionalEnv(env.AEDVENTURE_LIVEKIT_URL) ?? "ws://localhost:7880",
+    tokenTtlMs:
+      optionalPositiveInteger(env.AEDVENTURE_MEDIA_TOKEN_TTL_MS) ?? 5 * 60 * 1000,
+    proximityRadiusPx:
+      optionalPositiveInteger(env.AEDVENTURE_PROXIMITY_RADIUS_PX) ?? 96,
+  }
 }
 
 export class MediaGatewayService {
@@ -322,4 +370,25 @@ function requiredMediaMode(value: unknown): MediaMode {
   }
 
   throw new Error("Invalid media mode.")
+}
+
+const systemClock: Clock = {
+  nowMs: () => Date.now(),
+}
+
+function optionalEnv(value: string | undefined): string | undefined {
+  const trimmed = value?.trim()
+  return trimmed ? trimmed : undefined
+}
+
+function optionalPositiveInteger(value: string | undefined): number | undefined {
+  const trimmed = optionalEnv(value)
+  if (!trimmed) return undefined
+
+  const parsed = Number(trimmed)
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw new Error(`Expected positive integer environment value, got ${trimmed}.`)
+  }
+
+  return parsed
 }
