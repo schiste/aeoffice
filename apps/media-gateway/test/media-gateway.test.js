@@ -1,6 +1,7 @@
 const assert = require("assert")
 const {
   createMediaGatewayRuntime,
+  createMediaGatewayFetchHandler,
   mediaGatewayConfigFromEnv,
   MediaGatewayController,
   MediaGatewayService,
@@ -257,6 +258,37 @@ async function routeChecks() {
   assert.equal(runtimeIssued.body.status, "issued")
   assert.equal(runtimeIssued.body.liveKitUrl, "ws://runtime-livekit.local:7880")
   assert.equal(runtimeIssued.body.expiresAt, "2026-05-23T10:10:00.000Z")
+
+  const handle = createMediaGatewayFetchHandler(runtime)
+  const fetchIssued = await handle(
+    new Request("https://media.example.test/media-token", {
+      method: "POST",
+      body: JSON.stringify({
+        playerId: "p1",
+        mode: "zone",
+        zoneId: "stage",
+        publish: true,
+        subscribe: true,
+      }),
+    }),
+  )
+  const fetchIssuedBody = await fetchIssued.json()
+
+  assert.equal(fetchIssued.status, 200)
+  assert.equal(fetchIssuedBody.status, "issued")
+  assert.equal(fetchIssuedBody.room, "zone:room-1:stage")
+
+  const fetchMissing = await handle(
+    new Request("https://media.example.test/missing", {
+      method: "POST",
+      body: "{}",
+    }),
+  )
+  const fetchMissingBody = await fetchMissing.json()
+
+  assert.equal(fetchMissing.status, 404)
+  assert.equal(fetchMissingBody.status, "denied")
+  assert.equal(fetchMissingBody.reason, "not_found")
 }
 
 routeChecks().catch((error) => {

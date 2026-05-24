@@ -695,11 +695,14 @@ export {
 
 export {
   type ApiRoutesOptions,
+  type ApiFetchHandler,
+  type ApiRouteRuntime,
   type Clock,
   type FastifyHandler,
   type FastifyLike,
   type FastifyReplyLike,
   type FastifyRequestLike,
+  createApiFetchHandler,
   registerApiRoutes,
 } from "./routes"
 

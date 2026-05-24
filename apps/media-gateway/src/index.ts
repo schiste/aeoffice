@@ -182,6 +182,8 @@ export type FastifyHandler = (
   reply: FastifyReplyLike,
 ) => Promise<unknown>
 
+export type MediaGatewayFetchHandler = (request: Request) => Promise<Response>
+
 export function registerMediaGatewayRoutes(
   app: FastifyLike,
   options: MediaGatewayRoutesOptions,
@@ -193,6 +195,14 @@ export function registerMediaGatewayRoutes(
       ),
     ),
   )
+}
+
+export function createMediaGatewayFetchHandler(
+  runtime: Pick<MediaGatewayRuntime, "registerRoutes">,
+): MediaGatewayFetchHandler {
+  const app = new FetchRouteRegistry()
+  runtime.registerRoutes(app)
+  return (request) => app.handle(request)
 }
 
 export function createMediaGatewayRuntime(
@@ -391,4 +401,81 @@ function optionalPositiveInteger(value: string | undefined): number | undefined 
   }
 
   return parsed
+}
+
+class FetchRouteRegistry implements FastifyLike {
+  private readonly routes = new Map<string, FastifyHandler>()
+
+  post(path: string, handler: FastifyHandler): void {
+    this.routes.set(routeKey("POST", path), handler)
+  }
+
+  async handle(request: Request): Promise<Response> {
+    const url = new URL(request.url)
+    const handler = this.routes.get(routeKey(request.method, url.pathname))
+
+    if (!handler) {
+      return jsonResponse(404, {
+        status: "denied",
+        reason: "not_found",
+      })
+    }
+
+    try {
+      const reply = new FetchReply()
+      await handler(
+        {
+          body: await requestBody(request),
+        },
+        reply,
+      )
+      return reply.toResponse()
+    } catch (error) {
+      return jsonResponse(400, {
+        status: "denied",
+        reason: "bad_request",
+        detail: error instanceof Error ? error.message : "Invalid request.",
+      })
+    }
+  }
+}
+
+class FetchReply implements FastifyReplyLike {
+  private statusCode = 200
+  private body: unknown
+
+  status(code: number): FastifyReplyLike {
+    this.statusCode = code
+    return this
+  }
+
+  send(body: unknown): unknown {
+    this.body = body
+    return this
+  }
+
+  toResponse(): Response {
+    return jsonResponse(this.statusCode, this.body ?? null)
+  }
+}
+
+async function requestBody(request: Request): Promise<unknown> {
+  if (request.method === "GET" || request.method === "HEAD") return undefined
+
+  const text = await request.text()
+  if (!text.trim()) return undefined
+  return JSON.parse(text)
+}
+
+function routeKey(method: string, path: string): string {
+  return `${method.toUpperCase()} ${path}`
+}
+
+function jsonResponse(status: number, body: unknown): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: {
+      "content-type": "application/json",
+    },
+  })
 }

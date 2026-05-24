@@ -28,6 +28,8 @@ Current implementation:
   local sessions.
 - `registerApiRoutes` maps Fastify-shaped request/reply objects to the API and
   Wikimedia OAuth controllers without taking a direct Fastify dependency yet.
+- `createApiFetchHandler` exposes the same registered routes through standard
+  Fetch `Request`/`Response` objects for dependency-free HTTP smoke wiring.
 - `apiRuntimeConfigFromEnv` and `createApiRuntimeFromConfig` compose the
   framework-neutral API runtime from environment-shaped config, fetch-backed
   Wikimedia OAuth calls, and seeded app-layer permissions.

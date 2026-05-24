@@ -19,6 +19,9 @@ Current implementation:
   server-side before issuing any token.
 - `registerMediaGatewayRoutes` exposes the framework-neutral `/media-token`
   route contract used by the browser app adapter.
+- `createMediaGatewayFetchHandler` exposes the same route contract through
+  standard Fetch `Request`/`Response` objects for dependency-free HTTP smoke
+  wiring.
 - `mediaGatewayConfigFromEnv` and `createMediaGatewayRuntime` compose the
   gateway from environment-shaped config, a participant directory, and a token
   signer.

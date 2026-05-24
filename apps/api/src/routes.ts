@@ -21,6 +21,10 @@ export interface ApiRoutesOptions {
   readonly clock: Clock
 }
 
+export interface ApiRouteRuntime {
+  registerRoutes(app: FastifyLike): void
+}
+
 export interface Clock {
   nowMs(): number
 }
@@ -45,6 +49,8 @@ export type FastifyHandler = (
   request: FastifyRequestLike,
   reply: FastifyReplyLike,
 ) => Promise<unknown>
+
+export type ApiFetchHandler = (request: Request) => Promise<Response>
 
 export function registerApiRoutes(
   app: FastifyLike,
@@ -73,6 +79,12 @@ export function registerApiRoutes(
       ),
     ),
   )
+}
+
+export function createApiFetchHandler(runtime: ApiRouteRuntime): ApiFetchHandler {
+  const app = new FetchRouteRegistry()
+  runtime.registerRoutes(app)
+  return (request) => app.handle(request)
 }
 
 function beginWikimediaSignInRequest(
@@ -172,4 +184,102 @@ function codeChallengeMethod(value: unknown): "S256" | "plain" | undefined {
   if (value === undefined || value === null || value === "") return undefined
 
   throw new Error("Invalid Wikimedia OAuth code challenge method.")
+}
+
+class FetchRouteRegistry implements FastifyLike {
+  private readonly routes = new Map<string, FastifyHandler>()
+
+  get(path: string, handler: FastifyHandler): void {
+    this.routes.set(routeKey("GET", path), handler)
+  }
+
+  post(path: string, handler: FastifyHandler): void {
+    this.routes.set(routeKey("POST", path), handler)
+  }
+
+  async handle(request: Request): Promise<Response> {
+    const url = new URL(request.url)
+    const handler = this.routes.get(routeKey(request.method, url.pathname))
+
+    if (!handler) {
+      return jsonResponse(404, {
+        error: "not_found",
+        reason: "No API route matches this request.",
+      })
+    }
+
+    try {
+      const reply = new FetchReply()
+      await handler(
+        {
+          query: queryRecord(url.searchParams),
+          body: await requestBody(request),
+        },
+        reply,
+      )
+      return reply.toResponse()
+    } catch (error) {
+      return jsonResponse(400, {
+        error: "bad_request",
+        reason: error instanceof Error ? error.message : "Invalid request.",
+      })
+    }
+  }
+}
+
+class FetchReply implements FastifyReplyLike {
+  private statusCode = 200
+  private readonly headers = new Headers()
+  private body: unknown
+
+  status(code: number): FastifyReplyLike {
+    this.statusCode = code
+    return this
+  }
+
+  header(name: string, value: string): FastifyReplyLike {
+    this.headers.set(name, value)
+    return this
+  }
+
+  send(body: unknown): unknown {
+    this.body = body
+    return this
+  }
+
+  toResponse(): Response {
+    if (!this.headers.has("content-type")) {
+      this.headers.set("content-type", "application/json")
+    }
+
+    return new Response(JSON.stringify(this.body ?? null), {
+      status: this.statusCode,
+      headers: this.headers,
+    })
+  }
+}
+
+async function requestBody(request: Request): Promise<unknown> {
+  if (request.method === "GET" || request.method === "HEAD") return undefined
+
+  const text = await request.text()
+  if (!text.trim()) return undefined
+  return JSON.parse(text)
+}
+
+function queryRecord(searchParams: URLSearchParams): Record<string, string> {
+  return Object.fromEntries(searchParams.entries())
+}
+
+function routeKey(method: string, path: string): string {
+  return `${method.toUpperCase()} ${path}`
+}
+
+function jsonResponse(status: number, body: unknown): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: {
+      "content-type": "application/json",
+    },
+  })
 }
