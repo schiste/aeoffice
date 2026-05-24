@@ -43,6 +43,7 @@ export interface IssueAppWorldTokenInput {
 export interface WorldClient {
   join(input: JoinWorldInput): Promise<JoinWorldResult>
   send(message: ClientMessage, nowMs: number): Promise<readonly ServerMessage[]>
+  snapshot(): Promise<readonly PlayerView[]>
   leave(): Promise<boolean>
 }
 
@@ -59,6 +60,9 @@ export type WorldTransportRequest =
   | {
       readonly type: "leave"
     }
+  | {
+      readonly type: "snapshot"
+    }
 
 export type WorldTransportResponse =
   | {
@@ -72,6 +76,10 @@ export type WorldTransportResponse =
   | {
       readonly type: "leave_result"
       readonly left: boolean
+    }
+  | {
+      readonly type: "snapshot_result"
+      readonly players: readonly PlayerView[]
     }
 
 export interface WorldTransport {
@@ -311,6 +319,19 @@ export class CustomerVirtualOfficeApp {
     return result
   }
 
+  async syncWorldSnapshot(): Promise<readonly PlayerView[]> {
+    this.requireLocalPlayerId()
+    const players = await this.options.world.snapshot()
+    this.players.clear()
+
+    for (const player of players) {
+      this.players.set(player.playerId, player)
+      this.options.renderer?.playerUpdated?.(player)
+    }
+
+    return players
+  }
+
   async leaveWorld(): Promise<boolean> {
     this.requireLocalPlayerId()
     const left = await this.options.world.leave()
@@ -478,6 +499,18 @@ export class TransportWorldClient implements WorldClient {
 
     return response.left
   }
+
+  async snapshot(): Promise<readonly PlayerView[]> {
+    const response = await this.transport.request({
+      type: "snapshot",
+    })
+
+    if (response.type !== "snapshot_result") {
+      throw new Error("World transport returned an invalid snapshot response.")
+    }
+
+    return response.players
+  }
 }
 
 export class HttpWorldTransport implements WorldTransport {
@@ -504,6 +537,17 @@ export class HttpWorldTransport implements WorldTransport {
       return {
         type: "leave_result",
         left: await this.leave(),
+      }
+    }
+
+    if (input.type === "snapshot") {
+      const body = await postJson(this.options, "/snapshot", {
+        clientId: this.options.clientId,
+      })
+
+      return {
+        type: "snapshot_result",
+        players: playersFromSnapshotResponse(body),
       }
     }
 
@@ -593,6 +637,24 @@ function isAppMediaTokenResult(value: unknown): value is AppMediaTokenResult {
     value.participantPlayerIds.every((playerId) => typeof playerId === "string") &&
     typeof value.expiresAt === "string"
   )
+}
+
+function playersFromSnapshotResponse(value: unknown): readonly PlayerView[] {
+  if (
+    !isRecord(value) ||
+    value.status !== "ok" ||
+    !Array.isArray(value.players)
+  ) {
+    throw new Error("World server returned an invalid snapshot response.")
+  }
+
+  return value.players.map((player) => {
+    if (!isRecord(player)) {
+      throw new Error("World server returned an invalid snapshot player.")
+    }
+
+    return playerViewFromSnapshot(player)
+  })
 }
 
 function joinResultFromResponse(value: unknown): JoinWorldResult {

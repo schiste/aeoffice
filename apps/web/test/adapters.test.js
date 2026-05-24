@@ -138,6 +138,25 @@ async function main() {
         }
       }
 
+      if (input.type === "snapshot") {
+        return {
+          type: "snapshot_result",
+          players: [
+            {
+              playerId: "player-1",
+              x: 32,
+              y: 32,
+              roomId: "room-lobby",
+              direction: "down",
+              zoneIds: [],
+              permissions: [],
+              roles: [],
+              lastSeqAck: 0,
+            },
+          ],
+        }
+      }
+
       return {
         type: "messages",
         messages: [
@@ -167,14 +186,17 @@ async function main() {
     { type: "move", direction: "right", seq: 1 },
     nowMs + 250,
   )
+  const snapshot = await world.snapshot()
   const transportLeft = await world.leave()
 
   assert.equal(joined.status, "joined")
   assert.equal(messages[0].type, "player_state")
+  assert.equal(snapshot[0].playerId, "player-1")
   assert.equal(transportLeft, true)
   assert.equal(transportCalls[0].type, "join")
   assert.equal(transportCalls[1].type, "message")
-  assert.equal(transportCalls[2].type, "leave")
+  assert.equal(transportCalls[2].type, "snapshot")
+  assert.equal(transportCalls[3].type, "leave")
 
   const worldCalls = []
   const httpWorldTransport = new HttpWorldTransport({
@@ -231,6 +253,26 @@ async function main() {
         })
       }
 
+      if (url.endsWith("/snapshot")) {
+        return jsonResponse(200, {
+          status: "ok",
+          clientId: "client-1",
+          players: [
+            {
+              playerId: "player-1",
+              userId: "usr_1",
+              position: { x: 48, y: 32 },
+              roomId: "room-lobby",
+              direction: "right",
+              zoneIds: ["meeting-zone"],
+              permissions: ["chat:room:send"],
+              roles: ["space:member"],
+              lastSeqAck: 1,
+            },
+          ],
+        })
+      }
+
       return jsonResponse(200, { left: true })
     },
   })
@@ -246,12 +288,14 @@ async function main() {
     { type: "move", direction: "right", seq: 1 },
     nowMs + 250,
   )
+  const httpSnapshot = await httpWorld.snapshot()
   const left = await httpWorld.leave()
 
   assert.equal(httpJoined.status, "joined")
   assert.equal(httpJoined.player.x, 32)
   assert.equal(httpMessages.length, 1)
   assert.equal(httpMessages[0].type, "player_state")
+  assert.equal(httpSnapshot[0].x, 48)
   assert.equal(left, true)
   assert.equal(worldCalls[0].url, "https://office.example.test/world/join")
   assert.deepEqual(JSON.parse(worldCalls[0].init.body), {

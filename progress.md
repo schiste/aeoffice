@@ -31,3 +31,5 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   path as the local browser demo.
 - World server now exposes a room-scoped snapshot route so clients can sync
   visible players from server state instead of assuming who joined locally.
+- Browser demo now calls `/world/snapshot` after companion join and records the
+  server-confirmed player IDs in `render_game_to_text`.

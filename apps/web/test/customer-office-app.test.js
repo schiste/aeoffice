@@ -78,6 +78,12 @@ class InProcessWorldClient {
       .map((event) => event.message)
   }
 
+  async snapshot() {
+    const result = this.controller.snapshot(this.clientId)
+    assert.equal(result.status, "ok")
+    return result.players.map(playerViewFromSnapshot)
+  }
+
   async leave() {
     return this.controller.leave(this.clientId)
   }
@@ -184,6 +190,16 @@ async function main() {
   assert.ok(app.getState().worldToken.startsWith("unsigned-local."))
   assert.deepEqual(app.getState().players.map((player) => player.playerId), ["player-1"])
 
+  const syncedPlayers = await app.syncWorldSnapshot()
+  assert.deepEqual(
+    syncedPlayers.map((player) => player.playerId),
+    ["player-1", "player-2"],
+  )
+  assert.deepEqual(
+    app.getState().players.map((player) => player.playerId),
+    ["player-1", "player-2"],
+  )
+
   await app.move("right", nowMs + 250)
   assert.equal(app.getState().players[0].x, 48)
   assert.equal(app.getState().players[0].lastSeqAck, 1)
@@ -209,6 +225,8 @@ async function main() {
 
   assert.deepEqual(rendererEvents, [
     ["entered", "player-1"],
+    ["updated", 32, 32],
+    ["updated", 64, 32],
     ["updated", 48, 32],
     ["chat", "Hello from the app layer"],
     ["media", "zone:room-lobby:meeting-zone"],
@@ -285,6 +303,21 @@ async function signIn(auth, subject, username) {
 function eventVisibleToClient(event, clientId) {
   if (event.type === "broadcast") return event.exceptClientId !== clientId
   return event.clientIds.includes(clientId)
+}
+
+function playerViewFromSnapshot(player) {
+  return {
+    playerId: player.playerId,
+    userId: player.userId,
+    x: player.position.x,
+    y: player.position.y,
+    roomId: player.roomId,
+    direction: player.direction,
+    zoneIds: player.zoneIds,
+    permissions: player.permissions,
+    roles: player.roles,
+    lastSeqAck: player.lastSeqAck,
+  }
 }
 
 main().catch((error) => {

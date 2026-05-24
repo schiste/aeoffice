@@ -12,6 +12,7 @@ const state = {
     joined: false,
   },
   fixtureMap: undefined,
+  snapshotPlayerIds: [],
   lastMediaRoom: undefined,
   lastChatBody: undefined,
   pendingAction: Promise.resolve(),
@@ -95,6 +96,7 @@ async function startDemo() {
     log("Joined the local world as Browser Ada")
 
     await joinCompanion()
+    await syncWorldSnapshot()
     await move("right")
     await sendChat(elements.chatBody.value)
     await joinMedia()
@@ -149,8 +151,50 @@ async function joinCompanion() {
     x: joined.player.position?.x ?? joined.player.x ?? state.companion.position.x,
     y: joined.player.position?.y ?? joined.player.y ?? state.companion.position.y,
   }
-  renderCompanion()
   log("Added Demo Grace as a local companion")
+}
+
+async function syncWorldSnapshot() {
+  if (!state.joined) return
+
+  const snapshot = await postJson("/world/snapshot", {
+    clientId: state.clientId,
+  })
+
+  if (snapshot.status !== "ok") {
+    throw new Error(`World snapshot failed: ${snapshot.reason}`)
+  }
+
+  applyWorldSnapshot(snapshot.players)
+  log(`Synced ${snapshot.players.length} player(s) from world snapshot`)
+}
+
+function applyWorldSnapshot(players) {
+  state.snapshotPlayerIds = players.map((player) => player.playerId)
+
+  const local = players.find((player) => player.playerId === state.playerId)
+  if (local) {
+    state.position = playerSnapshotPosition(local)
+    renderPlayer()
+  }
+
+  const companion = players.find(
+    (player) => player.playerId === state.companion.playerId,
+  )
+  state.companion.joined = Boolean(companion)
+
+  if (companion) {
+    state.companion.position = playerSnapshotPosition(companion)
+  }
+
+  renderCompanion()
+}
+
+function playerSnapshotPosition(player) {
+  return {
+    x: player.position?.x ?? player.x,
+    y: player.position?.y ?? player.y,
+  }
 }
 
 async function resetDemo() {
@@ -168,6 +212,7 @@ async function resetDemo() {
   state.seq = 1
   state.joined = false
   state.companion.joined = false
+  state.snapshotPlayerIds = []
   state.lastMediaRoom = undefined
   state.lastChatBody = undefined
   elements.sessionStatus.textContent = "idle"
@@ -471,6 +516,7 @@ function renderDemoToText() {
       x: Math.round(state.companion.position.x),
       y: Math.round(state.companion.position.y),
     },
+    snapshotPlayerIds: state.snapshotPlayerIds,
     map: state.fixtureMap
       ? {
           style: state.fixtureMap.definition.style,
