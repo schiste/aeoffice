@@ -213,7 +213,21 @@
             </div>
 
             <section class="canvas-panel" aria-label="Office map workspace">
-              <div id="map" class="map" aria-label="Office map"></div>
+              <div id="map" class="map" aria-label="Office map" data-loading="true">
+                <div
+                  id="stage-overlay"
+                  class="stage-overlay"
+                  data-state="loading"
+                  role="status"
+                  aria-live="polite"
+                >
+                  <span id="stage-overlay-kicker">Starting renderer</span>
+                  <strong id="stage-overlay-title">Preparing office</strong>
+                  <p id="stage-overlay-body">
+                    The office map is loading. Controls will be ready shortly.
+                  </p>
+                </div>
+              </div>
             </section>
           </section>
 

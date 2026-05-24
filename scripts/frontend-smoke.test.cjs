@@ -39,7 +39,15 @@ async function main() {
     })
 
     await page.goto(`${url}/app`, { waitUntil: "domcontentloaded" })
-    await waitForTextState(page, (state) => state.map?.activeMapId === "lobby")
+    const initial = await waitForTextState(
+      page,
+      (state) =>
+        state.map?.activeMapId === "lobby" &&
+        state.lifecycle?.rendererReadiness === "ready" &&
+        state.lifecycle?.stageOverlay?.state === "empty",
+    )
+    assert.equal(initial.lifecycle.stageOverlay.hidden, false)
+    assert.doesNotMatch(initial.lifecycle.publicMessage, /unknown_client|HTTP/i)
     assert.equal(
       await page.evaluate(() => typeof window.render_game_to_text),
       "function",
@@ -65,14 +73,16 @@ async function main() {
     assert.equal(await generatedMapButton.isDisabled(), false)
 
     await page.locator('[data-map-id="meeting_room"]').click()
-    await waitForTextState(
+    const meetingRoom = await waitForTextState(
       page,
       (state) =>
         state.map?.activeMapId === "meeting_room" &&
         state.lifecycle?.phase === "empty" &&
+        state.lifecycle?.stageOverlay?.state === "empty" &&
         state.map.generatedAvailable === true &&
         state.map.generatedPreviewStatus === "Generated room saved",
     )
+    assert.equal(meetingRoom.lifecycle.stageOverlay.hidden, false)
     await assertNonBlankMapScreenshot(page)
 
     await page.locator("#start").click()
@@ -84,6 +94,7 @@ async function main() {
         state.controls.joinLabel === "In office",
     )
     assert.equal(joined.lifecycle.phase, "joined")
+    assert.equal(joined.lifecycle.stageOverlay.hidden, true)
     assert.equal(joined.movement.repeatMs, 190)
     assert.equal(joined.viewport.canZoomIn, true)
     assert.equal(joined.viewport.canZoomOut, true)
@@ -133,6 +144,35 @@ async function main() {
     assert.equal(devicesReady.media.micLabel, "Mic ready")
     assert.equal(devicesReady.media.cameraLabel, "Camera ready")
 
+    const abortMediaToken = (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          status: "temporarily_unavailable",
+        }),
+      })
+    await page.route("**/media/media-token", abortMediaToken)
+    await page.locator("#join-meeting").click()
+    const unavailableMedia = await waitForTextState(
+      page,
+      (state) =>
+        state.media.panelStatus === "Unavailable" &&
+        state.media.tokenIssued === false &&
+        state.media.unavailableMessage ===
+          "Call media is unavailable. You can keep using the room.",
+    )
+    assert.match(
+      unavailableMedia.media.unavailableDetail ?? "",
+      /Invalid media token response/,
+    )
+    assert.ok(
+      unavailableMedia.toasts.every(
+        (toast) => !/Failed to fetch|HTTP|unknown_client/i.test(toast ?? ""),
+      ),
+    )
+    await page.unroute("**/media/media-token", abortMediaToken)
+
     await page.locator("#join-meeting").click()
     const media = await waitForTextState(
       page,
@@ -143,8 +183,19 @@ async function main() {
     assert.equal(media.media.canPublish, true)
     assert.equal(media.media.canSubscribe, true)
     assert.equal(media.meeting.panelState, "joined")
-    assert.equal(media.media.mic, "on")
-    assert.equal(media.media.camera, "on")
+    assert.equal(media.media.mic, "off")
+    assert.equal(media.media.camera, "off")
+
+    await page.locator("#toggle-mic").click()
+    await page.locator("#toggle-camera").click()
+    await waitForTextState(
+      page,
+      (state) =>
+        state.media.tokenIssued === true &&
+        state.media.mic === "on" &&
+        state.media.camera === "on" &&
+        state.media.previewStatus === "Camera on",
+    )
 
     await page.locator("#reset").click()
     const reset = await waitForTextState(
@@ -152,6 +203,7 @@ async function main() {
       (state) =>
         state.joined === false &&
         state.lifecycle.phase === "empty" &&
+        state.lifecycle.stageOverlay?.state === "empty" &&
         state.controls.resetDisabled === true,
     )
     assert.deepEqual(reset.snapshotPlayerIds, [])
@@ -166,6 +218,46 @@ async function main() {
         state.controls.joinLabel === "In office",
     )
     assert.equal(rejoined.lifecycle.phase, "joined")
+    assert.equal(rejoined.lifecycle.stageOverlay.hidden, true)
+
+    await page.evaluate(async (state) => {
+      await fetch("/dev/world-geometry", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          map: {
+            width: state.map.width * state.map.tileSize,
+            height: state.map.height * state.map.tileSize,
+            tileSize: state.map.tileSize,
+            blockedTiles: [],
+          },
+          zones: [],
+        }),
+      })
+    }, rejoined)
+    await page.keyboard.press("ArrowRight")
+    const recovery = await waitForTextState(
+      page,
+      (state) =>
+        state.lifecycle.phase === "recovering" &&
+        state.lifecycle.stageOverlay?.state === "recovery" &&
+        state.controls.joinLabel === "Rejoin office",
+    )
+    assert.equal(recovery.lifecycle.lastRecoveryReason, "unknown_client")
+    assert.doesNotMatch(recovery.lifecycle.publicMessage, /unknown_client|HTTP/i)
+    assert.doesNotMatch(recovery.lifecycle.stageOverlay.title, /unknown_client|HTTP/i)
+
+    await page.locator("#start").click()
+    const recovered = await waitForTextState(
+      page,
+      (state) =>
+        state.joined === true &&
+        state.lifecycle.phase === "joined" &&
+        state.controls.joinLabel === "In office",
+    )
+    assert.equal(recovered.lifecycle.stageOverlay.hidden, true)
 
     assert.deepEqual(consoleErrors, [])
   } finally {

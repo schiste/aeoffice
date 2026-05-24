@@ -19,6 +19,14 @@ type StatusState = "idle" | "pending" | "ready" | "blocked"
 type ToastTone = "info" | "success" | "warning" | "error"
 type MapSwitcherId = PresetMapId | "generated"
 type AvatarId = "ember" | "cobalt" | "moss" | "violet"
+type RendererReadiness = "loading" | "ready" | "failed"
+type StageOverlayState =
+  | "loading"
+  | "empty"
+  | "reloading"
+  | "recovery"
+  | "error"
+  | "hidden"
 type LifecyclePhase =
   | "empty"
   | "joining"
@@ -158,13 +166,18 @@ interface AppState {
   lifecycle: {
     phase: LifecyclePhase
     message: string
+    publicMessage: string
+    detail?: string
     lastRecoveryReason?: string
   }
+  rendererReadiness: RendererReadiness
   activeZone?: FixtureZone
   meetingJoined: boolean
   meetingZoneId?: string
   mediaRequestPending: boolean
   mediaSession?: MediaSession
+  mediaUnavailableMessage?: string
+  mediaUnavailableDetail?: string
   micEnabled: boolean
   cameraEnabled: boolean
   mapGeneration: MapGenerationState
@@ -271,12 +284,17 @@ const state: AppState = {
   lifecycle: {
     phase: "empty",
     message: "Room empty",
+    publicMessage: "Room empty",
+    detail: undefined,
   },
+  rendererReadiness: "loading",
   activeZone: undefined,
   meetingJoined: false,
   meetingZoneId: undefined,
   mediaRequestPending: false,
   mediaSession: undefined,
+  mediaUnavailableMessage: undefined,
+  mediaUnavailableDetail: undefined,
   micEnabled: false,
   cameraEnabled: false,
   mapGeneration: {
@@ -307,6 +325,10 @@ const elements = {
   start: mustQuery<HTMLButtonElement>("#start"),
   reset: mustQuery<HTMLButtonElement>("#reset"),
   map: mustQuery<HTMLElement>("#map"),
+  stageOverlay: mustQuery<HTMLElement>("#stage-overlay"),
+  stageOverlayKicker: mustQuery<HTMLElement>("#stage-overlay-kicker"),
+  stageOverlayTitle: mustQuery<HTMLElement>("#stage-overlay-title"),
+  stageOverlayBody: mustQuery<HTMLElement>("#stage-overlay-body"),
   sessionStatus: mustQuery<HTMLElement>("#session-status"),
   sessionPill: mustQuery<HTMLElement>("#session-pill"),
   worldStatus: mustQuery<HTMLElement>("#world-status"),
@@ -457,12 +479,29 @@ window.addEventListener("blur", () => {
 mobileLayoutQuery.addEventListener("change", () => syncResponsiveToolSections())
 
 switchToPresetMap("lobby", { announce: false }).catch((error: unknown) => {
-  publishToast(
-    error instanceof Error ? error.message : "Unable to load lobby map",
-    "error",
+  setRendererReadiness("failed")
+  setLifecycleStatus(
+    "recovering",
+    "Unable to load office",
+    "The office map could not be prepared. Refresh the page or try again shortly.",
+    technicalErrorDetail(error),
   )
+  publishToast("The office could not load. Try again shortly.", "error")
   renderPlayers()
 })
+void renderer.advanceTime().then(
+  () => setRendererReadiness("ready"),
+  (error: unknown) => {
+    setRendererReadiness("failed")
+    setLifecycleStatus(
+      "recovering",
+      "Renderer unavailable",
+      "The office view could not start. Refresh the page or try again shortly.",
+      technicalErrorDetail(error),
+    )
+    publishToast("The office view could not start.", "error")
+  },
+)
 renderViewportControls(renderer.getViewportState())
 renderMeetingControls()
 renderMediaPanel()
@@ -552,10 +591,15 @@ async function startDemo(): Promise<void> {
       state.joined ? "ready" : "blocked",
       state.joined ? "In lobby" : "Join failed",
     )
-    publishToast(
-      error instanceof Error ? error.message : "Unknown office app error",
-      "error",
+    setLifecycleStatus(
+      state.joined ? "joined" : "empty",
+      state.joined ? roomOccupancyLabel() : roomReadyLabel(),
+      state.joined
+        ? undefined
+        : "The office could not be joined. Check the local server and try again.",
+      technicalErrorDetail(error),
     )
+    publishToast("Could not join the office. Try again shortly.", "error")
   } finally {
     elements.start.disabled = state.joined
     elements.reset.disabled = !state.joined
@@ -885,6 +929,7 @@ async function joinMeeting(): Promise<void> {
 
   elements.joinMeeting.disabled = true
   state.mediaRequestPending = true
+  clearMediaUnavailable()
   setConnectionStatus("media", "pending", "Requesting media")
   renderMeetingControls()
   renderMediaPanel()
@@ -922,16 +967,19 @@ async function joinMeeting(): Promise<void> {
       state.meetingJoined = false
       state.meetingZoneId = undefined
       clearMediaSession()
-      publishToast(`Media denied: ${media.reason ?? "unknown"}`, "warning")
+      setMediaUnavailable(
+        "Call access is not available for this zone right now.",
+        media.reason,
+      )
     }
   } catch (error: unknown) {
     setConnectionStatus("media", "blocked", "Media unavailable")
     state.meetingJoined = false
     state.meetingZoneId = undefined
     clearMediaSession()
-    publishToast(
-      error instanceof Error ? error.message : "Unable to request meeting media",
-      "error",
+    setMediaUnavailable(
+      "Call media is unavailable. You can keep using the room.",
+      technicalErrorDetail(error),
     )
   } finally {
     state.mediaRequestPending = false
@@ -1048,7 +1096,11 @@ async function switchToFixtureMap(
   fixtureMap: FixtureMap,
   mapGeneration: MapGenerationState,
 ): Promise<void> {
-  setLifecycleStatus("map_reloading", `Reloading ${mapGeneration.label}`)
+  setLifecycleStatus(
+    "map_reloading",
+    `Reloading ${mapGeneration.label}`,
+    "Preparing the room layout and resetting local room state.",
+  )
   try {
     await resetDemo({
       announce: false,
@@ -1060,7 +1112,12 @@ async function switchToFixtureMap(
     setLifecycleStatus("empty", roomReadyLabel(mapGeneration.label))
     renderMapSwitcher()
   } catch (error: unknown) {
-    setLifecycleStatus("recovering", "Map reload failed")
+    setLifecycleStatus(
+      "recovering",
+      "Map reload failed",
+      "The room could not be prepared. Try switching rooms again.",
+      technicalErrorDetail(error),
+    )
     throw error
   }
 }
@@ -1177,12 +1234,14 @@ function applyServerMessage(message: ServerMessage): void {
       recoverFromWorldLoss("unknown_client")
       return
     }
-    publishToast(message.message, "warning")
+    recordEvent(`Protocol warning: ${message.message}`)
+    publishToast("The room could not apply that update.", "warning")
     return
   }
 
   if ("reason" in message && message.reason) {
-    publishToast(`Rejected: ${message.reason}`, "warning")
+    recordEvent(`Server rejected message: ${message.reason}`)
+    publishToast("The room could not apply that action.", "warning")
   }
 }
 
@@ -1356,11 +1415,15 @@ function renderIdentityControls(): void {
 function setLifecycleStatus(
   phase: LifecyclePhase,
   message: string,
+  publicMessage?: string,
+  detail?: string,
   recoveryReason?: string,
 ): void {
   state.lifecycle = {
     phase,
     message,
+    publicMessage: publicMessage ?? lifecyclePublicMessage(phase, message),
+    detail,
     lastRecoveryReason: recoveryReason,
   }
   renderLifecycleStatus()
@@ -1368,7 +1431,125 @@ function setLifecycleStatus(
 
 function renderLifecycleStatus(): void {
   elements.lifecycleBanner.dataset.state = state.lifecycle.phase
-  elements.lifecycleStatus.textContent = state.lifecycle.message
+  elements.lifecycleStatus.textContent = state.lifecycle.publicMessage
+  renderStageOverlay()
+}
+
+function setRendererReadiness(readiness: RendererReadiness): void {
+  state.rendererReadiness = readiness
+  elements.map.dataset.loading = String(readiness === "loading")
+  renderStageOverlay()
+}
+
+function lifecyclePublicMessage(
+  phase: LifecyclePhase,
+  message: string,
+): string {
+  switch (phase) {
+    case "empty":
+      return message.includes("ready") ? message : roomReadyLabel()
+    case "joining":
+      return "Entering office..."
+    case "joined":
+      return message
+    case "leaving":
+      return "Leaving office..."
+    case "map_reloading":
+      return "Preparing room..."
+    case "recovering":
+      return "Rejoin needed"
+  }
+}
+
+interface StageOverlayContent {
+  readonly state: StageOverlayState
+  readonly kicker: string
+  readonly title: string
+  readonly body: string
+  readonly hidden: boolean
+}
+
+function renderStageOverlay(): void {
+  const content = stageOverlayContent()
+
+  elements.stageOverlay.hidden = content.hidden
+  elements.stageOverlay.dataset.state = content.state
+  elements.stageOverlayKicker.textContent = content.kicker
+  elements.stageOverlayTitle.textContent = content.title
+  elements.stageOverlayBody.textContent = content.body
+}
+
+function stageOverlayContent(): StageOverlayContent {
+  if (state.rendererReadiness === "loading") {
+    return {
+      state: "loading",
+      kicker: "Starting renderer",
+      title: "Preparing office",
+      body: "The map is loading. Controls will be ready shortly.",
+      hidden: false,
+    }
+  }
+
+  if (state.rendererReadiness === "failed") {
+    return {
+      state: "error",
+      kicker: "Office view",
+      title: "Renderer unavailable",
+      body: "Refresh the page or try again shortly.",
+      hidden: false,
+    }
+  }
+
+  switch (state.lifecycle.phase) {
+    case "joining":
+      return {
+        state: "loading",
+        kicker: "Joining room",
+        title: "Entering office",
+        body: "Creating your local session and joining the shared room.",
+        hidden: false,
+      }
+    case "leaving":
+      return {
+        state: "reloading",
+        kicker: "Leaving room",
+        title: "Closing session",
+        body: "Clearing live room state and returning to the room preview.",
+        hidden: false,
+      }
+    case "map_reloading":
+      return {
+        state: "reloading",
+        kicker: "Room update",
+        title: state.lifecycle.publicMessage,
+        body: "The map and local room state are being prepared.",
+        hidden: false,
+      }
+    case "recovering":
+      return {
+        state: "recovery",
+        kicker: "Room recovery",
+        title: state.lifecycle.publicMessage,
+        body: "The live room state changed. Rejoin to continue from the current map.",
+        hidden: false,
+      }
+    case "empty":
+      return {
+        state: "empty",
+        kicker: "Room ready",
+        title: state.lifecycle.publicMessage,
+        body: "Enter the office when you are ready. The room is idle.",
+        hidden: false,
+      }
+    case "joined":
+      return {
+        state: "hidden",
+        kicker: "",
+        title: "",
+        body: "",
+        hidden: true,
+      }
+  }
 }
 
 function syncResponsiveToolSections(): void {
@@ -1443,6 +1624,9 @@ function updateActiveZoneFromPosition(): void {
   }
 
   if (previousZoneId !== nextZoneId) {
+    if (state.mediaUnavailableMessage) {
+      clearMediaUnavailable()
+    }
     if (zone) {
       recordEvent(`Entered ${zoneDisplayName(zone)}`)
       if (state.joined && isMeetingZone(zone)) {
@@ -1569,6 +1753,9 @@ function mediaAvailabilityLabel(zone: FixtureZone | undefined): string {
   if (state.mediaSession) {
     return "Server access granted. Device controls affect this call session."
   }
+  if (state.mediaUnavailableMessage) {
+    return state.mediaUnavailableMessage
+  }
   if (zone) {
     return `Available because you are in ${zoneDisplayName(zone)}.`
   }
@@ -1578,6 +1765,7 @@ function mediaAvailabilityLabel(zone: FixtureZone | undefined): string {
 function canUseDeviceControls(): boolean {
   if (state.mediaRequestPending) return false
   if (state.mediaSession) return state.mediaSession.canPublish
+  if (state.mediaUnavailableMessage) return false
   return Boolean(activeMeetingZone())
 }
 
@@ -1638,6 +1826,20 @@ function clearMediaSession(): void {
   state.micEnabled = false
   state.cameraEnabled = false
   state.lastMediaRoom = undefined
+  clearMediaUnavailable()
+}
+
+function clearMediaUnavailable(): void {
+  state.mediaUnavailableMessage = undefined
+  state.mediaUnavailableDetail = undefined
+}
+
+function setMediaUnavailable(message: string, detail?: string): void {
+  state.mediaUnavailableMessage = message
+  state.mediaUnavailableDetail = detail
+  setConnectionStatus("media", "blocked", "Media unavailable")
+  publishToast(message, "warning")
+  renderMediaPanel()
 }
 
 function renderMediaPanel(): void {
@@ -1648,6 +1850,8 @@ function renderMediaPanel(): void {
     ? "Requesting access"
     : session
       ? "Access granted"
+      : state.mediaUnavailableMessage
+        ? "Unavailable"
       : availableZone
         ? `Available because you are in ${zoneDisplayName(availableZone)}`
         : "Enter a meeting zone"
@@ -1655,6 +1859,8 @@ function renderMediaPanel(): void {
     ? "pending"
     : session
       ? "ready"
+      : state.mediaUnavailableMessage
+        ? "blocked"
       : availableZone
         ? "available"
         : "idle"
@@ -1664,14 +1870,26 @@ function renderMediaPanel(): void {
     ? "Requesting access"
     : session
       ? "Connected"
+      : state.mediaUnavailableMessage
+        ? "Unavailable"
       : availableZone
         ? "Available in zone"
         : "Inactive"
   elements.mediaAvailability.textContent = mediaAvailabilityLabel(availableZone)
   elements.mediaRoom.textContent =
-    session?.room ?? (availableZone ? zoneDisplayName(availableZone) : "Not joined")
+    session?.room ??
+    (availableZone
+      ? zoneDisplayName(availableZone)
+      : state.mediaUnavailableMessage
+        ? "Unavailable"
+        : "Not joined")
   elements.mediaEndpoint.textContent =
-    session?.liveKitUrl ?? (availableZone ? "Ready after Join" : "Not joined")
+    session?.liveKitUrl ??
+    (state.mediaUnavailableMessage
+      ? "Try again from this zone"
+      : availableZone
+        ? "Ready after Join"
+        : "Not joined")
   elements.mediaParticipants.textContent = session
     ? String(session.participantPlayerIds.length)
     : availableZone
@@ -1707,6 +1925,8 @@ function renderMediaPanel(): void {
         : "Muted"
     : state.mediaRequestPending
       ? "Requesting access"
+      : state.mediaUnavailableMessage
+        ? "Call unavailable"
       : availableZone
         ? state.cameraEnabled
           ? "Camera ready"
@@ -1754,6 +1974,8 @@ function recoverFromWorldLoss(reason: string): void {
   setLifecycleStatus(
     "recovering",
     "World restarted, rejoin needed",
+    "Rejoin needed",
+    `World session recovery requested: ${reason}`,
     reason,
   )
   elements.start.textContent = "Rejoin office"
@@ -1991,6 +2213,39 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "Unknown error"
 }
 
+function technicalErrorDetail(error: unknown): string {
+  if (error instanceof HttpJsonError) {
+    return `${error.path} returned ${error.status}: ${error.reason}`
+  }
+  if (error instanceof Error) {
+    return `${error.name}: ${error.message}`
+  }
+  return "Unknown error"
+}
+
+function friendlyActionError(error: unknown): string {
+  if (error instanceof HttpJsonError) {
+    if (error.path.includes("world-geometry")) {
+      return "The room could not be prepared. Try switching rooms again."
+    }
+    if (error.path.includes("world")) {
+      return "The room action could not be completed. Rejoin if it continues."
+    }
+    if (error.path.includes("media")) {
+      return "Call media is unavailable. You can keep using the room."
+    }
+    if (error.status >= 500) {
+      return "The local server could not complete that action."
+    }
+  }
+
+  if (error instanceof TypeError) {
+    return "The local server is unavailable. Check that the demo stack is running."
+  }
+
+  return "That office action could not be completed."
+}
+
 async function postMediaToken(body: Record<string, unknown>): Promise<MediaTokenResponse> {
   const response = await fetch("/media/media-token", {
     method: "POST",
@@ -2051,10 +2306,8 @@ function queueAction(action: () => Promise<void>): Promise<void> {
   state.pendingAction = state.pendingAction
     .then(action)
     .catch((error: unknown) => {
-      publishToast(
-        error instanceof Error ? error.message : "Unknown office action error",
-        "error",
-      )
+      recordEvent(`Action failed: ${technicalErrorDetail(error)}`)
+      publishToast(friendlyActionError(error), "error")
     })
   return state.pendingAction
 }
@@ -2083,6 +2336,8 @@ function directionForKey(key: string): Direction | undefined {
 }
 
 function renderDemoToText(): string {
+  const overlay = stageOverlayContent()
+
   return JSON.stringify({
     coordinateSystem: "pixel origin top-left, x right, y down",
     joined: state.joined,
@@ -2097,12 +2352,22 @@ function renderDemoToText(): string {
     lifecycle: {
       phase: state.lifecycle.phase,
       message: state.lifecycle.message,
+      publicMessage: state.lifecycle.publicMessage,
+      detail: state.lifecycle.detail,
       lastRecoveryReason: state.lifecycle.lastRecoveryReason,
+      rendererReadiness: state.rendererReadiness,
+      stageOverlay: {
+        state: overlay.state,
+        hidden: overlay.hidden,
+        title: overlay.title,
+        body: overlay.body,
+      },
       roomEmpty: !state.joined && state.snapshotPlayerIds.length === 0,
       occupancy: state.joined ? state.players.size : 0,
     },
     player: {
       id: state.playerId,
+      clientId: state.clientId,
       name: displayNameForLocalProfile(),
       avatarId: state.profile.avatarId,
       x: Math.round(state.position.x),
@@ -2158,6 +2423,8 @@ function renderDemoToText(): string {
       canPublish: state.mediaSession?.canPublish,
       canSubscribe: state.mediaSession?.canSubscribe,
       participantPlayerIds: state.mediaSession?.participantPlayerIds ?? [],
+      unavailableMessage: state.mediaUnavailableMessage,
+      unavailableDetail: state.mediaUnavailableDetail,
       mic: state.micEnabled ? "on" : "off",
       camera: state.cameraEnabled ? "on" : "off",
       micDisabled: elements.toggleMic.disabled,

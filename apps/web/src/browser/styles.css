@@ -704,6 +704,67 @@ h1 {
   box-shadow: inset 0 0 0 1px rgba(255, 253, 247, 0.55), var(--shadow-panel);
 }
 
+.stage-overlay {
+  position: absolute;
+  z-index: 6;
+  left: var(--space-4);
+  right: var(--space-4);
+  bottom: var(--space-4);
+  display: grid;
+  max-width: 380px;
+  gap: 4px;
+  border: 1px solid rgba(185, 173, 152, 0.72);
+  border-radius: var(--radius-md);
+  background: rgba(255, 253, 247, 0.93);
+  box-shadow: 0 14px 30px rgba(58, 47, 32, 0.14);
+  padding: var(--space-3);
+  pointer-events: none;
+}
+
+.stage-overlay[hidden] {
+  display: none;
+}
+
+.stage-overlay span {
+  color: var(--ink-soft);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.stage-overlay strong {
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.22;
+}
+
+.stage-overlay p {
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.38;
+}
+
+.stage-overlay[data-state="loading"],
+.stage-overlay[data-state="reloading"] {
+  border-color: rgba(166, 111, 25, 0.32);
+  background: rgba(250, 239, 213, 0.95);
+}
+
+.stage-overlay[data-state="empty"] {
+  border-color: rgba(35, 102, 90, 0.28);
+  background: rgba(220, 236, 230, 0.94);
+}
+
+.stage-overlay[data-state="recovery"],
+.stage-overlay[data-state="error"] {
+  border-color: rgba(181, 71, 59, 0.28);
+  background: rgba(248, 223, 218, 0.95);
+}
+
 .phaser-world-host canvas {
   display: block;
   width: 100%;
@@ -896,6 +957,14 @@ h1 {
 
 .media-panel[data-state="available"] .media-state strong {
   color: var(--success);
+}
+
+.media-panel[data-state="blocked"] {
+  border-color: rgba(181, 71, 59, 0.32);
+}
+
+.media-panel[data-state="blocked"] .media-state strong {
+  color: var(--danger);
 }
 
 .device-actions button {
