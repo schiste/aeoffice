@@ -164,7 +164,10 @@ export class AuthoritativeWorld {
     }
 
     const previousProcessedAt = state.lastProcessedAt ?? nowMs - this.config.tickMs
-    const deltaMs = Math.max(0, nowMs - previousProcessedAt)
+    const deltaMs = Math.min(
+      this.config.tickMs,
+      Math.max(0, nowMs - previousProcessedAt),
+    )
     const result = simulateMovement({
       current: state.position,
       direction: message.direction,

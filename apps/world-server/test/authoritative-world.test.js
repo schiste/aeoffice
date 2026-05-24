@@ -87,6 +87,36 @@ assert.equal(accepted.y, 0)
 assert.equal(accepted.seqAck, 1)
 assert.equal(accepted.anim, "adam_walk_right")
 
+const idleWorld = new AuthoritativeWorld({
+  map: {
+    width: 128,
+    height: 128,
+    tileSize: 32,
+    blockedTiles: [],
+  },
+  playerSize: { width: 16, height: 16 },
+  speedPxPerSecond: 64,
+  defaultAvatarId: "adam",
+  tickMs: 250,
+  defaultRoomId: "room-1",
+  proximityChatRadiusPx: 64,
+})
+
+idleWorld.addPlayer({
+  playerId: "idle-player",
+  spawn: { x: 32, y: 32 },
+})
+
+const delayedMove = idleWorld.handleClientMessage(
+  "idle-player",
+  { type: "move", direction: "right", seq: 1 },
+  5000,
+)
+
+assert.equal(delayedMove.type, "player_state")
+assert.equal(delayedMove.x, 48)
+assert.equal(delayedMove.y, 32)
+
 const towardObstacle = permittedWorld.handleClientMessage(
   "p2",
   { type: "move", direction: "down", seq: 2 },
