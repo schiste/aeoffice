@@ -131,6 +131,13 @@ async function main() {
         }
       }
 
+      if (input.type === "leave") {
+        return {
+          type: "leave_result",
+          left: true,
+        }
+      }
+
       return {
         type: "messages",
         messages: [
@@ -160,11 +167,14 @@ async function main() {
     { type: "move", direction: "right", seq: 1 },
     nowMs + 250,
   )
+  const transportLeft = await world.leave()
 
   assert.equal(joined.status, "joined")
   assert.equal(messages[0].type, "player_state")
+  assert.equal(transportLeft, true)
   assert.equal(transportCalls[0].type, "join")
   assert.equal(transportCalls[1].type, "message")
+  assert.equal(transportCalls[2].type, "leave")
 
   const worldCalls = []
   const httpWorldTransport = new HttpWorldTransport({
@@ -236,7 +246,7 @@ async function main() {
     { type: "move", direction: "right", seq: 1 },
     nowMs + 250,
   )
-  const left = await httpWorldTransport.leave()
+  const left = await httpWorld.leave()
 
   assert.equal(httpJoined.status, "joined")
   assert.equal(httpJoined.player.x, 32)

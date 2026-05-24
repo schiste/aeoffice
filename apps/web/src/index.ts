@@ -43,6 +43,7 @@ export interface IssueAppWorldTokenInput {
 export interface WorldClient {
   join(input: JoinWorldInput): Promise<JoinWorldResult>
   send(message: ClientMessage, nowMs: number): Promise<readonly ServerMessage[]>
+  leave(): Promise<boolean>
 }
 
 export type WorldTransportRequest =
@@ -55,6 +56,9 @@ export type WorldTransportRequest =
       readonly message: ClientMessage
       readonly nowMs: number
     }
+  | {
+      readonly type: "leave"
+    }
 
 export type WorldTransportResponse =
   | {
@@ -64,6 +68,10 @@ export type WorldTransportResponse =
   | {
       readonly type: "messages"
       readonly messages: readonly ServerMessage[]
+    }
+  | {
+      readonly type: "leave_result"
+      readonly left: boolean
     }
 
 export interface WorldTransport {
@@ -134,6 +142,7 @@ export interface PlayerView {
 
 export interface VirtualOfficeRenderer {
   worldEntered?(player: PlayerView): void
+  worldLeft?(): void
   playerUpdated?(player: PlayerView): void
   chatDelivered?(message: ChatDeliveredMessage): void
   mediaTokenIssued?(token: Extract<AppMediaTokenResult, { status: "issued" }>): void
@@ -302,6 +311,23 @@ export class CustomerVirtualOfficeApp {
     return result
   }
 
+  async leaveWorld(): Promise<boolean> {
+    this.requireLocalPlayerId()
+    const left = await this.options.world.leave()
+
+    if (left) {
+      this.players.clear()
+      this.chatLog.length = 0
+      this.seq = 1
+      this.localPlayerId = undefined
+      this.worldToken = undefined
+      this.activeMedia = undefined
+      this.options.renderer?.worldLeft?.()
+    }
+
+    return left
+  }
+
   private async sendAndApply(
     message: ClientMessage,
     nowMs: number,
@@ -440,6 +466,18 @@ export class TransportWorldClient implements WorldClient {
 
     return response.messages
   }
+
+  async leave(): Promise<boolean> {
+    const response = await this.transport.request({
+      type: "leave",
+    })
+
+    if (response.type !== "leave_result") {
+      throw new Error("World transport returned an invalid leave response.")
+    }
+
+    return response.left
+  }
 }
 
 export class HttpWorldTransport implements WorldTransport {
@@ -459,6 +497,13 @@ export class HttpWorldTransport implements WorldTransport {
       return {
         type: "join_result",
         result: joinResultFromResponse(body),
+      }
+    }
+
+    if (input.type === "leave") {
+      return {
+        type: "leave_result",
+        left: await this.leave(),
       }
     }
 

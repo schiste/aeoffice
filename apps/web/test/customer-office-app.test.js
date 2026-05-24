@@ -77,6 +77,10 @@ class InProcessWorldClient {
       .filter((event) => eventVisibleToClient(event, this.clientId))
       .map((event) => event.message)
   }
+
+  async leave() {
+    return this.controller.leave(this.clientId)
+  }
 }
 
 class InProcessMediaClient {
@@ -141,6 +145,7 @@ async function main() {
     media: mediaClient,
     renderer: {
       worldEntered: (player) => rendererEvents.push(["entered", player.playerId]),
+      worldLeft: () => rendererEvents.push(["left"]),
       playerUpdated: (player) => rendererEvents.push(["updated", player.x, player.y]),
       chatDelivered: (message) => rendererEvents.push(["chat", message.body]),
       mediaTokenIssued: (token) => rendererEvents.push(["media", token.room]),
@@ -194,11 +199,20 @@ async function main() {
   assert.equal(media.canSubscribe, true)
   assert.deepEqual(media.participantPlayerIds, ["player-1", "player-2"])
 
+  const left = await app.leaveWorld()
+  assert.equal(left, true)
+  assert.equal(app.getState().joined, false)
+  assert.equal(app.getState().worldToken, undefined)
+  assert.equal(app.getState().activeMedia, undefined)
+  assert.deepEqual(app.getState().players, [])
+  assert.deepEqual(app.getState().chatLog, [])
+
   assert.deepEqual(rendererEvents, [
     ["entered", "player-1"],
     ["updated", 48, 32],
     ["chat", "Hello from the app layer"],
     ["media", "zone:room-lobby:meeting-zone"],
+    ["left"],
   ])
 }
 

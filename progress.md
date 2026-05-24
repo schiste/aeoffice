@@ -26,3 +26,6 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   through `/world/leave` and makes the demo rejoinable without refresh.
 - Playwright MCP verified join -> reset -> rejoin. Reset hides the companion,
   restores idle/not-joined/not-issued statuses, and re-enables Join demo.
+- Reusable app layer now has `CustomerVirtualOfficeApp.leaveWorld()` and
+  `TransportWorldClient.leave()` so future Phaser code can use the same lifecycle
+  path as the local browser demo.
