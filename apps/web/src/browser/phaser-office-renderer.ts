@@ -86,7 +86,6 @@ const TILESET_KEY = "semantic-fixture-tiles"
 const TILESET_NAME = "semantic-fixture-tileset"
 const AVATAR_WIDTH = 18
 const AVATAR_HEIGHT = 24
-const AVATAR_DEPTH_BASE = 1000
 const DEFAULT_VIEWPORT_WIDTH = 640
 const DEFAULT_VIEWPORT_HEIGHT = 360
 const MIN_VIEWPORT_WIDTH = 320
@@ -95,6 +94,10 @@ const DEFAULT_ZOOM_FACTOR = 1.15
 const MIN_ZOOM_FACTOR = 0.75
 const MAX_ZOOM_FACTOR = 2
 const MAX_EFFECTIVE_ZOOM = 3.25
+const FURNITURE_DEPTH_BASE = 900
+const ZONE_DEPTH = 760
+const ZONE_LABEL_DEPTH = 765
+const OBJECT_TEXTURE_PREFIX = "semantic-fixture-object"
 const AVATAR_STYLES: Record<
   string,
   {
@@ -258,10 +261,13 @@ export class PhaserOfficeRenderer {
 
 class OfficeScene extends Phaser.Scene {
   private readonly avatars = new Map<string, AvatarView>()
+  private readonly objectTextureKeys = new Set<string>()
   private zoneGraphics?: Phaser.GameObjects.Graphics
+  private zoneLabels: Phaser.GameObjects.Text[] = []
   private activeMap?: Phaser.Tilemaps.Tilemap
   private zones: readonly FixtureZone[] = []
   private activeZoneIds = new Set<string>()
+  private hoveredZoneId?: string
   private tileSize = 32
   private viewportSize: Vector2 = {
     x: DEFAULT_VIEWPORT_WIDTH,
@@ -285,6 +291,12 @@ class OfficeScene extends Phaser.Scene {
     this.cameras.main.setBackgroundColor("#e7edf0")
     this.cameras.main.roundPixels = true
     this.cameras.main.setSize(this.viewportSize.x, this.viewportSize.y)
+    this.input.on("pointermove", (pointer: Phaser.Input.Pointer) => {
+      this.setHoveredZoneId(this.zoneIdAt(pointer.worldX, pointer.worldY))
+    })
+    this.input.on("pointerout", () => {
+      this.setHoveredZoneId(undefined)
+    })
     this.applyCameraZoom()
     this.onReady(this)
   }
@@ -306,7 +318,10 @@ class OfficeScene extends Phaser.Scene {
     this.followingPlayerId = undefined
     this.cameras.main.stopFollow()
     this.children.removeAll(true)
+    this.removeObjectTextures()
     this.zoneGraphics = undefined
+    this.zoneLabels = []
+    this.hoveredZoneId = undefined
     this.zones = fixtureMap.compiled.zones
     this.tileSize = tileSize
     this.activeMap = this.make.tilemap({
@@ -358,13 +373,10 @@ class OfficeScene extends Phaser.Scene {
       multiTileVariantGids.byRootGid,
       10,
     )
-    this.paintTileLayer(
-      "objects",
+    this.paintObjectSprites(
       fixtureMap.compiled.layers.objects,
-      tileset,
+      fixtureMap.catalog.tokens,
       tokensByGid,
-      multiTileVariantGids.byRootGid,
-      20,
     )
     this.redrawZones()
     this.updatePlayers(players)
@@ -392,6 +404,7 @@ class OfficeScene extends Phaser.Scene {
       }
 
       avatar.update(player)
+      this.validateAvatarDepth(player, avatar)
       if (player.local) {
         this.followPlayer(player.playerId, avatar)
       }
@@ -550,22 +563,171 @@ class OfficeScene extends Phaser.Scene {
     })
   }
 
+  private paintObjectSprites(
+    layer: TileLayer,
+    tokens: readonly FixtureToken[],
+    tokensByGid: ReadonlyMap<number, FixtureToken>,
+  ): void {
+    const objectTextureKeys = this.createObjectTextures(tokens)
+
+    layer.gids.forEach((row, y) => {
+      row.forEach((gid, x) => {
+        if (gid <= 0) return
+
+        const token = tokensByGid.get(gid)
+        if (!token) return
+
+        const textureKey = objectTextureKeys.get(gid)
+        if (!textureKey) return
+
+        const width = token.widthTiles * this.tileSize
+        const height = token.heightTiles * this.tileSize
+        const centerX = x * this.tileSize + width / 2
+        const centerY = y * this.tileSize + height / 2
+        const bottomY = (y + token.heightTiles) * this.tileSize
+        const sprite = this.add.image(centerX, centerY, textureKey)
+        sprite.setName(`furniture:${token.id}:${x},${y}`)
+        sprite.setOrigin(0.5, 0.5)
+        sprite.setDepth(furnitureDepth(bottomY, token))
+        sprite.setData("bottomY", bottomY)
+      })
+    })
+  }
+
+  private trackObjectTexture(textureKey: string): void {
+    this.objectTextureKeys.add(textureKey)
+  }
+
+  private createObjectTextures(
+    tokens: readonly FixtureToken[],
+  ): ReadonlyMap<number, string> {
+    const textureKeysByGid = new Map<number, string>()
+
+    tokens.forEach((token) => {
+      if (token.kind !== "item") return
+
+      const textureKey = `${OBJECT_TEXTURE_PREFIX}-${token.provisionalGid}`
+      if (this.textures.exists(textureKey)) {
+        this.textures.remove(textureKey)
+      }
+
+      const width = token.widthTiles * this.tileSize
+      const height = token.heightTiles * this.tileSize
+      const canvas = document.createElement("canvas")
+      canvas.width = width
+      canvas.height = height
+      const context = canvas.getContext("2d")
+
+      if (!context) {
+        throw new Error(`Unable to create object texture for ${token.id}.`)
+      }
+
+      for (let offsetY = 0; offsetY < token.heightTiles; offsetY += 1) {
+        for (let offsetX = 0; offsetX < token.widthTiles; offsetX += 1) {
+          drawSemanticTile(
+            context,
+            token,
+            offsetX * this.tileSize,
+            offsetY * this.tileSize,
+            this.tileSize,
+            {
+              offsetX,
+              offsetY,
+              widthTiles: token.widthTiles,
+              heightTiles: token.heightTiles,
+            },
+          )
+        }
+      }
+
+      this.textures.addCanvas(textureKey, canvas)
+      this.trackObjectTexture(textureKey)
+      textureKeysByGid.set(token.provisionalGid, textureKey)
+    })
+
+    return textureKeysByGid
+  }
+
+  private removeObjectTextures(): void {
+    this.objectTextureKeys.forEach((textureKey) => {
+      if (this.textures.exists(textureKey)) {
+        this.textures.remove(textureKey)
+      }
+    })
+    this.objectTextureKeys.clear()
+  }
+
   private redrawZones(): void {
     this.zoneGraphics?.destroy()
+    this.zoneLabels.forEach((label) => label.destroy())
+    this.zoneLabels = []
     this.zoneGraphics = this.add.graphics()
-    this.zoneGraphics.setDepth(30)
+    this.zoneGraphics.setDepth(ZONE_DEPTH)
     this.zones.forEach((zone) => {
       const active = this.activeZoneIds.has(zone.id)
+      const hovered = this.hoveredZoneId === zone.id
       const x = zone.xStart * this.tileSize
       const y = zone.yStart * this.tileSize
       const width = (zone.xEnd - zone.xStart) * this.tileSize
       const height = (zone.yEnd - zone.yStart) * this.tileSize
+      const fillAlpha = active ? 0.2 : hovered ? 0.15 : 0.06
+      const lineAlpha = active ? 0.98 : hovered ? 0.82 : 0.42
+      const lineWidth = active ? 3 : hovered ? 3 : 2
+      const color = active ? 0x2f8f63 : hovered ? 0x4b9a70 : 0x2f7c83
 
-      this.zoneGraphics?.fillStyle(active ? 0x2f8f63 : 0x2f7c83, active ? 0.24 : 0.1)
+      this.zoneGraphics?.fillStyle(color, fillAlpha)
       this.zoneGraphics?.fillRect(x, y, width, height)
-      this.zoneGraphics?.lineStyle(active ? 3 : 2, active ? 0x2f8f63 : 0x2f7c83, active ? 0.96 : 0.58)
+      this.zoneGraphics?.lineStyle(lineWidth, color, lineAlpha)
       this.zoneGraphics?.strokeRect(x, y, width, height)
+      if (active || hovered) {
+        const label = this.add.text(
+          x,
+          y + 7,
+          readableZoneLabel(zone),
+          {
+            color: active ? "#0f4f38" : "#1e5f55",
+            fontFamily: "Aptos, Segoe UI, sans-serif",
+            fontSize: "9px",
+            fontStyle: "700",
+            backgroundColor: "rgba(255,253,247,0.82)",
+            padding: { x: 5, y: 3 },
+          },
+        )
+        label.setPosition(
+          clamp(x + width / 2 - label.width / 2, x + 8, x + width - label.width - 8),
+          y + 7,
+        )
+        label.setDepth(ZONE_LABEL_DEPTH)
+        label.setAlpha(active ? 1 : 0.88)
+        this.zoneLabels.push(label)
+      }
     })
+  }
+
+  private setHoveredZoneId(zoneId: string | undefined): void {
+    if (this.hoveredZoneId === zoneId) return
+    this.hoveredZoneId = zoneId
+    this.redrawZones()
+  }
+
+  private zoneIdAt(worldX: number, worldY: number): string | undefined {
+    return this.zones.find((zone) => {
+      const x = zone.xStart * this.tileSize
+      const y = zone.yStart * this.tileSize
+      const width = (zone.xEnd - zone.xStart) * this.tileSize
+      const height = (zone.yEnd - zone.yStart) * this.tileSize
+      return worldX >= x && worldX < x + width && worldY >= y && worldY < y + height
+    })?.id
+  }
+
+  private validateAvatarDepth(
+    player: RenderedPlayer,
+    avatar: AvatarView,
+  ): void {
+    const expectedDepth = avatarDepth(player.position.y)
+    if (avatar.focusTarget.depth !== expectedDepth) {
+      avatar.focusTarget.setDepth(expectedDepth)
+    }
   }
 
 }
@@ -579,10 +741,13 @@ class AvatarView {
   private readonly head: Phaser.GameObjects.Ellipse
   private readonly hair: Phaser.GameObjects.Ellipse
   private readonly facing: Phaser.GameObjects.Triangle
+  private readonly labelShadow: Phaser.GameObjects.Rectangle
   private readonly labelBack: Phaser.GameObjects.Rectangle
+  private readonly labelTail: Phaser.GameObjects.Triangle
   private readonly label: Phaser.GameObjects.Text
   private idleTween?: Phaser.Tweens.Tween
   private walkTween?: Phaser.Tweens.Tween
+  private footTween?: Phaser.Tweens.Tween
   private positionTween?: Phaser.Tweens.Tween
   private rejectionTween?: Phaser.Tweens.Tween
   private lastPosition: Vector2
@@ -618,15 +783,36 @@ class AvatarView {
       align: "center",
     })
     this.label.setOrigin(0.5, 0.5)
+    this.labelShadow = scene.add.rectangle(
+      1,
+      -29,
+      this.label.width + 14,
+      17,
+      0x20201d,
+      0.16,
+    )
     this.labelBack = scene.add.rectangle(
       0,
       -31,
-      this.label.width + 10,
-      15,
-      0xffffff,
-      0.86,
+      this.label.width + 14,
+      17,
+      0xfffdf7,
+      0.93,
     )
     this.labelBack.setStrokeStyle(1, style.torso, 0.65)
+    this.labelTail = scene.add.triangle(
+      0,
+      -21,
+      -4,
+      0,
+      4,
+      0,
+      0,
+      5,
+      0xfffdf7,
+      0.93,
+    )
+    this.labelTail.setStrokeStyle(1, style.torso, 0.55)
 
     this.focusTarget.add([
       this.shadow,
@@ -636,7 +822,9 @@ class AvatarView {
       this.head,
       this.hair,
       this.facing,
+      this.labelShadow,
       this.labelBack,
+      this.labelTail,
       this.label,
     ])
     this.startIdleTween()
@@ -657,8 +845,10 @@ class AvatarView {
     this.local = player.local
     this.avatarId = nextAvatarId
     this.label.setText(player.name)
-    this.labelBack.setSize(this.label.width + 10, 15)
+    this.labelShadow.setSize(this.label.width + 14, 17)
+    this.labelBack.setSize(this.label.width + 14, 17)
     this.labelBack.setStrokeStyle(1, style.torso, 0.65)
+    this.labelTail.setStrokeStyle(1, style.torso, 0.55)
     this.leftFoot.setFillStyle(style.torsoDark, 1)
     this.rightFoot.setFillStyle(style.torsoDark, 1)
     this.torso.setFillStyle(style.torso, 1)
@@ -666,7 +856,7 @@ class AvatarView {
     this.head.setFillStyle(style.head, 1)
     this.hair.setFillStyle(style.hair, 1)
     this.facing.setFillStyle(style.accent, 0.86)
-    this.focusTarget.setDepth(AVATAR_DEPTH_BASE + player.position.y)
+    this.focusTarget.setDepth(avatarDepth(player.position.y))
     this.setFacing(player.direction)
 
     if (moved || identityChanged || player.direction !== this.lastDirection) {
@@ -687,6 +877,7 @@ class AvatarView {
   destroy(): void {
     this.idleTween?.stop()
     this.walkTween?.stop()
+    this.footTween?.stop()
     this.positionTween?.stop()
     this.rejectionTween?.stop()
     this.focusTarget.destroy(true)
@@ -694,12 +885,18 @@ class AvatarView {
 
   private interpolateTo(position: Vector2): void {
     this.positionTween?.stop()
+    const distance = Phaser.Math.Distance.Between(
+      this.focusTarget.x,
+      this.focusTarget.y,
+      position.x,
+      position.y,
+    )
     this.positionTween = this.scene.tweens.add({
       targets: this.focusTarget,
       x: position.x,
       y: position.y,
-      duration: 135,
-      ease: "Sine.easeOut",
+      duration: clamp(Math.round(distance * 4.5), 120, 190),
+      ease: "Sine.easeInOut",
     })
   }
 
@@ -747,11 +944,16 @@ class AvatarView {
     if (this.idleTween?.isPlaying()) return
 
     this.walkTween?.stop()
+    this.footTween?.stop()
+    this.leftFoot.setScale(1, 1)
+    this.rightFoot.setScale(1, 1)
     this.focusTarget.setScale(1, 1)
+    this.focusTarget.y = this.lastPosition.y
     this.idleTween = this.scene.tweens.add({
       targets: this.focusTarget,
-      scaleY: 1.03,
-      duration: 900,
+      y: this.lastPosition.y - 1.5,
+      scaleY: 1.025,
+      duration: 1100,
       yoyo: true,
       repeat: -1,
       ease: "Sine.easeInOut",
@@ -761,16 +963,26 @@ class AvatarView {
   private startWalkTween(): void {
     this.idleTween?.stop()
     this.walkTween?.stop()
+    this.footTween?.stop()
     this.focusTarget.setScale(1, 1)
     this.walkTween = this.scene.tweens.add({
       targets: this.focusTarget,
-      scaleX: 1.05,
-      scaleY: 0.95,
-      duration: 120,
+      scaleX: 1.045,
+      scaleY: 0.955,
+      duration: 105,
       yoyo: true,
-      repeat: 1,
+      repeat: 2,
       ease: "Sine.easeInOut",
       onComplete: () => this.startIdleTween(),
+    })
+    this.footTween = this.scene.tweens.add({
+      targets: [this.leftFoot, this.rightFoot],
+      scaleX: 1.18,
+      scaleY: 0.82,
+      duration: 90,
+      yoyo: true,
+      repeat: 2,
+      ease: "Sine.easeInOut",
     })
   }
 }
@@ -785,6 +997,21 @@ function facingNudgeY(direction: Direction): number {
   if (direction === "up") return -4
   if (direction === "down") return 4
   return 0
+}
+
+function avatarDepth(y: number): number {
+  return FURNITURE_DEPTH_BASE + Math.round(y)
+}
+
+function furnitureDepth(bottomY: number, token: FixtureToken): number {
+  const lift = token.id.includes("door") ? -28 : 0
+  return FURNITURE_DEPTH_BASE + Math.round(bottomY + lift)
+}
+
+function readableZoneLabel(zone: FixtureZone): string {
+  return zone.id
+    .replace(/[-_]+/g, " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase())
 }
 
 function fallbackAvatarId(player: RenderedPlayer): string {
@@ -844,7 +1071,10 @@ function drawPolishedFloor(
   tileSize: number,
 ): void {
   if (token.id.includes("wood")) {
-    context.fillStyle = "#cfa56c"
+    const gradient = context.createLinearGradient(x, y, x, y + tileSize)
+    gradient.addColorStop(0, "#d8b175")
+    gradient.addColorStop(1, "#bf9056")
+    context.fillStyle = gradient
     context.fillRect(x, y, tileSize, tileSize)
     context.fillStyle = "rgba(106, 64, 35, 0.13)"
     context.fillRect(x, y + 7, tileSize, 2)
@@ -869,7 +1099,10 @@ function drawPolishedFloor(
   }
 
   if (token.id.includes("concrete")) {
-    context.fillStyle = "#cbd3d1"
+    const gradient = context.createLinearGradient(x, y, x + tileSize, y + tileSize)
+    gradient.addColorStop(0, "#d9dfdc")
+    gradient.addColorStop(1, "#bfcac8")
+    context.fillStyle = gradient
     context.fillRect(x, y, tileSize, tileSize)
     context.strokeStyle = "rgba(97, 111, 112, 0.28)"
     context.lineWidth = 1
@@ -883,7 +1116,10 @@ function drawPolishedFloor(
     return
   }
 
-  context.fillStyle = "#94b2a2"
+  const carpetGradient = context.createLinearGradient(x, y, x, y + tileSize)
+  carpetGradient.addColorStop(0, "#9fbcae")
+  carpetGradient.addColorStop(1, "#86a595")
+  context.fillStyle = carpetGradient
   context.fillRect(x, y, tileSize, tileSize)
   context.strokeStyle = "rgba(49, 85, 65, 0.2)"
   context.lineWidth = 1
@@ -906,8 +1142,13 @@ function drawPolishedWall(
   y: number,
   tileSize: number,
 ): void {
+  const corner = token.id.includes("corner")
+
   if (token.id.includes("glass")) {
-    context.fillStyle = "#98c8ce"
+    const gradient = context.createLinearGradient(x, y, x, y + tileSize)
+    gradient.addColorStop(0, "#b8dce1")
+    gradient.addColorStop(1, "#73aeb8")
+    context.fillStyle = gradient
     context.fillRect(x, y, tileSize, tileSize)
     context.fillStyle = "rgba(232, 250, 255, 0.52)"
     context.fillRect(x + 3, y + 3, tileSize - 6, tileSize - 12)
@@ -924,11 +1165,18 @@ function drawPolishedWall(
     context.moveTo(x + 17, y + 3)
     context.lineTo(x + 27, y + 13)
     context.stroke()
+    drawWallBaseLip(context, x, y, tileSize, "#376f77")
+    if (corner) {
+      drawWallCornerPost(context, x, y, tileSize, "#376f77", "#c8edf0")
+    }
     return
   }
 
   if (token.id.includes("neutral")) {
-    context.fillStyle = "#d7d1c4"
+    const gradient = context.createLinearGradient(x, y, x, y + tileSize)
+    gradient.addColorStop(0, "#e6dfd2")
+    gradient.addColorStop(1, "#c2b7a5")
+    context.fillStyle = gradient
     context.fillRect(x, y, tileSize, tileSize)
     context.fillStyle = "#ece7dc"
     context.fillRect(x + 2, y + 2, tileSize - 4, 14)
@@ -937,10 +1185,17 @@ function drawPolishedWall(
     context.strokeStyle = "rgba(98, 88, 74, 0.35)"
     context.lineWidth = 1
     context.strokeRect(x + 0.5, y + 0.5, tileSize - 1, tileSize - 1)
+    drawWallBaseLip(context, x, y, tileSize, "#9f927e")
+    if (corner) {
+      drawWallCornerPost(context, x, y, tileSize, "#9f927e", "#f4efe6")
+    }
     return
   }
 
-  context.fillStyle = "#8e6843"
+  const gradient = context.createLinearGradient(x, y, x, y + tileSize)
+  gradient.addColorStop(0, "#b98654")
+  gradient.addColorStop(1, "#725031")
+  context.fillStyle = gradient
   context.fillRect(x, y, tileSize, tileSize)
   context.fillStyle = "#b98756"
   context.fillRect(x + 2, y + 2, tileSize - 4, 12)
@@ -954,6 +1209,43 @@ function drawPolishedWall(
   context.moveTo(x + 21.5, y + 2)
   context.lineTo(x + 21.5, y + tileSize - 9)
   context.stroke()
+  drawWallBaseLip(context, x, y, tileSize, "#5f3f27")
+  if (corner) {
+    drawWallCornerPost(context, x, y, tileSize, "#5f3f27", "#c79461")
+  }
+}
+
+function drawWallBaseLip(
+  context: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  tileSize: number,
+  color: string,
+): void {
+  context.fillStyle = color
+  context.globalAlpha = 0.5
+  context.fillRect(x, y + tileSize - 4, tileSize, 4)
+  context.globalAlpha = 1
+  context.fillStyle = "rgba(32, 32, 29, 0.14)"
+  context.fillRect(x, y + tileSize - 1, tileSize, 1)
+}
+
+function drawWallCornerPost(
+  context: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  tileSize: number,
+  dark: string,
+  light: string,
+): void {
+  context.fillStyle = dark
+  fillRoundedRect(context, x + 2, y + 2, 8, tileSize - 6, 2)
+  context.fillStyle = light
+  context.globalAlpha = 0.54
+  context.fillRect(x + 4, y + 4, 2, tileSize - 11)
+  context.globalAlpha = 1
+  context.fillStyle = "rgba(32, 32, 29, 0.16)"
+  context.fillRect(x + tileSize - 5, y + tileSize - 6, 5, 4)
 }
 
 function drawPolishedItem(

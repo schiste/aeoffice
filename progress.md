@@ -258,3 +258,17 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   entrypoint with the repo `node_modules`; its direct canvas capture is still
   black under headless WebGL, so page-level Playwright screenshots remain the
   visual source of truth.
+- Phaser world presentation pass is applied. Furniture now renders as
+  generated object sprites with y-based depth instead of one flat object
+  tilemap layer, so tables, couches, chairs, doors, plants, and players share a
+  consistent foreground/background ordering model.
+- Zones now have lower scene depth than furniture/avatars plus hover/active
+  highlight states and centered in-canvas labels. Avatar labels now have a
+  stronger bubble treatment with a shadow and pointer tail, while avatar
+  movement uses distance-aware interpolation and more deliberate idle/walk
+  placeholder animation.
+- Floor and wall tiles have stronger gradients, base lips, and corner posts to
+  make wall transitions more readable without adding new external assets.
+- Verification passed: `npm --workspace @aedventure/web run build`,
+  page-level Playwright screenshots for Lobby, Meeting hover, Meeting joined,
+  and mobile states on `127.0.0.1:8787`, and full `npm run check`.
