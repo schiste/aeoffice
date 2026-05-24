@@ -791,7 +791,7 @@ function presetMapDefinition(id: PresetMapId): {
         },
         spawnTiles: [
           { id: "default", tile: { x: 2, y: 7 } },
-          { id: "guest", tile: { x: 3, y: 7 } },
+          { id: "guest", tile: { x: 6, y: 7 } },
         ],
       }
     case "meeting_room":

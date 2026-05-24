@@ -154,3 +154,16 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   browser console warnings/errors stayed at zero. The standalone web-game
   client still cannot run because it cannot resolve the `playwright` package
   from the skill runtime.
+- Local avatar basics are now wired without account persistence: the demo has a
+  name input, four placeholder avatar choices, live Phaser avatar recoloring,
+  name labels, media-preview initials, and `render_game_to_text` identity fields.
+- The local demo profile remains browser-runtime only. Verification checked that
+  the app does not use `localStorage`, `sessionStorage`, or `indexedDB` for the
+  demo name/avatar state.
+- The lobby companion spawn moved farther from the local player so the default
+  demo displays two readable avatars and labels after join.
+- Verification passed: `npm --workspace @aedventure/web run build`,
+  `npm run check`, Playwright MCP desktop/mobile screenshots, live pre-join and
+  post-join identity changes, empty storage keys, and zero browser console
+  warnings/errors. The standalone web-game client still cannot run because it
+  cannot resolve the `playwright` package from the skill runtime.

@@ -18,6 +18,7 @@ type Direction = "up" | "down" | "left" | "right"
 type StatusState = "idle" | "pending" | "ready" | "blocked"
 type ToastTone = "info" | "success" | "warning" | "error"
 type MapSwitcherId = PresetMapId | "generated"
+type AvatarId = "ember" | "cobalt" | "moss" | "violet"
 type MovementRejectedReason =
   | "invalid_message"
   | "collision"
@@ -125,10 +126,16 @@ interface AppState {
   seq: number
   position: Vector2
   direction: Direction
+  profile: {
+    displayName: string
+    avatarId: AvatarId
+  }
   joined: boolean
   companion: {
     playerId: string
     clientId: string
+    displayName: string
+    avatarId: AvatarId
     position: Vector2
     direction: Direction
     joined: boolean
@@ -209,6 +216,9 @@ const MAX_CHAT_MESSAGES = 5
 const MAX_RECENT_EVENTS = 8
 const DEFAULT_MAP_PROMPT =
   "cozy 10-person meeting room with wooden walls and a coffee bar"
+const DEFAULT_DISPLAY_NAME = "Browser Ada"
+const DEFAULT_AVATAR_ID: AvatarId = "ember"
+const avatarIds: readonly AvatarId[] = ["ember", "cobalt", "moss", "violet"]
 
 const state: AppState = {
   sessionId: undefined,
@@ -217,10 +227,16 @@ const state: AppState = {
   seq: 1,
   position: { x: 96, y: 64 },
   direction: "down",
+  profile: {
+    displayName: DEFAULT_DISPLAY_NAME,
+    avatarId: DEFAULT_AVATAR_ID,
+  },
   joined: false,
   companion: {
     playerId: "player-2",
     clientId: `companion-${Math.floor(Math.random() * 100000)}`,
+    displayName: "Demo Grace",
+    avatarId: "cobalt",
     position: { x: 96, y: 96 },
     direction: "down",
     joined: false,
@@ -266,6 +282,10 @@ const elements = {
   sessionPill: mustQuery<HTMLElement>("#session-pill"),
   worldStatus: mustQuery<HTMLElement>("#world-status"),
   worldPill: mustQuery<HTMLElement>("#world-pill"),
+  displayName: mustQuery<HTMLInputElement>("#demo-display-name"),
+  avatarButtons: [
+    ...document.querySelectorAll<HTMLButtonElement>("[data-avatar-id]"),
+  ],
   mapSwitcherButtons: [
     ...document.querySelectorAll<HTMLButtonElement>("[data-map-id]"),
   ],
@@ -293,6 +313,7 @@ const elements = {
   mediaParticipants: mustQuery<HTMLElement>("#media-participants"),
   mediaTokenStatus: mustQuery<HTMLElement>("#media-token-status"),
   localPreview: mustQuery<HTMLElement>("#local-preview"),
+  previewAvatar: mustQuery<HTMLElement>(".preview-avatar"),
   previewStatus: mustQuery<HTMLElement>("#preview-status"),
   toggleMic: mustQuery<HTMLButtonElement>("#toggle-mic"),
   toggleCamera: mustQuery<HTMLButtonElement>("#toggle-camera"),
@@ -304,6 +325,32 @@ const renderer = new PhaserOfficeRenderer(elements.map)
 
 elements.start.addEventListener("click", () => queueAction(() => startDemo()))
 elements.reset.addEventListener("click", () => queueAction(() => resetDemo()))
+elements.displayName.addEventListener("input", () => {
+  state.profile.displayName = elements.displayName.value
+  renderIdentityControls()
+  seedLocalRenderedPlayer()
+  renderPlayers()
+  renderMediaPanel()
+})
+elements.displayName.addEventListener("blur", () => {
+  elements.displayName.value = displayNameForLocalProfile()
+  state.profile.displayName = elements.displayName.value
+  renderIdentityControls()
+  seedLocalRenderedPlayer()
+  renderPlayers()
+  renderMediaPanel()
+})
+elements.avatarButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    const avatarId = button.dataset.avatarId
+    if (!isAvatarId(avatarId)) return
+    state.profile.avatarId = avatarId
+    renderIdentityControls()
+    seedLocalRenderedPlayer()
+    renderPlayers()
+    renderMediaPanel()
+  })
+})
 elements.mapSwitcherButtons.forEach((button) => {
   button.addEventListener("click", () =>
     queueAction(() => switchMap(button.dataset.mapId as MapSwitcherId)),
@@ -367,6 +414,7 @@ renderMeetingControls()
 renderMediaPanel()
 renderMapGenerationResult()
 renderMapSwitcher()
+renderIdentityControls()
 
 async function startDemo(): Promise<void> {
   elements.start.disabled = true
@@ -386,7 +434,10 @@ async function startDemo(): Promise<void> {
       await switchToPresetMap("lobby", { announce: false })
     }
 
-    const session = await signInDevUser("wikimedia-browser-user", "Browser Ada")
+    const session = await signInDevUser(
+      "wikimedia-browser-user",
+      displayNameForLocalProfile(),
+    )
     state.sessionId = session.sessionId
     setConnectionStatus("session", "ready", "Connected")
     publishToast(`Signed in as ${session.username}`, "success")
@@ -398,6 +449,7 @@ async function startDemo(): Promise<void> {
       playerId: state.playerId,
       spawn: state.position,
       roomId: "room-lobby",
+      avatarId: state.profile.avatarId,
     })
 
     if (joined.status !== "joined") {
@@ -466,7 +518,7 @@ async function joinWorld(input: Record<string, unknown>) {
 async function joinCompanion(): Promise<void> {
   const companionSession = await signInDevUser(
     "wikimedia-browser-companion",
-    "Demo Grace",
+    state.companion.displayName,
   )
   const companionToken = await issueWorldToken(companionSession.sessionId)
   const joined = await joinWorld({
@@ -475,6 +527,7 @@ async function joinCompanion(): Promise<void> {
     playerId: state.companion.playerId,
     spawn: state.companion.position,
     roomId: "room-lobby",
+    avatarId: state.companion.avatarId,
   })
 
   if (joined.status !== "joined") {
@@ -966,6 +1019,7 @@ function upsertRenderedPlayer(player: PlayerSnapshot): void {
   state.players.set(player.playerId, {
     playerId: player.playerId,
     name: displayNameForPlayer(player),
+    avatarId: avatarIdForPlayer(player),
     position,
     direction,
     local: player.playerId === state.playerId,
@@ -988,10 +1042,16 @@ function renderPlayers(): void {
 }
 
 function displayNameForPlayer(player: Pick<PlayerSnapshot, "playerId" | "userId">): string {
-  if (player.playerId === state.playerId) return "Browser Ada"
-  if (player.playerId === state.companion.playerId) return "Demo Grace"
+  if (player.playerId === state.playerId) return displayNameForLocalProfile()
+  if (player.playerId === state.companion.playerId) return state.companion.displayName
   if (player.userId) return titleCaseName(player.userId)
   return titleCaseName(player.playerId)
+}
+
+function avatarIdForPlayer(player: Pick<PlayerSnapshot, "playerId">): AvatarId {
+  if (player.playerId === state.playerId) return state.profile.avatarId
+  if (player.playerId === state.companion.playerId) return state.companion.avatarId
+  return "moss"
 }
 
 function applyMovementRejection(
@@ -1076,6 +1136,17 @@ function renderMapSwitcher(): void {
     const pressed = button.dataset.mapId === activeMapId
     button.setAttribute("aria-pressed", String(pressed))
   })
+}
+
+function renderIdentityControls(): void {
+  const displayName = displayNameForLocalProfile()
+
+  elements.avatarButtons.forEach((button) => {
+    const pressed = button.dataset.avatarId === state.profile.avatarId
+    button.setAttribute("aria-pressed", String(pressed))
+  })
+  elements.previewAvatar.textContent = initialsForName(displayName)
+  elements.localPreview.dataset.avatarId = state.profile.avatarId
 }
 
 function renderMapGenerationResult(): void {
@@ -1231,6 +1302,8 @@ function renderMediaPanel(): void {
   elements.toggleCamera.setAttribute("aria-pressed", String(state.cameraEnabled))
 
   elements.localPreview.dataset.camera = state.cameraEnabled ? "on" : "off"
+  elements.localPreview.dataset.avatarId = state.profile.avatarId
+  elements.previewAvatar.textContent = initialsForName(displayNameForLocalProfile())
   elements.previewStatus.textContent = session
     ? state.cameraEnabled
       ? "Camera on"
@@ -1367,6 +1440,28 @@ function titleCaseName(value: string): string {
     .join(" ")
 }
 
+function displayNameForLocalProfile(): string {
+  const trimmed = state.profile.displayName.trim().replace(/\s+/g, " ")
+  return trimmed ? trimmed.slice(0, 24) : DEFAULT_DISPLAY_NAME
+}
+
+function initialsForName(value: string): string {
+  const parts = value
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+  const initials =
+    parts.length >= 2
+      ? `${parts[0][0] ?? ""}${parts[1][0] ?? ""}`
+      : value.slice(0, 2)
+
+  return initials.toUpperCase() || "BA"
+}
+
+function isAvatarId(value: string | undefined): value is AvatarId {
+  return avatarIds.includes(value as AvatarId)
+}
+
 function fixtureSpawnPosition(fixtureMap: FixtureMap, spawnId: string): Vector2 {
   const spawn = fixtureMap.spawnPoints.find((candidate) => candidate.id === spawnId)
   return spawn ? spawn.position : state.position
@@ -1497,12 +1592,16 @@ function renderDemoToText(): string {
     },
     player: {
       id: state.playerId,
+      name: displayNameForLocalProfile(),
+      avatarId: state.profile.avatarId,
       x: Math.round(state.position.x),
       y: Math.round(state.position.y),
       direction: state.direction,
     },
     companion: {
       id: state.companion.playerId,
+      name: state.companion.displayName,
+      avatarId: state.companion.avatarId,
       joined: state.companion.joined,
       x: Math.round(state.companion.position.x),
       y: Math.round(state.companion.position.y),
@@ -1511,6 +1610,7 @@ function renderDemoToText(): string {
     players: [...state.players.values()].map((player) => ({
       id: player.playerId,
       name: player.name,
+      avatarId: player.avatarId,
       x: Math.round(player.position.x),
       y: Math.round(player.position.y),
       direction: player.direction,

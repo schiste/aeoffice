@@ -51,6 +51,7 @@ interface FixtureZone {
 export interface RenderedPlayer {
   readonly playerId: string
   readonly name: string
+  readonly avatarId?: string
   readonly position: Vector2
   readonly direction: Direction
   readonly local: boolean
@@ -82,6 +83,20 @@ const DEFAULT_ZOOM_FACTOR = 1.15
 const MIN_ZOOM_FACTOR = 0.75
 const MAX_ZOOM_FACTOR = 2
 const MAX_EFFECTIVE_ZOOM = 3.25
+const AVATAR_STYLES: Record<
+  string,
+  {
+    readonly torso: number
+    readonly head: number
+    readonly accent: number
+  }
+> = {
+  ember: { torso: 0xc8493c, head: 0xffd3a3, accent: 0x6e2d24 },
+  cobalt: { torso: 0x2f6fc8, head: 0xf0c7a1, accent: 0x193d71 },
+  moss: { torso: 0x2f8f63, head: 0xd7b38e, accent: 0x1f5d42 },
+  violet: { torso: 0x7b5ac8, head: 0xe0b995, accent: 0x493376 },
+  companion: { torso: 0x2f6fc8, head: 0xf0c7a1, accent: 0x193d71 },
+}
 
 export class PhaserOfficeRenderer {
   private readonly scene: OfficeScene
@@ -94,6 +109,7 @@ export class PhaserOfficeRenderer {
     {
       playerId: "player-1",
       name: "Browser Ada",
+      avatarId: "ember",
       position: { x: 96, y: 96 },
       direction: "down",
       local: true,
@@ -506,6 +522,7 @@ class AvatarView {
   private rejectionTween?: Phaser.Tweens.Tween
   private lastPosition: Vector2
   private lastDirection: Direction
+  private avatarId: string
   private local: boolean
 
   constructor(
@@ -513,15 +530,17 @@ class AvatarView {
     player: RenderedPlayer,
   ) {
     this.local = player.local
+    this.avatarId = player.avatarId ?? fallbackAvatarId(player)
     this.lastPosition = player.position
     this.lastDirection = player.direction
     this.focusTarget = scene.add.container(player.position.x, player.position.y)
     this.focusTarget.setName(`avatar:${player.playerId}`)
+    const style = avatarStyle(this.avatarId)
 
     this.shadow = scene.add.ellipse(0, 14, 18, 6, 0x172026, 0.2)
-    this.torso = scene.add.ellipse(0, 2, AVATAR_WIDTH, AVATAR_HEIGHT, 0xc8493c, 1)
-    this.head = scene.add.ellipse(0, -10, 13, 13, 0xffd3a3, 1)
-    this.facing = scene.add.triangle(0, -10, 0, -4, 5, 4, -5, 4, 0x172026, 0.9)
+    this.torso = scene.add.ellipse(0, 2, AVATAR_WIDTH, AVATAR_HEIGHT, style.torso, 1)
+    this.head = scene.add.ellipse(0, -10, 13, 13, style.head, 1)
+    this.facing = scene.add.triangle(0, -10, 0, -4, 5, 4, -5, 4, style.accent, 0.9)
     this.label = scene.add.text(0, -31, player.name, {
       color: "#172026",
       fontFamily: "Inter, Arial, sans-serif",
@@ -538,7 +557,7 @@ class AvatarView {
       0xffffff,
       0.86,
     )
-    this.labelBack.setStrokeStyle(1, player.local ? 0xc8493c : 0x2f6fc8, 0.65)
+    this.labelBack.setStrokeStyle(1, style.torso, 0.65)
 
     this.focusTarget.add([
       this.shadow,
@@ -556,13 +575,21 @@ class AvatarView {
     const moved =
       player.position.x !== this.lastPosition.x ||
       player.position.y !== this.lastPosition.y
-    const identityChanged = player.local !== this.local
+    const nextAvatarId = player.avatarId ?? fallbackAvatarId(player)
+    const identityChanged =
+      player.local !== this.local ||
+      player.name !== this.label.text ||
+      nextAvatarId !== this.avatarId
+    const style = avatarStyle(nextAvatarId)
 
     this.local = player.local
+    this.avatarId = nextAvatarId
     this.label.setText(player.name)
     this.labelBack.setSize(this.label.width + 10, 15)
-    this.labelBack.setStrokeStyle(1, player.local ? 0xc8493c : 0x2f6fc8, 0.65)
-    this.torso.setFillStyle(player.local ? 0xc8493c : 0x2f6fc8, 1)
+    this.labelBack.setStrokeStyle(1, style.torso, 0.65)
+    this.torso.setFillStyle(style.torso, 1)
+    this.head.setFillStyle(style.head, 1)
+    this.facing.setFillStyle(style.accent, 0.9)
     this.focusTarget.setDepth(AVATAR_DEPTH_BASE + player.position.y)
     this.setFacing(player.direction)
 
@@ -675,6 +702,18 @@ function facingNudgeY(direction: Direction): number {
   if (direction === "up") return -4
   if (direction === "down") return 4
   return 0
+}
+
+function fallbackAvatarId(player: RenderedPlayer): string {
+  return player.local ? "ember" : "companion"
+}
+
+function avatarStyle(avatarId: string): {
+  readonly torso: number
+  readonly head: number
+  readonly accent: number
+} {
+  return AVATAR_STYLES[avatarId] ?? AVATAR_STYLES.ember
 }
 
 function clamp(value: number, minimum: number, maximum: number): number {
