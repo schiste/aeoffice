@@ -126,6 +126,16 @@ Client rendering notes:
 - Phaser may improve local user experience, but server-side world/API/media
   policy remains the authority.
 
+AI map-generation notes:
+
+- Future AI map generation should use a strict Map Definition Interface instead
+  of asking the model for Phaser code, Tiled JSON, tile buffers, or collision
+  matrices.
+- The backend must validate MDI output, translate semantic tokens through an
+  asset dictionary, generate normalized map data, and store a draft map version.
+- AI-generated zones must become server-side policy zones. The client can render
+  them, but cannot directly grant media access or update authoritative collision.
+
 SkyOffice is MIT-licensed upstream. New app code may be AGPL-3.0-or-later, but
 reused SkyOffice code must preserve original copyright and MIT notices.
 
@@ -385,6 +395,7 @@ Frozen work includes:
 - AI features.
 - Broadcast mode.
 - Tauri desktop packaging.
+- Production AI map generation.
 - Tenant customization UI.
 
 Exceptions:
@@ -397,3 +408,4 @@ Exceptions:
 - Media replacement.
 - Permission model.
 - CI and Docker Compose.
+- Schema and documentation work that prepares future AI map generation.

@@ -825,6 +825,134 @@ Future editor features:
 - Publish version.
 - Roll back version.
 
+### 11.6 AI Map Definition Interface
+
+The platform should support AI-assisted map generation through a strict Map
+Definition Interface, or MDI. The AI must act as a logical decorator, not as a
+renderer or source of authoritative collision data.
+
+The MDI is a constrained semantic JSON format designed for structured model
+output. It should be small, human-readable, and validated before it can become a
+draft map version.
+
+Example MDI shape:
+
+```json
+{
+  "room_dimensions": { "width": 12, "height": 10 },
+  "style": "cozy_wood",
+  "layers": {
+    "floor": "wooden_parquet",
+    "walls": [
+      { "x": 0, "y": 0, "type": "wall_corner" },
+      { "x": 1, "y": 0, "type": "wall_window" }
+    ],
+    "furniture": [
+      { "x": 4, "y": 3, "item": "large_conference_table" },
+      { "x": 4, "y": 2, "item": "office_chair", "direction": "south" },
+      { "x": 9, "y": 1, "item": "coffee_machine" }
+    ],
+    "zones": [
+      {
+        "x_start": 3,
+        "y_start": 2,
+        "x_end": 7,
+        "y_end": 5,
+        "zone_type": "meeting_private"
+      }
+    ]
+  }
+}
+```
+
+MDI requirements:
+
+- Output must be schema-validated before storage.
+- The AI may only use known style, wall, furniture, object, and zone tokens.
+- The AI must not output raw tile GIDs, binary arrays, Phaser objects, Tiled JSON,
+  collision matrices, or LiveKit room identifiers.
+- Dimensions must be bounded by tenant limits and renderer constraints.
+- Object placement must be validated for bounds, overlap, spacing, collision,
+  accessibility, and spawn safety.
+- Zones must be converted into server-side `WorldZone` records with explicit
+  policies; zones must not directly grant media access.
+- The compiler must create a draft map version and validation report.
+
+### 11.7 Asset Dictionary And Compiler
+
+The platform should maintain an append-only asset dictionary that maps semantic
+tokens to renderable assets, collision metadata, licensing metadata, and
+interaction defaults.
+
+Example dictionary shape:
+
+```ts
+export const AssetDictionary = {
+  styles: {
+    cozy_wood: {
+      floor_token: "wooden_parquet",
+      floor_index: 12,
+      wall_straight: 45,
+      wall_corner: 46
+    }
+  },
+  items: {
+    large_conference_table: {
+      index: 201,
+      width: 3,
+      height: 2,
+      collidable: true,
+      license_status: "platform_licensed"
+    },
+    coffee_machine: {
+      index: 305,
+      width: 1,
+      height: 1,
+      collidable: true,
+      interaction_type: "ambient_object"
+    }
+  }
+}
+```
+
+Compiler flow:
+
+1. Receive user prompt.
+2. Call the model with structured output instructions and a compact asset
+   catalog.
+3. Validate the MDI against schema, tenant limits, and asset availability.
+4. Translate semantic tokens to asset dictionary entries.
+5. Generate normalized map layers, object records, zones, spawn candidates,
+   collision data, and semantic metadata.
+6. Run map validation.
+7. Store a draft `map_version`.
+8. Return a validation report and preview payload.
+9. Publish only after explicit permission checks and validation success.
+
+The client may render a preview from compiled output, but it must not send
+`update_map_collision` or equivalent authoritative collision changes. Collision,
+zones, and media policies are compiled and persisted by the backend.
+
+### 11.8 AI Map Prompt Contract
+
+AI map prompts should be wrapped by a server-owned system prompt with:
+
+- A strict compiler role: output valid JSON matching the MDI schema only.
+- An allowed asset catalog generated from the tenant/platform asset dictionary.
+- Design rules for walking space, table clearance, walls, doors, spawn safety,
+  accessibility, and logical zone placement.
+- Explicit refusal/repair behavior when the prompt cannot be satisfied within
+  the allowed tokens or tenant limits.
+
+The prompt should produce semantic layout intent. It should never produce:
+
+- Phaser scene code.
+- Tiled JSON.
+- SQL.
+- Media-room credentials.
+- Raw tile buffers.
+- Permission grants.
+
 ## 12. Tenant Customization Requirements
 
 Each tenant should eventually be able to customize the product without code
@@ -1367,6 +1495,7 @@ AI agents should:
 - Use stable object IDs.
 - Use semantic world metadata.
 - Avoid scraping the visual UI.
+- Generate maps through constrained MDI drafts rather than raw renderer output.
 
 AI agents should not:
 
@@ -1376,6 +1505,7 @@ AI agents should not:
 - Join meetings without policy permission.
 - Summarize meetings without explicit tenant approval.
 - Modify maps without high-risk permissions.
+- Publish AI-generated maps without validation and explicit permission checks.
 
 ### 20.2 AgentProfile
 
@@ -1444,6 +1574,8 @@ POST /api/agent-actions/create-room-reservation
 POST /api/agent-actions/find-user
 POST /api/agent-actions/summarize-space
 POST /api/agent-actions/trigger-workflow
+POST /api/agent-actions/generate-map-draft
+POST /api/agent-actions/validate-map-draft
 ```
 
 Each action should record:
@@ -1905,6 +2037,9 @@ Deliverables:
 - Agent permission model.
 - Full audit logging for agent actions.
 - Tool manifest.
+- AI map-generation draft API using the Map Definition Interface.
+- Asset dictionary exposure for allowed semantic map tokens.
+- MDI compiler and validation reports for generated maps.
 
 ### Phase 7: Enterprise Meeting Integrations
 

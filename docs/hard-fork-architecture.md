@@ -88,6 +88,43 @@ Client-side Phaser can predict movement and detect local proximity for user
 experience. It must not grant room, zone, chat, or media access. Those decisions
 remain server-side.
 
+## 1.2 AI Map Generation Strategy
+
+AI-generated maps must use a constrained semantic Map Definition Interface
+rather than raw Phaser code, Tiled JSON, binary arrays, or collision matrices.
+
+The AI generation boundary is:
+
+```text
+user prompt
+  -> structured model output as MDI JSON
+  -> backend MDI validation
+  -> asset dictionary token-to-index translation
+  -> normalized map layers, objects, zones, collisions, and semantic metadata
+  -> draft map_version
+  -> validation report
+  -> explicit publish action
+  -> Phaser client renders published compiled output
+```
+
+The model is a logical decorator. It can choose allowed semantic tokens such as
+`cozy_wood`, `large_conference_table`, or `meeting_private`, but it cannot mint
+new asset IDs, publish maps, create permissions, issue media credentials, or
+send authoritative collision updates.
+
+The asset dictionary is append-only and maps semantic tokens to:
+
+- Tileset or sprite indexes.
+- Object dimensions.
+- Collision metadata.
+- Interaction defaults.
+- License status.
+- AI-visible labels and descriptions.
+
+Zones produced by AI map generation become server-side zone records. Phaser may
+render or preview their bounds, but world-server/API/media-gateway policy decides
+whether a player can enter, chat, or join media there.
+
 ## 2. Movement Protocol
 
 Client sends intent:
