@@ -4,6 +4,12 @@ import {
 } from "./phaser-office-renderer"
 
 type Direction = "up" | "down" | "left" | "right"
+type MovementRejectedReason =
+  | "invalid_message"
+  | "collision"
+  | "speed_limit"
+  | "zone_permission"
+  | "unknown_player"
 
 interface Vector2 {
   readonly x: number
@@ -77,6 +83,14 @@ type ServerMessage =
       readonly recipientPlayerIds: readonly string[]
     }
   | {
+      readonly type: "movement_rejected"
+      readonly playerId: string
+      readonly reason: MovementRejectedReason
+      readonly x: number
+      readonly y: number
+      readonly seqAck: number
+    }
+  | {
       readonly reason?: string
     }
 
@@ -87,6 +101,7 @@ interface PlayerSnapshot {
   readonly x?: number
   readonly y?: number
   readonly direction?: Direction
+  readonly rejected?: boolean
 }
 
 interface AppState {
@@ -109,8 +124,22 @@ interface AppState {
   snapshotPlayerIds: string[]
   lastMediaRoom?: string
   lastChatBody?: string
+  lastMovementRejection?: {
+    readonly reason: MovementRejectedReason
+    readonly atMs: number
+  }
   pendingAction: Promise<void>
 }
+
+interface MovementInputState {
+  readonly pressedDirections: Direction[]
+  timerId?: number
+  inFlight: boolean
+  lastRequestedDirection?: Direction
+}
+
+const MOVE_REPEAT_MS = 250
+const MOVEMENT_REJECTION_FEEDBACK_MS = 1200
 
 const state: AppState = {
   sessionId: undefined,
@@ -132,7 +161,14 @@ const state: AppState = {
   snapshotPlayerIds: [],
   lastMediaRoom: undefined,
   lastChatBody: undefined,
+  lastMovementRejection: undefined,
   pendingAction: Promise.resolve(),
+}
+const movementInput: MovementInputState = {
+  pressedDirections: [],
+  timerId: undefined,
+  inFlight: false,
+  lastRequestedDirection: undefined,
 }
 
 const elements = {
@@ -152,7 +188,7 @@ elements.start.addEventListener("click", () => queueAction(() => startDemo()))
 elements.reset.addEventListener("click", () => queueAction(() => resetDemo()))
 document.querySelectorAll<HTMLButtonElement>("[data-direction]").forEach((button) => {
   button.addEventListener("click", () =>
-    queueAction(() => move(button.dataset.direction as Direction)),
+    requestMove(button.dataset.direction as Direction),
   )
 })
 elements.chatForm.addEventListener("submit", (event) => {
@@ -161,10 +197,22 @@ elements.chatForm.addEventListener("submit", (event) => {
 })
 document.addEventListener("keydown", (event) => {
   const direction = directionForKey(event.key)
-  if (!direction || event.repeat) return
+  if (!direction) return
 
   event.preventDefault()
-  queueAction(() => move(direction))
+  if (event.repeat) return
+
+  pressDirection(direction)
+})
+document.addEventListener("keyup", (event) => {
+  const direction = directionForKey(event.key)
+  if (!direction) return
+
+  event.preventDefault()
+  releaseDirection(direction)
+})
+window.addEventListener("blur", () => {
+  stopHeldMovement()
 })
 
 loadFixtureMap().catch((error: unknown) => {
@@ -347,6 +395,9 @@ async function resetDemo(): Promise<void> {
   state.snapshotPlayerIds = []
   state.lastMediaRoom = undefined
   state.lastChatBody = undefined
+  state.lastMovementRejection = undefined
+  state.players.clear()
+  stopHeldMovement()
   elements.sessionStatus.textContent = "idle"
   elements.worldStatus.textContent = "not joined"
   elements.mediaStatus.textContent = "not issued"
@@ -383,6 +434,57 @@ async function move(direction: Direction): Promise<void> {
   })
   state.seq += 1
   applyEvents(body.events ?? [])
+}
+
+function pressDirection(direction: Direction): void {
+  releaseDirection(direction)
+  movementInput.pressedDirections.push(direction)
+  startHeldMovement()
+  requestMove(direction)
+}
+
+function releaseDirection(direction: Direction): void {
+  const index = movementInput.pressedDirections.indexOf(direction)
+  if (index !== -1) {
+    movementInput.pressedDirections.splice(index, 1)
+  }
+
+  if (movementInput.pressedDirections.length === 0) {
+    stopHeldMovement()
+  }
+}
+
+function startHeldMovement(): void {
+  if (movementInput.timerId !== undefined) return
+
+  movementInput.timerId = window.setInterval(() => {
+    const direction = activeHeldDirection()
+    if (!direction) return
+    requestMove(direction)
+  }, MOVE_REPEAT_MS)
+}
+
+function stopHeldMovement(): void {
+  movementInput.pressedDirections.length = 0
+
+  if (movementInput.timerId !== undefined) {
+    window.clearInterval(movementInput.timerId)
+    movementInput.timerId = undefined
+  }
+}
+
+function activeHeldDirection(): Direction | undefined {
+  return movementInput.pressedDirections.at(-1)
+}
+
+function requestMove(direction: Direction): void {
+  if (!state.joined || movementInput.inFlight) return
+
+  movementInput.inFlight = true
+  movementInput.lastRequestedDirection = direction
+  void queueAction(() => move(direction)).finally(() => {
+    movementInput.inFlight = false
+  })
 }
 
 async function sendChat(body: string): Promise<void> {
@@ -450,6 +552,7 @@ function applyServerMessage(message: ServerMessage): void {
     if (message.playerId === state.playerId) {
       state.position = position
       state.direction = message.direction
+      state.lastMovementRejection = undefined
     }
 
     if (message.playerId === state.companion.playerId) {
@@ -464,6 +567,11 @@ function applyServerMessage(message: ServerMessage): void {
     })
     renderPlayers()
     log(`Moved ${message.direction} to ${Math.round(message.x)}, ${Math.round(message.y)}`)
+    return
+  }
+
+  if ("type" in message && message.type === "movement_rejected") {
+    applyMovementRejection(message)
     return
   }
 
@@ -501,11 +609,21 @@ function upsertRenderedPlayer(player: PlayerSnapshot): void {
     position,
     direction,
     local: player.playerId === state.playerId,
+    rejected: player.rejected,
   })
 }
 
 function renderPlayers(): void {
-  renderer.updatePlayers([...state.players.values()])
+  const players = [...state.players.values()]
+  renderer.updatePlayers(players)
+
+  players.forEach((player) => {
+    if (!player.rejected) return
+    state.players.set(player.playerId, {
+      ...player,
+      rejected: false,
+    })
+  })
 }
 
 function displayNameForPlayer(player: Pick<PlayerSnapshot, "playerId" | "userId">): string {
@@ -513,6 +631,74 @@ function displayNameForPlayer(player: Pick<PlayerSnapshot, "playerId" | "userId"
   if (player.playerId === state.companion.playerId) return "Demo Grace"
   if (player.userId) return titleCaseName(player.userId)
   return titleCaseName(player.playerId)
+}
+
+function applyMovementRejection(
+  message: Extract<ServerMessage, { type: "movement_rejected" }>,
+): void {
+  const position = { x: message.x, y: message.y }
+  const direction =
+    message.playerId === state.playerId
+      ? movementInput.lastRequestedDirection ?? state.direction
+      : message.playerId === state.companion.playerId
+        ? state.companion.direction
+        : "down"
+  const showFeedback = shouldShowMovementRejectionFeedback(message.reason)
+
+  if (message.playerId === state.playerId) {
+    state.position = position
+    state.direction = direction
+  }
+
+  if (message.playerId === state.companion.playerId) {
+    state.companion.position = position
+    state.companion.direction = direction
+  }
+
+  upsertRenderedPlayer({
+    playerId: message.playerId,
+    position,
+    direction,
+    rejected: showFeedback,
+  })
+  renderPlayers()
+
+  if (showFeedback) {
+    log(movementRejectionLabel(message.reason))
+  }
+}
+
+function shouldShowMovementRejectionFeedback(
+  reason: MovementRejectedReason,
+): boolean {
+  const nowMs = Date.now()
+  const previous = state.lastMovementRejection
+  const changedReason = previous?.reason !== reason
+  const outsideCooldown =
+    previous === undefined || nowMs - previous.atMs >= MOVEMENT_REJECTION_FEEDBACK_MS
+
+  if (!changedReason && !outsideCooldown) return false
+
+  state.lastMovementRejection = {
+    reason,
+    atMs: nowMs,
+  }
+  return true
+}
+
+function movementRejectionLabel(reason: MovementRejectedReason): string {
+  switch (reason) {
+    case "collision":
+      return "Movement blocked by wall or furniture"
+    case "zone_permission":
+      return "Movement blocked by zone permissions"
+    case "speed_limit":
+      return "Movement ignored to preserve server speed limit"
+    case "unknown_player":
+      return "Movement ignored because the player left the room"
+    case "invalid_message":
+      return "Movement ignored because the request was invalid"
+  }
 }
 
 function titleCaseName(value: string): string {
@@ -632,6 +818,11 @@ function renderDemoToText(): string {
       local: player.local,
     })),
     snapshotPlayerIds: state.snapshotPlayerIds,
+    movement: {
+      heldDirection: activeHeldDirection(),
+      inFlight: movementInput.inFlight,
+      lastRejectedReason: state.lastMovementRejection?.reason,
+    },
     map: state.fixtureMap
       ? {
           renderer: "phaser",

@@ -54,6 +54,7 @@ export interface RenderedPlayer {
   readonly position: Vector2
   readonly direction: Direction
   readonly local: boolean
+  readonly rejected?: boolean
 }
 
 const TILESET_KEY = "semantic-fixture-tiles"
@@ -336,6 +337,8 @@ class AvatarView {
   private readonly label: Phaser.GameObjects.Text
   private idleTween?: Phaser.Tweens.Tween
   private walkTween?: Phaser.Tweens.Tween
+  private positionTween?: Phaser.Tweens.Tween
+  private rejectionTween?: Phaser.Tweens.Tween
   private lastPosition: Vector2
   private lastDirection: Direction
   private local: boolean
@@ -395,14 +398,18 @@ class AvatarView {
     this.labelBack.setSize(this.label.width + 10, 15)
     this.labelBack.setStrokeStyle(1, player.local ? 0xc8493c : 0x2f6fc8, 0.65)
     this.torso.setFillStyle(player.local ? 0xc8493c : 0x2f6fc8, 1)
-    this.container.setPosition(player.position.x, player.position.y)
     this.container.setDepth(AVATAR_DEPTH_BASE + player.position.y)
     this.setFacing(player.direction)
 
     if (moved || identityChanged || player.direction !== this.lastDirection) {
+      this.interpolateTo(player.position)
       this.startWalkTween()
     } else if (!this.walkTween?.isPlaying()) {
       this.startIdleTween()
+    }
+
+    if (player.rejected) {
+      this.showRejected(player.direction)
     }
 
     this.lastPosition = player.position
@@ -412,7 +419,37 @@ class AvatarView {
   destroy(): void {
     this.idleTween?.stop()
     this.walkTween?.stop()
+    this.positionTween?.stop()
+    this.rejectionTween?.stop()
     this.container.destroy(true)
+  }
+
+  private interpolateTo(position: Vector2): void {
+    this.positionTween?.stop()
+    this.positionTween = this.scene.tweens.add({
+      targets: this.container,
+      x: position.x,
+      y: position.y,
+      duration: 135,
+      ease: "Sine.easeOut",
+    })
+  }
+
+  private showRejected(direction: Direction): void {
+    this.rejectionTween?.stop()
+    this.positionTween?.stop()
+    this.container.setPosition(this.lastPosition.x, this.lastPosition.y)
+    this.torso.setStrokeStyle(2, 0xffd166, 1)
+    this.rejectionTween = this.scene.tweens.add({
+      targets: this.container,
+      x: this.container.x + facingNudgeX(direction),
+      y: this.container.y + facingNudgeY(direction),
+      duration: 45,
+      yoyo: true,
+      repeat: 1,
+      ease: "Sine.easeOut",
+      onComplete: () => this.torso.setStrokeStyle(0, 0xffffff, 0),
+    })
   }
 
   private setFacing(direction: Direction): void {
@@ -461,6 +498,18 @@ class AvatarView {
       onComplete: () => this.startIdleTween(),
     })
   }
+}
+
+function facingNudgeX(direction: Direction): number {
+  if (direction === "left") return -4
+  if (direction === "right") return 4
+  return 0
+}
+
+function facingNudgeY(direction: Direction): number {
+  if (direction === "up") return -4
+  if (direction === "down") return 4
+  return 0
 }
 
 function drawSemanticTile(

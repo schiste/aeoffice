@@ -49,3 +49,16 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
 - Player rendering is now keyed by world player IDs instead of hard-coded local
   and companion slots. `/world/snapshot` drives local/remote avatar visibility,
   labels, facing direction, placeholder idle/walk tweens, and y-based z-order.
+- Movement input now supports held keyboard repeat paced to the authoritative
+  world tick; the browser still sends direction intents only, while Phaser
+  interpolates confirmed server positions for smoothness.
+- Wall/furniture collisions now surface as throttled, useful blocked-movement
+  feedback, and reset clears the rendered-player cache before reseeding the
+  local avatar.
+- Browser MCP verified the rebuilt `/app` bundle: holding right into furniture
+  stays at `112,64` with a collision rejection, holding down advances to
+  `112,112` and clears the rejection marker, reset removes the companion from
+  rendered players, and the browser console has no warnings or errors. The
+  bundled web-game client script could not run because `playwright` is not
+  installed in the skill/runtime path, so Playwright MCP was used for the
+  browser pass.
