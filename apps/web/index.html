@@ -48,6 +48,36 @@
           </div>
         </div>
 
+        <section class="generator-panel" aria-label="Room generator">
+          <form id="map-generator-form" class="generator-form">
+            <label for="map-prompt">Room prompt</label>
+            <input
+              id="map-prompt"
+              name="map-prompt"
+              autocomplete="off"
+              value="cozy 10-person meeting room with wooden walls and a coffee bar"
+            />
+            <button id="generate-map" type="submit">Generate room</button>
+          </form>
+          <div class="generator-result" aria-live="polite">
+            <strong id="map-generation-status">Fixture map loaded</strong>
+            <dl class="validation-strip">
+              <div>
+                <dt>Blocked</dt>
+                <dd id="validation-blocked">0</dd>
+              </div>
+              <div>
+                <dt>Spawns</dt>
+                <dd id="validation-spawns">0</dd>
+              </div>
+              <div>
+                <dt>Zones</dt>
+                <dd id="validation-zones">0</dd>
+              </div>
+            </dl>
+          </div>
+        </section>
+
         <div id="map" class="map" aria-label="Office map"></div>
 
         <div class="viewport-tools" aria-label="Camera controls">

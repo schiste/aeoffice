@@ -122,6 +122,33 @@ export interface CompiledSemanticMap {
   readonly referencedTokenIds: readonly string[]
 }
 
+export interface PromptMapSpawnPoint {
+  readonly id: "default" | "guest"
+  readonly position: {
+    readonly x: number
+    readonly y: number
+  }
+}
+
+export interface PromptMapValidation {
+  readonly valid: boolean
+  readonly errors: readonly string[]
+  readonly blockedTileCount: number
+  readonly spawnCount: number
+  readonly zoneCount: number
+  readonly spawnIds: readonly string[]
+  readonly zoneIds: readonly string[]
+}
+
+export interface DeterministicPromptMapResult {
+  readonly prompt: string
+  readonly keywords: readonly string[]
+  readonly definition: SemanticMapDefinition
+  readonly compiled: CompiledSemanticMap
+  readonly spawnPoints: readonly PromptMapSpawnPoint[]
+  readonly validation: PromptMapValidation
+}
+
 const LEGACY_SKYOFFICE_SOURCE = {
   status: "legacy_reference" as const,
   sourceUrl: "https://github.com/kevinshen56714/SkyOffice",
@@ -402,6 +429,283 @@ export function compileSemanticMapDefinition(
     blockedTiles,
     zones: definition.layers.zones ?? [],
     referencedTokenIds: [...referencedTokenIds],
+  }
+}
+
+export function compileDeterministicPromptMap(
+  prompt: string,
+  catalog: VisualAssetCatalog = starterVisualAssetCatalog,
+): DeterministicPromptMapResult {
+  const keywords = promptKeywords(prompt)
+  const definition = promptToSemanticMapDefinition(prompt, keywords)
+  const compiled = compileSemanticMapDefinition(definition, catalog)
+  const spawnPoints = promptMapSpawnPoints(compiled)
+  const validation = validatePromptMap(compiled, spawnPoints)
+
+  return {
+    prompt,
+    keywords,
+    definition,
+    compiled,
+    spawnPoints,
+    validation,
+  }
+}
+
+function promptToSemanticMapDefinition(
+  prompt: string,
+  keywords: readonly string[],
+): SemanticMapDefinition {
+  const seatCount = requestedSeatCount(prompt)
+  const width = keywords.includes("large") || seatCount >= 10 ? 14 : 12
+  const height = keywords.includes("large") || seatCount >= 10 ? 11 : 10
+  const tableX = Math.floor((width - 3) / 2)
+  const tableY = Math.floor((height - 2) / 2)
+  const meetingZone = {
+    id: "meeting-zone",
+    xStart: Math.max(2, tableX - 2),
+    yStart: Math.max(2, tableY - 2),
+    xEnd: Math.min(width - 1, tableX + 5),
+    yEnd: Math.min(height - 1, tableY + 4),
+    zoneType: "meeting_private" as const,
+  }
+
+  return {
+    roomDimensions: {
+      width,
+      height,
+    },
+    style: "cozy_wood",
+    layers: {
+      walls: perimeterWalls(width, height),
+      furniture: [
+        { x: tableX, y: tableY, item: "large_conference_table" },
+        ...chairPlacements(seatCount, tableX, tableY),
+        ...(keywords.includes("coffee")
+          ? [{ x: width - 3, y: 2, item: "coffee_machine" as const }]
+          : []),
+      ],
+      zones: [meetingZone],
+    },
+  }
+}
+
+function promptKeywords(prompt: string): readonly string[] {
+  const normalized = prompt.toLowerCase()
+  const keywords = new Set<string>()
+  const supportedKeywords = [
+    "cozy",
+    "wood",
+    "wooden",
+    "meeting",
+    "conference",
+    "coffee",
+    "bar",
+    "large",
+  ]
+
+  for (const keyword of supportedKeywords) {
+    if (normalized.includes(keyword)) keywords.add(keyword === "bar" ? "coffee" : keyword)
+  }
+
+  const seats = requestedSeatCount(prompt)
+  keywords.add(`${seats}-person`)
+
+  if (keywords.has("conference")) keywords.add("meeting")
+  if (keywords.has("wooden")) keywords.add("wood")
+
+  return [...keywords].sort()
+}
+
+function requestedSeatCount(prompt: string): number {
+  const normalized = prompt.toLowerCase()
+  const match = normalized.match(/(\d+)\s*-?\s*(?:person|people|seat|seats)/)
+  const requested = match ? Number(match[1]) : 6
+
+  if (!Number.isFinite(requested)) return 6
+  return Math.min(12, Math.max(2, Math.round(requested)))
+}
+
+function perimeterWalls(width: number, height: number): readonly SemanticWallPlacement[] {
+  const walls: SemanticWallPlacement[] = []
+
+  for (let x = 0; x < width; x += 1) {
+    walls.push({
+      x,
+      y: 0,
+      type: x === 0 || x === width - 1 ? "corner" : "straight",
+    })
+    walls.push({
+      x,
+      y: height - 1,
+      type: x === 0 || x === width - 1 ? "corner" : "straight",
+    })
+  }
+
+  for (let y = 1; y < height - 1; y += 1) {
+    walls.push({ x: 0, y, type: "straight" })
+    walls.push({ x: width - 1, y, type: "straight" })
+  }
+
+  return walls
+}
+
+function chairPlacements(
+  seatCount: number,
+  tableX: number,
+  tableY: number,
+): readonly SemanticFurniturePlacement[] {
+  const candidates: readonly SemanticFurniturePlacement[] = [
+    { x: tableX, y: tableY - 1, item: "office_chair", direction: "south" },
+    { x: tableX + 1, y: tableY - 1, item: "office_chair", direction: "south" },
+    { x: tableX + 2, y: tableY - 1, item: "office_chair", direction: "south" },
+    { x: tableX - 1, y: tableY - 1, item: "office_chair", direction: "south" },
+    { x: tableX + 3, y: tableY - 1, item: "office_chair", direction: "south" },
+    { x: tableX, y: tableY + 2, item: "office_chair", direction: "north" },
+    { x: tableX + 1, y: tableY + 2, item: "office_chair", direction: "north" },
+    { x: tableX + 2, y: tableY + 2, item: "office_chair", direction: "north" },
+    { x: tableX - 1, y: tableY + 2, item: "office_chair", direction: "north" },
+    { x: tableX + 3, y: tableY + 2, item: "office_chair", direction: "north" },
+    { x: tableX - 1, y: tableY, item: "office_chair", direction: "east" },
+    { x: tableX + 3, y: tableY, item: "office_chair", direction: "west" },
+  ]
+
+  return candidates.slice(0, seatCount)
+}
+
+function promptMapSpawnPoints(
+  compiled: CompiledSemanticMap,
+): readonly PromptMapSpawnPoint[] {
+  const meetingZone = compiled.zones.find(
+    (zone) => zone.zoneType === "meeting_private",
+  )
+  const preferredTiles = meetingZone
+    ? [
+        { x: meetingZone.xStart, y: meetingZone.yStart },
+        { x: meetingZone.xStart, y: meetingZone.yStart + 1 },
+        { x: meetingZone.xEnd - 1, y: meetingZone.yStart },
+        { x: meetingZone.xStart, y: meetingZone.yEnd - 1 },
+      ]
+    : [
+        { x: 2, y: 2 },
+        { x: 2, y: 3 },
+      ]
+  const defaultTile = firstFreeTile(compiled, preferredTiles) ?? { x: 1, y: 1 }
+  const guestTile =
+    firstFreeTile(
+      compiled,
+      preferredTiles.filter(
+        (tile) => tile.x !== defaultTile.x || tile.y !== defaultTile.y,
+      ),
+    ) ?? { x: defaultTile.x, y: defaultTile.y + 1 }
+
+  return [
+    tileSpawnPoint("default", defaultTile, compiled.tileSize),
+    tileSpawnPoint("guest", guestTile, compiled.tileSize),
+  ]
+}
+
+function firstFreeTile(
+  compiled: CompiledSemanticMap,
+  candidates: readonly { readonly x: number; readonly y: number }[],
+): { readonly x: number; readonly y: number } | undefined {
+  return candidates.find(
+    (tile) =>
+      tile.x >= 0 &&
+      tile.y >= 0 &&
+      tile.x < compiled.width &&
+      tile.y < compiled.height &&
+      !compiled.blockedTiles.some(
+        (blockedTile) => blockedTile.x === tile.x && blockedTile.y === tile.y,
+      ),
+  )
+}
+
+function tileSpawnPoint(
+  id: PromptMapSpawnPoint["id"],
+  tile: { readonly x: number; readonly y: number },
+  tileSize: number,
+): PromptMapSpawnPoint {
+  return {
+    id,
+    position: {
+      x: tile.x * tileSize,
+      y: tile.y * tileSize,
+    },
+  }
+}
+
+function validatePromptMap(
+  compiled: CompiledSemanticMap,
+  spawnPoints: readonly PromptMapSpawnPoint[],
+): PromptMapValidation {
+  const errors: string[] = []
+  const blockedTileKeys = new Set<string>()
+
+  for (const tile of compiled.blockedTiles) {
+    const key = `${tile.x}:${tile.y}`
+
+    if (blockedTileKeys.has(key)) errors.push(`Duplicate blocked tile ${key}.`)
+    blockedTileKeys.add(key)
+
+    if (
+      tile.x < 0 ||
+      tile.y < 0 ||
+      tile.x >= compiled.width ||
+      tile.y >= compiled.height
+    ) {
+      errors.push(`Blocked tile ${key} is outside the map.`)
+    }
+  }
+
+  for (const spawn of spawnPoints) {
+    const tile = {
+      x: Math.floor(spawn.position.x / compiled.tileSize),
+      y: Math.floor(spawn.position.y / compiled.tileSize),
+    }
+    const key = `${tile.x}:${tile.y}`
+
+    if (
+      tile.x < 0 ||
+      tile.y < 0 ||
+      tile.x >= compiled.width ||
+      tile.y >= compiled.height
+    ) {
+      errors.push(`Spawn ${spawn.id} is outside the map.`)
+    }
+
+    if (blockedTileKeys.has(key)) {
+      errors.push(`Spawn ${spawn.id} overlaps blocked tile ${key}.`)
+    }
+  }
+
+  for (const zone of compiled.zones) {
+    if (zone.xStart >= zone.xEnd || zone.yStart >= zone.yEnd) {
+      errors.push(`Zone ${zone.id} has invalid bounds.`)
+    }
+
+    if (
+      zone.xStart < 0 ||
+      zone.yStart < 0 ||
+      zone.xEnd > compiled.width ||
+      zone.yEnd > compiled.height
+    ) {
+      errors.push(`Zone ${zone.id} is outside the map.`)
+    }
+  }
+
+  if (compiled.blockedTiles.length === 0) errors.push("Generated map has no blocked tiles.")
+  if (spawnPoints.length === 0) errors.push("Generated map has no spawn points.")
+  if (compiled.zones.length === 0) errors.push("Generated map has no zones.")
+
+  return {
+    valid: errors.length === 0,
+    errors,
+    blockedTileCount: compiled.blockedTiles.length,
+    spawnCount: spawnPoints.length,
+    zoneCount: compiled.zones.length,
+    spawnIds: spawnPoints.map((spawn) => spawn.id),
+    zoneIds: compiled.zones.map((zone) => zone.id),
   }
 }
 

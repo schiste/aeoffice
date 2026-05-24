@@ -1,6 +1,7 @@
 const assert = require("node:assert")
 const {
   assertNoUnapprovedBundledAssets,
+  compileDeterministicPromptMap,
   compileSemanticMapDefinition,
   starterVisualAssetCatalog,
   validateVisualAssetCatalog,
@@ -73,6 +74,27 @@ assert.ok(
 assert.ok(
   compiled.referencedTokenIds.includes("item.large_conference_table"),
 )
+
+const generated = compileDeterministicPromptMap(
+  "cozy 10-person meeting room with wooden walls and a coffee bar",
+)
+
+assert.equal(generated.validation.valid, true)
+assert.equal(generated.definition.roomDimensions.width, 14)
+assert.equal(generated.definition.roomDimensions.height, 11)
+assert.equal(
+  generated.definition.layers.furniture.filter(
+    (item) => item.item === "office_chair",
+  ).length,
+  10,
+)
+assert.ok(generated.keywords.includes("10-person"))
+assert.ok(generated.keywords.includes("coffee"))
+assert.ok(generated.compiled.blockedTiles.length > compiled.blockedTiles.length)
+assert.deepEqual(generated.validation.spawnIds, ["default", "guest"])
+assert.deepEqual(generated.validation.zoneIds, ["meeting-zone"])
+assert.equal(generated.spawnPoints[0].position.x % generated.compiled.tileSize, 0)
+assert.equal(generated.spawnPoints[0].position.y % generated.compiled.tileSize, 0)
 
 assert.throws(
   () =>

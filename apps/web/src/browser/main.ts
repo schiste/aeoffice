@@ -3,6 +3,12 @@ import {
   type RenderedPlayer,
   type RendererViewportState,
 } from "./phaser-office-renderer"
+import {
+  compileDeterministicPromptMap,
+  starterVisualAssetCatalog,
+  type DeterministicPromptMapResult,
+  type PromptMapValidation,
+} from "@aedventure/asset-registry"
 
 type Direction = "up" | "down" | "left" | "right"
 type StatusState = "idle" | "pending" | "ready" | "blocked"
@@ -132,6 +138,7 @@ interface AppState {
   mediaSession?: MediaSession
   micEnabled: boolean
   cameraEnabled: boolean
+  mapGeneration: MapGenerationState
   lastMediaRoom?: string
   lastChatBody?: string
   lastMovementRejection?: {
@@ -152,6 +159,13 @@ interface ChatRecord {
   readonly id: string
   readonly body: string
   readonly recipientCount: number
+}
+
+interface MapGenerationState {
+  readonly source: "fixture" | "generated"
+  readonly prompt: string
+  readonly keywords: readonly string[]
+  readonly validation?: PromptMapValidation
 }
 
 type MediaTokenResponse =
@@ -186,6 +200,8 @@ const TOAST_TTL_MS = 7000
 const MAX_TOASTS = 3
 const MAX_CHAT_MESSAGES = 5
 const MAX_RECENT_EVENTS = 8
+const DEFAULT_MAP_PROMPT =
+  "cozy 10-person meeting room with wooden walls and a coffee bar"
 
 const state: AppState = {
   sessionId: undefined,
@@ -212,6 +228,12 @@ const state: AppState = {
   mediaSession: undefined,
   micEnabled: false,
   cameraEnabled: false,
+  mapGeneration: {
+    source: "fixture",
+    prompt: "fixture-map",
+    keywords: [],
+    validation: undefined,
+  },
   lastMediaRoom: undefined,
   lastChatBody: undefined,
   lastMovementRejection: undefined,
@@ -235,6 +257,13 @@ const elements = {
   sessionPill: mustQuery<HTMLElement>("#session-pill"),
   worldStatus: mustQuery<HTMLElement>("#world-status"),
   worldPill: mustQuery<HTMLElement>("#world-pill"),
+  mapGeneratorForm: mustQuery<HTMLFormElement>("#map-generator-form"),
+  mapPrompt: mustQuery<HTMLInputElement>("#map-prompt"),
+  generateMap: mustQuery<HTMLButtonElement>("#generate-map"),
+  mapGenerationStatus: mustQuery<HTMLElement>("#map-generation-status"),
+  validationBlocked: mustQuery<HTMLElement>("#validation-blocked"),
+  validationSpawns: mustQuery<HTMLElement>("#validation-spawns"),
+  validationZones: mustQuery<HTMLElement>("#validation-zones"),
   mediaStatus: mustQuery<HTMLElement>("#media-status"),
   mediaPill: mustQuery<HTMLElement>("#media-pill"),
   chatForm: mustQuery<HTMLFormElement>("#chat-form"),
@@ -263,6 +292,10 @@ const renderer = new PhaserOfficeRenderer(elements.map)
 
 elements.start.addEventListener("click", () => queueAction(() => startDemo()))
 elements.reset.addEventListener("click", () => queueAction(() => resetDemo()))
+elements.mapGeneratorForm.addEventListener("submit", (event) => {
+  event.preventDefault()
+  queueAction(() => generateMapFromPrompt())
+})
 elements.joinMeeting.addEventListener("click", () => queueAction(() => joinMeeting()))
 elements.leaveMeeting.addEventListener("click", () => queueAction(() => leaveMeeting()))
 elements.toggleMic.addEventListener("click", () => toggleMic())
@@ -315,6 +348,7 @@ loadFixtureMap().catch((error: unknown) => {
 renderViewportControls(renderer.getViewportState())
 renderMeetingControls()
 renderMediaPanel()
+renderMapGenerationResult()
 
 async function startDemo(): Promise<void> {
   elements.start.disabled = true
@@ -707,16 +741,96 @@ function leaveMeetingLocally(message: string): void {
 
 async function loadFixtureMap(): Promise<void> {
   const fixtureMap = await getJson<FixtureMap>("/dev/fixture-map")
+  applyFixtureMap(fixtureMap, {
+    source: "fixture",
+    prompt: "fixture-map",
+    keywords: [],
+    validation: validationFromFixtureMap(fixtureMap),
+  })
+  recordEvent(
+    `Loaded ${fixtureMap.definition.style} fixture map from ${fixtureMap.catalog.tokens.length} visual token(s)`,
+  )
+}
+
+async function generateMapFromPrompt(): Promise<void> {
+  const prompt = elements.mapPrompt.value.trim() || DEFAULT_MAP_PROMPT
+  elements.generateMap.disabled = true
+
+  try {
+    if (state.joined) {
+      await resetDemo()
+    }
+
+    const generated = compileDeterministicPromptMap(prompt)
+    const fixtureMap = fixtureMapFromGeneratedMap(generated)
+
+    applyFixtureMap(fixtureMap, {
+      source: "generated",
+      prompt,
+      keywords: generated.keywords,
+      validation: generated.validation,
+    })
+
+    if (!generated.validation.valid) {
+      publishToast(
+        generated.validation.errors[0] ?? "Generated map is invalid",
+        "warning",
+      )
+      return
+    }
+
+    publishToast("Generated room rendered", "success")
+  } finally {
+    elements.generateMap.disabled = false
+  }
+}
+
+function applyFixtureMap(
+  fixtureMap: FixtureMap,
+  mapGeneration: MapGenerationState,
+): void {
   state.fixtureMap = fixtureMap
+  state.mapGeneration = mapGeneration
   state.position = fixtureSpawnPosition(fixtureMap, "default")
   state.companion.position = fixtureSpawnPosition(fixtureMap, "guest")
   seedLocalRenderedPlayer()
   renderer.renderMap(fixtureMap)
   renderPlayers()
   updateActiveZoneFromPosition()
-  recordEvent(
-    `Loaded ${fixtureMap.definition.style} fixture map from ${fixtureMap.catalog.tokens.length} visual token(s)`,
-  )
+  renderMapGenerationResult()
+}
+
+function fixtureMapFromGeneratedMap(generated: DeterministicPromptMapResult): FixtureMap {
+  const referencedTokenIds = new Set(generated.compiled.referencedTokenIds)
+
+  return {
+    definition: generated.definition,
+    compiled: generated.compiled,
+    spawnPoints: generated.spawnPoints,
+    catalog: {
+      tokens: starterVisualAssetCatalog.tokens
+        .filter((token) => referencedTokenIds.has(token.id))
+        .map((token) => ({
+          id: token.id,
+          kind: token.kind,
+          provisionalGid: token.provisionalGid,
+          widthTiles: token.widthTiles,
+          heightTiles: token.heightTiles,
+        })),
+    },
+  }
+}
+
+function validationFromFixtureMap(fixtureMap: FixtureMap): PromptMapValidation {
+  return {
+    valid: true,
+    errors: [],
+    blockedTileCount: fixtureMap.compiled.blockedTiles.length,
+    spawnCount: fixtureMap.spawnPoints.length,
+    zoneCount: fixtureMap.compiled.zones.length,
+    spawnIds: fixtureMap.spawnPoints.map((spawn) => spawn.id),
+    zoneIds: fixtureMap.compiled.zones.map((zone) => zone.id),
+  }
 }
 
 function applyEvents(events: readonly WorldEvent[]): void {
@@ -893,6 +1007,24 @@ function renderViewportControls(viewport: RendererViewportState): void {
   elements.zoomReset.textContent = `${Math.round(viewport.zoomFactor * 100)}%`
 }
 
+function renderMapGenerationResult(): void {
+  const validation = state.mapGeneration.validation
+
+  elements.mapGenerationStatus.textContent =
+    state.mapGeneration.source === "generated"
+      ? validation?.valid
+        ? `Generated ${generationLabel(state.mapGeneration.keywords)}`
+        : "Generated map needs review"
+      : "Fixture map loaded"
+  elements.validationBlocked.textContent = String(validation?.blockedTileCount ?? 0)
+  elements.validationSpawns.textContent = validation?.valid
+    ? String(validation.spawnCount)
+    : "Check"
+  elements.validationZones.textContent = validation?.valid
+    ? String(validation.zoneCount)
+    : "Check"
+}
+
 function updateActiveZoneFromPosition(): void {
   const zone = state.fixtureMap
     ? zoneContainingPoint(
@@ -921,6 +1053,13 @@ function updateActiveZoneFromPosition(): void {
   }
 
   renderMeetingControls()
+}
+
+function generationLabel(keywords: readonly string[]): string {
+  const seats = keywords.find((keyword) => keyword.endsWith("-person")) ?? "meeting"
+  const roomType = keywords.includes("meeting") ? "meeting room" : "room"
+
+  return `${seats} ${roomType}`
 }
 
 function zoneContainingPoint(
@@ -1351,12 +1490,26 @@ function renderDemoToText(): string {
     map: state.fixtureMap
       ? {
           renderer: "phaser",
+          source: state.mapGeneration.source,
+          prompt: state.mapGeneration.prompt,
+          keywords: state.mapGeneration.keywords,
           style: state.fixtureMap.definition.style,
           width: state.fixtureMap.compiled.width,
           height: state.fixtureMap.compiled.height,
           tileSize: state.fixtureMap.compiled.tileSize,
           blockedTileCount: state.fixtureMap.compiled.blockedTiles.length,
           zones: state.fixtureMap.compiled.zones.map((zone) => zone.id),
+          validation: state.mapGeneration.validation
+            ? {
+                valid: state.mapGeneration.validation.valid,
+                errors: state.mapGeneration.validation.errors,
+                blockedTileCount: state.mapGeneration.validation.blockedTileCount,
+                spawnCount: state.mapGeneration.validation.spawnCount,
+                zoneCount: state.mapGeneration.validation.zoneCount,
+                spawnIds: state.mapGeneration.validation.spawnIds,
+                zoneIds: state.mapGeneration.validation.zoneIds,
+              }
+            : undefined,
         }
       : undefined,
     lastChatBody: state.lastChatBody,

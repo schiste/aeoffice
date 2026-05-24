@@ -103,3 +103,17 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   desktop `1280x900`, and mobile `390x760`; browser console warnings/errors
   stayed at zero. The standalone web-game client remains blocked by missing
   `playwright`.
+- Deterministic map generation demo is now wired. The asset registry owns
+  `compileDeterministicPromptMap()`, which maps prompt keywords such as
+  `10-person`, `cozy`, `wood`, and `coffee` into a semantic map definition,
+  compiles it into tile layers, and validates blocked tiles, spawn points, and
+  zones.
+- The browser now has a room prompt panel. The default prompt renders a generated
+  14x11 cozy meeting room with 10 seats, perimeter walls, coffee machine,
+  meeting zone, two spawns, and validation counters. Generating while joined
+  resets the local demo before applying the new map.
+- Playwright MCP verified default prompt generation, Phaser rendering,
+  machine-readable validation state, join-after-generation, reset-on-generate,
+  desktop `1280x900`, and mobile `390x760`; browser console warnings/errors
+  stayed at zero. The standalone web-game client remains blocked by missing
+  `playwright`.
