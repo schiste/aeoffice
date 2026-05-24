@@ -73,12 +73,14 @@ body {
 }
 
 button,
-input {
+input,
+textarea {
   font: inherit;
 }
 
 button,
 input,
+textarea,
 summary {
   outline: none;
 }
@@ -125,13 +127,15 @@ button:disabled {
 
 button:focus-visible,
 input:focus-visible,
+textarea:focus-visible,
 summary:focus-visible {
   box-shadow:
     0 0 0 2px var(--surface-main),
     0 0 0 4px var(--focus);
 }
 
-input {
+input,
+textarea {
   min-width: 0;
   min-height: var(--control-height);
   border: 1px solid var(--line);
@@ -141,7 +145,15 @@ input {
   padding: 0 var(--space-3);
 }
 
-input::placeholder {
+textarea {
+  min-height: 92px;
+  padding-block: 10px;
+  line-height: 1.35;
+  resize: vertical;
+}
+
+input::placeholder,
+textarea::placeholder {
   color: var(--ink-soft);
 }
 
@@ -424,6 +436,7 @@ h1 {
 
 .avatar-option,
 .map-switcher-button,
+.prompt-example-button,
 .device-actions button,
 .viewport-tools button {
   border-color: var(--line);
@@ -438,6 +451,7 @@ h1 {
 
 .avatar-option:hover:not(:disabled),
 .map-switcher-button:hover:not(:disabled),
+.prompt-example-button:hover:not(:disabled),
 .device-actions button:hover:not(:disabled),
 .viewport-tools button:hover:not(:disabled) {
   border-color: var(--accent);
@@ -485,15 +499,33 @@ h1 {
 }
 
 .map-switcher-button {
+  display: grid;
+  gap: 2px;
   justify-content: start;
   min-height: 38px;
   border-color: transparent;
   background: transparent;
   padding-inline: var(--space-3);
+  text-align: left;
 }
 
 .map-switcher-button[aria-pressed="true"] {
   box-shadow: inset 3px 0 0 rgba(255, 255, 255, 0.72);
+}
+
+.map-switcher-button small {
+  overflow: hidden;
+  color: currentColor;
+  font-size: 11px;
+  font-weight: 700;
+  opacity: 0.72;
+  text-overflow: ellipsis;
+}
+
+.map-switcher-button:disabled {
+  border-color: transparent;
+  background: transparent;
+  opacity: 0.56;
 }
 
 .generator-panel {
@@ -508,19 +540,74 @@ h1 {
   gap: var(--space-2);
 }
 
+.prompt-examples {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.prompt-example-button {
+  min-height: 32px;
+  padding-inline: 10px;
+  font-size: 12px;
+}
+
 .generator-result {
   display: grid;
   gap: var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: rgba(255, 253, 247, 0.7);
+  padding: var(--space-3);
 }
 
-.generator-result strong {
+.generator-result[data-state="ready"] {
+  border-color: rgba(47, 125, 83, 0.34);
+  background: var(--success-soft);
+}
+
+.generator-result[data-state="working"] {
+  border-color: rgba(166, 111, 25, 0.36);
+  background: var(--warning-soft);
+}
+
+.generator-result[data-state="review"] {
+  border-color: rgba(181, 71, 59, 0.32);
+  background: var(--danger-soft);
+}
+
+.generator-preview-header {
+  display: grid;
+  gap: 2px;
+}
+
+.generator-preview-header span {
+  color: var(--ink-soft);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.generator-preview-header strong {
   min-width: 0;
-  overflow: hidden;
   color: var(--ink);
   font-size: 14px;
   font-weight: 750;
   text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
+}
+
+.generator-preview-detail,
+.validation-summary {
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.validation-summary {
+  font-weight: 700;
 }
 
 .validation-strip {
@@ -559,6 +646,9 @@ h1 {
 
 .validation-strip dd {
   font-size: 13px;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
 }
 
 .workspace {

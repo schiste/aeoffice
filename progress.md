@@ -272,6 +272,23 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   script against the local app on `127.0.0.1:8787`, and full `npm run check`
   including the repository frontend smoke. The known large Phaser/Vite chunk
   warning remains non-blocking.
+- Map generation UX pass is now applied. The generator is presented as a
+  prompt-to-map product feature with textarea prompts, example prompt chips,
+  generated-room preview status, human validation feedback, and a clear
+  Generate/Regenerate flow.
+- The Generated room switcher no longer regenerates implicitly. It starts
+  disabled with "Create one first", becomes available after generation, and
+  reopens the saved generated room while presets can still be browsed without
+  losing the draft.
+- Regeneration visibly resets the local world through the existing map reload
+  lifecycle and keeps the deterministic compiler as the only map-generation
+  backend. No LLM integration has been added yet.
+- Browser QA verified disabled generated navigation, example prompt fill,
+  generation, saved generated-room reopening, regeneration after join, desktop
+  and mobile screenshots, and zero browser console errors. The repository
+  frontend smoke now asserts the same core generated-room UX path. Full
+  `npm run check` passed; the known large Phaser/Vite chunk warning remains
+  non-blocking.
 - Phaser world presentation pass is applied. Furniture now renders as
   generated object sprites with y-based depth instead of one flat object
   tilemap layer, so tables, couches, chairs, doors, plants, and players share a

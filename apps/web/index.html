@@ -69,42 +69,81 @@
               <button class="map-switcher-button" data-map-id="lounge_cafe" type="button">
                 Lounge/café
               </button>
-              <button class="map-switcher-button" data-map-id="generated" type="button">
-                Generated room
+              <button
+                class="map-switcher-button generated-map-button"
+                data-map-id="generated"
+                type="button"
+                disabled
+                aria-describedby="generated-map-availability"
+              >
+                <span>Generated room</span>
+                <small id="generated-map-availability">Create one first</small>
               </button>
             </section>
 
             <section class="generator-panel" aria-label="Room generator">
               <div class="panel-heading">
                 <span>Create</span>
-                <strong>Room draft</strong>
+                <strong>Prompt to map</strong>
               </div>
               <form id="map-generator-form" class="generator-form">
                 <label for="map-prompt">Room prompt</label>
-                <input
+                <textarea
                   id="map-prompt"
                   name="map-prompt"
                   autocomplete="off"
-                  value="cozy 10-person meeting room with wooden walls and a coffee bar"
-                />
+                  rows="3"
+                >cozy 10-person meeting room with wooden walls, plants, and a coffee bar</textarea>
+                <div class="prompt-examples" aria-label="Prompt examples">
+                  <button
+                    class="prompt-example-button"
+                    data-prompt-example="cozy 10-person meeting room with wooden walls, plants, and a coffee bar"
+                    type="button"
+                  >
+                    Cozy meeting
+                  </button>
+                  <button
+                    class="prompt-example-button"
+                    data-prompt-example="large 12-person conference room with a door and plants"
+                    type="button"
+                  >
+                    Large room
+                  </button>
+                  <button
+                    class="prompt-example-button"
+                    data-prompt-example="small lounge meeting room with couches, coffee bar, and plants"
+                    type="button"
+                  >
+                    Lounge room
+                  </button>
+                </div>
                 <button id="generate-map" type="submit">Generate room</button>
               </form>
-              <div class="generator-result" aria-live="polite">
-                <strong id="map-generation-status">Lobby loaded</strong>
+              <div id="generated-preview" class="generator-result" data-state="empty" aria-live="polite">
+                <div class="generator-preview-header">
+                  <span>Generated-room preview</span>
+                  <strong id="map-generation-status">No generated room yet</strong>
+                </div>
+                <p id="generated-preview-detail" class="generator-preview-detail">
+                  Pick an example or describe a room, then generate a playable map.
+                </p>
                 <dl class="validation-strip">
                   <div>
-                    <dt>Blocked</dt>
+                    <dt>Furniture + walls</dt>
                     <dd id="validation-blocked">0</dd>
                   </div>
                   <div>
-                    <dt>Spawns</dt>
+                    <dt>Entry spots</dt>
                     <dd id="validation-spawns">0</dd>
                   </div>
                   <div>
-                    <dt>Zones</dt>
+                    <dt>Call areas</dt>
                     <dd id="validation-zones">0</dd>
                   </div>
                 </dl>
+                <p id="validation-summary" class="validation-summary">
+                  Custom room checks will appear here.
+                </p>
               </div>
             </section>
 

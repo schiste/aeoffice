@@ -44,13 +44,34 @@ async function main() {
       await page.evaluate(() => typeof window.render_game_to_text),
       "function",
     )
+    const generatedMapButton = page.locator('[data-map-id="generated"]')
+    assert.equal(await generatedMapButton.isDisabled(), true)
+
+    await page.locator('[data-prompt-example*="large 12-person"]').click()
+    assert.match(await page.locator("#map-prompt").inputValue(), /12-person/)
+    await page.locator("#generate-map").click()
+    const generated = await waitForTextState(
+      page,
+      (state) =>
+        state.map?.activeMapId === "generated" &&
+        state.map.generatedAvailable === true &&
+        state.map.validation?.valid === true &&
+        /entry spots are clear/.test(state.map.validationSummary ?? ""),
+    )
+    assert.equal(
+      generated.map.availableMaps.find((map) => map.id === "generated").disabled,
+      false,
+    )
+    assert.equal(await generatedMapButton.isDisabled(), false)
 
     await page.locator('[data-map-id="meeting_room"]').click()
     await waitForTextState(
       page,
       (state) =>
         state.map?.activeMapId === "meeting_room" &&
-        state.lifecycle?.phase === "empty",
+        state.lifecycle?.phase === "empty" &&
+        state.map.generatedAvailable === true &&
+        state.map.generatedPreviewStatus === "Generated room saved",
     )
     await assertNonBlankMapScreenshot(page)
 

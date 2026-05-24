@@ -168,6 +168,7 @@ interface AppState {
   micEnabled: boolean
   cameraEnabled: boolean
   mapGeneration: MapGenerationState
+  generatedRoom?: GeneratedRoomState
   lastMediaRoom?: string
   lastChatBody?: string
   lastMovementRejection?: {
@@ -197,6 +198,11 @@ interface MapGenerationState {
   readonly prompt: string
   readonly keywords: readonly string[]
   readonly validation?: PromptMapValidation
+}
+
+interface GeneratedRoomState {
+  readonly fixtureMap: FixtureMap
+  readonly mapGeneration: MapGenerationState
 }
 
 type MediaTokenResponse =
@@ -232,7 +238,7 @@ const MAX_TOASTS = 3
 const MAX_CHAT_MESSAGES = 5
 const MAX_RECENT_EVENTS = 8
 const DEFAULT_MAP_PROMPT =
-  "cozy 10-person meeting room with wooden walls and a coffee bar"
+  "cozy 10-person meeting room with wooden walls, plants, and a coffee bar"
 const DEFAULT_DISPLAY_NAME = "Browser Ada"
 const DEFAULT_AVATAR_ID: AvatarId = "ember"
 const MOBILE_LAYOUT_QUERY = "(max-width: 760px)"
@@ -281,6 +287,7 @@ const state: AppState = {
     keywords: ["lobby"],
     validation: undefined,
   },
+  generatedRoom: undefined,
   lastMediaRoom: undefined,
   lastChatBody: undefined,
   lastMovementRejection: undefined,
@@ -313,13 +320,20 @@ const elements = {
   mapSwitcherButtons: [
     ...document.querySelectorAll<HTMLButtonElement>("[data-map-id]"),
   ],
+  promptExampleButtons: [
+    ...document.querySelectorAll<HTMLButtonElement>("[data-prompt-example]"),
+  ],
   mapGeneratorForm: mustQuery<HTMLFormElement>("#map-generator-form"),
-  mapPrompt: mustQuery<HTMLInputElement>("#map-prompt"),
+  mapPrompt: mustQuery<HTMLTextAreaElement>("#map-prompt"),
   generateMap: mustQuery<HTMLButtonElement>("#generate-map"),
+  generatedMapAvailability: mustQuery<HTMLElement>("#generated-map-availability"),
+  generatedPreview: mustQuery<HTMLElement>("#generated-preview"),
+  generatedPreviewDetail: mustQuery<HTMLElement>("#generated-preview-detail"),
   mapGenerationStatus: mustQuery<HTMLElement>("#map-generation-status"),
   validationBlocked: mustQuery<HTMLElement>("#validation-blocked"),
   validationSpawns: mustQuery<HTMLElement>("#validation-spawns"),
   validationZones: mustQuery<HTMLElement>("#validation-zones"),
+  validationSummary: mustQuery<HTMLElement>("#validation-summary"),
   mediaStatus: mustQuery<HTMLElement>("#media-status"),
   mediaPill: mustQuery<HTMLElement>("#media-pill"),
   chatForm: mustQuery<HTMLFormElement>("#chat-form"),
@@ -383,6 +397,14 @@ elements.mapSwitcherButtons.forEach((button) => {
   button.addEventListener("click", () =>
     queueAction(() => switchMap(button.dataset.mapId as MapSwitcherId)),
   )
+})
+elements.promptExampleButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    const prompt = button.dataset.promptExample
+    if (!prompt) return
+    elements.mapPrompt.value = prompt
+    elements.mapPrompt.focus()
+  })
 })
 elements.mapGeneratorForm.addEventListener("submit", (event) => {
   event.preventDefault()
@@ -932,7 +954,17 @@ function leaveMeetingLocally(message: string): void {
 
 async function switchMap(mapId: MapSwitcherId): Promise<void> {
   if (mapId === "generated") {
-    await generateMapFromPrompt()
+    if (!state.generatedRoom) {
+      publishToast("Generate a room before opening it", "info")
+      renderMapSwitcher()
+      return
+    }
+
+    await switchToFixtureMap(
+      state.generatedRoom.fixtureMap,
+      state.generatedRoom.mapGeneration,
+    )
+    publishToast("Opened generated room", "success")
     return
   }
 
@@ -963,19 +995,34 @@ async function switchToPresetMap(
 async function generateMapFromPrompt(): Promise<void> {
   const prompt = elements.mapPrompt.value.trim() || DEFAULT_MAP_PROMPT
   elements.generateMap.disabled = true
+  elements.generateMap.textContent = state.generatedRoom
+    ? "Regenerating..."
+    : "Generating..."
+  setGeneratorPreviewState(
+    "working",
+    state.generatedRoom ? "Regenerating room..." : "Generating room...",
+    "Compiling the prompt into a playable room and resetting the local world.",
+  )
+  setLifecycleStatus("map_reloading", "Generating room")
 
   try {
     const generated = compileDeterministicPromptMap(prompt)
     const fixtureMap = fixtureMapFromCompiledMap(generated)
-
-    await switchToFixtureMap(fixtureMap, {
-      source: "generated",
-      mapId: "generated",
+    const mapGeneration = {
+      source: "generated" as const,
+      mapId: "generated" as const,
       label: "Generated room",
       prompt,
       keywords: generated.keywords,
       validation: generated.validation,
-    })
+    }
+
+    state.generatedRoom = {
+      fixtureMap,
+      mapGeneration,
+    }
+
+    await switchToFixtureMap(fixtureMap, mapGeneration)
 
     if (!generated.validation.valid) {
       publishToast(
@@ -985,9 +1032,13 @@ async function generateMapFromPrompt(): Promise<void> {
       return
     }
 
-    publishToast("Generated room rendered", "success")
+    publishToast("Generated room ready", "success")
   } finally {
     elements.generateMap.disabled = false
+    elements.generateMap.textContent = state.generatedRoom
+      ? "Regenerate room"
+      : "Generate room"
+    renderMapSwitcher()
   }
 }
 
@@ -1267,9 +1318,21 @@ function renderMapSwitcher(): void {
   const activeMapId = state.mapGeneration.mapId
 
   elements.mapSwitcherButtons.forEach((button) => {
-    const pressed = button.dataset.mapId === activeMapId
+    const mapId = button.dataset.mapId as MapSwitcherId | undefined
+    const pressed = mapId === activeMapId
+    const generatedDisabled = mapId === "generated" && !state.generatedRoom
+
+    button.disabled = generatedDisabled
     button.setAttribute("aria-pressed", String(pressed))
+    button.setAttribute("aria-disabled", String(generatedDisabled))
   })
+
+  elements.generatedMapAvailability.textContent =
+    activeMapId === "generated"
+      ? "Current room"
+      : state.generatedRoom
+        ? "Ready to open"
+        : "Create one first"
 }
 
 function renderIdentityControls(): void {
@@ -1310,21 +1373,48 @@ function syncResponsiveToolSections(): void {
 }
 
 function renderMapGenerationResult(): void {
-  const validation = state.mapGeneration.validation
+  const activeGenerated = state.mapGeneration.source === "generated"
+  const previewMap = activeGenerated
+    ? state.mapGeneration
+    : state.generatedRoom?.mapGeneration
+  const validation = previewMap?.validation
 
-  elements.mapGenerationStatus.textContent =
-    state.mapGeneration.source === "generated"
-      ? validation?.valid
-        ? `Generated ${generationLabel(state.mapGeneration.keywords)}`
-        : "Generated map needs review"
-      : `${state.mapGeneration.label} loaded`
-  elements.validationBlocked.textContent = String(validation?.blockedTileCount ?? 0)
-  elements.validationSpawns.textContent = validation?.valid
-    ? String(validation.spawnCount)
+  if (!previewMap || !validation) {
+    setGeneratorPreviewState(
+      "empty",
+      "No generated room yet",
+      "Pick an example or describe a room, then generate a playable map.",
+    )
+    elements.validationBlocked.textContent = "0"
+    elements.validationSpawns.textContent = "0"
+    elements.validationZones.textContent = "0"
+    elements.validationSummary.textContent = "Custom room checks will appear here."
+    return
+  }
+
+  const previewState = validation.valid ? "ready" : "review"
+  const status = activeGenerated
+    ? validation.valid
+      ? `Generated ${generationLabel(previewMap.keywords)}`
+      : "Generated map needs review"
+    : previewMap
+      ? "Generated room saved"
+      : "No generated room yet"
+  const detail = activeGenerated
+    ? generatedRoomDetail(previewMap)
+    : previewMap
+      ? `Saved from: "${previewMap.prompt}"`
+      : "Pick an example or describe a room, then generate a playable map."
+
+  setGeneratorPreviewState(previewState, status, detail)
+  elements.validationBlocked.textContent = `${validation.blockedTileCount} tiles`
+  elements.validationSpawns.textContent = validation.valid
+    ? `${validation.spawnCount} ready`
     : "Check"
-  elements.validationZones.textContent = validation?.valid
-    ? String(validation.zoneCount)
+  elements.validationZones.textContent = validation.valid
+    ? `${validation.zoneCount} ready`
     : "Check"
+  elements.validationSummary.textContent = validationHumanSummary(validation)
 }
 
 function updateActiveZoneFromPosition(): void {
@@ -1355,6 +1445,57 @@ function updateActiveZoneFromPosition(): void {
   }
 
   renderMeetingControls()
+}
+
+function setGeneratorPreviewState(
+  stateName: "empty" | "working" | "ready" | "review",
+  status: string,
+  detail: string,
+): void {
+  elements.generatedPreview.dataset.state = stateName
+  elements.mapGenerationStatus.textContent = status
+  elements.generatedPreviewDetail.textContent = detail
+}
+
+function generatedRoomDetail(mapGeneration: MapGenerationState): string {
+  const features = generatedFeatureLabels(mapGeneration.keywords)
+
+  return `Prompt: "${mapGeneration.prompt}" - Features: ${features}`
+}
+
+function generatedFeatureLabels(keywords: readonly string[]): string {
+  const featureLabels: string[] = []
+  const hasKeyword = (keyword: string) => keywords.includes(keyword)
+
+  if (hasKeyword("cozy")) featureLabels.push("cozy")
+  if (hasKeyword("wood")) featureLabels.push("wood walls")
+  if (hasKeyword("coffee") && hasKeyword("bar")) {
+    featureLabels.push("coffee bar")
+  } else if (hasKeyword("coffee")) {
+    featureLabels.push("coffee")
+  }
+  if (hasKeyword("plant")) featureLabels.push("plants")
+  if (hasKeyword("couch")) featureLabels.push("couch")
+  if (hasKeyword("door")) featureLabels.push("door")
+
+  return featureLabels.length > 0 ? featureLabels.slice(0, 4).join(", ") : "workspace"
+}
+
+function validationHumanSummary(validation: PromptMapValidation): string {
+  if (!validation.valid) {
+    return `Needs review: ${validation.errors.join(" ")}`
+  }
+
+  const spawnCopy =
+    validation.spawnCount === 1
+      ? "1 entry spot is clear"
+      : `${validation.spawnCount} entry spots are clear`
+  const zoneCopy =
+    validation.zoneCount === 1
+      ? "1 call area is ready"
+      : `${validation.zoneCount} call areas are ready`
+
+  return `${spawnCopy}, ${zoneCopy}, and walls/furniture are blocking movement correctly.`
 }
 
 function generationLabel(keywords: readonly string[]): string {
@@ -1934,9 +2075,18 @@ function renderDemoToText(): string {
             ...presetMapSummaries.map((preset) => ({
               id: preset.id,
               label: preset.label,
+              disabled: false,
             })),
-            { id: "generated", label: "Generated room" },
+            {
+              id: "generated",
+              label: "Generated room",
+              disabled: !state.generatedRoom,
+            },
           ],
+          generatedAvailable: Boolean(state.generatedRoom),
+          generatedPreviewStatus: elements.mapGenerationStatus.textContent,
+          generatedPreviewDetail: elements.generatedPreviewDetail.textContent,
+          validationSummary: elements.validationSummary.textContent,
           prompt: state.mapGeneration.prompt,
           keywords: state.mapGeneration.keywords,
           style: state.fixtureMap.definition.style,
