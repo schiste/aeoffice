@@ -1,5 +1,8 @@
 # Phase 0 Hard-Fork Reset Plan
 
+The broader multi-phase execution plan lives in
+`docs/development-rollout-plan.md`.
+
 ## 1. Purpose
 
 Phase 0 is a hard-fork reset. It is not a feature sprint and it is not a design

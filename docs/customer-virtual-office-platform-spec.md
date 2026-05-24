@@ -1887,6 +1887,9 @@ Long-term targets:
 
 ## 30. Phase Plan
 
+The operational rollout companion for this phase plan is
+`docs/development-rollout-plan.md`.
+
 ### Phase 0: Hard-Fork Reset
 
 Purpose:

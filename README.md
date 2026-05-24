@@ -10,6 +10,7 @@ architecture before product feature work resumes.
 ## Canonical Documentation
 
 - [Global Product and Technical Specification](docs/customer-virtual-office-platform-spec.md)
+- [Development Rollout Plan](docs/development-rollout-plan.md)
 - [Phase 0 Refactor Plan](docs/phase-0-refactor-plan.md)
 - [SkyOffice Fork Maintenance](docs/skyoffice-fork-maintenance.md)
 - [Phase 0 Baseline Verification](docs/phase-0-baseline-verification.md)
