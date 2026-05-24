@@ -125,6 +125,9 @@ interface AppState {
   fixtureMap?: FixtureMap
   players: Map<string, RenderedPlayer>
   snapshotPlayerIds: string[]
+  activeZone?: FixtureZone
+  meetingJoined: boolean
+  meetingZoneId?: string
   lastMediaRoom?: string
   lastChatBody?: string
   lastMovementRejection?: {
@@ -146,6 +149,16 @@ interface ChatRecord {
   readonly body: string
   readonly recipientCount: number
 }
+
+type MediaTokenResponse =
+  | {
+      readonly status: "issued"
+      readonly room: string
+    }
+  | {
+      readonly status: "denied"
+      readonly reason?: string
+    }
 
 const MOVE_REPEAT_MS = 250
 const MOVEMENT_REJECTION_FEEDBACK_MS = 1200
@@ -172,6 +185,9 @@ const state: AppState = {
   fixtureMap: undefined,
   players: new Map(),
   snapshotPlayerIds: [],
+  activeZone: undefined,
+  meetingJoined: false,
+  meetingZoneId: undefined,
   lastMediaRoom: undefined,
   lastChatBody: undefined,
   lastMovementRejection: undefined,
@@ -202,6 +218,9 @@ const elements = {
   chatStatus: mustQuery<HTMLElement>("#chat-status"),
   chatMessages: mustQuery<HTMLOListElement>("#chat-messages"),
   toastRegion: mustQuery<HTMLElement>("#toast-region"),
+  meetingStatus: mustQuery<HTMLElement>("#meeting-status"),
+  joinMeeting: mustQuery<HTMLButtonElement>("#join-meeting"),
+  leaveMeeting: mustQuery<HTMLButtonElement>("#leave-meeting"),
   zoomOut: mustQuery<HTMLButtonElement>("#zoom-out"),
   zoomReset: mustQuery<HTMLButtonElement>("#zoom-reset"),
   zoomIn: mustQuery<HTMLButtonElement>("#zoom-in"),
@@ -210,6 +229,8 @@ const renderer = new PhaserOfficeRenderer(elements.map)
 
 elements.start.addEventListener("click", () => queueAction(() => startDemo()))
 elements.reset.addEventListener("click", () => queueAction(() => resetDemo()))
+elements.joinMeeting.addEventListener("click", () => queueAction(() => joinMeeting()))
+elements.leaveMeeting.addEventListener("click", () => queueAction(() => leaveMeeting()))
 document.querySelectorAll<HTMLButtonElement>("[data-direction]").forEach((button) => {
   button.addEventListener("click", () =>
     requestMove(button.dataset.direction as Direction),
@@ -256,6 +277,7 @@ loadFixtureMap().catch((error: unknown) => {
   renderPlayers()
 })
 renderViewportControls(renderer.getViewportState())
+renderMeetingControls()
 
 async function startDemo(): Promise<void> {
   elements.start.disabled = true
@@ -306,8 +328,8 @@ async function startDemo(): Promise<void> {
     await syncWorldSnapshot()
     await move("right")
     await sendChat(elements.chatBody.value)
-    await joinMedia()
     elements.start.textContent = "Demo running"
+    renderMeetingControls()
   } catch (error: unknown) {
     elements.start.textContent = "Join demo"
     setConnectionStatus(
@@ -419,6 +441,7 @@ function applyWorldSnapshot(players: readonly PlayerSnapshot[]): void {
   state.players.clear()
   players.forEach(upsertRenderedPlayer)
   renderPlayers()
+  updateActiveZoneFromPosition()
 }
 
 function playerSnapshotPosition(player: PlayerSnapshot): Vector2 {
@@ -446,6 +469,9 @@ async function resetDemo(): Promise<void> {
   state.companion.joined = false
   state.companion.direction = "down"
   state.snapshotPlayerIds = []
+  state.activeZone = undefined
+  state.meetingJoined = false
+  state.meetingZoneId = undefined
   state.lastMediaRoom = undefined
   state.lastChatBody = undefined
   state.lastMovementRejection = undefined
@@ -467,6 +493,7 @@ async function resetDemo(): Promise<void> {
 
   seedLocalRenderedPlayer()
   renderPlayers()
+  updateActiveZoneFromPosition()
   publishToast("Demo reset", "info")
 }
 
@@ -558,27 +585,69 @@ async function sendChat(body: string): Promise<void> {
   applyEvents(response.events ?? [])
 }
 
-async function joinMedia(): Promise<void> {
-  const media = await postJson<{
-    status: "issued" | "denied"
-    room?: string
-    reason?: string
-  }>("/media/media-token", {
-    playerId: state.playerId,
-    mode: "zone",
-    zoneId: "meeting-zone",
-    publish: true,
-    subscribe: true,
-  })
-
-  if (media.status === "issued" && media.room) {
-    setConnectionStatus("media", "ready", "Media ready")
-    state.lastMediaRoom = media.room
-    publishToast("Media ready", "success")
-  } else {
-    setConnectionStatus("media", "blocked", "Media denied")
-    publishToast(`Media denied: ${media.reason ?? "unknown"}`, "warning")
+async function joinMeeting(): Promise<void> {
+  if (!state.joined) {
+    publishToast("Join the world before starting meeting media", "warning")
+    return
   }
+
+  const zone = state.activeZone
+
+  if (!zone || !isMeetingZone(zone)) {
+    publishToast("Move into a meeting zone before joining media", "warning")
+    return
+  }
+
+  elements.joinMeeting.disabled = true
+  setConnectionStatus("media", "pending", "Requesting media")
+
+  try {
+    const media = await postMediaToken({
+      playerId: state.playerId,
+      mode: "zone",
+      zoneId: zone.id,
+      publish: true,
+      subscribe: true,
+    })
+
+    if (media.status === "issued") {
+      setConnectionStatus("media", "ready", "Media ready")
+      state.meetingJoined = true
+      state.meetingZoneId = zone.id
+      state.lastMediaRoom = media.room
+      publishToast(`Joined ${zoneDisplayName(zone)}`, "success")
+    } else {
+      setConnectionStatus("media", "blocked", "Media denied")
+      state.meetingJoined = false
+      state.meetingZoneId = undefined
+      state.lastMediaRoom = undefined
+      publishToast(`Media denied: ${media.reason ?? "unknown"}`, "warning")
+    }
+  } catch (error: unknown) {
+    setConnectionStatus("media", "blocked", "Media failed")
+    state.meetingJoined = false
+    state.meetingZoneId = undefined
+    state.lastMediaRoom = undefined
+    publishToast(
+      error instanceof Error ? error.message : "Unable to request meeting media",
+      "error",
+    )
+  } finally {
+    renderMeetingControls()
+  }
+}
+
+async function leaveMeeting(): Promise<void> {
+  leaveMeetingLocally("Left meeting")
+}
+
+function leaveMeetingLocally(message: string): void {
+  state.meetingJoined = false
+  state.meetingZoneId = undefined
+  state.lastMediaRoom = undefined
+  setConnectionStatus("media", "idle", "Not ready")
+  renderMeetingControls()
+  publishToast(message, "info")
 }
 
 async function loadFixtureMap(): Promise<void> {
@@ -589,6 +658,7 @@ async function loadFixtureMap(): Promise<void> {
   seedLocalRenderedPlayer()
   renderer.renderMap(fixtureMap)
   renderPlayers()
+  updateActiveZoneFromPosition()
   recordEvent(
     `Loaded ${fixtureMap.definition.style} fixture map from ${fixtureMap.catalog.tokens.length} visual token(s)`,
   )
@@ -603,8 +673,9 @@ function applyEvents(events: readonly WorldEvent[]): void {
 function applyServerMessage(message: ServerMessage): void {
   if ("type" in message && message.type === "player_state") {
     const position = { x: message.x, y: message.y }
+    const localPlayerMoved = message.playerId === state.playerId
 
-    if (message.playerId === state.playerId) {
+    if (localPlayerMoved) {
       state.position = position
       state.direction = message.direction
       state.lastMovementRejection = undefined
@@ -621,6 +692,9 @@ function applyServerMessage(message: ServerMessage): void {
       direction: message.direction,
     })
     renderPlayers()
+    if (localPlayerMoved) {
+      updateActiveZoneFromPosition()
+    }
     recordEvent(`Moved ${message.direction} to ${Math.round(message.x)}, ${Math.round(message.y)}`)
     return
   }
@@ -718,6 +792,9 @@ function applyMovementRejection(
     rejected: showFeedback,
   })
   renderPlayers()
+  if (message.playerId === state.playerId) {
+    updateActiveZoneFromPosition()
+  }
 
   if (showFeedback) {
     publishToast(movementRejectionLabel(message.reason), "warning")
@@ -759,6 +836,82 @@ function movementRejectionLabel(reason: MovementRejectedReason): string {
 
 function renderViewportControls(viewport: RendererViewportState): void {
   elements.zoomReset.textContent = `${Math.round(viewport.zoomFactor * 100)}%`
+}
+
+function updateActiveZoneFromPosition(): void {
+  const zone = state.fixtureMap
+    ? zoneContainingPoint(
+        state.fixtureMap.compiled.zones,
+        state.position,
+        state.fixtureMap.compiled.tileSize,
+      )
+    : undefined
+  const previousZoneId = state.activeZone?.id
+  const nextZoneId = zone?.id
+
+  state.activeZone = zone
+  renderer.setActiveZones(nextZoneId ? [nextZoneId] : [])
+
+  if (previousZoneId !== nextZoneId) {
+    if (zone) {
+      recordEvent(`Entered ${zoneDisplayName(zone)}`)
+    } else {
+      recordEvent("Left meeting zone")
+    }
+  }
+
+  if (state.meetingJoined && state.meetingZoneId !== nextZoneId) {
+    leaveMeetingLocally("Left meeting zone")
+    return
+  }
+
+  renderMeetingControls()
+}
+
+function zoneContainingPoint(
+  zones: readonly FixtureZone[],
+  position: Vector2,
+  tileSize: number,
+): FixtureZone | undefined {
+  return zones.find((zone) => {
+    const left = zone.xStart * tileSize
+    const top = zone.yStart * tileSize
+    const right = zone.xEnd * tileSize
+    const bottom = zone.yEnd * tileSize
+
+    return (
+      position.x >= left &&
+      position.x < right &&
+      position.y >= top &&
+      position.y < bottom
+    )
+  })
+}
+
+function renderMeetingControls(): void {
+  const zone = state.activeZone
+  const canJoinMeeting = state.joined && Boolean(zone && isMeetingZone(zone))
+
+  elements.meetingStatus.textContent = state.meetingJoined
+    ? `In ${meetingZoneLabel(state.meetingZoneId, zone)}`
+    : zone && isMeetingZone(zone)
+      ? `Inside ${zoneDisplayName(zone)}`
+      : "Outside meeting zone"
+  elements.joinMeeting.disabled = !canJoinMeeting || state.meetingJoined
+  elements.leaveMeeting.disabled = !state.meetingJoined
+}
+
+function isMeetingZone(zone: FixtureZone): boolean {
+  return zone.zoneType.includes("meeting")
+}
+
+function meetingZoneLabel(zoneId: string | undefined, currentZone: FixtureZone | undefined): string {
+  if (currentZone && currentZone.id === zoneId) return zoneDisplayName(currentZone)
+  return zoneId ? titleCaseName(zoneId) : "meeting"
+}
+
+function zoneDisplayName(zone: FixtureZone): string {
+  return titleCaseName(zone.id)
 }
 
 function setConnectionStatus(
@@ -898,6 +1051,37 @@ async function postJson<T = Record<string, unknown>>(
   return parsed as T
 }
 
+async function postMediaToken(body: Record<string, unknown>): Promise<MediaTokenResponse> {
+  const response = await fetch("/media/media-token", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+    },
+    body: JSON.stringify(body),
+  })
+  const parsed = (await response.json()) as { status?: string; reason?: string }
+
+  if (parsed.status === "denied") {
+    return {
+      status: "denied",
+      reason: parsed.reason,
+    }
+  }
+
+  if (!response.ok) {
+    throw new Error(parsed.reason ?? `HTTP ${response.status}`)
+  }
+
+  if (parsed.status === "issued" && typeof (parsed as { room?: unknown }).room === "string") {
+    return {
+      status: "issued",
+      room: (parsed as { room: string }).room,
+    }
+  }
+
+  throw new Error("Invalid media token response")
+}
+
 function queueAction(action: () => Promise<void>): Promise<void> {
   state.pendingAction = state.pendingAction
     .then(action)
@@ -971,6 +1155,15 @@ function renderDemoToText(): string {
       heldDirection: activeHeldDirection(),
       inFlight: movementInput.inFlight,
       lastRejectedReason: state.lastMovementRejection?.reason,
+    },
+    meeting: {
+      activeZoneId: state.activeZone?.id,
+      activeZoneType: state.activeZone?.zoneType,
+      status: elements.meetingStatus.textContent,
+      joined: state.meetingJoined,
+      zoneId: state.meetingZoneId,
+      joinDisabled: elements.joinMeeting.disabled,
+      leaveDisabled: elements.leaveMeeting.disabled,
     },
     viewport: renderer.getViewportState(),
     map: state.fixtureMap

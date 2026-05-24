@@ -78,3 +78,17 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   connected/joined/media-ready, reset clears chat and restores disconnected
   states, toasts render, no `#events` feed exists, and the browser console stayed
   clean. The standalone web-game client remains blocked by missing `playwright`.
+- Meeting-zone interactions now use the compiled map zones in the browser app:
+  the Phaser renderer highlights the active zone, the app exposes Join/Leave
+  meeting controls outside the canvas, and media is no longer auto-joined when
+  the demo starts.
+- The meeting join path still relies on the media gateway for permission. The
+  browser requests `/media/media-token` with the active zone ID, while the server
+  resolves the requester through the authoritative world participant directory
+  and can deny out-of-zone requests.
+- Playwright MCP verified desktop `1280x900` and mobile `390x760`: entering the
+  demo leaves media `Not ready`, Join meeting issues
+  `zone:room-lobby:meeting-zone`, Leave meeting clears local meeting state, and
+  walking out of the compiled zone auto-clears meeting media. Browser console
+  warnings/errors stayed at zero. The standalone web-game client still cannot
+  run because the skill runtime cannot resolve the `playwright` package.

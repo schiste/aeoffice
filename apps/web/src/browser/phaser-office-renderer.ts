@@ -89,6 +89,7 @@ export class PhaserOfficeRenderer {
   private readonly ready: Promise<OfficeScene>
   private readonly resizeObserver: ResizeObserver
   private zoomFactor = DEFAULT_ZOOM_FACTOR
+  private activeZoneIds: readonly string[] = []
   private players: readonly RenderedPlayer[] = [
     {
       playerId: "player-1",
@@ -135,6 +136,13 @@ export class PhaserOfficeRenderer {
     this.players = players
     void this.ready.then((scene) => {
       scene.updatePlayers(players)
+    })
+  }
+
+  setActiveZones(zoneIds: readonly string[]): void {
+    this.activeZoneIds = [...zoneIds]
+    void this.ready.then((scene) => {
+      scene.setActiveZones(this.activeZoneIds)
     })
   }
 
@@ -192,6 +200,9 @@ class OfficeScene extends Phaser.Scene {
   private readonly avatars = new Map<string, AvatarView>()
   private zoneGraphics?: Phaser.GameObjects.Graphics
   private activeMap?: Phaser.Tilemaps.Tilemap
+  private zones: readonly FixtureZone[] = []
+  private activeZoneIds = new Set<string>()
+  private tileSize = 32
   private viewportSize: Vector2 = {
     x: DEFAULT_VIEWPORT_WIDTH,
     y: DEFAULT_VIEWPORT_HEIGHT,
@@ -235,6 +246,9 @@ class OfficeScene extends Phaser.Scene {
     this.followingPlayerId = undefined
     this.cameras.main.stopFollow()
     this.children.removeAll(true)
+    this.zoneGraphics = undefined
+    this.zones = fixtureMap.compiled.zones
+    this.tileSize = tileSize
     this.activeMap = this.make.tilemap({
       tileWidth: tileSize,
       tileHeight: tileSize,
@@ -290,7 +304,7 @@ class OfficeScene extends Phaser.Scene {
       multiTileFillGids,
       20,
     )
-    this.renderZones(fixtureMap.compiled.zones, tileSize)
+    this.redrawZones()
     this.updatePlayers(players)
   }
 
@@ -333,6 +347,11 @@ class OfficeScene extends Phaser.Scene {
   setZoomFactor(zoomFactor: number): void {
     this.zoomFactor = clamp(zoomFactor, MIN_ZOOM_FACTOR, MAX_ZOOM_FACTOR)
     this.applyCameraZoom()
+  }
+
+  setActiveZones(zoneIds: readonly string[]): void {
+    this.activeZoneIds = new Set(zoneIds)
+    this.redrawZones()
   }
 
   getViewportState(): RendererViewportState {
@@ -453,21 +472,20 @@ class OfficeScene extends Phaser.Scene {
     })
   }
 
-  private renderZones(
-    zones: readonly FixtureZone[],
-    tileSize: number,
-  ): void {
+  private redrawZones(): void {
+    this.zoneGraphics?.destroy()
     this.zoneGraphics = this.add.graphics()
     this.zoneGraphics.setDepth(30)
-    zones.forEach((zone) => {
-      const x = zone.xStart * tileSize
-      const y = zone.yStart * tileSize
-      const width = (zone.xEnd - zone.xStart) * tileSize
-      const height = (zone.yEnd - zone.yStart) * tileSize
+    this.zones.forEach((zone) => {
+      const active = this.activeZoneIds.has(zone.id)
+      const x = zone.xStart * this.tileSize
+      const y = zone.yStart * this.tileSize
+      const width = (zone.xEnd - zone.xStart) * this.tileSize
+      const height = (zone.yEnd - zone.yStart) * this.tileSize
 
-      this.zoneGraphics?.fillStyle(0x2f7c83, 0.14)
+      this.zoneGraphics?.fillStyle(active ? 0x2f8f63 : 0x2f7c83, active ? 0.24 : 0.1)
       this.zoneGraphics?.fillRect(x, y, width, height)
-      this.zoneGraphics?.lineStyle(2, 0x2f7c83, 0.72)
+      this.zoneGraphics?.lineStyle(active ? 3 : 2, active ? 0x2f8f63 : 0x2f7c83, active ? 0.96 : 0.58)
       this.zoneGraphics?.strokeRect(x, y, width, height)
     })
   }
