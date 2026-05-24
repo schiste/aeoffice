@@ -13,9 +13,12 @@
     "check:target": "scripts/verify-target-stack.sh",
     "check:legacy": "SKIP_INSTALL=1 scripts/verify-skyoffice-baseline.sh",
     "build": "tsc -b && npm --workspace @aedventure/web run build:browser",
-    "dev:http": "node scripts/dev-http-host.cjs"
+    "dev:http": "node scripts/dev-http-host.cjs",
+    "smoke:frontend": "node scripts/frontend-smoke.test.cjs"
   },
   "devDependencies": {
+    "playwright": "^1.60.0",
+    "pngjs": "^7.0.0",
     "typescript": "^4.8.2",
     "vite": "^8.0.14"
   },

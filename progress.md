@@ -205,3 +205,17 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   collapsible Chat/Move expansion, and zero browser console warnings/errors.
   The standalone web-game client still cannot run because it cannot resolve the
   `playwright` package from the skill runtime.
+- Frontend smoke automation is now repo-owned through
+  `scripts/frontend-smoke.test.cjs` and `npm run smoke:frontend`. The smoke
+  boots the local dev HTTP host on an ephemeral loopback port, opens Chromium,
+  verifies `render_game_to_text`, captures a `#map` screenshot buffer, checks
+  that the map is nonblank, and exercises load -> map switch -> join ->
+  keyboard move -> chat -> media token -> reset -> rejoin.
+- `npm run check` now includes the browser frontend smoke after the Vite browser
+  bundle build, so local and CI verification cover the primary V1 browser flow.
+- Verification passed: `npm run smoke:frontend` and `npm run check`. In this
+  sandbox both commands require escalation because the smoke binds a local HTTP
+  server on `127.0.0.1`; that should not be an issue in normal local or CI
+  environments. The external standalone web-game client remains blocked because
+  it cannot resolve `playwright` from the skill runtime, but the repository now
+  has its own Playwright dependency and smoke runner.

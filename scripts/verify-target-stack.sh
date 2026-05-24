@@ -65,6 +65,9 @@ node "$ROOT_DIR/apps/web/test/adapters.test.js"
 echo "Building browser frontend bundle..."
 npm --workspace @aedventure/web run build:browser
 
+echo "Running browser frontend smoke..."
+npm run smoke:frontend
+
 echo "Running development HTTP host checks..."
 node "$ROOT_DIR/scripts/dev-http-host.test.cjs"
 node "$ROOT_DIR/scripts/dev-app-loop.test.cjs"
