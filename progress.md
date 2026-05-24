@@ -189,3 +189,19 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   flows, desktop and mobile layout inspection, and zero browser console
   warnings/errors. The standalone web-game client still cannot run because it
   cannot resolve the `playwright` package from the skill runtime.
+- Desktop/mobile layout polish is now applied. The app workspace renders the
+  Phaser canvas beside a right-side tools/chat rail on desktop, with Camera,
+  Chat, Meeting, and Media visible and the movement fallback kept collapsed so
+  it is not primary UX.
+- Mobile now visually prioritizes the canvas immediately after the header,
+  connection status, and room state. Tool/chat panels become collapsed
+  `<details>` sections below the canvas, with setup controls moved after the
+  canvas in the mobile visual order.
+- `render_game_to_text.layout` now exposes the active responsive mode and
+  collapsible section state for automated layout checks.
+- Verification passed: `npm --workspace @aedventure/web run build`,
+  `npm run check`, Playwright MCP desktop `1440x960` and mobile `390x760`
+  screenshots, desktop join/zoom/chat flows after the DOM move, mobile
+  collapsible Chat/Move expansion, and zero browser console warnings/errors.
+  The standalone web-game client still cannot run because it cannot resolve the
+  `playwright` package from the skill runtime.

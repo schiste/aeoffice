@@ -235,6 +235,7 @@ const DEFAULT_MAP_PROMPT =
   "cozy 10-person meeting room with wooden walls and a coffee bar"
 const DEFAULT_DISPLAY_NAME = "Browser Ada"
 const DEFAULT_AVATAR_ID: AvatarId = "ember"
+const MOBILE_LAYOUT_QUERY = "(max-width: 760px)"
 const avatarIds: readonly AvatarId[] = ["ember", "cobalt", "moss", "violet"]
 
 const state: AppState = {
@@ -343,8 +344,12 @@ const elements = {
   zoomOut: mustQuery<HTMLButtonElement>("#zoom-out"),
   zoomReset: mustQuery<HTMLButtonElement>("#zoom-reset"),
   zoomIn: mustQuery<HTMLButtonElement>("#zoom-in"),
+  mobileCollapsibleSections: [
+    ...document.querySelectorAll<HTMLDetailsElement>("[data-mobile-collapsible]"),
+  ],
 }
 const renderer = new PhaserOfficeRenderer(elements.map)
+const mobileLayoutQuery = window.matchMedia(MOBILE_LAYOUT_QUERY)
 
 elements.start.addEventListener("click", () => queueAction(() => startDemo()))
 elements.reset.addEventListener("click", () => queueAction(() => resetDemo()))
@@ -424,6 +429,7 @@ document.addEventListener("keyup", (event) => {
 window.addEventListener("blur", () => {
   stopHeldMovement()
 })
+mobileLayoutQuery.addEventListener("change", () => syncResponsiveToolSections())
 
 switchToPresetMap("lobby", { announce: false }).catch((error: unknown) => {
   publishToast(
@@ -439,6 +445,7 @@ renderMapGenerationResult()
 renderMapSwitcher()
 renderIdentityControls()
 renderLifecycleStatus()
+syncResponsiveToolSections()
 
 async function startDemo(): Promise<void> {
   elements.start.disabled = true
@@ -1294,6 +1301,14 @@ function renderLifecycleStatus(): void {
   elements.lifecycleStatus.textContent = state.lifecycle.message
 }
 
+function syncResponsiveToolSections(): void {
+  const mobile = mobileLayoutQuery.matches
+
+  elements.mobileCollapsibleSections.forEach((section) => {
+    section.open = !mobile && !section.classList.contains("compact-tool")
+  })
+}
+
 function renderMapGenerationResult(): void {
   const validation = state.mapGeneration.validation
 
@@ -1900,6 +1915,13 @@ function renderDemoToText(): string {
       micDisabled: elements.toggleMic.disabled,
       cameraDisabled: elements.toggleCamera.disabled,
       previewStatus: elements.previewStatus.textContent,
+    },
+    layout: {
+      mode: mobileLayoutQuery.matches ? "mobile" : "desktop",
+      collapsibleSections: elements.mobileCollapsibleSections.map((section) => ({
+        label: section.querySelector("summary")?.textContent?.trim() ?? "",
+        open: section.open,
+      })),
     },
     viewport: renderer.getViewportState(),
     map: state.fixtureMap

@@ -135,91 +135,122 @@
           </div>
         </section>
 
-        <div id="map" class="map" aria-label="Office map"></div>
+        <div class="workspace">
+          <section class="canvas-panel" aria-label="Office map workspace">
+            <div id="map" class="map" aria-label="Office map"></div>
+          </section>
 
-        <div class="viewport-tools" aria-label="Camera controls">
-          <button id="zoom-out" type="button" aria-label="Zoom out">−</button>
-          <button id="zoom-reset" class="zoom-reset" type="button" aria-label="Reset zoom">
-            115%
-          </button>
-          <button id="zoom-in" type="button" aria-label="Zoom in">+</button>
+          <aside class="side-panel" aria-label="Room tools and chat">
+            <details class="tool-section camera-tool" open data-mobile-collapsible>
+              <summary>Camera</summary>
+              <div class="viewport-tools" aria-label="Camera controls">
+                <button id="zoom-out" type="button" aria-label="Zoom out">−</button>
+                <button
+                  id="zoom-reset"
+                  class="zoom-reset"
+                  type="button"
+                  aria-label="Reset zoom"
+                >
+                  115%
+                </button>
+                <button id="zoom-in" type="button" aria-label="Zoom in">+</button>
+              </div>
+            </details>
+
+            <details class="tool-section meeting-tool" open data-mobile-collapsible>
+              <summary>Meeting</summary>
+              <section class="meeting-panel" aria-label="Meeting zone">
+                <div class="meeting-state">
+                  <span>Meeting zone</span>
+                  <strong id="meeting-status">Outside meeting zone</strong>
+                </div>
+                <div class="meeting-actions">
+                  <button id="join-meeting" type="button" disabled>Join meeting</button>
+                  <button id="leave-meeting" type="button" disabled>Leave meeting</button>
+                </div>
+              </section>
+            </details>
+
+            <details class="tool-section media-tool" open data-mobile-collapsible>
+              <summary>Media</summary>
+              <section
+                id="media-panel"
+                class="media-panel"
+                aria-label="Media session"
+                data-state="idle"
+              >
+                <div class="media-heading">
+                  <div class="media-state">
+                    <span>Media session</span>
+                    <strong id="media-panel-status">Not connected</strong>
+                  </div>
+                  <div class="device-actions">
+                    <button id="toggle-mic" type="button" aria-pressed="false" disabled>
+                      Mic off
+                    </button>
+                    <button id="toggle-camera" type="button" aria-pressed="false" disabled>
+                      Camera off
+                    </button>
+                  </div>
+                </div>
+                <div class="media-stage">
+                  <div id="local-preview" class="local-preview" data-camera="off">
+                    <span class="preview-avatar" aria-hidden="true">BA</span>
+                    <strong id="preview-status">No media session</strong>
+                  </div>
+                  <dl class="media-meta">
+                    <div>
+                      <dt>Room</dt>
+                      <dd id="media-room">None</dd>
+                    </div>
+                    <div>
+                      <dt>Endpoint</dt>
+                      <dd id="media-endpoint">None</dd>
+                    </div>
+                    <div>
+                      <dt>Participants</dt>
+                      <dd id="media-participants">0</dd>
+                    </div>
+                    <div>
+                      <dt>Token</dt>
+                      <dd id="media-token-status">Not issued</dd>
+                    </div>
+                  </dl>
+                </div>
+              </section>
+            </details>
+
+            <details class="tool-section compact-tool" data-mobile-collapsible>
+              <summary>Move</summary>
+              <div class="controls" aria-label="Movement controls">
+                <button data-direction="up" type="button">↑</button>
+                <button data-direction="left" type="button">←</button>
+                <button data-direction="right" type="button">→</button>
+                <button data-direction="down" type="button">↓</button>
+              </div>
+            </details>
+
+            <details class="tool-section chat-tool" open data-mobile-collapsible>
+              <summary>Chat</summary>
+              <section class="chat-panel" aria-label="Room chat">
+                <div class="chat-heading">
+                  <span>Room chat</span>
+                  <strong id="chat-status">No messages yet</strong>
+                </div>
+                <ol id="chat-messages" class="chat-messages" aria-live="polite"></ol>
+                <form id="chat-form" class="chat">
+                  <input
+                    id="chat-body"
+                    name="chat-body"
+                    autocomplete="off"
+                    value="Hello from the browser shell"
+                  />
+                  <button type="submit">Send</button>
+                </form>
+              </section>
+            </details>
+          </aside>
         </div>
-
-        <section class="meeting-panel" aria-label="Meeting zone">
-          <div class="meeting-state">
-            <span>Meeting zone</span>
-            <strong id="meeting-status">Outside meeting zone</strong>
-          </div>
-          <div class="meeting-actions">
-            <button id="join-meeting" type="button" disabled>Join meeting</button>
-            <button id="leave-meeting" type="button" disabled>Leave meeting</button>
-          </div>
-        </section>
-
-        <section id="media-panel" class="media-panel" aria-label="Media session" data-state="idle">
-          <div class="media-heading">
-            <div class="media-state">
-              <span>Media session</span>
-              <strong id="media-panel-status">Not connected</strong>
-            </div>
-            <div class="device-actions">
-              <button id="toggle-mic" type="button" aria-pressed="false" disabled>
-                Mic off
-              </button>
-              <button id="toggle-camera" type="button" aria-pressed="false" disabled>
-                Camera off
-              </button>
-            </div>
-          </div>
-          <div class="media-stage">
-            <div id="local-preview" class="local-preview" data-camera="off">
-              <span class="preview-avatar" aria-hidden="true">BA</span>
-              <strong id="preview-status">No media session</strong>
-            </div>
-            <dl class="media-meta">
-              <div>
-                <dt>Room</dt>
-                <dd id="media-room">None</dd>
-              </div>
-              <div>
-                <dt>Endpoint</dt>
-                <dd id="media-endpoint">None</dd>
-              </div>
-              <div>
-                <dt>Participants</dt>
-                <dd id="media-participants">0</dd>
-              </div>
-              <div>
-                <dt>Token</dt>
-                <dd id="media-token-status">Not issued</dd>
-              </div>
-            </dl>
-          </div>
-        </section>
-
-        <div class="controls" aria-label="Movement controls">
-          <button data-direction="up" type="button">↑</button>
-          <button data-direction="left" type="button">←</button>
-          <button data-direction="right" type="button">→</button>
-          <button data-direction="down" type="button">↓</button>
-        </div>
-
-        <section class="chat-panel" aria-label="Room chat">
-          <div class="chat-heading">
-            <span>Room chat</span>
-            <strong id="chat-status">No messages yet</strong>
-          </div>
-          <ol id="chat-messages" class="chat-messages" aria-live="polite"></ol>
-          <form id="chat-form" class="chat">
-            <input
-              id="chat-body"
-              name="chat-body"
-              autocomplete="off"
-              value="Hello from the browser shell"
-            />
-            <button type="submit">Send</button>
-          </form>
-        </section>
 
         <div id="toast-region" class="toast-region" aria-live="polite"></div>
       </section>
