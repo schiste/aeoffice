@@ -60,6 +60,7 @@ node "$ROOT_DIR/apps/web/test/adapters.test.js"
 
 echo "Running development HTTP host checks..."
 node "$ROOT_DIR/scripts/dev-http-host.test.cjs"
+node "$ROOT_DIR/scripts/dev-app-loop.test.cjs"
 
 "$ROOT_DIR/scripts/verify-infra-config.sh"
 

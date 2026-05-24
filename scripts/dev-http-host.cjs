@@ -40,23 +40,31 @@ function createNodeRequestHandler(fetchHandler) {
 }
 
 function createDevelopmentFetchHandler(env = process.env) {
+  return createDevelopmentRuntime({ env }).handler
+}
+
+function createDevelopmentRuntime(options = {}) {
   const api = require("../apps/api/dist/index.js")
   const media = require("../apps/media-gateway/dist/index.js")
   const worldServer = require("../apps/world-server/dist/index.js")
+  const env = options.env ?? process.env
   const resolvedEnv = developmentEnv(env)
   const apiRuntime = api.createApiRuntimeFromConfig({
     config: api.apiRuntimeConfigFromEnv(resolvedEnv),
     fetch: runtimeFetch,
+    clock: options.clock,
   })
   const worldRuntime = worldServer.createWorldGatewayRuntime({
     config: developmentWorldConfig(),
+    clock: options.clock,
   })
   const mediaRuntime = media.createMediaGatewayRuntime({
     config: media.mediaGatewayConfigFromEnv(resolvedEnv),
     participantDirectory: createWorldParticipantDirectory(worldRuntime.world),
+    clock: options.clock,
   })
 
-  return createPrefixedFetchHandler([
+  const handler = createPrefixedFetchHandler([
     {
       prefix: "/api",
       handler: api.createApiFetchHandler(apiRuntime),
@@ -70,6 +78,13 @@ function createDevelopmentFetchHandler(env = process.env) {
       handler: worldServer.createWorldFetchHandler(worldRuntime),
     },
   ])
+
+  return {
+    handler,
+    apiRuntime,
+    mediaRuntime,
+    worldRuntime,
+  }
 }
 
 function startDevelopmentServer(options = {}) {
@@ -268,6 +283,7 @@ if (require.main === module) {
 
 module.exports = {
   createDevelopmentFetchHandler,
+  createDevelopmentRuntime,
   createNodeRequestHandler,
   createPrefixedFetchHandler,
   jsonResponse,

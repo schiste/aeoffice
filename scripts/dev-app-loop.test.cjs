@@ -1,0 +1,155 @@
+const assert = require("node:assert")
+const {
+  createDevelopmentRuntime,
+} = require("./dev-http-host.cjs")
+const {
+  CustomerVirtualOfficeApp,
+  HttpAppApiClient,
+  HttpMediaGatewayClient,
+  HttpWorldTransport,
+  TransportWorldClient,
+} = require("../apps/web/dist/index.js")
+
+const nowMs = Date.parse("2026-05-23T10:00:00.000Z")
+
+async function main() {
+  const runtime = createDevelopmentRuntime({
+    clock: {
+      nowMs: () => nowMs,
+    },
+    env: {
+      AEDVENTURE_DEFAULT_ROLE_KEYS: "space:member",
+      AEDVENTURE_DEFAULT_PERMISSION_KEYS: [
+        "room:lobby:enter",
+        "chat:room:send",
+        "chat:room:receive",
+        "media:zone:join",
+        "media:zone:publish",
+        "media:zone:subscribe",
+      ].join(","),
+    },
+  })
+  const firstSignIn = await signIn(
+    runtime.apiRuntime.auth,
+    "wikimedia-user-1",
+    "Ada",
+  )
+  const secondSignIn = await signIn(
+    runtime.apiRuntime.auth,
+    "wikimedia-user-2",
+    "Grace",
+  )
+  const rendererEvents = []
+  const firstApp = appFor(runtime.handler, "client-1", rendererEvents)
+  const secondApp = appFor(runtime.handler, "client-2")
+
+  const entered = await firstApp.enterWorld({
+    sessionId: firstSignIn.session.id,
+    playerId: "player-1",
+    spawn: { x: 32, y: 32 },
+    roomId: "room-lobby",
+    nowMs,
+  })
+  await secondApp.enterWorld({
+    sessionId: secondSignIn.session.id,
+    playerId: "player-2",
+    spawn: { x: 64, y: 32 },
+    roomId: "room-lobby",
+    nowMs,
+  })
+
+  assert.equal(entered.playerId, "player-1")
+  assert.equal(firstApp.getState().joined, true)
+  assert.ok(firstApp.getState().worldToken.startsWith("unsigned-local."))
+
+  await firstApp.move("right", nowMs + 250)
+  assert.equal(firstApp.getState().players[0].x, 48)
+  assert.equal(firstApp.getState().players[0].y, 32)
+
+  await firstApp.sendChat("room", "Hello through dev host", nowMs + 500)
+  assert.equal(firstApp.getState().chatLog.length, 1)
+  assert.deepEqual(firstApp.getState().chatLog[0].recipientPlayerIds, [
+    "player-2",
+  ])
+
+  const media = await firstApp.joinMediaZone("meeting-zone", nowMs + 750)
+
+  assert.equal(media.status, "issued")
+  assert.equal(media.room, "zone:room-lobby:meeting-zone")
+  assert.equal(media.liveKitUrl, "ws://localhost:7880")
+  assert.deepEqual(media.participantPlayerIds, ["player-1", "player-2"])
+  assert.deepEqual(rendererEvents, [
+    ["entered", "player-1"],
+    ["updated", 48, 32],
+    ["chat", "Hello through dev host"],
+    ["media", "zone:room-lobby:meeting-zone"],
+  ])
+}
+
+function appFor(handler, clientId, rendererEvents = []) {
+  const fetch = fetchAgainst(handler)
+
+  return new CustomerVirtualOfficeApp({
+    api: new HttpAppApiClient({
+      baseUrl: "http://dev.local/api",
+      fetch,
+    }),
+    world: new TransportWorldClient(
+      new HttpWorldTransport({
+        baseUrl: "http://dev.local/world",
+        clientId,
+        fetch,
+      }),
+    ),
+    media: new HttpMediaGatewayClient({
+      baseUrl: "http://dev.local/media",
+      fetch,
+    }),
+    renderer: {
+      worldEntered: (player) => rendererEvents.push(["entered", player.playerId]),
+      playerUpdated: (player) =>
+        rendererEvents.push(["updated", player.x, player.y]),
+      chatDelivered: (message) => rendererEvents.push(["chat", message.body]),
+      mediaTokenIssued: (token) => rendererEvents.push(["media", token.room]),
+      rejected: (reason) => rendererEvents.push(["rejected", reason]),
+    },
+  })
+}
+
+function fetchAgainst(handler) {
+  return async (url, init) => {
+    const response = await handler(
+      new Request(url, {
+        method: init.method,
+        headers: init.headers,
+        body: init.body,
+      }),
+    )
+
+    return {
+      ok: response.ok,
+      status: response.status,
+      json: () => response.json(),
+    }
+  }
+}
+
+async function signIn(auth, subject, username) {
+  const result = await auth.signInWithWikimediaProfile(
+    {
+      sub: subject,
+      username,
+      blocked: false,
+      groups: [],
+    },
+    nowMs,
+  )
+
+  assert.equal(result.status, "signed_in")
+  return result
+}
+
+main().catch((error) => {
+  console.error(error)
+  process.exit(1)
+})

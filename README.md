@@ -106,6 +106,8 @@ This starts a dependency-free Node HTTP host for local smoke testing:
 - Media gateway routes are mounted under `/media`.
 - The host uses the same standard Fetch handlers covered by the target stack
   verification.
+- The target verification also runs a full local app-layer smoke flow across
+  `/api`, `/world`, and `/media`.
 
 Run the imported SkyOffice baseline verification with:
 
