@@ -102,7 +102,7 @@ npm run dev:http
 
 This starts a dependency-free Node HTTP host for local smoke testing:
 
-- Browser shell is served under `/app`.
+- Playable local browser demo is served under `/app`.
 - Local-only dev sign-in is mounted under `/dev/sign-in`.
 - Local fixture-map data is mounted under `/dev/fixture-map`.
 - API routes are mounted under `/api`.

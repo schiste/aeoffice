@@ -173,6 +173,10 @@ h1 {
   z-index: 8;
 }
 
+.companion {
+  background: #2f6fc8;
+}
+
 .controls {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

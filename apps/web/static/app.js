@@ -5,7 +5,16 @@ const state = {
   seq: 1,
   position: { x: 96, y: 64 },
   joined: false,
+  companion: {
+    playerId: "player-2",
+    clientId: `companion-${Math.floor(Math.random() * 100000)}`,
+    position: { x: 96, y: 96 },
+    joined: false,
+  },
   fixtureMap: undefined,
+  lastMediaRoom: undefined,
+  lastChatBody: undefined,
+  pendingAction: Promise.resolve(),
 }
 
 const elements = {
@@ -18,15 +27,25 @@ const elements = {
   events: document.querySelector("#events"),
   chatForm: document.querySelector("#chat-form"),
   chatBody: document.querySelector("#chat-body"),
+  companion: undefined,
 }
 
-elements.start.addEventListener("click", () => runSmokeLoop())
+elements.start.addEventListener("click", () => queueAction(() => startDemo()))
 document.querySelectorAll("[data-direction]").forEach((button) => {
-  button.addEventListener("click", () => move(button.dataset.direction))
+  button.addEventListener("click", () =>
+    queueAction(() => move(button.dataset.direction)),
+  )
 })
 elements.chatForm.addEventListener("submit", (event) => {
   event.preventDefault()
-  sendChat(elements.chatBody.value)
+  queueAction(() => sendChat(elements.chatBody.value))
+})
+document.addEventListener("keydown", (event) => {
+  const direction = directionForKey(event.key)
+  if (!direction || event.repeat) return
+
+  event.preventDefault()
+  queueAction(() => move(direction))
 })
 
 loadFixtureMap().catch((error) => {
@@ -34,28 +53,29 @@ loadFixtureMap().catch((error) => {
   renderPlayer()
 })
 
-async function runSmokeLoop() {
+async function startDemo() {
   elements.start.disabled = true
+  elements.start.textContent = "Joining..."
 
   try {
+    if (state.joined) {
+      elements.start.textContent = "Demo running"
+      log("Demo session already joined")
+      return
+    }
+
     if (!state.fixtureMap) {
       await loadFixtureMap()
     }
 
-    const session = await postJson("/dev/sign-in", {
-      subject: "wikimedia-browser-user",
-      username: "Browser Ada",
-    })
+    const session = await signInDevUser("wikimedia-browser-user", "Browser Ada")
     state.sessionId = session.sessionId
     elements.sessionStatus.textContent = "signed in"
     log(`Signed in as ${session.username}`)
 
-    const token = await postJson("/api/world-token", {
-      sessionId: state.sessionId,
-      roomId: "room-lobby",
-    })
+    const token = await issueWorldToken(state.sessionId)
 
-    const joined = await postJson("/world/join", {
+    const joined = await joinWorld({
       clientId: state.clientId,
       token: token.token,
       playerId: state.playerId,
@@ -69,16 +89,64 @@ async function runSmokeLoop() {
 
     state.joined = true
     elements.worldStatus.textContent = "joined room-lobby"
-    log("Joined the local world")
+    log("Joined the local world as Browser Ada")
 
+    await joinCompanion()
     await move("right")
-    await sendChat("Hello from the browser shell")
+    await sendChat(elements.chatBody.value)
     await joinMedia()
+    elements.start.textContent = "Demo running"
   } catch (error) {
+    elements.start.textContent = "Join demo"
     log(error instanceof Error ? error.message : "Unknown browser shell error")
   } finally {
-    elements.start.disabled = false
+    elements.start.disabled = state.joined
   }
+}
+
+async function signInDevUser(subject, username) {
+  return postJson("/dev/sign-in", {
+    subject,
+    username,
+  })
+}
+
+async function issueWorldToken(sessionId) {
+  return postJson("/api/world-token", {
+    sessionId,
+    roomId: "room-lobby",
+  })
+}
+
+async function joinWorld(input) {
+  return postJson("/world/join", input)
+}
+
+async function joinCompanion() {
+  const companionSession = await signInDevUser(
+    "wikimedia-browser-companion",
+    "Demo Grace",
+  )
+  const companionToken = await issueWorldToken(companionSession.sessionId)
+  const joined = await joinWorld({
+    clientId: state.companion.clientId,
+    token: companionToken.token,
+    playerId: state.companion.playerId,
+    spawn: state.companion.position,
+    roomId: "room-lobby",
+  })
+
+  if (joined.status !== "joined") {
+    throw new Error(`Companion admission failed: ${joined.reason}`)
+  }
+
+  state.companion.joined = true
+  state.companion.position = {
+    x: joined.player.position?.x ?? joined.player.x ?? state.companion.position.x,
+    y: joined.player.position?.y ?? joined.player.y ?? state.companion.position.y,
+  }
+  renderCompanion()
+  log("Added Demo Grace as a local companion")
 }
 
 async function move(direction) {
@@ -123,6 +191,7 @@ async function joinMedia() {
 
   if (media.status === "issued") {
     elements.mediaStatus.textContent = media.room
+    state.lastMediaRoom = media.room
     log(`Issued media token for ${media.room}`)
   } else {
     elements.mediaStatus.textContent = media.reason
@@ -134,6 +203,7 @@ async function loadFixtureMap() {
   const fixtureMap = await getJson("/dev/fixture-map")
   state.fixtureMap = fixtureMap
   state.position = fixtureSpawnPosition(fixtureMap, "default")
+  state.companion.position = fixtureSpawnPosition(fixtureMap, "guest")
   renderMap(fixtureMap)
   log(
     `Loaded ${fixtureMap.definition.style} fixture map from ${fixtureMap.catalog.tokens.length} visual token(s)`,
@@ -161,6 +231,7 @@ function renderMap(fixtureMap) {
   world.append(player)
   elements.map.append(world)
   renderPlayer()
+  renderCompanion()
 }
 
 function renderTileLayer(world, layer, tokensByGid, tileSize) {
@@ -218,6 +289,7 @@ function applyServerMessage(message) {
   }
 
   if (message.type === "chat_delivered") {
+    state.lastChatBody = message.body
     log(`Chat delivered to ${message.recipientPlayerIds.length} recipient(s)`)
     return
   }
@@ -235,6 +307,30 @@ function eventVisibleToClient(event) {
 function renderPlayer() {
   elements.player.style.left = `${state.position.x}px`
   elements.player.style.top = `${state.position.y}px`
+}
+
+function renderCompanion() {
+  const world = elements.map.querySelector(".tile-world")
+  if (!world) return
+
+  if (!state.companion.joined) {
+    elements.companion?.remove()
+    return
+  }
+
+  if (!elements.companion) {
+    elements.companion = document.createElement("div")
+    elements.companion.className = "player companion"
+    elements.companion.setAttribute("aria-label", "Demo companion")
+    elements.companion.title = "Demo Grace"
+  }
+
+  elements.companion.style.left = `${state.companion.position.x}px`
+  elements.companion.style.top = `${state.companion.position.y}px`
+
+  if (!elements.companion.parentElement) {
+    world.append(elements.companion)
+  }
 }
 
 function fixtureSpawnPosition(fixtureMap, spawnId) {
@@ -275,6 +371,77 @@ function log(message) {
   item.textContent = message
   elements.events.prepend(item)
 }
+
+function queueAction(action) {
+  state.pendingAction = state.pendingAction
+    .then(action)
+    .catch((error) => {
+      log(error instanceof Error ? error.message : "Unknown demo action error")
+    })
+  return state.pendingAction
+}
+
+function directionForKey(key) {
+  switch (key) {
+    case "ArrowUp":
+    case "w":
+    case "W":
+      return "up"
+    case "ArrowDown":
+    case "s":
+    case "S":
+      return "down"
+    case "ArrowLeft":
+    case "a":
+    case "A":
+      return "left"
+    case "ArrowRight":
+    case "d":
+    case "D":
+      return "right"
+    default:
+      return undefined
+  }
+}
+
+function renderDemoToText() {
+  return JSON.stringify({
+    coordinateSystem: "pixel origin top-left, x right, y down",
+    joined: state.joined,
+    sessionStatus: elements.sessionStatus.textContent,
+    worldStatus: elements.worldStatus.textContent,
+    mediaStatus: elements.mediaStatus.textContent,
+    player: {
+      id: state.playerId,
+      x: Math.round(state.position.x),
+      y: Math.round(state.position.y),
+    },
+    companion: {
+      id: state.companion.playerId,
+      joined: state.companion.joined,
+      x: Math.round(state.companion.position.x),
+      y: Math.round(state.companion.position.y),
+    },
+    map: state.fixtureMap
+      ? {
+          style: state.fixtureMap.definition.style,
+          width: state.fixtureMap.compiled.width,
+          height: state.fixtureMap.compiled.height,
+          tileSize: state.fixtureMap.compiled.tileSize,
+          blockedTileCount: state.fixtureMap.compiled.blockedTiles.length,
+          zones: state.fixtureMap.compiled.zones.map((zone) => zone.id),
+        }
+      : undefined,
+    lastChatBody: state.lastChatBody,
+    lastMediaRoom: state.lastMediaRoom,
+    recentEvents: [...elements.events.querySelectorAll("li")]
+      .slice(0, 6)
+      .map((item) => item.textContent),
+  })
+}
+
+window.render_game_to_text = renderDemoToText
+window.advanceTime = async () => state.pendingAction
 
 function labelForToken(tokenId) {
   if (tokenId.includes("conference_table")) return "TABLE"
