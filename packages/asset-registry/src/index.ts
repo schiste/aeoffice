@@ -161,10 +161,27 @@ const LEGACY_SKYOFFICE_SOURCE = {
     "Development reference only. Do not copy into target app bundles until legal review approves redistribution.",
 }
 
+const INTERNAL_PLACEHOLDER_SOURCE = {
+  status: "target_approved" as const,
+  filePath: "apps/web/src/browser/phaser-office-renderer.ts",
+  sourceUrl: "internal://aedventure/generated-placeholder-catalog/v1",
+  author: "Aedventure project",
+  license: "CC0-1.0",
+  redistributionAllowed: "yes" as const,
+  commercialUseAllowed: "yes" as const,
+  bundledInTargetApp: true,
+  notes:
+    "Project-owned placeholder visuals generated at runtime from semantic token metadata. Safe to bundle until final art is approved.",
+}
+
 export const starterVisualAssetCatalog: VisualAssetCatalog = {
   version: 1,
   tileSize: 32,
   sources: [
+    {
+      ...INTERNAL_PLACEHOLDER_SOURCE,
+      id: "internal.generated.office.placeholders",
+    },
     {
       ...LEGACY_SKYOFFICE_SOURCE,
       id: "legacy.skyoffice.tileset.modern_office",
@@ -184,6 +201,13 @@ export const starterVisualAssetCatalog: VisualAssetCatalog = {
   ],
   tilesets: [
     {
+      id: "tileset.internal.placeholder.office",
+      sourceId: "internal.generated.office.placeholders",
+      tileWidth: 32,
+      tileHeight: 32,
+      columns: 32,
+    },
+    {
       id: "tileset.modern_office.reference",
       sourceId: "legacy.skyoffice.tileset.modern_office",
       tileWidth: 32,
@@ -201,8 +225,8 @@ export const starterVisualAssetCatalog: VisualAssetCatalog = {
       id: "floor.wood_parquet",
       kind: "floor",
       layer: "floor",
-      sourceId: "legacy.skyoffice.tileset.modern_office",
-      tilesetId: "tileset.modern_office.reference",
+      sourceId: "internal.generated.office.placeholders",
+      tilesetId: "tileset.internal.placeholder.office",
       provisionalGid: 12,
       widthTiles: 1,
       heightTiles: 1,
@@ -210,11 +234,35 @@ export const starterVisualAssetCatalog: VisualAssetCatalog = {
       tags: ["cozy_wood", "office", "floor"],
     },
     {
+      id: "floor.polished_concrete",
+      kind: "floor",
+      layer: "floor",
+      sourceId: "internal.generated.office.placeholders",
+      tilesetId: "tileset.internal.placeholder.office",
+      provisionalGid: 13,
+      widthTiles: 1,
+      heightTiles: 1,
+      collidable: false,
+      tags: ["modern_light", "office", "floor"],
+    },
+    {
+      id: "floor.soft_carpet",
+      kind: "floor",
+      layer: "floor",
+      sourceId: "internal.generated.office.placeholders",
+      tilesetId: "tileset.internal.placeholder.office",
+      provisionalGid: 14,
+      widthTiles: 1,
+      heightTiles: 1,
+      collidable: false,
+      tags: ["quiet", "office", "floor"],
+    },
+    {
       id: "wall.wood.straight",
       kind: "wall",
       layer: "wall",
-      sourceId: "legacy.skyoffice.tileset.modern_office",
-      tilesetId: "tileset.modern_office.reference",
+      sourceId: "internal.generated.office.placeholders",
+      tilesetId: "tileset.internal.placeholder.office",
       provisionalGid: 45,
       widthTiles: 1,
       heightTiles: 1,
@@ -225,8 +273,8 @@ export const starterVisualAssetCatalog: VisualAssetCatalog = {
       id: "wall.wood.corner",
       kind: "wall",
       layer: "wall",
-      sourceId: "legacy.skyoffice.tileset.modern_office",
-      tilesetId: "tileset.modern_office.reference",
+      sourceId: "internal.generated.office.placeholders",
+      tilesetId: "tileset.internal.placeholder.office",
       provisionalGid: 46,
       widthTiles: 1,
       heightTiles: 1,
@@ -234,11 +282,35 @@ export const starterVisualAssetCatalog: VisualAssetCatalog = {
       tags: ["cozy_wood", "wall", "corner"],
     },
     {
+      id: "wall.glass.straight",
+      kind: "wall",
+      layer: "wall",
+      sourceId: "internal.generated.office.placeholders",
+      tilesetId: "tileset.internal.placeholder.office",
+      provisionalGid: 47,
+      widthTiles: 1,
+      heightTiles: 1,
+      collidable: true,
+      tags: ["modern_light", "wall", "glass"],
+    },
+    {
+      id: "wall.glass.corner",
+      kind: "wall",
+      layer: "wall",
+      sourceId: "internal.generated.office.placeholders",
+      tilesetId: "tileset.internal.placeholder.office",
+      provisionalGid: 48,
+      widthTiles: 1,
+      heightTiles: 1,
+      collidable: true,
+      tags: ["modern_light", "wall", "glass", "corner"],
+    },
+    {
       id: "item.large_conference_table",
       kind: "item",
       layer: "object",
-      sourceId: "legacy.skyoffice.tileset.modern_office",
-      tilesetId: "tileset.modern_office.reference",
+      sourceId: "internal.generated.office.placeholders",
+      tilesetId: "tileset.internal.placeholder.office",
       provisionalGid: 201,
       widthTiles: 3,
       heightTiles: 2,
@@ -246,11 +318,23 @@ export const starterVisualAssetCatalog: VisualAssetCatalog = {
       tags: ["meeting", "table", "office"],
     },
     {
+      id: "item.small_round_table",
+      kind: "item",
+      layer: "object",
+      sourceId: "internal.generated.office.placeholders",
+      tilesetId: "tileset.internal.placeholder.office",
+      provisionalGid: 202,
+      widthTiles: 2,
+      heightTiles: 2,
+      collidable: true,
+      tags: ["meeting", "table", "coffee", "office"],
+    },
+    {
       id: "item.office_chair",
       kind: "item",
       layer: "object",
-      sourceId: "legacy.skyoffice.tileset.modern_office",
-      tilesetId: "tileset.modern_office.reference",
+      sourceId: "internal.generated.office.placeholders",
+      tilesetId: "tileset.internal.placeholder.office",
       provisionalGid: 160,
       widthTiles: 1,
       heightTiles: 1,
@@ -261,13 +345,63 @@ export const starterVisualAssetCatalog: VisualAssetCatalog = {
       id: "item.coffee_machine",
       kind: "item",
       layer: "object",
-      sourceId: "legacy.skyoffice.tileset.generic",
-      tilesetId: "tileset.generic.reference",
+      sourceId: "internal.generated.office.placeholders",
+      tilesetId: "tileset.internal.placeholder.office",
       provisionalGid: 305,
       widthTiles: 1,
       heightTiles: 1,
       collidable: true,
       tags: ["kitchen", "coffee", "office"],
+    },
+    {
+      id: "item.plant_potted",
+      kind: "item",
+      layer: "object",
+      sourceId: "internal.generated.office.placeholders",
+      tilesetId: "tileset.internal.placeholder.office",
+      provisionalGid: 306,
+      widthTiles: 1,
+      heightTiles: 1,
+      collidable: true,
+      tags: ["decor", "plant", "office"],
+    },
+    {
+      id: "item.coffee_bar",
+      kind: "item",
+      layer: "object",
+      sourceId: "internal.generated.office.placeholders",
+      tilesetId: "tileset.internal.placeholder.office",
+      provisionalGid: 307,
+      widthTiles: 2,
+      heightTiles: 1,
+      collidable: true,
+      tags: ["kitchen", "coffee", "bar", "office"],
+    },
+    {
+      id: "item.door_single",
+      kind: "item",
+      layer: "object",
+      sourceId: "internal.generated.office.placeholders",
+      tilesetId: "tileset.internal.placeholder.office",
+      provisionalGid: 308,
+      widthTiles: 1,
+      heightTiles: 1,
+      collidable: false,
+      tags: ["door", "entry", "office"],
+      notes:
+        "Non-collidable placeholder token. Server collision still depends on wall openings in the compiled map.",
+    },
+    {
+      id: "avatar.local_placeholder",
+      kind: "avatar",
+      layer: "avatar",
+      sourceId: "internal.generated.office.placeholders",
+      tilesetId: "tileset.internal.placeholder.office",
+      provisionalGid: 2,
+      widthTiles: 1,
+      heightTiles: 1,
+      collidable: false,
+      tags: ["avatar", "placeholder"],
     },
     {
       id: "avatar.adam",
@@ -290,6 +424,24 @@ export const starterVisualAssetCatalog: VisualAssetCatalog = {
         corner: "wall.wood.corner",
       },
       tags: ["cozy", "wood", "office"],
+    },
+    {
+      id: "modern_light",
+      floorTokenId: "floor.polished_concrete",
+      wallTokenIds: {
+        straight: "wall.glass.straight",
+        corner: "wall.glass.corner",
+      },
+      tags: ["modern", "light", "office"],
+    },
+    {
+      id: "quiet_carpet",
+      floorTokenId: "floor.soft_carpet",
+      wallTokenIds: {
+        straight: "wall.wood.straight",
+        corner: "wall.wood.corner",
+      },
+      tags: ["quiet", "carpet", "office"],
     },
   ],
 }
@@ -482,7 +634,24 @@ function promptToSemanticMapDefinition(
         { x: tableX, y: tableY, item: "large_conference_table" },
         ...chairPlacements(seatCount, tableX, tableY),
         ...(keywords.includes("coffee")
-          ? [{ x: width - 3, y: 2, item: "coffee_machine" as const }]
+          ? [
+              {
+                x: width - (keywords.includes("bar") ? 4 : 3),
+                y: 2,
+                item: keywords.includes("bar")
+                  ? ("coffee_bar" as const)
+                  : ("coffee_machine" as const),
+              },
+            ]
+          : []),
+        ...(keywords.includes("plant")
+          ? [
+              { x: 2, y: 2, item: "plant_potted" as const },
+              { x: width - 3, y: height - 3, item: "plant_potted" as const },
+            ]
+          : []),
+        ...(keywords.includes("door")
+          ? [{ x: 0, y: Math.floor(height / 2), item: "door_single" as const }]
           : []),
       ],
       zones: [meetingZone],
@@ -501,11 +670,15 @@ function promptKeywords(prompt: string): readonly string[] {
     "conference",
     "coffee",
     "bar",
+    "plant",
+    "plants",
+    "door",
+    "doors",
     "large",
   ]
 
   for (const keyword of supportedKeywords) {
-    if (normalized.includes(keyword)) keywords.add(keyword === "bar" ? "coffee" : keyword)
+    if (normalized.includes(keyword)) keywords.add(keyword)
   }
 
   const seats = requestedSeatCount(prompt)
@@ -513,6 +686,9 @@ function promptKeywords(prompt: string): readonly string[] {
 
   if (keywords.has("conference")) keywords.add("meeting")
   if (keywords.has("wooden")) keywords.add("wood")
+  if (keywords.has("bar")) keywords.add("coffee")
+  if (keywords.has("plants")) keywords.add("plant")
+  if (keywords.has("doors")) keywords.add("door")
 
   return [...keywords].sort()
 }

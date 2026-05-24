@@ -26,11 +26,13 @@ Every target-app asset must be recorded with:
 
 ## Approved Target Assets
 
-No target-app assets have been approved yet.
+The first target asset source is generated placeholder art. It is not copied
+from SkyOffice, LimeZu, or another third-party sprite pack; the browser renderer
+draws a simple tileset at runtime from semantic token metadata.
 
 | Asset ID | File path | Source URL | Author | License | Attribution | Redistribution | Commercial | Modified | Notes |
 |---|---|---|---|---|---|---|---|---|---|
-| _none_ | _n/a_ | _n/a_ | _n/a_ | _n/a_ | _n/a_ | _n/a_ | _n/a_ | _n/a_ | Target app must not copy legacy assets until reviewed. |
+| `internal.generated.office.placeholders` | `apps/web/src/browser/phaser-office-renderer.ts` | `internal://aedventure/generated-placeholder-catalog/v1` | Aedventure project | CC0-1.0 | None | yes | yes | no | Runtime-generated placeholder floors, walls, tables, chairs, plants, coffee fixtures, doors, and avatars. |
 
 ## Development Reference Registry
 

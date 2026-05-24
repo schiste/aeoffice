@@ -109,7 +109,7 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   compiles it into tile layers, and validates blocked tiles, spawn points, and
   zones.
 - The browser now has a room prompt panel. The default prompt renders a generated
-  14x11 cozy meeting room with 10 seats, perimeter walls, coffee machine,
+  14x11 cozy meeting room with 10 seats, perimeter walls, a coffee bar, a
   meeting zone, two spawns, and validation counters. Generating while joined
   resets the local demo before applying the new map.
 - Playwright MCP verified default prompt generation, Phaser rendering,
@@ -117,3 +117,22 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   desktop `1280x900`, and mobile `390x760`; browser console warnings/errors
   stayed at zero. The standalone web-game client remains blocked by missing
   `playwright`.
+- The visual catalog now has a target-approved internal placeholder source,
+  `internal.generated.office.placeholders`, recorded as CC0 in the asset
+  manifest. Existing stable semantic IDs for floors, wood walls, conference
+  tables, chairs, and coffee machines now point to that source instead of
+  SkyOffice/LimeZu references.
+- Added stable placeholder vocabulary for polished concrete, carpet, glass
+  walls, small round tables, potted plants, coffee bars, single doors, and a
+  local placeholder avatar. SkyOffice/LimeZu sources remain in the registry as
+  reference-only metadata and are still not bundled into the target app.
+- The deterministic prompt compiler now understands `bar`, `plant(s)`, and
+  `door(s)`. The default coffee-bar prompt uses `item.coffee_bar`, and explicit
+  plant/door prompts render those tokens through Phaser placeholder visuals.
+- Verification passed: `npm --workspace @aedventure/asset-registry run build`,
+  `node packages/asset-registry/test/catalog.test.js`,
+  `npm --workspace @aedventure/web run build`, and `npm run check`. Playwright
+  MCP verified desktop `1280x900` and mobile `390x760` generated rooms with
+  plants, a door, and a coffee bar; browser console warnings/errors stayed at
+  zero. The standalone web-game client still cannot run because it cannot
+  resolve the `playwright` package from the skill runtime.

@@ -719,12 +719,89 @@ function drawSemanticTile(
   }
 
   if (token.kind === "item" && showLabel) {
-    context.fillStyle = "rgba(255, 247, 234, 0.92)"
-    context.font = "700 8px sans-serif"
-    context.textAlign = "center"
-    context.textBaseline = "middle"
-    context.fillText(labelForToken(token.id), x + tileSize / 2, y + tileSize / 2)
+    drawSemanticItem(context, token, x, y, tileSize)
   }
+}
+
+function drawSemanticItem(
+  context: CanvasRenderingContext2D,
+  token: FixtureToken,
+  x: number,
+  y: number,
+  tileSize: number,
+): void {
+  if (token.id.includes("plant")) {
+    context.fillStyle = "#6e4b35"
+    context.fillRect(x + 11, y + 19, 10, 7)
+    context.fillStyle = "#2f8f63"
+    context.beginPath()
+    context.arc(x + 16, y + 15, 8, 0, Math.PI * 2)
+    context.arc(x + 11, y + 14, 5, 0, Math.PI * 2)
+    context.arc(x + 21, y + 13, 5, 0, Math.PI * 2)
+    context.fill()
+    return
+  }
+
+  if (token.id.includes("door")) {
+    context.fillStyle = "#8a5637"
+    context.fillRect(x + 7, y + 4, 18, 24)
+    context.strokeStyle = "#563722"
+    context.strokeRect(x + 7.5, y + 4.5, 17, 23)
+    context.fillStyle = "#f0c86a"
+    context.beginPath()
+    context.arc(x + 21, y + 17, 2, 0, Math.PI * 2)
+    context.fill()
+    return
+  }
+
+  if (token.id.includes("coffee_bar")) {
+    context.fillStyle = "#5f4734"
+    context.fillRect(x + 3, y + 8, 26, 16)
+    context.fillStyle = "#d8c7ad"
+    context.fillRect(x + 5, y + 10, 22, 4)
+    context.fillStyle = "#ffffff"
+    context.fillRect(x + 9, y + 15, 5, 5)
+    context.fillRect(x + 18, y + 15, 5, 5)
+    drawItemLabel(context, "BAR", x, y, tileSize)
+    return
+  }
+
+  if (token.id.includes("coffee_machine")) {
+    context.fillStyle = "#4e5b60"
+    context.fillRect(x + 9, y + 7, 14, 18)
+    context.fillStyle = "#e7edf0"
+    context.fillRect(x + 12, y + 10, 8, 5)
+    context.fillStyle = "#2f8f63"
+    context.fillRect(x + 12, y + 17, 8, 4)
+    return
+  }
+
+  if (token.id.includes("chair")) {
+    context.fillStyle = "#6c4b32"
+    context.fillRect(x + 8, y + 9, 16, 12)
+    context.fillRect(x + 10, y + 21, 3, 5)
+    context.fillRect(x + 19, y + 21, 3, 5)
+    drawItemLabel(context, "SEAT", x, y, tileSize)
+    return
+  }
+
+  context.fillStyle = "rgba(255, 247, 234, 0.92)"
+  context.fillRect(x + 4, y + 7, tileSize - 8, tileSize - 14)
+  drawItemLabel(context, labelForToken(token.id), x, y, tileSize)
+}
+
+function drawItemLabel(
+  context: CanvasRenderingContext2D,
+  label: string,
+  x: number,
+  y: number,
+  tileSize: number,
+): void {
+  context.fillStyle = "rgba(23, 32, 38, 0.86)"
+  context.font = "700 8px sans-serif"
+  context.textAlign = "center"
+  context.textBaseline = "middle"
+  context.fillText(label, x + tileSize / 2, y + tileSize / 2)
 }
 
 function styleForToken(token: FixtureToken): {
@@ -732,14 +809,26 @@ function styleForToken(token: FixtureToken): {
   readonly stroke: string
 } {
   if (token.kind === "floor") {
+    if (token.id.includes("concrete")) {
+      return { fill: "#c9d2d6", stroke: "rgba(58, 74, 82, 0.24)" }
+    }
+    if (token.id.includes("carpet")) {
+      return { fill: "#9fb3a8", stroke: "rgba(47, 92, 73, 0.24)" }
+    }
     return { fill: "#d7b57c", stroke: "rgba(117, 79, 42, 0.25)" }
   }
 
   if (token.kind === "wall") {
+    if (token.id.includes("glass")) {
+      return { fill: "#9fcbd2", stroke: "#5d99a5" }
+    }
     return { fill: "#6f777b", stroke: "#555f63" }
   }
 
   if (token.kind === "item") {
+    if (token.id.includes("plant")) return { fill: "#d8e6d7", stroke: "#7ca279" }
+    if (token.id.includes("door")) return { fill: "#c79464", stroke: "#7b5538" }
+    if (token.id.includes("coffee")) return { fill: "#b98d62", stroke: "#75583e" }
     return { fill: "#8b5f3d", stroke: "#65462f" }
   }
 
@@ -748,7 +837,11 @@ function styleForToken(token: FixtureToken): {
 
 function labelForToken(tokenId: string): string {
   if (tokenId.includes("conference_table")) return "TABLE"
+  if (tokenId.includes("round_table")) return "TABLE"
   if (tokenId.includes("chair")) return "SEAT"
+  if (tokenId.includes("plant")) return "PLANT"
+  if (tokenId.includes("door")) return "DOOR"
+  if (tokenId.includes("coffee_bar")) return "BAR"
   if (tokenId.includes("coffee")) return "CAFE"
   return "ITEM"
 }
