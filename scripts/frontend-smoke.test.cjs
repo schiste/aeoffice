@@ -110,6 +110,13 @@ async function main() {
     assert.equal(joined.world.playerCount, joined.players.length)
     assert.deepEqual(joined.world.snapshotPlayerIds, joined.snapshotPlayerIds)
     assertRenderStateContract(joined)
+    assertRendererCapabilities(joined)
+
+    await page.setViewportSize({ width: 900, height: 700 })
+    await page.waitForTimeout(250)
+    await assertNonBlankMapScreenshot(page)
+    await page.setViewportSize({ width: 1280, height: 900 })
+    await page.waitForTimeout(250)
 
     const beforeMove = joined.player
     await page.keyboard.press("ArrowDown")
@@ -247,6 +254,8 @@ async function main() {
     )
     assert.equal(rejoined.lifecycle.phase, "joined")
     assert.equal(rejoined.lifecycle.stageOverlay.hidden, true)
+    assertRendererCapabilities(rejoined)
+    await assertNonBlankMapScreenshot(page)
 
     await page.evaluate(async (state) => {
       await fetch("/dev/world-geometry", {
@@ -287,6 +296,8 @@ async function main() {
     )
     assert.equal(recovered.lifecycle.stageOverlay.hidden, true)
     assertRenderStateContract(recovered)
+    assertRendererCapabilities(recovered)
+    await assertWebGLContextRecovery(page)
 
     assert.deepEqual(consoleErrors, [])
   } finally {
@@ -345,6 +356,41 @@ function assertRenderStateContract(state) {
   assert.equal(typeof state.media?.tokenIssued, "boolean")
   assert.equal(typeof state.meeting?.panelState, "string")
   assert.equal(typeof state.map?.renderer, "string")
+  assert.equal(typeof state.renderer?.requestedRenderer, "string")
+  assert.equal(typeof state.renderer?.actualRenderer, "string")
+  assert.equal(typeof state.renderer?.webgl?.available, "boolean")
+  assert.equal(typeof state.renderer?.rounding?.vertexRoundMode, "string")
+}
+
+function assertRendererCapabilities(state) {
+  assert.equal(state.renderer.requestedRenderer, "webgl")
+  assert.equal(state.renderer.actualRenderer, "webgl")
+  assert.equal(state.renderer.config.pixelArt, true)
+  assert.equal(state.renderer.config.smoothPixelArt, false)
+  assert.equal(state.renderer.config.antialias, false)
+  assert.equal(state.renderer.config.antialiasGL, false)
+  assert.equal(state.renderer.config.roundPixels, true)
+  assert.equal(state.renderer.config.powerPreference, "high-performance")
+  assert.equal(state.renderer.config.clearBeforeRender, true)
+  assert.equal(state.renderer.config.preserveDrawingBuffer, false)
+  assert.equal(state.renderer.rounding.globalRoundPixels, true)
+  assert.equal(state.renderer.rounding.cameraRoundPixels, true)
+  assert.equal(state.renderer.rounding.cameraFollowRoundsPixels, true)
+  assert.equal(state.renderer.rounding.vertexRoundMode, "safeAuto")
+  assert.equal(state.renderer.webgl.available, true)
+  assert.equal(state.renderer.webgl.contextLost, false)
+  assert.equal(state.renderer.webgl.recoveryReady, true)
+  assert.equal(typeof state.renderer.webgl.contextLossCount, "number")
+  assert.equal(typeof state.renderer.webgl.contextRestoreCount, "number")
+  assert.equal(typeof state.renderer.webgl.loseContextExtensionAvailable, "boolean")
+  assert.ok(
+    state.renderer.webgl.maxTextures >= 1,
+    `Expected WebGL texture units, got ${state.renderer.webgl.maxTextures}.`,
+  )
+  assert.ok(
+    state.renderer.webgl.maxTextureSize >= 1024,
+    `Expected useful WebGL max texture size, got ${state.renderer.webgl.maxTextureSize}.`,
+  )
 }
 
 async function assertMapSwitcherVisible(page) {
@@ -486,6 +532,87 @@ async function assertNonBlankMapScreenshot(page) {
     maxLuma - minLuma >= 24,
     `Expected visible map contrast, got ${maxLuma - minLuma}.`,
   )
+}
+
+async function assertWebGLContextRecovery(page) {
+  const before = await renderGameToText(page)
+  assertRendererCapabilities(before)
+  assert.equal(
+    before.renderer.webgl.loseContextExtensionAvailable,
+    true,
+    "Expected WEBGL_lose_context support in browser smoke.",
+  )
+
+  const browserContextResult = await page.evaluate(async () => {
+    const canvas = document.querySelector("#map canvas")
+    const gl =
+      canvas?.getContext("webgl") ||
+      canvas?.getContext("experimental-webgl")
+    const extension = gl?.getExtension("WEBGL_lose_context")
+
+    if (!canvas || !gl || !extension) {
+      return {
+        available: false,
+        lost: false,
+        restored: false,
+      }
+    }
+
+    return new Promise((resolve) => {
+      let lost = false
+      let restored = false
+      const timeout = window.setTimeout(() => {
+        resolve({
+          available: true,
+          lost,
+          restored,
+        })
+      }, 2500)
+
+      canvas.addEventListener(
+        "webglcontextlost",
+        () => {
+          lost = true
+          window.setTimeout(() => extension.restoreContext(), 60)
+        },
+        { once: true },
+      )
+      canvas.addEventListener(
+        "webglcontextrestored",
+        () => {
+          restored = true
+          window.clearTimeout(timeout)
+          resolve({
+            available: true,
+            lost,
+            restored,
+          })
+        },
+        { once: true },
+      )
+
+      extension.loseContext()
+    })
+  })
+
+  assert.deepEqual(browserContextResult, {
+    available: true,
+    lost: true,
+    restored: true,
+  })
+
+  const restored = await waitForTextState(
+    page,
+    (state) =>
+      state.renderer.webgl.contextLossCount > before.renderer.webgl.contextLossCount &&
+      state.renderer.webgl.contextRestoreCount >
+        before.renderer.webgl.contextRestoreCount &&
+      state.renderer.webgl.contextLost === false &&
+      state.renderer.webgl.recoveryReady === true,
+    9000,
+  )
+  assertRendererCapabilities(restored)
+  await assertNonBlankMapScreenshot(page)
 }
 
 main().catch((error) => {

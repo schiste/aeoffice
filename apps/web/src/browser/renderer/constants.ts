@@ -20,6 +20,29 @@ export const FURNITURE_DEPTH_BASE = 900
 export const ZONE_DEPTH = 760
 export const ZONE_LABEL_DEPTH = 765
 export const OBJECT_TEXTURE_PREFIX = "semantic-fixture-object"
+export const RENDERER_VERTEX_ROUND_MODE = "safeAuto" as const
+
+export const PHASER_RENDERER_CONFIG = {
+  requestedRenderer: "webgl",
+  pixelArt: true,
+  smoothPixelArt: false,
+  antialias: false,
+  antialiasGL: false,
+  roundPixels: true,
+  powerPreference: "high-performance",
+  transparent: false,
+  clearBeforeRender: true,
+  preserveDrawingBuffer: false,
+  premultipliedAlpha: true,
+  failIfMajorPerformanceCaveat: false,
+} as const
+
+export const RENDERER_ROUNDING_DECISIONS = {
+  globalRoundPixels: PHASER_RENDERER_CONFIG.roundPixels,
+  cameraRoundPixels: true,
+  cameraFollowRoundsPixels: true,
+  vertexRoundMode: RENDERER_VERTEX_ROUND_MODE,
+} as const
 
 export const DEFAULT_RENDERED_PLAYERS: readonly RenderedPlayer[] = [
   {

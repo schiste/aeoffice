@@ -139,6 +139,10 @@ export class OfficeScene extends Phaser.Scene {
     return this.cameraController.getViewportState()
   }
 
+  getCameraRoundPixels(): boolean {
+    return this.cameraController.getCameraRoundPixels()
+  }
+
   getTelemetrySnapshot(): RendererTelemetrySnapshot | undefined {
     return this.telemetry.getSnapshot()
   }

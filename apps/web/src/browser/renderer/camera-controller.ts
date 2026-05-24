@@ -34,6 +34,8 @@ export class CameraController {
   markReady(): void {
     this.cameraReady = true
     this.scene.cameras.main.setBackgroundColor("#e7edf0")
+    // The world uses 32px semantic tiles and generated pixel-art textures. Keep
+    // camera rounding enabled so WebGL sampling stays aligned during follow/zoom.
     this.scene.cameras.main.roundPixels = true
     this.scene.cameras.main.setSize(this.viewportSize.x, this.viewportSize.y)
     this.applyCameraZoom()
@@ -101,6 +103,10 @@ export class CameraController {
       scrollY: Math.round(camera?.scrollY ?? 0),
       followingPlayerId: this.followingPlayerId,
     }
+  }
+
+  getCameraRoundPixels(): boolean {
+    return this.scene.cameras.main.roundPixels
   }
 
   private applyCameraZoom(): void {

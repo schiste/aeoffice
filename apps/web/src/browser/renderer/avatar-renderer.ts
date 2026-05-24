@@ -1,6 +1,10 @@
 import Phaser from "phaser"
 
-import { AVATAR_HEIGHT, AVATAR_WIDTH } from "./constants"
+import {
+  AVATAR_HEIGHT,
+  AVATAR_WIDTH,
+  RENDERER_VERTEX_ROUND_MODE,
+} from "./constants"
 import { avatarDepth } from "./depth"
 import { clamp } from "./math"
 import type { Direction, RenderedPlayer, Vector2 } from "./types"
@@ -133,6 +137,7 @@ class AvatarView {
     this.focusTarget = scene.add.container(player.position.x, player.position.y)
     this.cameraTarget = scene.add.zone(player.position.x, player.position.y, 2, 2)
     this.focusTarget.setName(`avatar:${player.playerId}`)
+    this.focusTarget.setVertexRoundMode(RENDERER_VERTEX_ROUND_MODE)
     this.cameraTarget.setName(`camera-anchor:${player.playerId}`)
     const style = avatarStyle(this.avatarId)
 

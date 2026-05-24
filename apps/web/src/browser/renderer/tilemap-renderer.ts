@@ -1,6 +1,6 @@
 import Phaser from "phaser"
 
-import { TILESET_KEY } from "./constants"
+import { RENDERER_VERTEX_ROUND_MODE, TILESET_KEY } from "./constants"
 import { drawSemanticTile } from "./semantic-tiles"
 import type {
   FixtureMap,
@@ -85,6 +85,10 @@ export class TilemapRenderer {
     }
 
     phaserLayer.setDepth(depth)
+    // Keep Phaser 4 vertex rounding in its conservative `safeAuto` mode:
+    // translated, unscaled tile vertices round with the rounded camera, while
+    // transformed objects avoid the wobble that full rounding can introduce.
+    phaserLayer.setVertexRoundMode(RENDERER_VERTEX_ROUND_MODE)
     layer.gids.forEach((row, y) => {
       row.forEach((gid, x) => {
         if (gid <= 0) return

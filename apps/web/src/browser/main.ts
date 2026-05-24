@@ -2446,6 +2446,7 @@ function renderDemoToText(): string {
         open: section.open,
       })),
     },
+    renderer: renderer.getCapabilityInfo(),
     viewport: renderer.getViewportState(),
     map: state.fixtureMap
       ? {

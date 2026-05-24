@@ -3,5 +3,6 @@ export type {
   Direction,
   FixtureMap,
   RenderedPlayer,
+  RendererCapabilityInfo,
   RendererViewportState,
 } from "./renderer/types"

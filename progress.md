@@ -363,3 +363,20 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
 - Verification passed: `npm run check`, explicit `npm run smoke:frontend`, and
   `npm run qa:responsive`. Representative desktop and mobile responsive QA
   screenshots were visually inspected after the refactor.
+- Phaser 4 WebGL-first configuration is applied. The renderer now requests
+  `Phaser.WEBGL` explicitly and records the actual renderer, Phaser version,
+  WebGL limits, context loss/restore counters, canvas size, and pixel/rounding
+  decisions in `render_game_to_text`.
+- Pixel-art rendering is deliberate: global pixel art is enabled, smooth pixel
+  art and antialiasing are disabled, camera rounding stays enabled, camera
+  follow requests rounded pixels, and tile/object/avatar GameObjects use
+  Phaser's conservative `safeAuto` vertex rounding mode.
+- WebGL context recovery is handled by listening for Phaser's lose/restore
+  renderer events. After restore, the renderer replays the saved semantic map,
+  player list, active zones, and zoom factor so generated tile/object canvas
+  textures are recreated instead of depending on stale GPU resources.
+- Verification passed: `npm run check`, explicit `npm run smoke:frontend`, and
+  `npm run qa:responsive`. The frontend smoke now asserts WebGL capabilities,
+  nonblank map screenshots after resize and rejoin, and synthetic
+  `WEBGL_lose_context` loss/restore recovery; mobile and narrow-mobile QA
+  screenshots were visually inspected.

@@ -1,6 +1,6 @@
 import Phaser from "phaser"
 
-import { OBJECT_TEXTURE_PREFIX } from "./constants"
+import { OBJECT_TEXTURE_PREFIX, RENDERER_VERTEX_ROUND_MODE } from "./constants"
 import { furnitureDepth } from "./depth"
 import { drawSemanticTile } from "./semantic-tiles"
 import type { FixtureToken, TileLayer } from "./types"
@@ -36,6 +36,7 @@ export class ObjectRenderer {
         const sprite = this.scene.add.image(centerX, centerY, textureKey)
         sprite.setName(`furniture:${token.id}:${x},${y}`)
         sprite.setOrigin(0.5, 0.5)
+        sprite.setVertexRoundMode(RENDERER_VERTEX_ROUND_MODE)
         sprite.setDepth(furnitureDepth(bottomY, token))
         sprite.setData("bottomY", bottomY)
       })
