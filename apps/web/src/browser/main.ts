@@ -231,8 +231,8 @@ interface MediaSession {
   readonly expiresAt: string
 }
 
-const MOVE_REPEAT_MS = 250
-const MOVEMENT_REJECTION_FEEDBACK_MS = 1200
+const MOVE_REPEAT_MS = 190
+const MOVEMENT_REJECTION_FEEDBACK_MS = 900
 const TOAST_TTL_MS = 4200
 const MAX_TOASTS = 3
 const MAX_CHAT_MESSAGES = 5
@@ -1275,7 +1275,10 @@ function applyMovementRejection(
   }
 
   if (showFeedback) {
-    publishToast(movementRejectionLabel(message.reason), "warning")
+    publishToast(
+      movementRejectionLabel(message.reason),
+      message.reason === "collision" ? "info" : "warning",
+    )
   }
 }
 
@@ -1300,20 +1303,22 @@ function shouldShowMovementRejectionFeedback(
 function movementRejectionLabel(reason: MovementRejectedReason): string {
   switch (reason) {
     case "collision":
-      return "Movement blocked by wall or furniture"
+      return "Bumped into wall or furniture"
     case "zone_permission":
-      return "Movement blocked by zone permissions"
+      return "This zone is not open yet"
     case "speed_limit":
-      return "Movement ignored to preserve server speed limit"
+      return "Step held back to match server pace"
     case "unknown_player":
-      return "Movement ignored because the player left the room"
+      return "Rejoin needed before moving"
     case "invalid_message":
-      return "Movement ignored because the request was invalid"
+      return "Move request could not be used"
   }
 }
 
 function renderViewportControls(viewport: RendererViewportState): void {
   elements.zoomReset.textContent = `${Math.round(viewport.zoomFactor * 100)}%`
+  elements.zoomOut.disabled = !viewport.canZoomOut
+  elements.zoomIn.disabled = !viewport.canZoomIn
 }
 
 function renderMapSwitcher(): void {
@@ -2127,6 +2132,8 @@ function renderDemoToText(): string {
       heldDirection: activeHeldDirection(),
       inFlight: movementInput.inFlight,
       lastRejectedReason: state.lastMovementRejection?.reason,
+      repeatMs: MOVE_REPEAT_MS,
+      rejectionFeedbackMs: MOVEMENT_REJECTION_FEEDBACK_MS,
     },
     meeting: {
       activeZoneId: state.activeZone?.id,

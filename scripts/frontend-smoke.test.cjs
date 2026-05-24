@@ -84,6 +84,9 @@ async function main() {
         state.controls.joinLabel === "In office",
     )
     assert.equal(joined.lifecycle.phase, "joined")
+    assert.equal(joined.movement.repeatMs, 190)
+    assert.equal(joined.viewport.canZoomIn, true)
+    assert.equal(joined.viewport.canZoomOut, true)
 
     const beforeMove = joined.player
     await page.keyboard.press("ArrowDown")

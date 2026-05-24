@@ -77,6 +77,8 @@ export interface RendererViewportState {
   readonly mapHeight: number
   readonly zoomFactor: number
   readonly effectiveZoom: number
+  readonly canZoomIn: boolean
+  readonly canZoomOut: boolean
   readonly scrollX: number
   readonly scrollY: number
   readonly followingPlayerId?: string
@@ -94,6 +96,10 @@ const DEFAULT_ZOOM_FACTOR = 1.15
 const MIN_ZOOM_FACTOR = 0.75
 const MAX_ZOOM_FACTOR = 2
 const MAX_EFFECTIVE_ZOOM = 3.25
+const ZOOM_STEP = 0.1
+const CAMERA_FOLLOW_LERP = 0.14
+const CAMERA_DEADZONE_WIDTH = 42
+const CAMERA_DEADZONE_HEIGHT = 30
 const FURNITURE_DEPTH_BASE = 900
 const ZONE_DEPTH = 760
 const ZONE_LABEL_DEPTH = 765
@@ -210,11 +216,11 @@ export class PhaserOfficeRenderer {
   }
 
   zoomIn(): RendererViewportState {
-    return this.setZoomFactor(this.zoomFactor + 0.15)
+    return this.setZoomFactor(this.zoomFactor + ZOOM_STEP)
   }
 
   zoomOut(): RendererViewportState {
-    return this.setZoomFactor(this.zoomFactor - 0.15)
+    return this.setZoomFactor(this.zoomFactor - ZOOM_STEP)
   }
 
   resetZoom(): RendererViewportState {
@@ -439,6 +445,8 @@ class OfficeScene extends Phaser.Scene {
       mapHeight: Math.round(this.mapSize.y),
       zoomFactor: roundTo(this.zoomFactor, 2),
       effectiveZoom: roundTo(this.effectiveZoom, 2),
+      canZoomIn: this.zoomFactor < MAX_ZOOM_FACTOR,
+      canZoomOut: this.zoomFactor > MIN_ZOOM_FACTOR,
       scrollX: Math.round(camera?.scrollX ?? 0),
       scrollY: Math.round(camera?.scrollY ?? 0),
       followingPlayerId: this.followingPlayerId,
@@ -449,7 +457,13 @@ class OfficeScene extends Phaser.Scene {
     if (this.followingPlayerId === playerId) return
 
     this.followingPlayerId = playerId
-    this.cameras.main.startFollow(avatar.focusTarget, true, 0.2, 0.2)
+    this.cameras.main.setDeadzone(CAMERA_DEADZONE_WIDTH, CAMERA_DEADZONE_HEIGHT)
+    this.cameras.main.startFollow(
+      avatar.cameraTarget,
+      true,
+      CAMERA_FOLLOW_LERP,
+      CAMERA_FOLLOW_LERP,
+    )
   }
 
   private applyCameraZoom(): void {
@@ -747,6 +761,7 @@ class OfficeScene extends Phaser.Scene {
 
 class AvatarView {
   readonly focusTarget: Phaser.GameObjects.Container
+  readonly cameraTarget: Phaser.GameObjects.Zone
   private readonly shadow: Phaser.GameObjects.Ellipse
   private readonly leftFoot: Phaser.GameObjects.Ellipse
   private readonly rightFoot: Phaser.GameObjects.Ellipse
@@ -777,7 +792,9 @@ class AvatarView {
     this.lastPosition = player.position
     this.lastDirection = player.direction
     this.focusTarget = scene.add.container(player.position.x, player.position.y)
+    this.cameraTarget = scene.add.zone(player.position.x, player.position.y, 2, 2)
     this.focusTarget.setName(`avatar:${player.playerId}`)
+    this.cameraTarget.setName(`camera-anchor:${player.playerId}`)
     const style = avatarStyle(this.avatarId)
 
     this.shadow = scene.add.ellipse(0, 15, 20, 7, 0x20201d, 0.18)
@@ -894,6 +911,7 @@ class AvatarView {
     this.positionTween?.stop()
     this.rejectionTween?.stop()
     this.focusTarget.destroy(true)
+    this.cameraTarget.destroy()
   }
 
   private interpolateTo(position: Vector2): void {
@@ -905,11 +923,11 @@ class AvatarView {
       position.y,
     )
     this.positionTween = this.scene.tweens.add({
-      targets: this.focusTarget,
+      targets: [this.focusTarget, this.cameraTarget],
       x: position.x,
       y: position.y,
-      duration: clamp(Math.round(distance * 4.5), 120, 190),
-      ease: "Sine.easeInOut",
+      duration: clamp(Math.round(distance * 6.8), 115, 175),
+      ease: "Sine.easeOut",
     })
   }
 
@@ -923,11 +941,18 @@ class AvatarView {
       targets: this.focusTarget,
       x: this.focusTarget.x + facingNudgeX(direction),
       y: this.focusTarget.y + facingNudgeY(direction),
-      duration: 45,
+      scaleX: 1.045,
+      scaleY: 0.955,
+      duration: 72,
       yoyo: true,
-      repeat: 1,
+      repeat: 0,
       ease: "Sine.easeOut",
-      onComplete: () => this.torso.setStrokeStyle(1, style.torsoDark, 0.55),
+      onComplete: () => {
+        this.focusTarget.setPosition(this.lastPosition.x, this.lastPosition.y)
+        this.focusTarget.setScale(1, 1)
+        this.torso.setStrokeStyle(1, style.torsoDark, 0.55)
+        this.startIdleTween()
+      },
     })
   }
 

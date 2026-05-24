@@ -318,3 +318,16 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
 - Verification passed: `npm --workspace @aedventure/web run build`,
   page-level Playwright screenshots for Lobby, Meeting hover, Meeting joined,
   and mobile states on `127.0.0.1:8787`, and full `npm run check`.
+- Movement and camera feel pass is now applied. Held-key movement repeats every
+  190ms instead of 250ms, while the server still computes authoritative
+  positions from direction intents.
+- Avatar interpolation now uses a shorter distance-aware Sine-out tween, and
+  the camera follows a hidden anchor rather than the bobbing avatar container.
+  This keeps idle/walk animation from feeding jitter into the viewport, with a
+  small camera deadzone and gentler follow lerp.
+- Blocked movement now reads as a physical bump: the avatar nudges and squashes
+  briefly, collision toasts use softer "Bumped into wall or furniture" copy,
+  and collision feedback uses info tone rather than warning tone.
+- Zoom controls now move in 10% steps and disable at min/max zoom. Browser QA
+  verified stable idle camera scroll, held movement, collision bump feedback,
+  zoom limits/reset, and desktop/mobile screenshots.
