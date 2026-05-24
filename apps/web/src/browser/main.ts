@@ -5,6 +5,8 @@ import {
 } from "./phaser-office-renderer"
 
 type Direction = "up" | "down" | "left" | "right"
+type StatusState = "idle" | "pending" | "ready" | "blocked"
+type ToastTone = "info" | "success" | "warning" | "error"
 type MovementRejectedReason =
   | "invalid_message"
   | "collision"
@@ -139,8 +141,18 @@ interface MovementInputState {
   lastRequestedDirection?: Direction
 }
 
+interface ChatRecord {
+  readonly id: string
+  readonly body: string
+  readonly recipientCount: number
+}
+
 const MOVE_REPEAT_MS = 250
 const MOVEMENT_REJECTION_FEEDBACK_MS = 1200
+const TOAST_TTL_MS = 7000
+const MAX_TOASTS = 3
+const MAX_CHAT_MESSAGES = 5
+const MAX_RECENT_EVENTS = 8
 
 const state: AppState = {
   sessionId: undefined,
@@ -171,17 +183,25 @@ const movementInput: MovementInputState = {
   inFlight: false,
   lastRequestedDirection: undefined,
 }
+const recentEvents: string[] = []
+const chatMessages: ChatRecord[] = []
+const toasts = new Map<string, number>()
 
 const elements = {
   start: mustQuery<HTMLButtonElement>("#start"),
   reset: mustQuery<HTMLButtonElement>("#reset"),
   map: mustQuery<HTMLElement>("#map"),
   sessionStatus: mustQuery<HTMLElement>("#session-status"),
+  sessionPill: mustQuery<HTMLElement>("#session-pill"),
   worldStatus: mustQuery<HTMLElement>("#world-status"),
+  worldPill: mustQuery<HTMLElement>("#world-pill"),
   mediaStatus: mustQuery<HTMLElement>("#media-status"),
-  events: mustQuery<HTMLOListElement>("#events"),
+  mediaPill: mustQuery<HTMLElement>("#media-pill"),
   chatForm: mustQuery<HTMLFormElement>("#chat-form"),
   chatBody: mustQuery<HTMLInputElement>("#chat-body"),
+  chatStatus: mustQuery<HTMLElement>("#chat-status"),
+  chatMessages: mustQuery<HTMLOListElement>("#chat-messages"),
+  toastRegion: mustQuery<HTMLElement>("#toast-region"),
   zoomOut: mustQuery<HTMLButtonElement>("#zoom-out"),
   zoomReset: mustQuery<HTMLButtonElement>("#zoom-reset"),
   zoomIn: mustQuery<HTMLButtonElement>("#zoom-in"),
@@ -229,7 +249,10 @@ window.addEventListener("blur", () => {
 })
 
 loadFixtureMap().catch((error: unknown) => {
-  log(error instanceof Error ? error.message : "Unable to load fixture map")
+  publishToast(
+    error instanceof Error ? error.message : "Unable to load fixture map",
+    "error",
+  )
   renderPlayers()
 })
 renderViewportControls(renderer.getViewportState())
@@ -237,11 +260,14 @@ renderViewportControls(renderer.getViewportState())
 async function startDemo(): Promise<void> {
   elements.start.disabled = true
   elements.start.textContent = "Joining..."
+  setConnectionStatus("session", "pending", "Connecting")
+  setConnectionStatus("world", "pending", "Joining")
+  setConnectionStatus("media", "idle", "Not ready")
 
   try {
     if (state.joined) {
       elements.start.textContent = "Demo running"
-      log("Demo session already joined")
+      publishToast("Demo session already joined", "info")
       return
     }
 
@@ -251,8 +277,8 @@ async function startDemo(): Promise<void> {
 
     const session = await signInDevUser("wikimedia-browser-user", "Browser Ada")
     state.sessionId = session.sessionId
-    elements.sessionStatus.textContent = "signed in"
-    log(`Signed in as ${session.username}`)
+    setConnectionStatus("session", "ready", "Connected")
+    publishToast(`Signed in as ${session.username}`, "success")
 
     const token = await issueWorldToken(state.sessionId)
     const joined = await joinWorld({
@@ -273,8 +299,8 @@ async function startDemo(): Promise<void> {
     renderPlayers()
     state.joined = true
     elements.reset.disabled = false
-    elements.worldStatus.textContent = "joined room-lobby"
-    log("Joined the local world as Browser Ada")
+    setConnectionStatus("world", "ready", "Joined room-lobby")
+    publishToast("Joined the local world", "success")
 
     await joinCompanion()
     await syncWorldSnapshot()
@@ -284,7 +310,20 @@ async function startDemo(): Promise<void> {
     elements.start.textContent = "Demo running"
   } catch (error: unknown) {
     elements.start.textContent = "Join demo"
-    log(error instanceof Error ? error.message : "Unknown browser shell error")
+    setConnectionStatus(
+      "session",
+      state.sessionId ? "ready" : "blocked",
+      state.sessionId ? "Connected" : "Failed",
+    )
+    setConnectionStatus(
+      "world",
+      state.joined ? "ready" : "blocked",
+      state.joined ? "Joined room-lobby" : "Join failed",
+    )
+    publishToast(
+      error instanceof Error ? error.message : "Unknown browser shell error",
+      "error",
+    )
   } finally {
     elements.start.disabled = state.joined
     elements.reset.disabled = !state.joined
@@ -336,7 +375,7 @@ async function joinCompanion(): Promise<void> {
   state.companion.direction = joined.player.direction ?? "down"
   upsertRenderedPlayer(joined.player)
   renderPlayers()
-  log("Added Demo Grace as a local companion")
+  recordEvent("Added Demo Grace as a local companion")
 }
 
 async function syncWorldSnapshot(): Promise<void> {
@@ -355,7 +394,7 @@ async function syncWorldSnapshot(): Promise<void> {
   }
 
   applyWorldSnapshot(snapshot.players)
-  log(`Synced ${snapshot.players.length} player(s) from world snapshot`)
+  recordEvent(`Synced ${snapshot.players.length} player(s) from world snapshot`)
 }
 
 function applyWorldSnapshot(players: readonly PlayerSnapshot[]): void {
@@ -411,10 +450,12 @@ async function resetDemo(): Promise<void> {
   state.lastChatBody = undefined
   state.lastMovementRejection = undefined
   state.players.clear()
+  chatMessages.length = 0
+  renderChatMessages()
   stopHeldMovement()
-  elements.sessionStatus.textContent = "idle"
-  elements.worldStatus.textContent = "not joined"
-  elements.mediaStatus.textContent = "not issued"
+  setConnectionStatus("session", "idle", "Disconnected")
+  setConnectionStatus("world", "idle", "Not joined")
+  setConnectionStatus("media", "idle", "Not ready")
   elements.start.textContent = "Join demo"
   elements.start.disabled = false
   elements.reset.disabled = true
@@ -426,7 +467,7 @@ async function resetDemo(): Promise<void> {
 
   seedLocalRenderedPlayer()
   renderPlayers()
-  log("Demo reset")
+  publishToast("Demo reset", "info")
 }
 
 async function leaveWorld(clientId: string): Promise<void> {
@@ -531,12 +572,12 @@ async function joinMedia(): Promise<void> {
   })
 
   if (media.status === "issued" && media.room) {
-    elements.mediaStatus.textContent = media.room
+    setConnectionStatus("media", "ready", "Media ready")
     state.lastMediaRoom = media.room
-    log(`Issued media token for ${media.room}`)
+    publishToast("Media ready", "success")
   } else {
-    elements.mediaStatus.textContent = media.reason ?? "denied"
-    log(`Media denied: ${media.reason ?? "unknown"}`)
+    setConnectionStatus("media", "blocked", "Media denied")
+    publishToast(`Media denied: ${media.reason ?? "unknown"}`, "warning")
   }
 }
 
@@ -548,7 +589,7 @@ async function loadFixtureMap(): Promise<void> {
   seedLocalRenderedPlayer()
   renderer.renderMap(fixtureMap)
   renderPlayers()
-  log(
+  recordEvent(
     `Loaded ${fixtureMap.definition.style} fixture map from ${fixtureMap.catalog.tokens.length} visual token(s)`,
   )
 }
@@ -580,7 +621,7 @@ function applyServerMessage(message: ServerMessage): void {
       direction: message.direction,
     })
     renderPlayers()
-    log(`Moved ${message.direction} to ${Math.round(message.x)}, ${Math.round(message.y)}`)
+    recordEvent(`Moved ${message.direction} to ${Math.round(message.x)}, ${Math.round(message.y)}`)
     return
   }
 
@@ -591,12 +632,12 @@ function applyServerMessage(message: ServerMessage): void {
 
   if ("type" in message && message.type === "chat_delivered") {
     state.lastChatBody = message.body
-    log(`Chat delivered to ${message.recipientPlayerIds.length} recipient(s)`)
+    addChatMessage(message.body, message.recipientPlayerIds.length)
     return
   }
 
   if ("reason" in message && message.reason) {
-    log(`Rejected: ${message.reason}`)
+    publishToast(`Rejected: ${message.reason}`, "warning")
   }
 }
 
@@ -679,7 +720,7 @@ function applyMovementRejection(
   renderPlayers()
 
   if (showFeedback) {
-    log(movementRejectionLabel(message.reason))
+    publishToast(movementRejectionLabel(message.reason), "warning")
   }
 }
 
@@ -718,6 +759,98 @@ function movementRejectionLabel(reason: MovementRejectedReason): string {
 
 function renderViewportControls(viewport: RendererViewportState): void {
   elements.zoomReset.textContent = `${Math.round(viewport.zoomFactor * 100)}%`
+}
+
+function setConnectionStatus(
+  target: "session" | "world" | "media",
+  stateValue: StatusState,
+  label: string,
+): void {
+  const status =
+    target === "session"
+      ? elements.sessionStatus
+      : target === "world"
+        ? elements.worldStatus
+        : elements.mediaStatus
+  const pill =
+    target === "session"
+      ? elements.sessionPill
+      : target === "world"
+        ? elements.worldPill
+        : elements.mediaPill
+
+  status.textContent = label
+  pill.dataset.state = stateValue
+}
+
+function addChatMessage(body: string, recipientCount: number): void {
+  chatMessages.unshift({
+    id: `chat-${Date.now()}-${chatMessages.length}`,
+    body,
+    recipientCount,
+  })
+  chatMessages.splice(MAX_CHAT_MESSAGES)
+  renderChatMessages()
+  recordEvent(`Chat delivered to ${recipientCount} recipient(s)`)
+}
+
+function renderChatMessages(): void {
+  elements.chatMessages.replaceChildren(
+    ...chatMessages.map((message) => {
+      const item = document.createElement("li")
+      const body = document.createElement("span")
+      const meta = document.createElement("small")
+
+      body.textContent = message.body
+      meta.textContent = `${message.recipientCount} recipient${
+        message.recipientCount === 1 ? "" : "s"
+      }`
+      item.append(body, meta)
+      return item
+    }),
+  )
+  elements.chatStatus.textContent =
+    chatMessages.length === 0
+      ? "No messages yet"
+      : `${chatMessages.length} recent message${chatMessages.length === 1 ? "" : "s"}`
+}
+
+function publishToast(message: string, tone: ToastTone = "info"): void {
+  recordEvent(message)
+
+  const id = `toast-${Date.now()}-${Math.random().toString(16).slice(2)}`
+  const toast = document.createElement("div")
+  toast.className = `toast toast-${tone}`
+  toast.dataset.toastId = id
+  toast.textContent = message
+  elements.toastRegion.prepend(toast)
+
+  toasts.set(
+    id,
+    window.setTimeout(() => removeToast(id), TOAST_TTL_MS),
+  )
+
+  while (elements.toastRegion.childElementCount > MAX_TOASTS) {
+    const last = elements.toastRegion.lastElementChild as HTMLElement | null
+    if (!last?.dataset.toastId) break
+    removeToast(last.dataset.toastId)
+  }
+}
+
+function removeToast(id: string): void {
+  const timer = toasts.get(id)
+  if (timer !== undefined) {
+    window.clearTimeout(timer)
+    toasts.delete(id)
+  }
+  elements.toastRegion
+    .querySelector<HTMLElement>(`[data-toast-id="${id}"]`)
+    ?.remove()
+}
+
+function recordEvent(message: string): void {
+  recentEvents.unshift(message)
+  recentEvents.splice(MAX_RECENT_EVENTS)
 }
 
 function titleCaseName(value: string): string {
@@ -765,17 +898,14 @@ async function postJson<T = Record<string, unknown>>(
   return parsed as T
 }
 
-function log(message: string): void {
-  const item = document.createElement("li")
-  item.textContent = message
-  elements.events.prepend(item)
-}
-
 function queueAction(action: () => Promise<void>): Promise<void> {
   state.pendingAction = state.pendingAction
     .then(action)
     .catch((error: unknown) => {
-      log(error instanceof Error ? error.message : "Unknown demo action error")
+      publishToast(
+        error instanceof Error ? error.message : "Unknown demo action error",
+        "error",
+      )
     })
   return state.pendingAction
 }
@@ -856,9 +986,17 @@ function renderDemoToText(): string {
       : undefined,
     lastChatBody: state.lastChatBody,
     lastMediaRoom: state.lastMediaRoom,
-    recentEvents: [...elements.events.querySelectorAll("li")]
-      .slice(0, 6)
-      .map((item) => item.textContent),
+    chat: {
+      status: elements.chatStatus.textContent,
+      messages: chatMessages.map((message) => ({
+        body: message.body,
+        recipientCount: message.recipientCount,
+      })),
+    },
+    toasts: [...elements.toastRegion.querySelectorAll<HTMLElement>(".toast")].map(
+      (toast) => toast.textContent,
+    ),
+    recentEvents: recentEvents.slice(0, 6),
   })
 }
 

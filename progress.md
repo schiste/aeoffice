@@ -70,3 +70,11 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   viewport dimensions/effective zoom/camera scroll/follow target, and the
   browser console stayed clean. The standalone web-game client still cannot run
   because the skill runtime cannot resolve the `playwright` package.
+- The debug-style event feed is no longer visible in the primary app UI. It has
+  been replaced with compact session/world/media status pills, a compact room
+  chat transcript, and transient toast feedback for join/reset/error-like events.
+- Browser MCP verified join, chat delivery, reset, desktop `1280x900`, and
+  mobile `390x760`: statuses move through disconnected/not-joined/not-ready to
+  connected/joined/media-ready, reset clears chat and restores disconnected
+  states, toasts render, no `#events` feed exists, and the browser console stayed
+  clean. The standalone web-game client remains blocked by missing `playwright`.

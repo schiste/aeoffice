@@ -24,18 +24,27 @@
           </div>
         </div>
 
-        <div class="status-grid">
-          <div>
-            <span>Session</span>
-            <strong id="session-status">idle</strong>
+        <div class="status-strip" aria-label="Connection status">
+          <div id="session-pill" class="status-pill" data-state="idle">
+            <span class="status-dot" aria-hidden="true"></span>
+            <span class="status-copy">
+              <span>Session</span>
+              <strong id="session-status">Disconnected</strong>
+            </span>
           </div>
-          <div>
-            <span>World</span>
-            <strong id="world-status">not joined</strong>
+          <div id="world-pill" class="status-pill" data-state="idle">
+            <span class="status-dot" aria-hidden="true"></span>
+            <span class="status-copy">
+              <span>World</span>
+              <strong id="world-status">Not joined</strong>
+            </span>
           </div>
-          <div>
-            <span>Media</span>
-            <strong id="media-status">not issued</strong>
+          <div id="media-pill" class="status-pill" data-state="idle">
+            <span class="status-dot" aria-hidden="true"></span>
+            <span class="status-copy">
+              <span>Media</span>
+              <strong id="media-status">Not ready</strong>
+            </span>
           </div>
         </div>
 
@@ -56,17 +65,24 @@
           <button data-direction="down" type="button">↓</button>
         </div>
 
-        <form id="chat-form" class="chat">
-          <input
-            id="chat-body"
-            name="chat-body"
-            autocomplete="off"
-            value="Hello from the browser shell"
-          />
-          <button type="submit">Send</button>
-        </form>
+        <section class="chat-panel" aria-label="Room chat">
+          <div class="chat-heading">
+            <span>Room chat</span>
+            <strong id="chat-status">No messages yet</strong>
+          </div>
+          <ol id="chat-messages" class="chat-messages" aria-live="polite"></ol>
+          <form id="chat-form" class="chat">
+            <input
+              id="chat-body"
+              name="chat-body"
+              autocomplete="off"
+              value="Hello from the browser shell"
+            />
+            <button type="submit">Send</button>
+          </form>
+        </section>
 
-        <ol id="events" class="events" aria-label="Event log"></ol>
+        <div id="toast-region" class="toast-region" aria-live="polite"></div>
       </section>
     </main>
 

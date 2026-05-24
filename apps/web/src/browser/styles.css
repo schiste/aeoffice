@@ -72,30 +72,69 @@ h1 {
   letter-spacing: 0;
 }
 
-.status-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
+.status-strip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   margin-bottom: 12px;
+  overflow-x: auto;
 }
 
-.status-grid div {
-  border: 1px solid #d5dee2;
-  border-radius: 6px;
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  gap: 9px;
+  border: 1px solid #d4dee1;
+  border-radius: 999px;
   background: #ffffff;
-  padding: 12px;
+  padding: 8px 12px 8px 10px;
+  white-space: nowrap;
 }
 
-.status-grid span {
+.status-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #91a2a7;
+  box-shadow: 0 0 0 3px rgba(145, 162, 167, 0.14);
+}
+
+.status-copy {
+  display: grid;
+  gap: 1px;
+}
+
+.status-copy span {
   display: block;
   color: #587179;
-  font-size: 12px;
+  font-size: 11px;
+  line-height: 1;
 }
 
-.status-grid strong {
+.status-copy strong {
   display: block;
-  margin-top: 4px;
-  font-size: 15px;
+  max-width: 190px;
+  overflow: hidden;
+  color: #172026;
+  font-size: 13px;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+}
+
+.status-pill[data-state="pending"] .status-dot {
+  background: #bc8b2c;
+  box-shadow: 0 0 0 3px rgba(188, 139, 44, 0.17);
+}
+
+.status-pill[data-state="ready"] .status-dot {
+  background: #2f8f63;
+  box-shadow: 0 0 0 3px rgba(47, 143, 99, 0.16);
+}
+
+.status-pill[data-state="blocked"] .status-dot {
+  background: #c8493c;
+  box-shadow: 0 0 0 3px rgba(200, 73, 60, 0.16);
 }
 
 .map {
@@ -143,11 +182,64 @@ h1 {
   margin-top: 12px;
 }
 
+.chat-panel {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+  border-top: 1px solid #dbe4e7;
+  padding-top: 10px;
+}
+
+.chat-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.chat-heading span {
+  color: #2c3f45;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.chat-heading strong {
+  color: #587179;
+  font-size: 12px;
+}
+
+.chat-messages {
+  display: grid;
+  gap: 6px;
+  max-height: 118px;
+  overflow: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chat-messages li {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  align-items: baseline;
+  border: 1px solid #dbe4e7;
+  border-radius: 6px;
+  background: #ffffff;
+  padding: 8px 10px;
+  color: #172026;
+  font-size: 14px;
+}
+
+.chat-messages small {
+  color: #587179;
+  font-size: 12px;
+}
+
 .chat {
   display: grid;
   grid-template-columns: 1fr 120px;
   gap: 8px;
-  margin-top: 12px;
 }
 
 .chat input {
@@ -158,19 +250,38 @@ h1 {
   padding: 0 12px;
 }
 
-.events {
-  max-height: 180px;
-  overflow: auto;
-  margin: 12px 0 0;
-  padding: 0;
-  list-style-position: inside;
-  color: #2c3f45;
+.toast-region {
+  position: fixed;
+  z-index: 20;
+  top: 88px;
+  right: 18px;
+  display: grid;
+  width: min(340px, calc(100vw - 32px));
+  gap: 8px;
+  pointer-events: none;
+}
+
+.toast {
+  border: 1px solid rgba(23, 32, 38, 0.12);
+  border-left: 4px solid #587179;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.97);
+  box-shadow: 0 14px 30px rgba(23, 32, 38, 0.14);
+  color: #172026;
+  padding: 11px 12px;
   font-size: 14px;
 }
 
-.events li {
-  padding: 6px 0;
-  border-bottom: 1px solid #e2e9eb;
+.toast-success {
+  border-left-color: #2f8f63;
+}
+
+.toast-warning {
+  border-left-color: #bc8b2c;
+}
+
+.toast-error {
+  border-left-color: #c8493c;
 }
 
 @media (max-width: 640px) {
@@ -189,7 +300,22 @@ h1 {
     grid-template-columns: 1fr 1fr;
   }
 
-  .status-grid,
+  .status-strip {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    overflow: visible;
+  }
+
+  .status-pill {
+    border-radius: 6px;
+    white-space: normal;
+  }
+
+  .status-copy strong {
+    max-width: 126px;
+    white-space: normal;
+  }
+
   .controls {
     grid-template-columns: 1fr 1fr;
   }
@@ -197,5 +323,18 @@ h1 {
   .map {
     height: min(52vh, 420px);
     min-height: 240px;
+  }
+
+  .toast-region {
+    top: auto;
+    right: 16px;
+    bottom: 16px;
+    left: 16px;
+    width: auto;
+  }
+
+  .chat-messages li {
+    grid-template-columns: 1fr;
+    gap: 3px;
   }
 }
