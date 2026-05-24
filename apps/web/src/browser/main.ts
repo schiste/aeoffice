@@ -227,7 +227,7 @@ interface MediaSession {
 
 const MOVE_REPEAT_MS = 250
 const MOVEMENT_REJECTION_FEEDBACK_MS = 1200
-const TOAST_TTL_MS = 7000
+const TOAST_TTL_MS = 4200
 const MAX_TOASTS = 3
 const MAX_CHAT_MESSAGES = 5
 const MAX_RECENT_EVENTS = 8
@@ -253,7 +253,7 @@ const state: AppState = {
   companion: {
     playerId: "player-2",
     clientId: `companion-${Math.floor(Math.random() * 100000)}`,
-    displayName: "Demo Grace",
+    displayName: "Grace",
     avatarId: "cobalt",
     position: { x: 96, y: 96 },
     direction: "down",
@@ -453,13 +453,13 @@ async function startDemo(): Promise<void> {
   setLifecycleStatus("joining", "Joining room")
   setConnectionStatus("session", "pending", "Connecting")
   setConnectionStatus("world", "pending", "Joining")
-  setConnectionStatus("media", "idle", "Not ready")
+  setConnectionStatus("media", "idle", "Media off")
 
   try {
     if (state.joined) {
-      elements.start.textContent = "Demo running"
+      elements.start.textContent = "In office"
       setLifecycleStatus("joined", roomOccupancyLabel())
-      publishToast("Demo session already joined", "info")
+      publishToast("Already in the office", "info")
       return
     }
 
@@ -498,9 +498,9 @@ async function startDemo(): Promise<void> {
     renderPlayers()
     state.joined = true
     elements.reset.disabled = false
-    setConnectionStatus("world", "ready", "Joined room-lobby")
+    setConnectionStatus("world", "ready", "In lobby")
     setLifecycleStatus("joined", "Only you in room")
-    publishToast("Joined the local world", "success")
+    publishToast("Entered the office", "success")
 
     await joinCompanion()
     const synced = await syncWorldSnapshot()
@@ -509,10 +509,10 @@ async function startDemo(): Promise<void> {
     if (!state.joined) return
     await sendChat(elements.chatBody.value)
     if (!state.joined) return
-    elements.start.textContent = "Demo running"
+    elements.start.textContent = "In office"
     renderMeetingControls()
   } catch (error: unknown) {
-    elements.start.textContent = "Join demo"
+    elements.start.textContent = "Enter office"
     setLifecycleStatus(
       state.joined ? "joined" : "empty",
       state.joined ? roomOccupancyLabel() : roomReadyLabel(),
@@ -525,10 +525,10 @@ async function startDemo(): Promise<void> {
     setConnectionStatus(
       "world",
       state.joined ? "ready" : "blocked",
-      state.joined ? "Joined room-lobby" : "Join failed",
+      state.joined ? "In lobby" : "Join failed",
     )
     publishToast(
-      error instanceof Error ? error.message : "Unknown browser shell error",
+      error instanceof Error ? error.message : "Unknown office app error",
       "error",
     )
   } finally {
@@ -583,7 +583,7 @@ async function joinCompanion(): Promise<void> {
   state.companion.direction = joined.player.direction ?? "down"
   upsertRenderedPlayer(joined.player)
   renderPlayers()
-  recordEvent("Added Demo Grace as a local companion")
+  recordEvent("Added Grace as a local companion")
 }
 
 async function syncWorldSnapshot(): Promise<boolean> {
@@ -707,14 +707,14 @@ async function resetDemo(
   renderChatMessages()
   stopHeldMovement()
   setConnectionStatus("session", "idle", "Disconnected")
-  setConnectionStatus("world", "idle", "Not joined")
-  setConnectionStatus("media", "idle", "Not ready")
+  setConnectionStatus("world", "idle", "Outside room")
+  setConnectionStatus("media", "idle", "Media off")
   setLifecycleStatus(
     options.lifecyclePhase ?? "empty",
     options.lifecycleMessage ?? "Room empty",
   )
   renderMediaPanel()
-  elements.start.textContent = "Join demo"
+  elements.start.textContent = "Enter office"
   elements.start.disabled = false
   elements.reset.disabled = true
 
@@ -727,7 +727,7 @@ async function resetDemo(
   renderPlayers()
   updateActiveZoneFromPosition()
   if (announce) {
-    publishToast("Demo reset", "info")
+    publishToast("Left the office", "info")
   }
 }
 
@@ -873,7 +873,7 @@ async function joinMeeting(): Promise<void> {
     })
 
     if (media.status === "issued") {
-      setConnectionStatus("media", "ready", "Media ready")
+      setConnectionStatus("media", "ready", "In meeting")
       state.meetingJoined = true
       state.meetingZoneId = zone.id
       state.mediaSession = {
@@ -894,14 +894,14 @@ async function joinMeeting(): Promise<void> {
         recoverFromWorldLoss("unknown_client")
         return
       }
-      setConnectionStatus("media", "blocked", "Media denied")
+      setConnectionStatus("media", "blocked", "Media blocked")
       state.meetingJoined = false
       state.meetingZoneId = undefined
       clearMediaSession()
       publishToast(`Media denied: ${media.reason ?? "unknown"}`, "warning")
     }
   } catch (error: unknown) {
-    setConnectionStatus("media", "blocked", "Media failed")
+    setConnectionStatus("media", "blocked", "Media unavailable")
     state.meetingJoined = false
     state.meetingZoneId = undefined
     clearMediaSession()
@@ -924,7 +924,7 @@ function leaveMeetingLocally(message: string): void {
   state.meetingJoined = false
   state.meetingZoneId = undefined
   clearMediaSession()
-  setConnectionStatus("media", "idle", "Not ready")
+  setConnectionStatus("media", "idle", "Media off")
   renderMeetingControls()
   renderMediaPanel()
   publishToast(message, "info")
@@ -1429,10 +1429,10 @@ function clearMediaSession(): void {
 function renderMediaPanel(): void {
   const session = state.mediaSession
   const tokenState = state.mediaRequestPending
-    ? "Requesting token"
+    ? "Requesting access"
     : session
-      ? "Token issued"
-      : "Not issued"
+      ? "Access granted"
+      : "No access"
   const panelState = state.mediaRequestPending
     ? "pending"
     : session
@@ -1441,12 +1441,12 @@ function renderMediaPanel(): void {
 
   elements.mediaPanel.dataset.state = panelState
   elements.mediaPanelStatus.textContent = state.mediaRequestPending
-    ? "Requesting token"
+    ? "Requesting access"
     : session
       ? "Ready"
-      : "Not connected"
-  elements.mediaRoom.textContent = session?.room ?? "None"
-  elements.mediaEndpoint.textContent = session?.liveKitUrl ?? "None"
+      : "Inactive"
+  elements.mediaRoom.textContent = session?.room ?? "Not joined"
+  elements.mediaEndpoint.textContent = session?.liveKitUrl ?? "Not joined"
   elements.mediaParticipants.textContent = session
     ? String(session.participantPlayerIds.length)
     : "0"
@@ -1471,8 +1471,8 @@ function renderMediaPanel(): void {
         ? "Mic on"
         : "Muted"
     : state.mediaRequestPending
-      ? "Requesting token"
-      : "No media session"
+      ? "Requesting access"
+      : "Media not joined"
 }
 
 function recoverFromWorldLoss(reason: string): void {
@@ -1509,13 +1509,13 @@ function recoverFromWorldLoss(reason: string): void {
     state.sessionId ? "Connected" : "Disconnected",
   )
   setConnectionStatus("world", "blocked", "Rejoin required")
-  setConnectionStatus("media", "idle", "Not ready")
+  setConnectionStatus("media", "idle", "Media off")
   setLifecycleStatus(
     "recovering",
     "World restarted, rejoin needed",
     reason,
   )
-  elements.start.textContent = "Rejoin demo"
+  elements.start.textContent = "Rejoin office"
   elements.start.disabled = false
   elements.reset.disabled = true
   renderMeetingControls()
@@ -1811,7 +1811,7 @@ function queueAction(action: () => Promise<void>): Promise<void> {
     .then(action)
     .catch((error: unknown) => {
       publishToast(
-        error instanceof Error ? error.message : "Unknown demo action error",
+        error instanceof Error ? error.message : "Unknown office action error",
         "error",
       )
     })

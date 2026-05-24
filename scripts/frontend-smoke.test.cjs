@@ -60,7 +60,7 @@ async function main() {
       (state) =>
         state.joined === true &&
         state.players.length >= 2 &&
-        state.controls.joinLabel === "Demo running",
+        state.controls.joinLabel === "In office",
     )
     assert.equal(joined.lifecycle.phase, "joined")
 
@@ -109,7 +109,7 @@ async function main() {
       (state) =>
         state.joined === true &&
         state.players.length >= 2 &&
-        state.controls.joinLabel === "Demo running",
+        state.controls.joinLabel === "In office",
     )
     assert.equal(rejoined.lifecycle.phase, "joined")
 

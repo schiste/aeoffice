@@ -219,3 +219,18 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   environments. The external standalone web-game client remains blocked because
   it cannot resolve `playwright` from the skill runtime, but the repository now
   has its own Playwright dependency and smoke runner.
+- Frontend V1 visual foundation pass is underway. The vanilla app shell now has
+  a tokenized CSS system for surfaces, type, spacing, borders, shadows, focus
+  states, status colors, and reusable control styling. Existing DOM structure
+  and app behavior were preserved so Phaser, movement, media tokens, and smoke
+  automation remain stable.
+- Visible app copy now avoids demo/debug wording: the primary flow reads as
+  entering/leaving the office, media access reads as meeting/media state rather
+  than token plumbing, and the local app keeps implementation details out of the
+  main UI. Toast lifetime was shortened so feedback is useful without lingering
+  over controls.
+- Visual QA passed with Chromium screenshots at desktop `1440x960` and mobile
+  `390x760` after join. The app kept the canvas first, panels remained readable,
+  mobile controls stayed reachable, and browser console errors stayed at zero.
+- Verification passed: `npm run check`, including the updated browser frontend
+  smoke and the development HTTP host app-shell assertion.

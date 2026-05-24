@@ -124,7 +124,7 @@ async function main() {
 
   assert.equal(appShell.status, 200)
   const appShellBody = await appShell.text()
-  assert.match(appShellBody, /Local Virtual Office/)
+  assert.match(appShellBody, /Aedventure Office/)
   assert.match(appShellBody, /type="module"/)
   assert.equal(appShell.headers.get("content-type"), "text/html; charset=utf-8")
   const appScript = await runtime.handler(

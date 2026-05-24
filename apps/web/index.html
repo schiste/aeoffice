@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Aedventure Local Office</title>
+    <title>Aedventure Virtual Office</title>
     <link
       rel="icon"
       href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%231e4f55'/%3E%3Ccircle cx='8' cy='8' r='4' fill='%23ffffff'/%3E%3C/svg%3E"
@@ -12,15 +12,15 @@
   </head>
   <body>
     <main class="shell">
-      <section class="world-panel" aria-label="Local office demo">
+      <section class="world-panel" aria-label="Virtual office">
         <div class="toolbar">
           <div>
-            <p class="eyebrow">Customer app layer</p>
-            <h1>Local Virtual Office</h1>
+            <p class="eyebrow">Virtual workspace</p>
+            <h1>Aedventure Office</h1>
           </div>
           <div class="toolbar-actions">
-            <button id="start" type="button">Join demo</button>
-            <button id="reset" type="button" disabled>Reset</button>
+            <button id="start" type="button">Enter office</button>
+            <button id="reset" type="button" disabled>Leave</button>
           </div>
         </div>
 
@@ -36,14 +36,14 @@
             <span class="status-dot" aria-hidden="true"></span>
             <span class="status-copy">
               <span>World</span>
-              <strong id="world-status">Not joined</strong>
+              <strong id="world-status">Outside room</strong>
             </span>
           </div>
           <div id="media-pill" class="status-pill" data-state="idle">
             <span class="status-dot" aria-hidden="true"></span>
             <span class="status-copy">
               <span>Media</span>
-              <strong id="media-status">Not ready</strong>
+              <strong id="media-status">Media off</strong>
             </span>
           </div>
         </div>
@@ -59,7 +59,7 @@
           <strong id="lifecycle-status">Room empty</strong>
         </div>
 
-        <section class="identity-panel" aria-label="Local demo identity">
+        <section class="identity-panel" aria-label="Local profile">
           <label class="name-field" for="demo-display-name">
             <span>Name</span>
             <input
@@ -117,7 +117,7 @@
             <button id="generate-map" type="submit">Generate room</button>
           </form>
           <div class="generator-result" aria-live="polite">
-            <strong id="map-generation-status">Fixture map loaded</strong>
+            <strong id="map-generation-status">Lobby loaded</strong>
             <dl class="validation-strip">
               <div>
                 <dt>Blocked</dt>
@@ -182,7 +182,7 @@
                 <div class="media-heading">
                   <div class="media-state">
                     <span>Media session</span>
-                    <strong id="media-panel-status">Not connected</strong>
+                    <strong id="media-panel-status">Inactive</strong>
                   </div>
                   <div class="device-actions">
                     <button id="toggle-mic" type="button" aria-pressed="false" disabled>
@@ -196,16 +196,16 @@
                 <div class="media-stage">
                   <div id="local-preview" class="local-preview" data-camera="off">
                     <span class="preview-avatar" aria-hidden="true">BA</span>
-                    <strong id="preview-status">No media session</strong>
+                    <strong id="preview-status">Media not joined</strong>
                   </div>
                   <dl class="media-meta">
                     <div>
                       <dt>Room</dt>
-                      <dd id="media-room">None</dd>
+                      <dd id="media-room">Not joined</dd>
                     </div>
                     <div>
                       <dt>Endpoint</dt>
-                      <dd id="media-endpoint">None</dd>
+                      <dd id="media-endpoint">Not joined</dd>
                     </div>
                     <div>
                       <dt>Participants</dt>
@@ -213,7 +213,7 @@
                     </div>
                     <div>
                       <dt>Token</dt>
-                      <dd id="media-token-status">Not issued</dd>
+                      <dd id="media-token-status">No access</dd>
                     </div>
                   </dl>
                 </div>
@@ -243,7 +243,7 @@
                     id="chat-body"
                     name="chat-body"
                     autocomplete="off"
-                    value="Hello from the browser shell"
+                    value="Hello from the office"
                   />
                   <button type="submit">Send</button>
                 </form>
