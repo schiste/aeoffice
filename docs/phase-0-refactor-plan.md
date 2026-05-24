@@ -221,7 +221,7 @@ Goals:
 
 - Replace PeerJS with LiveKit/coturn plan and first integration.
 - Define clean client/server protocol.
-- Rebuild permissions.
+- Establish minimal server-side permission enforcement.
 - Move chat delivery rules server-side.
 
 Required outputs:
@@ -230,7 +230,7 @@ Required outputs:
 - coturn local config.
 - Media room policy.
 - Protocol package.
-- Permission resource model.
+- Minimal permission resource model for runtime enforcement.
 - Role mapping.
 - Chat delivery policy.
 - Moderation event model.
@@ -242,7 +242,8 @@ Week 3-4 gates:
 - Server-issued LiveKit tokens exist.
 - Protocol package owns movement/chat/media events.
 - Chat delivery is server-filtered.
-- Permissions are rebuilt around roles and room/zone access.
+- Runtime permissions are server-enforced for room/zone access.
+- Full role/RBAC management is deferred to the SaaS/control-plane phase.
 
 ## 6. Immediate Refactors
 
@@ -422,6 +423,6 @@ Exceptions:
 - Persistence.
 - Movement protocol.
 - Media replacement.
-- Permission model.
+- Runtime permission enforcement boundary.
 - CI and Docker Compose.
 - Schema and documentation work that prepares future AI map generation.

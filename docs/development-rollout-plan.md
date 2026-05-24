@@ -12,6 +12,9 @@ operational companion to the global spec and Phase 0 hard-fork plan.
   persistence, media, cache, and asset storage.
 - Treat the server as authoritative for identity, movement, permissions, chat,
   collisions, zones, media access, and map publication.
+- Focus the next implementation phase on the customer app layer. Full role/RBAC
+  management, role administration UI, and SaaS control-plane synchronization are
+  deferred to later phases.
 - Add AI map generation only after deterministic schemas, compilers, validators,
   persistence, and preview workflows exist without an LLM.
 - Do not add product polish on top of legacy SkyOffice architecture.
@@ -47,9 +50,9 @@ Owns:
 
 - Wikimedia OAuth.
 - Local users, sessions, OAuth identities.
-- SaaS Foundation identity bridge.
-- Tenant ownership.
 - Session and world-token issuance.
+- Later SaaS Foundation identity bridge.
+- Later tenant ownership and role management.
 
 Current state:
 
@@ -63,7 +66,7 @@ Next gates:
 - Wire Fastify runtime.
 - Wire real Postgres `pg` pool.
 - Add OAuth state store backed by Valkey or signed server-side session storage.
-- Add SaaS Foundation bridge only after customer app identity is stable.
+- Keep role/RBAC administration deferred until the SaaS Foundation bridge phase.
 
 ### World And Realtime
 
@@ -121,7 +124,7 @@ Owns:
 - Maps.
 - Map versions.
 - Asset dictionary.
-- RBAC.
+- Minimal permission resolution needed for runtime world admission.
 - Moderation/audit events.
 
 Current state:
@@ -135,7 +138,8 @@ Next gates:
 
 - Add concrete DB migrations runner.
 - Add repository tests for tenant isolation.
-- Add audit events for map publishing, RBAC changes, and AI generation later.
+- Add audit events for map publishing and AI generation later.
+- Do not build RBAC management workflows until the control-plane phase.
 
 ### Browser Client
 
@@ -158,6 +162,8 @@ Next gates:
 - Send movement intents only.
 - Receive authoritative player state.
 - Join media only with server-issued tokens.
+- Use fixture or seeded permissions for the app-layer MVP; do not build role
+  management UI here.
 
 ### AI Map Generation
 
@@ -199,7 +205,7 @@ Allowed work:
 - Protocol replacement.
 - Auth replacement.
 - Persistence boundaries.
-- Permission model.
+- Runtime permission enforcement boundary.
 - Media replacement foundation.
 - Infra skeleton.
 - AI map-generation schema planning only.
@@ -232,11 +238,15 @@ Scope:
 - Basic chat.
 - Basic media zone prototype.
 - Simple HTML/TypeScript overlays.
+- Fixture or seeded access rules sufficient to exercise world admission, chat,
+  and media zones.
 
 Out of scope:
 
 - Tauri desktop wrapper.
 - Full backoffice.
+- Role/RBAC management UI.
+- SaaS Foundation role synchronization.
 - Live AI map generation.
 - Broadcast mode.
 - Enterprise meeting integrations.
@@ -247,6 +257,8 @@ Exit gates:
   server policy, and join a media zone with a server-issued token.
 - The client never submits authoritative position, collision, roles, or
   permissions.
+- Access can be seeded or fixture-backed as long as server-side enforcement is
+  preserved.
 
 ### Phase 2: SaaS Foundation Bridge
 
@@ -259,6 +271,8 @@ Scope:
 - Tenant identity bridge.
 - SaaS Foundation user mapping.
 - Role and permission synchronization.
+- Role/RBAC management workflows.
+- Role administration UI or integration with the SaaS Foundation backoffice.
 - Tenant/world ownership.
 - Admin access boundary.
 

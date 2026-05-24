@@ -109,7 +109,7 @@ Step 0 goals:
 - Replace client-authoritative movement with server-authoritative movement.
 - Replace PeerJS with LiveKit/coturn.
 - Define a clean protocol package.
-- Rebuild permissions before product features.
+- Establish minimal server-side permission enforcement before product features.
 
 Step 0 non-goals:
 
@@ -1925,7 +1925,7 @@ Deliverables:
 - Server-filtered chat delivery rules.
 - LiveKit/coturn media replacement plan and first server-issued token flow.
 - Clean protocol package.
-- Permission model rebuilt around roles, rooms, and zones.
+- Minimal server-side permission enforcement for rooms, zones, chat, and media.
 - Docker Compose plan for full-stack boot.
 
 Acceptance criteria:
@@ -1958,7 +1958,8 @@ Deliverables:
 - Object interactions.
 - LiveKit meeting/proximity zone prototype.
 - Config-driven office layout.
-- Basic room and zone permissions.
+- Basic server-enforced room and zone access using seeded or fixture-backed
+  permissions.
 - Basic server-side chat modes.
 - Browser-first client using Phaser 4 and TypeScript.
 - Simple in-world UI overlays using vanilla HTML/TypeScript and Tailwind CSS
@@ -1970,6 +1971,8 @@ Explicitly deferred:
 
 - Tauri desktop packaging.
 - Full SaaS/admin backoffice UI framework decision.
+- Role/RBAC management workflows and role administration UI.
+- SaaS Foundation role synchronization.
 - Large-room broadcast UX beyond core media policy.
 - Live AI prompt-to-map generation.
 
@@ -1985,7 +1988,9 @@ Deliverables:
 - Realtime token issuance.
 - User identity bridge.
 - Tenant/world ownership model.
-- Basic RBAC checks for entering worlds and rooms.
+- Role/RBAC management workflows.
+- Role and permission synchronization from the control plane.
+- Tenant-aware RBAC checks for entering worlds and rooms.
 
 ### Phase 3: World Persistence
 

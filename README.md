@@ -23,8 +23,9 @@ architecture before product feature work resumes.
 - `apps/web/` - future browser-first Phaser 4 world renderer with TypeScript
   protocol client and simple HTML/TypeScript overlays.
 - `apps/world-server/` - future Colyseus authoritative world server.
-- `apps/api/` - future Fastify API with Wikimedia OAuth, sessions, RBAC, and
-  persistence.
+- `apps/api/` - future Fastify API with Wikimedia OAuth, sessions, runtime
+  permission enforcement, and persistence. Full RBAC management comes later via
+  the SaaS/control-plane phase.
 - `apps/media-gateway/` - future LiveKit token service and media policy layer.
 - `packages/protocol/` - future client/server protocol definitions.
 - `packages/map-engine/` - future map parsing, collision, zones, and navigation.
