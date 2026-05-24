@@ -1,6 +1,7 @@
 import {
   type NormalizedWikimediaIdentity,
   type WikimediaGroupRoleMapping,
+  type WikimediaOAuthClient,
   type WikimediaOAuthProfile,
   mapWikimediaGroupsToRoles,
   normalizeWikimediaProfile,
@@ -14,6 +15,19 @@ import type {
   UserId,
   WorldTokenClaims,
 } from "@aedventure/shared-types"
+import { ApiController, type PermissionResolver } from "./controller"
+import {
+  registerApiRoutes,
+  type ApiRoutesOptions,
+  type Clock,
+  type FastifyLike,
+} from "./routes"
+import { SeededPermissionResolver } from "./seeded-permission-resolver"
+import {
+  InMemoryOAuthStateStore,
+  SequentialOAuthStateGenerator,
+  WikimediaOAuthController,
+} from "./wikimedia-oauth-controller"
 
 export type OAuthIdentityId = string
 
@@ -423,6 +437,59 @@ export const DEFAULT_AUTHENTICATION_POLICY: AuthenticationPolicy = {
   sessionCookieName: "aedventure_session",
 }
 
+export interface ApiRuntime {
+  readonly auth: AuthenticationService
+  readonly apiController: ApiController
+  readonly wikimediaOAuthController: WikimediaOAuthController
+  readonly permissionResolver: PermissionResolver
+  readonly registerRoutes: (app: FastifyLike) => void
+}
+
+export interface CreateInMemoryApiRuntimeOptions {
+  readonly oauth: WikimediaOAuthClient
+  readonly clock?: Clock
+  readonly platformStore?: PlatformStore
+  readonly permissionResolver?: PermissionResolver
+  readonly authenticationPolicy?: AuthenticationPolicy
+  readonly roleMappings?: readonly WikimediaGroupRoleMapping[]
+  readonly oauthStateTtlMs?: number
+}
+
+export function createInMemoryApiRuntime(
+  options: CreateInMemoryApiRuntimeOptions,
+): ApiRuntime {
+  const auth = new AuthenticationService({
+    store: options.platformStore ?? new InMemoryPlatformStore(),
+    idGenerator: new SequentialIdGenerator(),
+    tokenSigner: new JsonTokenSigner(),
+    policy: options.authenticationPolicy ?? DEFAULT_AUTHENTICATION_POLICY,
+    roleMappings: options.roleMappings,
+  })
+  const permissionResolver =
+    options.permissionResolver ?? new SeededPermissionResolver()
+  const apiController = new ApiController(auth, permissionResolver)
+  const wikimediaOAuthController = new WikimediaOAuthController({
+    oauth: options.oauth,
+    auth,
+    stateStore: new InMemoryOAuthStateStore(),
+    stateGenerator: new SequentialOAuthStateGenerator(),
+    stateTtlMs: options.oauthStateTtlMs ?? 1000 * 60 * 10,
+  })
+  const routeOptions: ApiRoutesOptions = {
+    apiController,
+    wikimediaOAuthController,
+    clock: options.clock ?? systemClock,
+  }
+
+  return {
+    auth,
+    apiController,
+    wikimediaOAuthController,
+    permissionResolver,
+    registerRoutes: (app) => registerApiRoutes(app, routeOptions),
+  }
+}
+
 export {
   type ApiResponse,
   type DeniedResponseBody,
@@ -508,6 +575,12 @@ export {
   registerApiRoutes,
 } from "./routes"
 
+export {
+  type SeededAccessGrant,
+  type SeededPermissionResolverOptions,
+  SeededPermissionResolver,
+} from "./seeded-permission-resolver"
+
 function createSessionCookie(
   name: string,
   session: SessionRecord,
@@ -530,4 +603,8 @@ function required<T>(value: T | undefined, message: string): T {
 
 function iso(ms: number): string {
   return new Date(ms).toISOString()
+}
+
+const systemClock: Clock = {
+  nowMs: () => Date.now(),
 }

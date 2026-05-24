@@ -23,6 +23,9 @@
       "path": "apps/media-gateway"
     },
     {
+      "path": "apps/web"
+    },
+    {
       "path": "apps/world-server"
     }
   ]

@@ -20,12 +20,13 @@ architecture before product feature work resumes.
 
 - `legacy/skyoffice-original/` - SkyOffice fork imported with upstream Git
   history preserved as a subtree. This is reference code, not the target app.
-- `apps/web/` - future browser-first Phaser 4 world renderer with TypeScript
-  protocol client and simple HTML/TypeScript overlays.
+- `apps/web/` - browser-first customer app-layer orchestrator. The Phaser 4
+  world renderer and HTML/TypeScript overlays plug in after this app flow is
+  stable.
 - `apps/world-server/` - future Colyseus authoritative world server.
-- `apps/api/` - future Fastify API with Wikimedia OAuth, sessions, runtime
-  permission enforcement, and persistence. Full RBAC management comes later via
-  the SaaS/control-plane phase.
+- `apps/api/` - API foundation with Wikimedia OAuth, sessions, seeded runtime
+  permission enforcement, and persistence boundaries. Full RBAC management comes
+  later via the SaaS/control-plane phase.
 - `apps/media-gateway/` - future LiveKit token service and media policy layer.
 - `packages/protocol/` - future client/server protocol definitions.
 - `packages/map-engine/` - future map parsing, collision, zones, and navigation.

@@ -113,6 +113,15 @@ export class AuthoritativeWorld {
     return state ? snapshot(state) : undefined
   }
 
+  getParticipant(playerId: string): ParticipantPolicyContext | undefined {
+    const state = this.players.get(playerId)
+    return state ? participantContext(state) : undefined
+  }
+
+  listParticipants(): readonly ParticipantPolicyContext[] {
+    return [...this.players.values()].map(participantContext)
+  }
+
   handleClientMessage(
     playerId: string,
     message: ClientMessage | unknown,
