@@ -20,5 +20,11 @@ owns the app-layer flow before Phaser rendering is wired:
 - Apply authoritative server messages to local app state.
 - Request media-zone tokens from the media gateway.
 
+Runtime adapters are intentionally narrow:
+
+- `HttpAppApiClient` calls the API for world tokens.
+- `HttpMediaGatewayClient` calls the media gateway for LiveKit tokens.
+- `TransportWorldClient` wraps the future Colyseus/WebSocket transport.
+
 No role/RBAC management UI belongs here during the app-layer MVP. This app can
 use seeded or fixture-backed permissions while the server still enforces access.

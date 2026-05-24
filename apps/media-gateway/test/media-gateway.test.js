@@ -1,7 +1,9 @@
 const assert = require("assert")
 const {
+  MediaGatewayController,
   MediaGatewayService,
   UnsignedLocalMediaTokenSigner,
+  registerMediaGatewayRoutes,
 } = require("../dist/index.js")
 const { MEDIA_PERMISSIONS } = require("@aedventure/policy")
 
@@ -124,3 +126,109 @@ const outOfScope = service.issueMediaToken({
 
 assert.equal(outOfScope.status, "denied")
 assert.equal(outOfScope.reason, "out_of_scope")
+
+class RecordingApp {
+  constructor() {
+    this.routes = new Map()
+  }
+
+  post(path, handler) {
+    this.routes.set(`POST ${path}`, handler)
+  }
+
+  route(method, path) {
+    const handler = this.routes.get(`${method} ${path}`)
+    assert.ok(handler, `Expected route ${method} ${path}`)
+    return handler
+  }
+}
+
+class RecordingReply {
+  constructor() {
+    this.statusCode = undefined
+    this.body = undefined
+  }
+
+  status(code) {
+    this.statusCode = code
+    return this
+  }
+
+  send(body) {
+    this.body = body
+    return this
+  }
+}
+
+async function invoke(handler, request) {
+  const reply = new RecordingReply()
+  await handler(request, reply)
+  return reply
+}
+
+const participantDirectory = {
+  async findParticipant(playerId) {
+    return participants.find((participant) => participant.playerId === playerId)
+  },
+  async listParticipantsFor(requesterContext) {
+    return participants.filter(
+      (participant) => participant.roomId === requesterContext.roomId,
+    )
+  },
+}
+const controller = new MediaGatewayController(service, participantDirectory)
+const app = new RecordingApp()
+
+registerMediaGatewayRoutes(app, {
+  controller,
+  clock: {
+    nowMs: () => nowMs,
+  },
+})
+
+async function routeChecks() {
+  const issued = await invoke(app.route("POST", "/media-token"), {
+    body: {
+      playerId: "p1",
+      mode: "zone",
+      zoneId: "stage",
+      publish: true,
+      subscribe: true,
+    },
+  })
+
+  assert.equal(issued.statusCode, 200)
+  assert.equal(issued.body.status, "issued")
+  assert.equal(issued.body.room, "zone:room-1:stage")
+  assert.equal(issued.body.canPublish, true)
+  assert.equal(issued.body.canSubscribe, true)
+  assert.deepEqual(issued.body.participantPlayerIds, ["p1", "p2"])
+
+  const unknown = await invoke(app.route("POST", "/media-token"), {
+    body: {
+      playerId: "missing-player",
+      mode: "zone",
+      zoneId: "stage",
+    },
+  })
+
+  assert.equal(unknown.statusCode, 404)
+  assert.equal(unknown.body.status, "denied")
+  assert.equal(unknown.body.reason, "unknown_player")
+
+  const badRequest = await invoke(app.route("POST", "/media-token"), {
+    body: {
+      playerId: "p1",
+      mode: "invalid",
+    },
+  })
+
+  assert.equal(badRequest.statusCode, 400)
+  assert.equal(badRequest.body.status, "denied")
+  assert.equal(badRequest.body.reason, "bad_request")
+}
+
+routeChecks().catch((error) => {
+  console.error(error)
+  process.exit(1)
+})

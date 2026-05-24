@@ -15,6 +15,10 @@ Current implementation:
 
 - `MediaGatewayService` evaluates media join requests through
   `packages/policy`.
+- `MediaGatewayController` resolves the requester and participant set
+  server-side before issuing any token.
+- `registerMediaGatewayRoutes` exposes the framework-neutral `/media-token`
+  route contract used by the browser app adapter.
 - It issues short-lived media token claims for room, proximity, and zone media.
 - It records publish/subscribe grants in the token claim.
 - `UnsignedLocalMediaTokenSigner` is a development-only signer used by tests.
@@ -22,7 +26,7 @@ Current implementation:
 Current non-goals:
 
 - No production LiveKit JWT signing yet.
-- No runtime HTTP server yet.
+- No concrete Fastify runtime process yet.
 - No PeerJS compatibility layer.
 
 Next step:

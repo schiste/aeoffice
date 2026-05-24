@@ -54,6 +54,7 @@ node "$ROOT_DIR/apps/media-gateway/test/media-gateway.test.js"
 
 echo "Running browser app-layer checks..."
 node "$ROOT_DIR/apps/web/test/customer-office-app.test.js"
+node "$ROOT_DIR/apps/web/test/adapters.test.js"
 
 "$ROOT_DIR/scripts/verify-infra-config.sh"
 

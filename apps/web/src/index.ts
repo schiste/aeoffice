@@ -45,6 +45,31 @@ export interface WorldClient {
   send(message: ClientMessage, nowMs: number): Promise<readonly ServerMessage[]>
 }
 
+export type WorldTransportRequest =
+  | {
+      readonly type: "join"
+      readonly input: JoinWorldInput
+    }
+  | {
+      readonly type: "message"
+      readonly message: ClientMessage
+      readonly nowMs: number
+    }
+
+export type WorldTransportResponse =
+  | {
+      readonly type: "join_result"
+      readonly result: JoinWorldResult
+    }
+  | {
+      readonly type: "messages"
+      readonly messages: readonly ServerMessage[]
+    }
+
+export interface WorldTransport {
+  request(input: WorldTransportRequest): Promise<WorldTransportResponse>
+}
+
 export interface JoinWorldInput {
   readonly token: string
   readonly playerId: string
@@ -120,6 +145,30 @@ export interface CustomerVirtualOfficeAppOptions {
   readonly world: WorldClient
   readonly media: MediaGatewayClient
   readonly renderer?: VirtualOfficeRenderer
+}
+
+export interface FetchLike {
+  (
+    url: string,
+    init: {
+      readonly method: "POST"
+      readonly headers: Readonly<Record<string, string>>
+      readonly body: string
+      readonly credentials?: "include" | "same-origin" | "omit"
+    },
+  ): Promise<FetchResponseLike>
+}
+
+export interface FetchResponseLike {
+  readonly ok: boolean
+  readonly status: number
+  json(): Promise<unknown>
+}
+
+export interface HttpClientOptions {
+  readonly baseUrl: string
+  readonly fetch: FetchLike
+  readonly credentials?: "include" | "same-origin" | "omit"
 }
 
 export interface EnterWorldInput {
@@ -313,4 +362,154 @@ export class CustomerVirtualOfficeApp {
 
     return this.localPlayerId
   }
+}
+
+export class HttpAppApiClient implements AppApiClient {
+  constructor(private readonly options: HttpClientOptions) {}
+
+  async issueWorldToken(input: IssueAppWorldTokenInput): Promise<WorldTokenResult> {
+    const body = await postJson(this.options, "/world-token", {
+      sessionId: input.sessionId,
+      tenantId: input.tenantId,
+      spaceId: input.spaceId,
+      roomId: input.roomId,
+    })
+
+    if (!isWorldTokenResult(body)) {
+      throw new Error("API returned an invalid world-token response.")
+    }
+
+    return body
+  }
+}
+
+export class HttpMediaGatewayClient implements MediaGatewayClient {
+  constructor(private readonly options: HttpClientOptions) {}
+
+  async issueToken(input: IssueAppMediaTokenInput): Promise<AppMediaTokenResult> {
+    const body = await postJson(this.options, "/media-token", {
+      playerId: input.playerId,
+      mode: input.mode,
+      zoneId: input.zoneId,
+      targetPlayerIds: input.targetPlayerIds,
+      publish: input.publish,
+      subscribe: input.subscribe,
+    })
+
+    if (!isAppMediaTokenResult(body)) {
+      throw new Error("Media gateway returned an invalid token response.")
+    }
+
+    return body
+  }
+}
+
+export class TransportWorldClient implements WorldClient {
+  constructor(private readonly transport: WorldTransport) {}
+
+  async join(input: JoinWorldInput): Promise<JoinWorldResult> {
+    const response = await this.transport.request({
+      type: "join",
+      input,
+    })
+
+    if (response.type !== "join_result") {
+      throw new Error("World transport returned an invalid join response.")
+    }
+
+    return response.result
+  }
+
+  async send(
+    message: ClientMessage,
+    nowMs: number,
+  ): Promise<readonly ServerMessage[]> {
+    const response = await this.transport.request({
+      type: "message",
+      message,
+      nowMs,
+    })
+
+    if (response.type !== "messages") {
+      throw new Error("World transport returned an invalid message response.")
+    }
+
+    return response.messages
+  }
+}
+
+async function postJson(
+  options: HttpClientOptions,
+  path: string,
+  body: Record<string, unknown>,
+): Promise<unknown> {
+  const response = await options.fetch(joinUrl(options.baseUrl, path), {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+    },
+    body: JSON.stringify(stripUndefined(body)),
+    credentials: options.credentials ?? "include",
+  })
+  const parsed = await response.json()
+
+  if (!response.ok && !isDeniedResponse(parsed)) {
+    throw new Error(`HTTP ${response.status} from ${path}.`)
+  }
+
+  return parsed
+}
+
+function joinUrl(baseUrl: string, path: string): string {
+  return `${baseUrl.replace(/\/+$/, "")}/${path.replace(/^\/+/, "")}`
+}
+
+function stripUndefined(
+  input: Record<string, unknown>,
+): Readonly<Record<string, unknown>> {
+  return Object.fromEntries(
+    Object.entries(input).filter(([, value]) => value !== undefined),
+  )
+}
+
+function isWorldTokenResult(value: unknown): value is WorldTokenResult {
+  if (!isRecord(value)) return false
+
+  return (
+    typeof value.token === "string" &&
+    isRecord(value.claims) &&
+    typeof value.claims.sub === "string" &&
+    typeof value.claims.sessionId === "string" &&
+    Array.isArray(value.claims.permissions) &&
+    Array.isArray(value.claims.roles) &&
+    typeof value.claims.expiresAt === "string"
+  )
+}
+
+function isAppMediaTokenResult(value: unknown): value is AppMediaTokenResult {
+  if (!isRecord(value) || typeof value.status !== "string") return false
+
+  if (value.status === "denied") {
+    return typeof value.reason === "string"
+  }
+
+  return (
+    value.status === "issued" &&
+    typeof value.liveKitUrl === "string" &&
+    typeof value.token === "string" &&
+    typeof value.room === "string" &&
+    typeof value.canPublish === "boolean" &&
+    typeof value.canSubscribe === "boolean" &&
+    Array.isArray(value.participantPlayerIds) &&
+    value.participantPlayerIds.every((playerId) => typeof playerId === "string") &&
+    typeof value.expiresAt === "string"
+  )
+}
+
+function isDeniedResponse(value: unknown): boolean {
+  return isRecord(value) && value.status === "denied" && typeof value.reason === "string"
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null
 }
