@@ -96,6 +96,8 @@ assert.equal(accepted.anim, "adam_walk_right")
 assert.deepEqual(accepted.requestedVector, { x: 1, y: 0 })
 assert.deepEqual(accepted.appliedVector, { x: 1, y: 0 })
 assert.equal(accepted.collisionSlide, false)
+assert.equal(accepted.movementMode, "walk")
+assert.equal(accepted.speedPxPerSecond, 64)
 
 const idleWorld = new AuthoritativeWorld({
   map: {
@@ -141,6 +143,39 @@ assert.equal(diagonalMove.anim, "adam_walk_right")
 assert.deepEqual(roundedVector(diagonalMove.requestedVector), { x: 0.707, y: -0.707 })
 assert.deepEqual(roundedVector(diagonalMove.appliedVector), { x: 0.707, y: -0.707 })
 assert.equal(diagonalMove.collisionSlide, false)
+
+const runningWorld = new AuthoritativeWorld({
+  map: {
+    width: 128,
+    height: 128,
+    tileSize: 32,
+    blockedTiles: [],
+  },
+  playerSize: { width: 16, height: 16 },
+  speedPxPerSecond: 64,
+  runSpeedPxPerSecond: 128,
+  defaultAvatarId: "adam",
+  tickMs: 250,
+  defaultRoomId: "room-1",
+  proximityChatRadiusPx: 64,
+})
+
+runningWorld.addPlayer({
+  playerId: "runner",
+  spawn: { x: 32, y: 32 },
+})
+
+const runMove = runningWorld.handleClientMessage(
+  "runner",
+  { type: "move", vector: { x: 1, y: 0 }, movementMode: "run", seq: 1 },
+  1000,
+)
+
+assert.equal(runMove.type, "player_state")
+assert.equal(runMove.x, 64)
+assert.equal(runMove.y, 32)
+assert.equal(runMove.movementMode, "run")
+assert.equal(runMove.speedPxPerSecond, 128)
 
 const towardObstacle = permittedWorld.handleClientMessage(
   "p2",

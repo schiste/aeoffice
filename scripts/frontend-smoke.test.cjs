@@ -131,6 +131,8 @@ async function main() {
     assert.equal(joined.lifecycle.stageOverlay.hidden, true)
     assert.equal(joined.movement.repeatMs, 60)
     assert.equal(joined.movement.prediction.maxStepMs, 60)
+    assert.equal(joined.movement.movementMode, "walk")
+    assert.equal(joined.movement.runToggled, false)
     assert.equal(joined.viewport.canZoomIn, true)
     assert.equal(joined.viewport.canZoomOut, true)
     assertCameraStateContract(joined)
@@ -279,6 +281,12 @@ async function main() {
       `Expected movement debug log to include server vector telemetry, got ${JSON.stringify(diagonalMoved.movement.debugLog)}.`,
     )
     assert.ok(
+      diagonalMoved.movement.debugLog.some((entry) =>
+        /serverMode=walk/.test(entry),
+      ),
+      `Expected movement debug log to include server movement mode, got ${JSON.stringify(diagonalMoved.movement.debugLog)}.`,
+    )
+    assert.ok(
       !diagonalMoved.movement.debugLog.some((entry) =>
         /serverApplied=legacy\/missing/.test(entry),
       ),
@@ -300,6 +308,7 @@ async function main() {
     await page.locator(".compact-tool").evaluate((section) => {
       section.open = true
     })
+    await page.locator("#run-toggle").click()
     await page.locator('[data-move-x="1"][data-move-y="1"]').click()
     const padDiagonalMoved = await waitForTextState(
       page,
@@ -309,12 +318,17 @@ async function main() {
           beforePadDiagonal.movement.prediction.totalPredicted &&
         state.movement.prediction.lastRequestedVector?.x === 0.707 &&
         state.movement.prediction.lastRequestedVector?.y === 0.707 &&
-        state.movement.prediction.lastDirection === "right",
+        state.movement.prediction.lastDirection === "right" &&
+        state.movement.prediction.lastMovementMode === "run" &&
+        state.movement.prediction.lastSpeedPxPerSecond === 148,
     )
     assert.equal(
       padDiagonalMoved.movement.prediction.lastRequestedVector.x,
       0.707,
     )
+    assert.equal(padDiagonalMoved.movement.runToggled, true)
+    assert.equal(await page.locator("#run-toggle").getAttribute("aria-pressed"), "true")
+    await page.locator("#run-toggle").click()
 
     await page.locator("#chat-body").fill(SMOKE_MESSAGE)
     await assertChatFormUsable(page)
@@ -564,6 +578,8 @@ function assertRenderStateContract(state) {
     "client_prediction_server_reconciliation",
   )
   assert.equal(typeof state.movement?.prediction?.active, "boolean")
+  assert.equal(typeof state.movement?.movementMode, "string")
+  assert.equal(typeof state.movement?.runToggled, "boolean")
   assert.equal(typeof state.movement?.prediction?.lastOutcome, "string")
   assert.equal(typeof state.movement?.prediction?.totalPredicted, "number")
   assert.equal(typeof state.movement?.prediction?.totalConfirmed, "number")
@@ -575,6 +591,7 @@ function assertRenderStateContract(state) {
     assert.equal(typeof state.movement.prediction.requestedVector?.y, "number")
     assert.equal(typeof state.movement.prediction.appliedVector?.x, "number")
     assert.equal(typeof state.movement.prediction.appliedVector?.y, "number")
+    assert.equal(typeof state.movement.prediction.speedPxPerSecond, "number")
     assert.equal(typeof state.movement.prediction.collisionSlide, "boolean")
   }
   assert.equal(typeof state.map?.renderer, "string")
@@ -1410,7 +1427,7 @@ async function assertAvatarSystemSmoke(page) {
     "moss",
     "violet",
   ])
-  assert.equal(avatarState.avatars.animationCount, 32)
+  assert.equal(avatarState.avatars.animationCount, 48)
   assert.deepEqual(avatarState.avatars.interpolationProfiles, ["local", "remote"])
   assert.deepEqual(avatarState.avatars.emoteIds, ["wave", "raise_hand", "focus"])
   assert.deepEqual(fixture.avatarIds, ["ember", "cobalt", "moss", "violet"])

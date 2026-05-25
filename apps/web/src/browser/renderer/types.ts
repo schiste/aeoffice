@@ -1,6 +1,7 @@
 import type { VisualAssetFrameMetadata } from "@aedventure/asset-registry"
 
 export type Direction = "up" | "down" | "left" | "right"
+export type MovementMode = "walk" | "run"
 
 export interface Vector2 {
   readonly x: number
@@ -244,11 +245,12 @@ export interface RenderedPlayer {
   readonly emoteId?: AvatarEmoteId
   readonly position: Vector2
   readonly direction: Direction
+  readonly movementMode?: MovementMode
   readonly local: boolean
   readonly rejected?: boolean
 }
 
-export type AvatarAnimationAction = "idle" | "walk"
+export type AvatarAnimationAction = "idle" | "walk" | "run"
 
 export type AvatarEmoteId = "wave" | "raise_hand" | "focus"
 

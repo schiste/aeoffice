@@ -114,6 +114,10 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   input repeat, client prediction max step, and the local dev world tick now use
   60 ms frames, while avatar interpolation moves at the same visual speed as the
   server-authoritative world instead of snapping ahead and pausing.
+- Movement now supports an authoritative walk/run mode. The browser offers a
+  Run toggle and Shift momentary run, sends `movementMode` through the protocol,
+  predicts with 88 px/s walk and 148 px/s run speeds, and the world server owns
+  the accepted speed for each movement response.
 - The standalone develop-web-game client was retried with the repo
   `node_modules` on `NODE_PATH`, but the skill script still cannot resolve its
   own ESM `playwright` import. Repo-native Playwright smoke/renderer/responsive

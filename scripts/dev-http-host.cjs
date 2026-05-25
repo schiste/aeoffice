@@ -5,6 +5,8 @@ const { resolve, sep } = require("node:path")
 const DEFAULT_HOSTNAME = "127.0.0.1"
 const DEFAULT_PORT = 8787
 const DEVELOPMENT_WORLD_TICK_MS = 60
+const DEVELOPMENT_WALK_SPEED_PX_PER_SECOND = 88
+const DEVELOPMENT_RUN_SPEED_PX_PER_SECOND = 148
 const WEB_APP_DIST_DIR = resolve(__dirname, "../apps/web/dist-app")
 
 function createPrefixedFetchHandler(routes) {
@@ -461,7 +463,8 @@ function developmentWorldConfig() {
       },
     })),
     playerSize: { width: 16, height: 16 },
-    speedPxPerSecond: 64,
+    speedPxPerSecond: DEVELOPMENT_WALK_SPEED_PX_PER_SECOND,
+    runSpeedPxPerSecond: DEVELOPMENT_RUN_SPEED_PX_PER_SECOND,
     defaultAvatarId: "adam",
     tickMs: DEVELOPMENT_WORLD_TICK_MS,
     defaultRoomId: "room-lobby",

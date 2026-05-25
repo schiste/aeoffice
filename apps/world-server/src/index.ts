@@ -2,11 +2,13 @@ import {
   animationForDirection,
   isChatSendMessage,
   isMoveIntentMessage,
+  movementModeForMoveIntent,
   movementVectorForMoveIntent,
   type ChatRejectedMessage,
   type ChatSendMessage,
   type ClientMessage,
   type Direction,
+  type MovementMode,
   type MovementVector,
   type MovementRejectedMessage,
   type PlayerStateMessage,
@@ -37,6 +39,7 @@ export interface WorldServerConfig {
   readonly zones?: readonly Zone[]
   readonly playerSize: Size
   readonly speedPxPerSecond: number
+  readonly runSpeedPxPerSecond?: number
   readonly defaultAvatarId: string
   readonly tickMs: number
   readonly defaultRoomId: string
@@ -192,13 +195,15 @@ export class AuthoritativeWorld {
       Math.max(0, nowMs - previousProcessedAt),
     )
     const requestedVector = movementVectorForMoveIntent(message)
+    const movementMode = movementModeForMoveIntent(message)
+    const speedPxPerSecond = movementSpeedPxPerSecond(this.config, movementMode)
     const result = simulateMovement({
       current: state.position,
       vector: requestedVector,
       seq: message.seq,
       map: this.config.map,
       playerSize: this.config.playerSize,
-      speedPxPerSecond: this.config.speedPxPerSecond,
+      speedPxPerSecond,
       deltaMs,
       zones: this.config.zones,
       currentZoneIds: state.zoneIds,
@@ -216,7 +221,7 @@ export class AuthoritativeWorld {
         state.position,
         message.seq,
         nowMs,
-        movementTelemetry(result),
+        movementTelemetry(result, movementMode, speedPxPerSecond),
       )
     }
 
@@ -227,7 +232,12 @@ export class AuthoritativeWorld {
       result.leftZoneIds,
     )
 
-    return playerStateMessage(state, message.seq, nowMs, movementTelemetry(result))
+    return playerStateMessage(
+      state,
+      message.seq,
+      nowMs,
+      movementTelemetry(result, movementMode, speedPxPerSecond),
+    )
   }
 
   private handleChatMessage(
@@ -983,18 +993,33 @@ interface MovementTelemetry {
   readonly requestedVector: MovementVector
   readonly appliedVector: MovementVector
   readonly collisionSlide: boolean
+  readonly movementMode: MovementMode
+  readonly speedPxPerSecond: number
 }
 
 function movementTelemetry(result: {
   readonly requestedVector: MovementVector
   readonly appliedVector: MovementVector
   readonly collisionSlide: boolean
-}): MovementTelemetry {
+}, movementMode: MovementMode, speedPxPerSecond: number): MovementTelemetry {
   return {
     requestedVector: result.requestedVector,
     appliedVector: result.appliedVector,
     collisionSlide: result.collisionSlide,
+    movementMode,
+    speedPxPerSecond,
   }
+}
+
+function movementSpeedPxPerSecond(
+  config: Pick<WorldServerConfig, "speedPxPerSecond" | "runSpeedPxPerSecond">,
+  movementMode: MovementMode,
+): number {
+  if (movementMode === "run") {
+    return config.runSpeedPxPerSecond ?? config.speedPxPerSecond * 1.68
+  }
+
+  return config.speedPxPerSecond
 }
 
 function chatRejected(

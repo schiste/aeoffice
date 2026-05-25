@@ -1,6 +1,7 @@
 export const PROTOCOL_VERSION = 1
 
 export const DIRECTIONS = ["up", "down", "left", "right"] as const
+export const MOVEMENT_MODES = ["walk", "run"] as const
 export const CHAT_SCOPES = [
   "room",
   "proximity",
@@ -9,6 +10,7 @@ export const CHAT_SCOPES = [
 ] as const
 
 export type Direction = (typeof DIRECTIONS)[number]
+export type MovementMode = (typeof MOVEMENT_MODES)[number]
 export type ChatScope = (typeof CHAT_SCOPES)[number]
 
 export interface MovementVector {
@@ -29,6 +31,7 @@ export interface MoveIntentMessage {
   readonly type: "move"
   readonly vector?: MovementVector
   readonly direction?: Direction
+  readonly movementMode?: MovementMode
   readonly seq: number
   readonly protocolVersion?: typeof PROTOCOL_VERSION
 }
@@ -45,6 +48,8 @@ export interface PlayerStateMessage {
   readonly requestedVector?: MovementVector
   readonly appliedVector?: MovementVector
   readonly collisionSlide?: boolean
+  readonly movementMode?: MovementMode
+  readonly speedPxPerSecond?: number
 }
 
 export type MovementRejectedReason =
@@ -65,6 +70,8 @@ export interface MovementRejectedMessage {
   readonly requestedVector?: MovementVector
   readonly appliedVector?: MovementVector
   readonly collisionSlide?: boolean
+  readonly movementMode?: MovementMode
+  readonly speedPxPerSecond?: number
 }
 
 export interface ChatSendMessage {
@@ -115,6 +122,10 @@ export function isDirection(value: unknown): value is Direction {
   return typeof value === "string" && DIRECTIONS.includes(value as Direction)
 }
 
+export function isMovementMode(value: unknown): value is MovementMode {
+  return typeof value === "string" && MOVEMENT_MODES.includes(value as MovementMode)
+}
+
 export function isMovementVector(value: unknown): value is MovementVector {
   if (!isRecord(value)) return false
 
@@ -152,6 +163,12 @@ export function movementVectorForMoveIntent(
   return message.vector ?? movementVectorForDirection(message.direction ?? "down")
 }
 
+export function movementModeForMoveIntent(
+  message: MoveIntentMessage,
+): MovementMode {
+  return message.movementMode ?? "walk"
+}
+
 export function isChatScope(value: unknown): value is ChatScope {
   return typeof value === "string" && CHAT_SCOPES.includes(value as ChatScope)
 }
@@ -166,6 +183,7 @@ export function isMoveIntentMessage(value: unknown): value is MoveIntentMessage 
     (isMovementVector(value.vector) || isDirection(value.direction)) &&
     (value.vector === undefined || isMovementVector(value.vector)) &&
     (value.direction === undefined || isDirection(value.direction)) &&
+    (value.movementMode === undefined || isMovementMode(value.movementMode)) &&
     typeof seq === "number" &&
     Number.isInteger(seq) &&
     seq >= 0

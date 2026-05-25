@@ -264,7 +264,7 @@ export function fallbackAvatarId(player: RenderedPlayer): string {
 
 function buildAnimationRegistry(): Map<string, AvatarAnimationDefinition> {
   const registry = new Map<string, AvatarAnimationDefinition>()
-  const actions: readonly AvatarAnimationAction[] = ["idle", "walk"]
+  const actions: readonly AvatarAnimationAction[] = ["idle", "walk", "run"]
   const directions: readonly Direction[] = ["up", "down", "left", "right"]
 
   AVATAR_IDS.forEach((avatarId) => {
@@ -275,12 +275,12 @@ function buildAnimationRegistry(): Map<string, AvatarAnimationDefinition> {
           avatarId,
           action,
           direction,
-          durationMs: action === "walk" ? 105 : 1100,
-          repeat: action === "walk" ? 2 : -1,
-          bodyScaleX: action === "walk" ? 1.045 : 1,
-          bodyScaleY: action === "walk" ? 0.955 : 1.025,
-          footScaleX: action === "walk" ? 1.18 : 1,
-          footScaleY: action === "walk" ? 0.82 : 1,
+          durationMs: animationDurationMs(action),
+          repeat: action === "idle" ? -1 : 2,
+          bodyScaleX: action === "idle" ? 1 : action === "run" ? 1.07 : 1.045,
+          bodyScaleY: action === "idle" ? 1.025 : action === "run" ? 0.93 : 0.955,
+          footScaleX: action === "idle" ? 1 : action === "run" ? 1.28 : 1.18,
+          footScaleY: action === "idle" ? 1 : action === "run" ? 0.74 : 0.82,
           pose: DIRECTION_POSES[direction],
         })
       })
@@ -288,6 +288,12 @@ function buildAnimationRegistry(): Map<string, AvatarAnimationDefinition> {
   })
 
   return registry
+}
+
+function animationDurationMs(action: AvatarAnimationAction): number {
+  if (action === "run") return 82
+  if (action === "walk") return 105
+  return 1100
 }
 
 function animationKey(

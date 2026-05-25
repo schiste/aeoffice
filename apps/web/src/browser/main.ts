@@ -25,6 +25,7 @@ import {
   isDirection,
   movementVectorForDirection,
   type Direction,
+  type MovementMode,
   type MovementVector,
 } from "@aedventure/protocol"
 import {
@@ -160,6 +161,8 @@ type ServerMessage =
       readonly requestedVector?: MovementVector
       readonly appliedVector?: MovementVector
       readonly collisionSlide?: boolean
+      readonly movementMode?: MovementMode
+      readonly speedPxPerSecond?: number
     }
   | {
       readonly type: "chat_delivered"
@@ -177,6 +180,8 @@ type ServerMessage =
       readonly requestedVector?: MovementVector
       readonly appliedVector?: MovementVector
       readonly collisionSlide?: boolean
+      readonly movementMode?: MovementMode
+      readonly speedPxPerSecond?: number
     }
   | {
       readonly type: "protocol_error"
@@ -194,6 +199,7 @@ interface PlayerSnapshot {
   readonly x?: number
   readonly y?: number
   readonly direction?: Direction
+  readonly movementMode?: MovementMode
   readonly rejected?: boolean
 }
 
@@ -260,11 +266,14 @@ interface MovementInputState {
   timerId?: number
   inFlight: boolean
   lastRequestedDirection?: Direction
+  runToggled: boolean
+  shiftRunning: boolean
 }
 
 interface MovementIntent {
   readonly vector: MovementVector
   readonly direction: Direction
+  readonly movementMode: MovementMode
 }
 
 interface MovementControlIntent {
@@ -507,6 +516,8 @@ const movementInput: MovementInputState = {
   timerId: undefined,
   inFlight: false,
   lastRequestedDirection: undefined,
+  runToggled: false,
+  shiftRunning: false,
 }
 const recentEvents: string[] = []
 const chatMessages: ChatRecord[] = []
@@ -578,6 +589,7 @@ const elements = {
   zoomOut: mustQuery<HTMLButtonElement>("#zoom-out"),
   zoomReset: mustQuery<HTMLButtonElement>("#zoom-reset"),
   zoomIn: mustQuery<HTMLButtonElement>("#zoom-in"),
+  runToggle: mustQuery<HTMLButtonElement>("#run-toggle"),
   movementDebugLog: mustQuery<HTMLOListElement>("#movement-debug-log"),
   movementDebugCopy: mustQuery<HTMLButtonElement>("#movement-debug-copy"),
   mobileCollapsibleSections: [
@@ -638,6 +650,11 @@ elements.joinMeeting.addEventListener("click", () => queueAction(() => joinMeeti
 elements.leaveMeeting.addEventListener("click", () => queueAction(() => leaveMeeting()))
 elements.toggleMic.addEventListener("click", () => toggleMic())
 elements.toggleCamera.addEventListener("click", () => toggleCamera())
+elements.runToggle.addEventListener("click", () => {
+  movementInput.runToggled = !movementInput.runToggled
+  renderMovementModeControl()
+  requestMoveFromHeldInput()
+})
 document
   .querySelectorAll<HTMLButtonElement>("[data-move-x][data-move-y][data-facing]")
   .forEach((button) => installMovementControlButton(button))
@@ -672,6 +689,15 @@ elements.zoomPreset.addEventListener("change", () => {
   renderCameraControls(renderer.setZoomPreset(zoomPreset))
 })
 document.addEventListener("keydown", (event) => {
+  if (event.key === "Shift") {
+    if (!movementInput.shiftRunning) {
+      movementInput.shiftRunning = true
+      renderMovementModeControl()
+      requestMoveFromHeldInput()
+    }
+    return
+  }
+
   const direction = directionForKey(event.key)
   if (!direction) return
 
@@ -685,6 +711,13 @@ document.addEventListener("keydown", (event) => {
   pressDirection(direction)
 })
 document.addEventListener("keyup", (event) => {
+  if (event.key === "Shift") {
+    movementInput.shiftRunning = false
+    renderMovementModeControl()
+    requestMoveFromHeldInput()
+    return
+  }
+
   const direction = directionForKey(event.key)
   if (!direction) return
 
@@ -730,6 +763,7 @@ renderMediaPanel()
 renderMapGenerationResult()
 renderMapSwitcher()
 renderIdentityControls()
+renderMovementModeControl()
 renderLifecycleStatus()
 syncResponsiveToolSections()
 
@@ -1000,6 +1034,8 @@ async function resetDemo(
   chatMessages.length = 0
   renderChatMessages()
   stopHeldMovement()
+  movementInput.runToggled = false
+  renderMovementModeControl()
   setConnectionStatus("session", "idle", "Disconnected")
   setConnectionStatus("world", "idle", "Outside room")
   setConnectionStatus("media", "idle", "Media off")
@@ -1039,15 +1075,24 @@ async function leaveWorldSafely(clientId: string, label: string): Promise<void> 
   }
 }
 
-async function move(vector: MovementVector, direction: Direction): Promise<void> {
+async function move(
+  vector: MovementVector,
+  direction: Direction,
+  movementMode: MovementMode = "walk",
+): Promise<void> {
   if (!state.joined) return
 
   const seq = state.seq
   logMovementDebug(
     "send",
-    `seq=${seq} vector=${formatMovementVector(vector)} facing=${direction} pos=${formatMovementVector(state.position)}`,
+    `seq=${seq} vector=${formatMovementVector(vector)} facing=${direction} mode=${movementMode} pos=${formatMovementVector(state.position)}`,
   )
-  const prediction = beginClientMovementPrediction(vector, direction, seq)
+  const prediction = beginClientMovementPrediction(
+    vector,
+    direction,
+    movementMode,
+    seq,
+  )
   state.seq += 1
 
   let body: { events: readonly WorldEvent[] }
@@ -1058,6 +1103,7 @@ async function move(vector: MovementVector, direction: Direction): Promise<void>
         type: "move",
         vector,
         direction,
+        movementMode,
         seq,
       },
     })
@@ -1078,6 +1124,7 @@ async function move(vector: MovementVector, direction: Direction): Promise<void>
 function beginClientMovementPrediction(
   vector: MovementVector,
   direction: Direction,
+  movementMode: MovementMode,
   seq: number,
 ): ClientMovementPrediction | undefined {
   if (!state.fixtureMap) return undefined
@@ -1086,6 +1133,7 @@ function beginClientMovementPrediction(
     seq,
     vector,
     direction,
+    movementMode,
     from: state.position,
     map: collisionMapForFixtureMap(state.fixtureMap),
     lastSentAtMs: state.movementPrediction.lastSentAtMs,
@@ -1098,7 +1146,7 @@ function beginClientMovementPrediction(
   state.movementPrediction.lastCorrectionPx = undefined
   logMovementDebug(
     "predict",
-    `seq=${seq} requested=${formatMovementVector(prediction.requestedVector)} applied=${formatMovementVector(prediction.appliedVector)} target=${formatMovementVector(prediction.target)} slide=${prediction.collisionSlide}`,
+    `seq=${seq} mode=${prediction.movementMode} speed=${prediction.speedPxPerSecond} requested=${formatMovementVector(prediction.requestedVector)} applied=${formatMovementVector(prediction.appliedVector)} target=${formatMovementVector(prediction.target)} slide=${prediction.collisionSlide}`,
   )
 
   if (prediction.blockedLocally) {
@@ -1114,6 +1162,7 @@ function beginClientMovementPrediction(
     playerId: state.playerId,
     position: prediction.target,
     direction,
+    movementMode,
   })
   renderPlayers()
   return prediction
@@ -1126,6 +1175,7 @@ function applyClientMovementBlock(prediction: ClientMovementPrediction): void {
     playerId: state.playerId,
     position: prediction.from,
     direction: prediction.direction,
+    movementMode: prediction.movementMode,
     rejected: showFeedback,
   })
   renderPlayers()
@@ -1151,6 +1201,7 @@ function abandonClientMovementPrediction(
     playerId: state.playerId,
     position: state.position,
     direction: state.direction,
+    movementMode: prediction.movementMode,
   })
   renderPlayers()
 }
@@ -1192,9 +1243,9 @@ function installMovementControlButton(button: HTMLButtonElement): void {
     if (event.detail === 0) {
       logMovementDebug(
         "pad-click",
-        `vector=${formatMovementVector(intent.vector)} facing=${intent.direction}`,
+        `vector=${formatMovementVector(intent.vector)} facing=${intent.direction} mode=${activeMovementMode()}`,
       )
-      requestMove(intent.vector, intent.direction)
+      requestMove(intent.vector, intent.direction, activeMovementMode())
     }
   })
 }
@@ -1279,6 +1330,7 @@ function startHeldMovement(): void {
 
 function stopHeldMovement(): void {
   movementInput.pressedDirections.length = 0
+  movementInput.shiftRunning = false
   movementInput.pressedControls.forEach((intent) => {
     if (intent.button) {
       delete intent.button.dataset.active
@@ -1286,6 +1338,7 @@ function stopHeldMovement(): void {
   })
   movementInput.pressedControls.length = 0
   stopHeldMovementTimer()
+  renderMovementModeControl()
 }
 
 function stopHeldMovementTimer(): void {
@@ -1306,10 +1359,20 @@ function activeHeldDirection(): Direction | undefined {
   return activeHeldMovementIntent()?.direction
 }
 
+function activeMovementMode(): MovementMode {
+  return movementInput.runToggled || movementInput.shiftRunning ? "run" : "walk"
+}
+
+function renderMovementModeControl(): void {
+  const running = activeMovementMode() === "run"
+  elements.runToggle.setAttribute("aria-pressed", String(running))
+}
+
 function activeHeldMovementIntent():
   | {
       readonly vector: MovementVector
       readonly direction: Direction
+      readonly movementMode: MovementMode
     }
   | undefined {
   const pressed = new Set(movementInput.pressedDirections)
@@ -1344,6 +1407,7 @@ function activeHeldMovementIntent():
 
   return {
     vector,
+    movementMode: activeMovementMode(),
     direction:
       orderedIntents
         .filter((intent) => vectorIncludesIntent(vector, intent.vector))
@@ -1359,9 +1423,9 @@ function requestMoveFromHeldInput(): void {
   }
   logMovementDebug(
     "intent",
-    `vector=${formatMovementVector(intent.vector)} facing=${intent.direction} keys=${movementInput.pressedDirections.join("+") || "-"} pads=${movementInput.pressedControls.length}`,
+    `vector=${formatMovementVector(intent.vector)} facing=${intent.direction} mode=${intent.movementMode} keys=${movementInput.pressedDirections.join("+") || "-"} pads=${movementInput.pressedControls.length}`,
   )
-  requestMove(intent.vector, intent.direction)
+  requestMove(intent.vector, intent.direction, intent.movementMode)
 }
 
 function vectorIncludesIntent(
@@ -1388,35 +1452,43 @@ function clampMovementComponent(value: number): -1 | 0 | 1 {
   return 0
 }
 
-function requestMove(vector: MovementVector, direction: Direction): void {
+function requestMove(
+  vector: MovementVector,
+  direction: Direction,
+  movementMode: MovementMode,
+): void {
   if (!state.joined) {
     logMovementDebug(
       "ignore",
-      `not_joined vector=${formatMovementVector(vector)} facing=${direction}`,
+      `not_joined vector=${formatMovementVector(vector)} facing=${direction} mode=${movementMode}`,
     )
     return
   }
   if (movementInput.inFlight) {
-    movementInput.pendingIntent = { vector, direction }
+    movementInput.pendingIntent = { vector, direction, movementMode }
     logMovementDebug(
       "queue",
-      `in_flight vector=${formatMovementVector(vector)} facing=${direction}`,
+      `in_flight vector=${formatMovementVector(vector)} facing=${direction} mode=${movementMode}`,
     )
     return
   }
 
   movementInput.inFlight = true
   movementInput.lastRequestedDirection = direction
-  void queueAction(() => move(vector, direction)).finally(() => {
+  void queueAction(() => move(vector, direction, movementMode)).finally(() => {
     movementInput.inFlight = false
     const pendingIntent = movementInput.pendingIntent
     movementInput.pendingIntent = undefined
     if (pendingIntent) {
       logMovementDebug(
         "dequeue",
-        `vector=${formatMovementVector(pendingIntent.vector)} facing=${pendingIntent.direction}`,
+        `vector=${formatMovementVector(pendingIntent.vector)} facing=${pendingIntent.direction} mode=${pendingIntent.movementMode}`,
       )
-      requestMove(pendingIntent.vector, pendingIntent.direction)
+      requestMove(
+        pendingIntent.vector,
+        pendingIntent.direction,
+        pendingIntent.movementMode,
+      )
     }
   })
 }
@@ -2048,12 +2120,13 @@ async function moveLocalPlayerForSmoke(position: Vector2): Promise<void> {
 async function requestMoveForSmoke(
   vector: MovementVector,
   direction: Direction,
+  movementMode: MovementMode = "walk",
 ): Promise<void> {
   if (!state.joined) {
     throw new Error("Cannot request a smoke movement before joining the world.")
   }
 
-  await move(vector, direction)
+  await move(vector, direction, movementMode)
   await renderer.advanceTime()
 }
 
@@ -2494,6 +2567,7 @@ function applyServerMessage(message: ServerMessage): void {
       playerId: message.playerId,
       position,
       direction: message.direction,
+      movementMode: message.movementMode,
     })
     renderPlayers()
     if (localPlayerMoved) {
@@ -2590,6 +2664,7 @@ function seedLocalRenderedPlayer(): void {
 function upsertRenderedPlayer(player: PlayerSnapshot): void {
   const position = playerSnapshotPosition(player)
   const direction = player.direction ?? "down"
+  const movementMode = player.movementMode ?? "walk"
 
   state.players.set(player.playerId, {
     playerId: player.playerId,
@@ -2597,6 +2672,7 @@ function upsertRenderedPlayer(player: PlayerSnapshot): void {
     avatarId: avatarIdForPlayer(player),
     position,
     direction,
+    movementMode,
     local: player.playerId === state.playerId,
     rejected: player.rejected,
   })
@@ -2661,6 +2737,7 @@ function applyMovementRejection(
     playerId: message.playerId,
     position,
     direction,
+    movementMode: message.movementMode,
     rejected: showFeedback,
   })
   renderPlayers()
@@ -3578,6 +3655,8 @@ function formatServerMovementTelemetry(
     readonly requestedVector?: MovementVector
     readonly appliedVector?: MovementVector
     readonly collisionSlide?: boolean
+    readonly movementMode?: MovementMode
+    readonly speedPxPerSecond?: number
   },
 ): string {
   const requested = message.requestedVector
@@ -3587,8 +3666,10 @@ function formatServerMovementTelemetry(
     ? formatMovementVector(message.appliedVector)
     : "legacy/missing"
   const slide = message.collisionSlide ?? "legacy/missing"
+  const mode = message.movementMode ?? "legacy/missing"
+  const speed = message.speedPxPerSecond ?? "legacy/missing"
 
-  return `serverRequested=${requested} serverApplied=${applied} serverSlide=${slide}`
+  return `serverMode=${mode} serverSpeed=${speed} serverRequested=${requested} serverApplied=${applied} serverSlide=${slide}`
 }
 
 function observeServerMovementProtocol(message: {
@@ -4096,8 +4177,10 @@ function movementPredictionTextState() {
     active: Boolean(prediction.active),
     seq: prediction.active?.seq,
     direction: prediction.active?.direction,
+    movementMode: prediction.active?.movementMode,
     lastSeq: prediction.last?.seq,
     lastDirection: prediction.last?.direction,
+    lastMovementMode: prediction.last?.movementMode,
     requestedVector: prediction.active
       ? roundedVector(prediction.active.requestedVector)
       : undefined,
@@ -4129,6 +4212,8 @@ function movementPredictionTextState() {
     distance: prediction.active
       ? Number(prediction.active.distance.toFixed(2))
       : undefined,
+    speedPxPerSecond: prediction.active?.speedPxPerSecond,
+    lastSpeedPxPerSecond: prediction.last?.speedPxPerSecond,
     lastOutcome: prediction.lastOutcome,
     totalPredicted: prediction.totalPredicted,
     totalConfirmed: prediction.totalConfirmed,
@@ -4207,6 +4292,7 @@ function renderDemoToText(): string {
       x: Math.round(player.position.x),
       y: Math.round(player.position.y),
       direction: player.direction,
+      movementMode: player.movementMode ?? "walk",
       local: player.local,
       emoteId: player.emoteId,
     })),
@@ -4216,6 +4302,10 @@ function renderDemoToText(): string {
       heldVector: activeHeldMovementIntent()?.vector,
       pendingVector: movementInput.pendingIntent?.vector,
       pendingDirection: movementInput.pendingIntent?.direction,
+      pendingMovementMode: movementInput.pendingIntent?.movementMode,
+      movementMode: activeMovementMode(),
+      runToggled: movementInput.runToggled,
+      shiftRunning: movementInput.shiftRunning,
       inFlight: movementInput.inFlight,
       lastRejectedReason: state.lastMovementRejection?.reason,
       serverProtocolMismatch: state.serverProtocolMismatch,
@@ -4395,6 +4485,7 @@ declare global {
       requestMove: (
         vector: MovementVector,
         direction: Direction,
+        movementMode?: MovementMode,
       ) => Promise<void>
       setZoneDebugOverlay: (enabled: boolean) => Promise<void>
       setRendererEffects: (options: RendererEffectsOptions) => Promise<void>

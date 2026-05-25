@@ -1108,6 +1108,33 @@ h1 {
   font-size: 13px;
 }
 
+.movement-mode-control {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+  color: var(--ink-soft);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.movement-mode-control button {
+  min-height: 30px;
+  border-color: var(--line-strong);
+  background: var(--surface-raised);
+  color: var(--ink);
+  padding: 0 var(--space-3);
+  font-size: 12px;
+}
+
+.movement-mode-control button[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #ffffff;
+}
+
 .controls {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

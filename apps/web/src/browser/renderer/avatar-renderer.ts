@@ -198,6 +198,7 @@ class AvatarView {
   private emoteTween?: Phaser.Tweens.Tween
   private lastPosition: Vector2
   private lastDirection: Direction
+  private lastMovementMode: RenderedPlayer["movementMode"]
   private avatarId: string
   private appearance: AvatarAppearanceMetadata
   private animation: AvatarAnimationDefinition
@@ -239,6 +240,7 @@ class AvatarView {
     this.interpolationProfile = avatarInterpolationProfile(player.local)
     this.lastPosition = player.position
     this.lastDirection = player.direction
+    this.lastMovementMode = player.movementMode ?? "walk"
     this.cosmetics = player.cosmetics ?? {}
     this.focusTarget = scene.add.container(player.position.x, player.position.y)
     this.cameraTarget = scene.add.zone(player.position.x, player.position.y, 2, 2)
@@ -319,8 +321,10 @@ class AvatarView {
     const nextAvatarId = resolveAvatarId(player.avatarId ?? fallbackAvatarId(player))
     const nextAppearance = avatarAppearance(nextAvatarId)
     const directionChanged = player.direction !== this.lastDirection
+    const movementMode = player.movementMode ?? "walk"
+    const movementModeChanged = movementMode !== this.lastMovementMode
     const nextAction: AvatarAnimationAction = moved || directionChanged
-      ? "walk"
+      ? movementMode
       : "idle"
     const nextAnimation = avatarAnimationDefinition(
       nextAvatarId,
@@ -349,7 +353,7 @@ class AvatarView {
     if (moved) {
       this.interpolateTo(player.position, this.interpolationProfile)
       this.startWalkTween(nextAnimation)
-    } else if (directionChanged || identityChanged) {
+    } else if (directionChanged || identityChanged || movementModeChanged) {
       this.cameraTarget.setPosition(player.position.x, player.position.y)
       this.startWalkTween(nextAnimation)
     } else if (!this.walkTween?.isPlaying()) {
@@ -366,6 +370,7 @@ class AvatarView {
 
     this.lastPosition = player.position
     this.lastDirection = player.direction
+    this.lastMovementMode = movementMode
   }
 
   syncFrame(): void {
