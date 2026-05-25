@@ -82,6 +82,27 @@ export interface RendererViewportState {
   readonly followingPlayerId?: string
 }
 
+export type RendererTileLayerMode = "gpu" | "cpu"
+
+export interface RendererTilemapLayerInfo {
+  readonly name: "floor" | "walls"
+  readonly mode: RendererTileLayerMode
+  readonly width: number
+  readonly height: number
+  readonly populatedTileCount: number
+}
+
+export interface RendererTilemapInfo {
+  readonly staticLayers: readonly RendererTilemapLayerInfo[]
+  readonly staticGpuLayerCount: number
+  readonly staticCpuLayerCount: number
+  readonly staticTileCount: number
+  readonly objectLayerMode: "sprites"
+  readonly zoneLayerMode: "graphics"
+  readonly avatarLayerMode: "display_objects"
+  readonly labelLayerMode: "display_objects"
+}
+
 export interface RendererCapabilityInfo {
   readonly requestedRenderer: "webgl"
   readonly actualRenderer: "webgl" | "canvas" | "headless" | "unknown"
@@ -110,6 +131,7 @@ export interface RendererCapabilityInfo {
     readonly cameraFollowRoundsPixels: boolean
     readonly vertexRoundMode: "safeAuto"
   }
+  readonly tilemap: RendererTilemapInfo
   readonly webgl: {
     readonly available: boolean
     readonly contextLost: boolean

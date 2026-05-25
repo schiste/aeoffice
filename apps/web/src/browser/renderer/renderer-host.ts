@@ -118,7 +118,10 @@ export class PhaserOfficeRenderer {
   }
 
   getCapabilityInfo(): RendererCapabilityInfo {
-    return this.capabilityReporter.getInfo(this.scene.getCameraRoundPixels())
+    return this.capabilityReporter.getInfo(
+      this.scene.getCameraRoundPixels(),
+      this.scene.getTilemapInfo(),
+    )
   }
 
   async advanceTime(): Promise<void> {

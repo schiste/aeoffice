@@ -380,3 +380,18 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   nonblank map screenshots after resize and rejoin, and synthetic
   `WEBGL_lose_context` loss/restore recovery; mobile and narrow-mobile QA
   screenshots were visually inspected.
+- TilemapGPULayer migration is applied for static architectural layers. The
+  floor and wall layers still consume the same compiled semantic `gids` arrays,
+  but the renderer now promotes their Phaser `LayerData` into
+  `TilemapGPULayer` instances when WebGL is available.
+- Furniture remains separate generated sprites for y-depth sorting, zones
+  remain Phaser graphics, and avatar/labels remain ordinary display objects.
+  The asset registry and deterministic map compiler were not changed.
+- Renderer capability output now reports static tile layer modes, GPU/CPU layer
+  counts, and static tile counts. The frontend smoke asserts that floor and
+  walls are GPU layers, then renders a synthetic 128x96 semantic stress map
+  through the same browser renderer path and checks nonblank output plus frame
+  cadence thresholds.
+- Verification passed: `npm run check`, explicit `npm run smoke:frontend`, and
+  `npm run qa:responsive`. Desktop and mobile responsive screenshots were
+  visually inspected after the migration.

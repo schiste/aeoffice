@@ -6,6 +6,7 @@ import type {
   FixtureMap,
   FixtureToken,
   MultiTileVariantGids,
+  RendererTilemapLayerInfo,
   TileLayer,
 } from "./types"
 
@@ -69,15 +70,15 @@ export class TilemapRenderer {
     this.scene.textures.addCanvas(TILESET_KEY, canvas)
   }
 
-  paintTileLayer(
+  paintStaticTileLayer(
     tilemap: Phaser.Tilemaps.Tilemap,
-    name: string,
+    name: RendererTilemapLayerInfo["name"],
     layer: TileLayer,
     tileset: Phaser.Tilemaps.Tileset,
     tokensByGid: ReadonlyMap<number, FixtureToken>,
     multiTileVariantGids: ReadonlyMap<number, readonly (readonly number[])[]>,
     depth: number,
-  ): void {
+  ): RendererTilemapLayerInfo {
     const phaserLayer = tilemap.createBlankLayer(name, tileset)
 
     if (!phaserLayer) {
@@ -85,10 +86,42 @@ export class TilemapRenderer {
     }
 
     phaserLayer.setDepth(depth)
-    // Keep Phaser 4 vertex rounding in its conservative `safeAuto` mode:
-    // translated, unscaled tile vertices round with the rounded camera, while
-    // transformed objects avoid the wobble that full rounding can introduce.
     phaserLayer.setVertexRoundMode(RENDERER_VERTEX_ROUND_MODE)
+    const populatedTileCount = this.populateLayer(
+      phaserLayer,
+      layer,
+      tokensByGid,
+      multiTileVariantGids,
+    )
+    const gpuLayer = this.promoteBlankLayerToGpu(tilemap, name, tileset, depth)
+
+    if (gpuLayer) {
+      return {
+        name,
+        mode: "gpu",
+        width: layer.gids[0]?.length ?? 0,
+        height: layer.gids.length,
+        populatedTileCount,
+      }
+    }
+
+    return {
+      name,
+      mode: "cpu",
+      width: layer.gids[0]?.length ?? 0,
+      height: layer.gids.length,
+      populatedTileCount,
+    }
+  }
+
+  private populateLayer(
+    phaserLayer: Phaser.Tilemaps.TilemapLayer,
+    layer: TileLayer,
+    tokensByGid: ReadonlyMap<number, FixtureToken>,
+    multiTileVariantGids: ReadonlyMap<number, readonly (readonly number[])[]>,
+  ): number {
+    let populatedTileCount = 0
+
     layer.gids.forEach((row, y) => {
       row.forEach((gid, x) => {
         if (gid <= 0) return
@@ -101,9 +134,56 @@ export class TilemapRenderer {
           for (let offsetX = 0; offsetX < widthTiles; offsetX += 1) {
             const tileGid = variantGrid?.[offsetY]?.[offsetX] ?? gid
             phaserLayer.putTileAt(tileGid, x + offsetX, y + offsetY, false)
+            populatedTileCount += 1
           }
         }
       })
     })
+
+    return populatedTileCount
   }
+
+  private promoteBlankLayerToGpu(
+    tilemap: Phaser.Tilemaps.Tilemap,
+    name: RendererTilemapLayerInfo["name"],
+    tileset: Phaser.Tilemaps.Tileset,
+    depth: number,
+  ): Phaser.Tilemaps.TilemapGPULayer | undefined {
+    if (this.scene.renderer.type !== Phaser.WEBGL) return undefined
+    if (tilemap.width > 4096 || tilemap.height > 4096) return undefined
+
+    const existingLayer = tilemap.getLayer(name)?.tilemapLayer
+    existingLayer?.destroy(false)
+    const gpuLayer = tilemap.createLayer(name, tileset, 0, 0, true) as
+      | Phaser.Tilemaps.TilemapLayer
+      | Phaser.Tilemaps.TilemapGPULayer
+      | null
+
+    if (!gpuLayer) {
+      const fallbackLayer = tilemap.createLayer(name, tileset, 0, 0, false)
+      fallbackLayer?.setDepth(depth)
+      fallbackLayer?.setVertexRoundMode(RENDERER_VERTEX_ROUND_MODE)
+      return undefined
+    }
+
+    if (!isTilemapGpuLayer(gpuLayer)) {
+      gpuLayer.setDepth(depth)
+      gpuLayer.setVertexRoundMode(RENDERER_VERTEX_ROUND_MODE)
+      return undefined
+    }
+
+    gpuLayer.setDepth(depth)
+    // Keep Phaser 4 vertex rounding in its conservative `safeAuto` mode:
+    // translated, unscaled tile vertices round with the rounded camera, while
+    // transformed objects avoid the wobble that full rounding can introduce.
+    gpuLayer.setVertexRoundMode(RENDERER_VERTEX_ROUND_MODE)
+
+    return gpuLayer
+  }
+}
+
+function isTilemapGpuLayer(
+  layer: Phaser.Tilemaps.TilemapLayer | Phaser.Tilemaps.TilemapGPULayer,
+): layer is Phaser.Tilemaps.TilemapGPULayer {
+  return layer.type === "TilemapGPULayer"
 }

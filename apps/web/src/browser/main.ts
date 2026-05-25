@@ -1158,8 +1158,128 @@ function fixtureMapFromCompiledMap(
           provisionalGid: token.provisionalGid,
           widthTiles: token.widthTiles,
           heightTiles: token.heightTiles,
-        })),
+      })),
     },
+  }
+}
+
+async function renderLargeStaticMapForSmoke(
+  dimensions: { readonly width?: number; readonly height?: number } = {},
+): Promise<void> {
+  const width = Math.min(128, Math.max(32, Math.round(dimensions.width ?? 96)))
+  const height = Math.min(128, Math.max(32, Math.round(dimensions.height ?? 72)))
+  const fixtureMap = largeStaticFixtureMap(width, height)
+
+  await configureDevWorldGeometry(fixtureMap)
+  applyFixtureMap(fixtureMap, {
+    source: "generated",
+    mapId: "generated",
+    label: "Renderer stress map",
+    prompt: "Large generated static map renderer smoke",
+    keywords: ["large", "renderer", "stress"],
+    validation: {
+      valid: true,
+      errors: [],
+      blockedTileCount: fixtureMap.compiled.blockedTiles.length,
+      spawnCount: fixtureMap.spawnPoints.length,
+      zoneCount: fixtureMap.compiled.zones.length,
+      spawnIds: fixtureMap.spawnPoints.map((spawn) => spawn.id),
+      zoneIds: fixtureMap.compiled.zones.map((zone) => zone.id),
+    },
+  })
+}
+
+function largeStaticFixtureMap(width: number, height: number): FixtureMap {
+  const tileSize = starterVisualAssetCatalog.tileSize
+  const floorToken = visualTokenById("floor.wood_parquet")
+  const wallToken = visualTokenById("wall.wood.straight")
+  const cornerToken = visualTokenById("wall.wood.corner")
+  const floor = gridOf(width, height, floorToken.provisionalGid)
+  const walls = gridOf(width, height, 0)
+  const objects = gridOf(width, height, 0)
+  const blockedTiles: Vector2[] = []
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const edge = x === 0 || y === 0 || x === width - 1 || y === height - 1
+      if (!edge) continue
+
+      const corner =
+        (x === 0 || x === width - 1) && (y === 0 || y === height - 1)
+      walls[y][x] = corner ? cornerToken.provisionalGid : wallToken.provisionalGid
+      blockedTiles.push({ x, y })
+    }
+  }
+
+  return {
+    definition: {
+      style: "cozy_wood",
+    },
+    compiled: {
+      width,
+      height,
+      tileSize,
+      blockedTiles,
+      layers: {
+        floor: { gids: floor },
+        walls: { gids: walls },
+        objects: { gids: objects },
+      },
+      zones: [
+        {
+          id: "stress-zone",
+          xStart: 4,
+          yStart: 4,
+          xEnd: Math.max(5, width - 4),
+          yEnd: Math.max(5, height - 4),
+          zoneType: "meeting_private",
+        },
+      ],
+    },
+    spawnPoints: [
+      {
+        id: "default",
+        position: tileCenter(Math.floor(width / 2), Math.floor(height / 2), tileSize),
+      },
+      {
+        id: "guest",
+        position: tileCenter(
+          Math.floor(width / 2) + 2,
+          Math.floor(height / 2),
+          tileSize,
+        ),
+      },
+    ],
+    catalog: {
+      tokens: [floorToken, wallToken, cornerToken],
+    },
+  }
+}
+
+function visualTokenById(id: string): FixtureToken {
+  const token = starterVisualAssetCatalog.tokens.find(
+    (candidate) => candidate.id === id,
+  )
+
+  if (!token) throw new Error(`Missing visual token ${id}.`)
+
+  return {
+    id: token.id,
+    kind: token.kind,
+    provisionalGid: token.provisionalGid,
+    widthTiles: token.widthTiles,
+    heightTiles: token.heightTiles,
+  }
+}
+
+function gridOf(width: number, height: number, gid: number): number[][] {
+  return Array.from({ length: height }, () => Array(width).fill(gid))
+}
+
+function tileCenter(x: number, y: number, tileSize: number): Vector2 {
+  return {
+    x: x * tileSize + tileSize / 2,
+    y: y * tileSize + tileSize / 2,
   }
 }
 
@@ -2517,6 +2637,12 @@ declare global {
   interface Window {
     render_game_to_text: () => string
     advanceTime: (ms?: number) => Promise<void>
+    __aedventureRendererTest?: {
+      renderLargeStaticMap: (dimensions?: {
+        readonly width?: number
+        readonly height?: number
+      }) => Promise<void>
+    }
   }
 }
 
@@ -2524,6 +2650,16 @@ window.render_game_to_text = renderDemoToText
 window.advanceTime = async () => {
   await state.pendingAction
   await renderer.advanceTime()
+}
+
+if (localAutomationHost()) {
+  window.__aedventureRendererTest = {
+    renderLargeStaticMap: renderLargeStaticMapForSmoke,
+  }
+}
+
+function localAutomationHost(): boolean {
+  return ["127.0.0.1", "localhost", "::1"].includes(window.location.hostname)
 }
 
 export {}

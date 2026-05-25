@@ -11,7 +11,12 @@ import {
 import { createMultiTileVariantGids } from "./semantic-tiles"
 import { TILESET_KEY, TILESET_NAME } from "./constants"
 import { ZoneRenderer } from "./zone-renderer"
-import type { FixtureMap, RenderedPlayer, RendererViewportState } from "./types"
+import type {
+  FixtureMap,
+  RenderedPlayer,
+  RendererTilemapInfo,
+  RendererViewportState,
+} from "./types"
 
 export class OfficeScene extends Phaser.Scene {
   private readonly avatarRenderer: AvatarRenderer
@@ -21,6 +26,7 @@ export class OfficeScene extends Phaser.Scene {
   private readonly zoneRenderer: ZoneRenderer
   private readonly telemetry = new RendererTelemetry()
   private activeMap?: Phaser.Tilemaps.Tilemap
+  private tilemapInfo: RendererTilemapInfo = emptyTilemapInfo()
 
   constructor(private readonly onReady: (scene: OfficeScene) => void) {
     super({ key: "OfficeScene" })
@@ -81,7 +87,7 @@ export class OfficeScene extends Phaser.Scene {
       fixtureMap.catalog.tokens.map((token) => [token.provisionalGid, token]),
     )
 
-    this.tilemapRenderer.paintTileLayer(
+    const floorLayerInfo = this.tilemapRenderer.paintStaticTileLayer(
       this.activeMap,
       "floor",
       fixtureMap.compiled.layers.floor,
@@ -90,7 +96,7 @@ export class OfficeScene extends Phaser.Scene {
       multiTileVariantGids.byRootGid,
       0,
     )
-    this.tilemapRenderer.paintTileLayer(
+    const wallLayerInfo = this.tilemapRenderer.paintStaticTileLayer(
       this.activeMap,
       "walls",
       fixtureMap.compiled.layers.walls,
@@ -99,6 +105,7 @@ export class OfficeScene extends Phaser.Scene {
       multiTileVariantGids.byRootGid,
       10,
     )
+    this.tilemapInfo = tilemapInfoFromLayers([floorLayerInfo, wallLayerInfo])
     this.objectRenderer.paintObjectSprites(
       fixtureMap.compiled.layers.objects,
       fixtureMap.catalog.tokens,
@@ -143,7 +150,35 @@ export class OfficeScene extends Phaser.Scene {
     return this.cameraController.getCameraRoundPixels()
   }
 
+  getTilemapInfo(): RendererTilemapInfo {
+    return this.tilemapInfo
+  }
+
   getTelemetrySnapshot(): RendererTelemetrySnapshot | undefined {
     return this.telemetry.getSnapshot()
   }
+}
+
+function tilemapInfoFromLayers(
+  staticLayers: RendererTilemapInfo["staticLayers"],
+): RendererTilemapInfo {
+  return {
+    staticLayers,
+    staticGpuLayerCount: staticLayers.filter((layer) => layer.mode === "gpu")
+      .length,
+    staticCpuLayerCount: staticLayers.filter((layer) => layer.mode === "cpu")
+      .length,
+    staticTileCount: staticLayers.reduce(
+      (total, layer) => total + layer.populatedTileCount,
+      0,
+    ),
+    objectLayerMode: "sprites",
+    zoneLayerMode: "graphics",
+    avatarLayerMode: "display_objects",
+    labelLayerMode: "display_objects",
+  }
+}
+
+function emptyTilemapInfo(): RendererTilemapInfo {
+  return tilemapInfoFromLayers([])
 }

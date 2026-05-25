@@ -298,6 +298,7 @@ async function main() {
     assertRenderStateContract(recovered)
     assertRendererCapabilities(recovered)
     await assertWebGLContextRecovery(page)
+    await assertLargeGpuMapSmoke(page)
 
     assert.deepEqual(consoleErrors, [])
   } finally {
@@ -360,6 +361,10 @@ function assertRenderStateContract(state) {
   assert.equal(typeof state.renderer?.actualRenderer, "string")
   assert.equal(typeof state.renderer?.webgl?.available, "boolean")
   assert.equal(typeof state.renderer?.rounding?.vertexRoundMode, "string")
+  assert.ok(
+    Array.isArray(state.renderer?.tilemap?.staticLayers),
+    "Expected renderer.tilemap.staticLayers in render_game_to_text.",
+  )
 }
 
 function assertRendererCapabilities(state) {
@@ -377,6 +382,22 @@ function assertRendererCapabilities(state) {
   assert.equal(state.renderer.rounding.cameraRoundPixels, true)
   assert.equal(state.renderer.rounding.cameraFollowRoundsPixels, true)
   assert.equal(state.renderer.rounding.vertexRoundMode, "safeAuto")
+  assert.equal(state.renderer.tilemap.staticGpuLayerCount, 2)
+  assert.equal(state.renderer.tilemap.staticCpuLayerCount, 0)
+  assert.equal(state.renderer.tilemap.objectLayerMode, "sprites")
+  assert.equal(state.renderer.tilemap.zoneLayerMode, "graphics")
+  assert.equal(state.renderer.tilemap.avatarLayerMode, "display_objects")
+  assert.equal(state.renderer.tilemap.labelLayerMode, "display_objects")
+  assert.deepEqual(
+    state.renderer.tilemap.staticLayers.map((layer) => [
+      layer.name,
+      layer.mode,
+    ]),
+    [
+      ["floor", "gpu"],
+      ["walls", "gpu"],
+    ],
+  )
   assert.equal(state.renderer.webgl.available, true)
   assert.equal(state.renderer.webgl.contextLost, false)
   assert.equal(state.renderer.webgl.recoveryReady, true)
@@ -613,6 +634,75 @@ async function assertWebGLContextRecovery(page) {
   )
   assertRendererCapabilities(restored)
   await assertNonBlankMapScreenshot(page)
+}
+
+async function assertLargeGpuMapSmoke(page) {
+  await page.evaluate(async () => {
+    if (!window.__aedventureRendererTest?.renderLargeStaticMap) {
+      throw new Error("Missing renderer test API.")
+    }
+
+    await window.__aedventureRendererTest.renderLargeStaticMap({
+      width: 128,
+      height: 96,
+    })
+  })
+
+  const large = await waitForTextState(
+    page,
+    (state) =>
+      state.map?.label === "Renderer stress map" &&
+      state.map.width === 128 &&
+      state.map.height === 96 &&
+      state.renderer.tilemap.staticGpuLayerCount === 2 &&
+      state.renderer.tilemap.staticTileCount > 12000,
+    9000,
+  )
+  assertRendererCapabilities(large)
+  await assertNonBlankMapScreenshot(page)
+
+  const cadence = await page.evaluate(async () => {
+    const samples = []
+    let last
+
+    return new Promise((resolve) => {
+      const step = (time) => {
+        if (last !== undefined) {
+          samples.push(time - last)
+        }
+        last = time
+
+        if (samples.length >= 45) {
+          const sorted = [...samples].sort((a, b) => a - b)
+          resolve({
+            averageMs:
+              samples.reduce((total, sample) => total + sample, 0) /
+              samples.length,
+            p95Ms: sorted[Math.floor(sorted.length * 0.95)],
+            maxMs: Math.max(...samples),
+          })
+          return
+        }
+
+        window.requestAnimationFrame(step)
+      }
+
+      window.requestAnimationFrame(step)
+    })
+  })
+
+  assert.ok(
+    cadence.averageMs < 50,
+    `Expected large GPU map average frame cadence below collapse threshold, got ${cadence.averageMs}ms.`,
+  )
+  assert.ok(
+    cadence.p95Ms < 90,
+    `Expected large GPU map p95 frame cadence below collapse threshold, got ${cadence.p95Ms}ms.`,
+  )
+  assert.ok(
+    cadence.maxMs < 250,
+    `Expected large GPU map max frame cadence below collapse threshold, got ${cadence.maxMs}ms.`,
+  )
 }
 
 main().catch((error) => {
