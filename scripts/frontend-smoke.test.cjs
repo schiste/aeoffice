@@ -106,11 +106,13 @@ async function main() {
     assert.equal(joined.movement.repeatMs, 190)
     assert.equal(joined.viewport.canZoomIn, true)
     assert.equal(joined.viewport.canZoomOut, true)
+    assertCameraStateContract(joined)
     assert.equal(joined.world.joined, true)
     assert.equal(joined.world.playerCount, joined.players.length)
     assert.deepEqual(joined.world.snapshotPlayerIds, joined.snapshotPlayerIds)
     assertRenderStateContract(joined)
     assertRendererCapabilities(joined)
+    await assertCameraExcellence(page)
 
     await page.setViewportSize({ width: 900, height: 700 })
     await page.waitForTimeout(250)
@@ -377,6 +379,28 @@ function assertRenderStateContract(state) {
     Array.isArray(state.renderer?.depth?.players),
     "Expected renderer.depth.players in render_game_to_text.",
   )
+  assertCameraStateContract(state)
+}
+
+function assertCameraStateContract(state) {
+  assert.equal(typeof state.camera?.mode, "string")
+  assert.equal(typeof state.camera?.zoomPreset, "string")
+  assert.equal(typeof state.camera?.zoomFactor, "number")
+  assert.equal(typeof state.camera?.defaultZoomFactor, "number")
+  assert.equal(typeof state.camera?.effectiveZoom, "number")
+  assert.equal(typeof state.camera?.minZoomFactor, "number")
+  assert.equal(typeof state.camera?.maxZoomFactor, "number")
+  assert.equal(typeof state.camera?.canZoomIn, "boolean")
+  assert.equal(typeof state.camera?.canZoomOut, "boolean")
+  assert.equal(typeof state.camera?.worldView?.x, "number")
+  assert.equal(typeof state.camera?.worldView?.y, "number")
+  assert.equal(typeof state.camera?.worldView?.width, "number")
+  assert.equal(typeof state.camera?.worldView?.height, "number")
+  assert.equal(typeof state.camera?.deadzone?.width, "number")
+  assert.equal(typeof state.camera?.deadzone?.height, "number")
+  assert.equal(typeof state.camera?.followLerp, "number")
+  assert.equal(typeof state.camera?.followAnchor, "string")
+  assert.equal(typeof state.camera?.localPlayerVisible, "boolean")
 }
 
 function assertRendererCapabilities(state) {
@@ -432,6 +456,106 @@ function assertRendererCapabilities(state) {
   assert.ok(
     state.renderer.webgl.maxTextureSize >= 1024,
     `Expected useful WebGL max texture size, got ${state.renderer.webgl.maxTextureSize}.`,
+  )
+  assert.ok(
+    state.camera.deadzone.width > 0 && state.camera.deadzone.height > 0,
+    `Expected tuned camera deadzone, got ${JSON.stringify(state.camera.deadzone)}.`,
+  )
+  assert.ok(
+    state.camera.effectiveZoom >= 0.75,
+    `Expected usable camera zoom, got ${state.camera.effectiveZoom}.`,
+  )
+}
+
+async function assertCameraExcellence(page) {
+  await page.waitForTimeout(500)
+  const baseline = await renderGameToText(page)
+
+  assert.equal(baseline.camera.mode, "follow_player")
+  assert.equal(baseline.camera.zoomPreset, "standard")
+  assert.equal(baseline.camera.followAnchor, "stable_player_anchor")
+  assert.equal(baseline.camera.localPlayerVisible, true)
+  await assertIdleCameraStable(page)
+
+  await page.locator("#camera-fit").click()
+  const fitRoom = await waitForTextState(
+    page,
+    (state) =>
+      state.camera.mode === "fit_room" &&
+      state.camera.zoomPreset === "room" &&
+      state.camera.followAnchor === "room_center" &&
+      state.camera.localPlayerVisible === true,
+  )
+  assert.equal(await page.locator("#camera-fit").getAttribute("aria-pressed"), "true")
+  assert.equal(fitRoom.camera.canZoomIn, true)
+
+  await page.locator("#camera-follow").click()
+  const follow = await waitForTextState(
+    page,
+    (state) =>
+      state.camera.mode === "follow_player" &&
+      state.camera.zoomPreset === "standard" &&
+      state.camera.localPlayerVisible === true,
+  )
+  assert.equal(await page.locator("#camera-follow").getAttribute("aria-pressed"), "true")
+  assert.equal(follow.camera.followAnchor, "stable_player_anchor")
+
+  await page.locator("#zoom-preset").selectOption("focus")
+  await waitForTextState(
+    page,
+    (state) =>
+      state.camera.mode === "follow_player" &&
+      state.camera.zoomPreset === "focus" &&
+      state.camera.localPlayerVisible === true,
+  )
+
+  await page.locator("#zoom-in").click()
+  await waitForTextState(
+    page,
+    (state) =>
+      state.camera.zoomPreset === "custom" &&
+      state.camera.localPlayerVisible === true,
+  )
+
+  await page.locator("#zoom-reset").click()
+  await waitForTextState(
+    page,
+    (state) =>
+      state.camera.mode === "follow_player" &&
+      state.camera.zoomPreset === "standard" &&
+      state.camera.localPlayerVisible === true,
+  )
+}
+
+async function assertIdleCameraStable(page) {
+  const samples = await page.evaluate(async () => {
+    const readState = () => JSON.parse(window.render_game_to_text())
+    const cameraSamples = []
+
+    for (let index = 0; index < 14; index += 1) {
+      await new Promise((resolve) => window.requestAnimationFrame(resolve))
+      const state = readState()
+      cameraSamples.push({
+        x: state.camera.worldView.x,
+        y: state.camera.worldView.y,
+        visible: state.camera.localPlayerVisible,
+      })
+    }
+
+    return cameraSamples
+  })
+  const xs = samples.map((sample) => sample.x)
+  const ys = samples.map((sample) => sample.y)
+  const driftX = Math.max(...xs) - Math.min(...xs)
+  const driftY = Math.max(...ys) - Math.min(...ys)
+
+  assert.ok(
+    samples.every((sample) => sample.visible),
+    `Expected local player to remain visible in idle camera samples: ${JSON.stringify(samples)}.`,
+  )
+  assert.ok(
+    driftX <= 1.5 && driftY <= 1.5,
+    `Expected no idle camera jitter, got drift ${driftX}x${driftY}.`,
   )
 }
 
@@ -505,6 +629,9 @@ async function assertMobileCollapsedControls(browser, url) {
     )
 
     assertRenderStateContract(mobile)
+    assert.equal(mobile.camera.defaultZoomFactor, 1)
+    assert.equal(mobile.camera.zoomPreset, "standard")
+    assert.equal(mobile.camera.localPlayerVisible, true)
     assert.deepEqual(
       mobile.layout.collapsibleSections.map((section) => ({
         label: section.label,

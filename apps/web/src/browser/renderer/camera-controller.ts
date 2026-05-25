@@ -10,10 +10,19 @@ import {
   MAX_EFFECTIVE_ZOOM,
   MAX_ZOOM_FACTOR,
   MIN_ZOOM_FACTOR,
+  MOBILE_DEFAULT_ZOOM_FACTOR,
+  MOBILE_VIEWPORT_WIDTH,
 } from "./constants"
 import { clamp, roundTo } from "./math"
 import type { AvatarFollowTarget } from "./avatar-renderer"
-import type { RendererViewportState, Vector2 } from "./types"
+import type {
+  RendererCameraDeadzone,
+  RendererCameraMode,
+  RendererCameraState,
+  RendererViewportState,
+  RendererZoomPresetId,
+  Vector2,
+} from "./types"
 
 export class CameraController {
   private viewportSize: Vector2 = {
@@ -24,9 +33,16 @@ export class CameraController {
     x: 384,
     y: 320,
   }
+  private mode: RendererCameraMode = "follow_player"
+  private zoomPreset: RendererZoomPresetId = "standard"
   private zoomFactor = DEFAULT_ZOOM_FACTOR
   private effectiveZoom = DEFAULT_ZOOM_FACTOR
   private followingPlayerId?: string
+  private followTarget?: AvatarFollowTarget
+  private deadzone: RendererCameraDeadzone = {
+    width: CAMERA_DEADZONE_WIDTH,
+    height: CAMERA_DEADZONE_HEIGHT,
+  }
   private cameraReady = false
 
   constructor(private readonly scene: Phaser.Scene) {}
@@ -39,13 +55,14 @@ export class CameraController {
     this.scene.cameras.main.roundPixels = true
     this.scene.cameras.main.setSize(this.viewportSize.x, this.viewportSize.y)
     this.applyCameraZoom()
+    this.applyDeadzone()
   }
 
   setMapSize(width: number, height: number): void {
     this.mapSize = { x: width, y: height }
     this.scene.cameras.main.setBounds(0, 0, width, height)
-    this.scene.cameras.main.centerOn(width / 2, height / 2)
     this.applyCameraZoom()
+    this.applyCameraMode()
   }
 
   resizeViewport(width: number, height: number): void {
@@ -53,27 +70,59 @@ export class CameraController {
     if (this.cameraReady) {
       this.scene.cameras.main.setSize(width, height)
     }
+    if (this.zoomPreset !== "custom") {
+      this.zoomFactor = this.zoomFactorForPreset(this.zoomPreset)
+    }
     this.applyCameraZoom()
+    this.applyDeadzone()
   }
 
   setZoomFactor(zoomFactor: number): void {
+    this.zoomPreset = "custom"
     this.zoomFactor = clamp(zoomFactor, MIN_ZOOM_FACTOR, MAX_ZOOM_FACTOR)
     this.applyCameraZoom()
   }
 
+  setZoomPreset(zoomPreset: RendererZoomPresetId): void {
+    this.zoomPreset = zoomPreset
+    this.zoomFactor = this.zoomFactorForPreset(zoomPreset)
+    if (zoomPreset === "room") {
+      this.mode = "fit_room"
+    }
+    this.applyCameraZoom()
+    this.applyCameraMode()
+  }
+
+  setCameraMode(mode: RendererCameraMode): void {
+    this.mode = mode
+    if (mode === "fit_room") {
+      this.zoomPreset = "room"
+      this.zoomFactor = this.zoomFactorForPreset("room")
+      this.applyCameraZoom()
+    } else if (this.zoomPreset === "room") {
+      this.zoomPreset = "standard"
+      this.zoomFactor = this.zoomFactorForPreset("standard")
+      this.applyCameraZoom()
+    }
+    this.applyCameraMode()
+  }
+
   follow(target: AvatarFollowTarget | undefined): void {
+    this.followTarget = target
     if (!target) {
       this.clearFollow()
+      return
+    }
+
+    if (this.mode === "fit_room") {
+      this.centerRoom()
       return
     }
 
     if (this.followingPlayerId === target.playerId) return
 
     this.followingPlayerId = target.playerId
-    this.scene.cameras.main.setDeadzone(
-      CAMERA_DEADZONE_WIDTH,
-      CAMERA_DEADZONE_HEIGHT,
-    )
+    this.applyDeadzone()
     this.scene.cameras.main.startFollow(
       target.cameraTarget,
       true,
@@ -83,6 +132,11 @@ export class CameraController {
   }
 
   clearFollow(): void {
+    this.followTarget = undefined
+    this.stopCameraFollow()
+  }
+
+  private stopCameraFollow(): void {
     this.followingPlayerId = undefined
     this.scene.cameras.main.stopFollow()
   }
@@ -102,6 +156,59 @@ export class CameraController {
       scrollX: Math.round(camera?.scrollX ?? 0),
       scrollY: Math.round(camera?.scrollY ?? 0),
       followingPlayerId: this.followingPlayerId,
+    }
+  }
+
+  getCameraState(): RendererCameraState {
+    const camera = this.cameraReady ? this.scene.cameras.main : undefined
+    const worldView = camera?.worldView ?? {
+      x: 0,
+      y: 0,
+      width: this.viewportSize.x / this.effectiveZoom,
+      height: this.viewportSize.y / this.effectiveZoom,
+    }
+    const localPlayerViewportPosition = this.followTarget && camera
+      ? this.projectWorldToViewport({
+          x: this.followTarget.cameraTarget.x,
+          y: this.followTarget.cameraTarget.y,
+        })
+      : undefined
+
+    return {
+      mode: this.mode,
+      zoomPreset: this.zoomPreset,
+      zoomFactor: roundTo(this.zoomFactor, 2),
+      defaultZoomFactor: roundTo(this.defaultZoomFactor(), 2),
+      effectiveZoom: roundTo(this.effectiveZoom, 2),
+      minZoomFactor: MIN_ZOOM_FACTOR,
+      maxZoomFactor: MAX_ZOOM_FACTOR,
+      canZoomIn: this.zoomFactor < MAX_ZOOM_FACTOR,
+      canZoomOut: this.zoomFactor > MIN_ZOOM_FACTOR,
+      viewportWidth: Math.round(this.viewportSize.x),
+      viewportHeight: Math.round(this.viewportSize.y),
+      mapWidth: Math.round(this.mapSize.x),
+      mapHeight: Math.round(this.mapSize.y),
+      scrollX: Math.round(camera?.scrollX ?? 0),
+      scrollY: Math.round(camera?.scrollY ?? 0),
+      worldView: {
+        x: roundTo(worldView.x, 2),
+        y: roundTo(worldView.y, 2),
+        width: roundTo(worldView.width, 2),
+        height: roundTo(worldView.height, 2),
+      },
+      deadzone: this.deadzone,
+      followLerp: CAMERA_FOLLOW_LERP,
+      followAnchor:
+        this.mode === "fit_room"
+          ? "room_center"
+          : this.followTarget
+            ? "stable_player_anchor"
+            : "none",
+      followingPlayerId: this.followingPlayerId,
+      localPlayerVisible: localPlayerViewportPosition
+        ? pointInsideViewport(localPlayerViewportPosition, this.viewportSize)
+        : false,
+      localPlayerViewportPosition,
     }
   }
 
@@ -127,6 +234,9 @@ export class CameraController {
     const camera = this.scene.cameras.main
     camera.setZoom(this.effectiveZoom)
     camera.setBounds(0, 0, this.mapSize.x, this.mapSize.y)
+    if (this.mode === "fit_room") {
+      this.centerRoom()
+    }
   }
 
   private computeEffectiveZoom(): number {
@@ -137,4 +247,89 @@ export class CameraController {
 
     return clamp(fitZoom * this.zoomFactor, MIN_ZOOM_FACTOR, MAX_EFFECTIVE_ZOOM)
   }
+
+  private applyCameraMode(): void {
+    if (!this.cameraReady) return
+
+    if (this.mode === "fit_room") {
+      this.stopCameraFollow()
+      this.centerRoom()
+      return
+    }
+
+    const target = this.followTarget
+    if (target) {
+      this.followingPlayerId = undefined
+      this.follow(target)
+      return
+    }
+
+    this.centerRoom()
+  }
+
+  private applyDeadzone(): void {
+    this.deadzone = this.computeDeadzone()
+    if (!this.cameraReady) return
+
+    this.scene.cameras.main.setDeadzone(this.deadzone.width, this.deadzone.height)
+  }
+
+  private computeDeadzone(): RendererCameraDeadzone {
+    const mobile = this.viewportSize.x <= MOBILE_VIEWPORT_WIDTH
+    const widthRatio = mobile ? 0.34 : 0.22
+    const heightRatio = mobile ? 0.28 : 0.18
+
+    return {
+      width: Math.round(
+        clamp(
+          this.viewportSize.x * widthRatio,
+          mobile ? 84 : 96,
+          mobile ? 150 : 220,
+        ),
+      ),
+      height: Math.round(
+        clamp(
+          this.viewportSize.y * heightRatio,
+          mobile ? 64 : 70,
+          mobile ? 120 : 160,
+        ),
+      ),
+    }
+  }
+
+  private zoomFactorForPreset(zoomPreset: RendererZoomPresetId): number {
+    switch (zoomPreset) {
+      case "room":
+        return this.viewportSize.x <= MOBILE_VIEWPORT_WIDTH ? 0.86 : 0.9
+      case "standard":
+        return this.defaultZoomFactor()
+      case "near":
+        return this.viewportSize.x <= MOBILE_VIEWPORT_WIDTH ? 1.16 : 1.35
+      case "focus":
+        return this.viewportSize.x <= MOBILE_VIEWPORT_WIDTH ? 1.34 : 1.65
+      case "custom":
+        return this.zoomFactor
+    }
+  }
+
+  private defaultZoomFactor(): number {
+    return this.viewportSize.x <= MOBILE_VIEWPORT_WIDTH
+      ? MOBILE_DEFAULT_ZOOM_FACTOR
+      : DEFAULT_ZOOM_FACTOR
+  }
+
+  private centerRoom(): void {
+    if (!this.cameraReady) return
+
+    this.scene.cameras.main.centerOn(this.mapSize.x / 2, this.mapSize.y / 2)
+  }
+}
+
+function pointInsideViewport(point: Vector2, viewportSize: Vector2): boolean {
+  return (
+    point.x >= 0 &&
+    point.y >= 0 &&
+    point.x <= viewportSize.x &&
+    point.y <= viewportSize.y
+  )
 }

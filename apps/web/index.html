@@ -197,6 +197,25 @@
               </div>
               <section class="map-tools-panel camera-tool" aria-label="Map view controls">
                 <span>View</span>
+                <div class="camera-mode-control" aria-label="Camera mode">
+                  <button id="camera-follow" type="button" aria-pressed="true">
+                    Follow
+                  </button>
+                  <button id="camera-fit" type="button" aria-pressed="false">
+                    Fit
+                  </button>
+                </div>
+                <select
+                  id="zoom-preset"
+                  class="camera-preset-select"
+                  aria-label="Zoom preset"
+                >
+                  <option value="room">Room</option>
+                  <option value="standard" selected>Standard</option>
+                  <option value="near">Near</option>
+                  <option value="focus">Focus</option>
+                  <option value="custom" disabled>Custom</option>
+                </select>
                 <div class="viewport-tools" aria-label="Camera controls">
                   <button id="zoom-out" type="button" aria-label="Zoom out">−</button>
                   <button

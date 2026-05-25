@@ -3,6 +3,9 @@ export type {
   Direction,
   FixtureMap,
   RenderedPlayer,
+  RendererCameraMode,
+  RendererCameraState,
   RendererCapabilityInfo,
   RendererViewportState,
+  RendererZoomPresetId,
 } from "./renderer/types"

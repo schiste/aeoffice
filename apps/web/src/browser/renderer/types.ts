@@ -85,6 +85,52 @@ export interface RendererViewportState {
   readonly followingPlayerId?: string
 }
 
+export type RendererCameraMode = "follow_player" | "fit_room"
+
+export type RendererZoomPresetId =
+  | "room"
+  | "standard"
+  | "near"
+  | "focus"
+  | "custom"
+
+export interface RendererCameraDeadzone {
+  readonly width: number
+  readonly height: number
+}
+
+export interface RendererCameraWorldView {
+  readonly x: number
+  readonly y: number
+  readonly width: number
+  readonly height: number
+}
+
+export interface RendererCameraState {
+  readonly mode: RendererCameraMode
+  readonly zoomPreset: RendererZoomPresetId
+  readonly zoomFactor: number
+  readonly defaultZoomFactor: number
+  readonly effectiveZoom: number
+  readonly minZoomFactor: number
+  readonly maxZoomFactor: number
+  readonly canZoomIn: boolean
+  readonly canZoomOut: boolean
+  readonly viewportWidth: number
+  readonly viewportHeight: number
+  readonly mapWidth: number
+  readonly mapHeight: number
+  readonly scrollX: number
+  readonly scrollY: number
+  readonly worldView: RendererCameraWorldView
+  readonly deadzone: RendererCameraDeadzone
+  readonly followLerp: number
+  readonly followAnchor: "stable_player_anchor" | "room_center" | "none"
+  readonly followingPlayerId?: string
+  readonly localPlayerVisible: boolean
+  readonly localPlayerViewportPosition?: Vector2
+}
+
 export type RendererTileLayerMode = "gpu" | "cpu"
 
 export interface RendererTilemapLayerInfo {

@@ -78,6 +78,15 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   connected/joined/media-ready, reset clears chat and restores disconnected
   states, toasts render, no `#events` feed exists, and the browser console stayed
   clean. The standalone web-game client remains blocked by missing `playwright`.
+- Phase 6 camera excellence is implemented: the Phaser renderer now exposes
+  follow-player and fit-room modes, named zoom presets, mobile default zoom,
+  viewport-tuned deadzones, constrained camera bounds, local-player visibility,
+  and camera telemetry through `window.render_game_to_text`.
+- `npm run smoke:frontend`, `npm run qa:responsive`, and `npm run check` passed
+  after adding camera-mode, idle-stability, zoom-safety, and mobile default
+  assertions. The standalone develop-web-game client is still blocked because
+  its skill script cannot resolve its own `playwright` package, while the repo
+  Playwright smoke/QA scripts run successfully.
 - Meeting-zone interactions now use the compiled map zones in the browser app:
   the Phaser renderer highlights the active zone, the app exposes Join/Leave
   meeting controls outside the canvas, and media is no longer auto-joined when

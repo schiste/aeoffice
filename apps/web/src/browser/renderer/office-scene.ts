@@ -21,9 +21,12 @@ import type {
   FixtureMap,
   RenderedPlayer,
   RendererAssetPipelineInfo,
+  RendererCameraMode,
+  RendererCameraState,
   RendererDepthInfo,
   RendererTilemapInfo,
   RendererViewportState,
+  RendererZoomPresetId,
 } from "./types"
 
 export class OfficeScene extends Phaser.Scene {
@@ -175,12 +178,24 @@ export class OfficeScene extends Phaser.Scene {
     this.cameraController.setZoomFactor(zoomFactor)
   }
 
+  setZoomPreset(zoomPreset: RendererZoomPresetId): void {
+    this.cameraController.setZoomPreset(zoomPreset)
+  }
+
+  setCameraMode(mode: RendererCameraMode): void {
+    this.cameraController.setCameraMode(mode)
+  }
+
   setActiveZones(zoneIds: readonly string[]): void {
     this.zoneRenderer.setActiveZones(zoneIds)
   }
 
   getViewportState(): RendererViewportState {
     return this.cameraController.getViewportState()
+  }
+
+  getCameraState(): RendererCameraState {
+    return this.cameraController.getCameraState()
   }
 
   projectWorldToViewport(point: { readonly x: number; readonly y: number }): {

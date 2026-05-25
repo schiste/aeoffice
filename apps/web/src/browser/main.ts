@@ -1,7 +1,8 @@
 import {
   PhaserOfficeRenderer,
   type RenderedPlayer,
-  type RendererViewportState,
+  type RendererCameraState,
+  type RendererZoomPresetId,
 } from "./phaser-office-renderer"
 import {
   compileDeterministicPromptMap,
@@ -395,6 +396,9 @@ const elements = {
   previewStatus: mustQuery<HTMLElement>("#preview-status"),
   toggleMic: mustQuery<HTMLButtonElement>("#toggle-mic"),
   toggleCamera: mustQuery<HTMLButtonElement>("#toggle-camera"),
+  cameraFollow: mustQuery<HTMLButtonElement>("#camera-follow"),
+  cameraFit: mustQuery<HTMLButtonElement>("#camera-fit"),
+  zoomPreset: mustQuery<HTMLSelectElement>("#zoom-preset"),
   zoomOut: mustQuery<HTMLButtonElement>("#zoom-out"),
   zoomReset: mustQuery<HTMLButtonElement>("#zoom-reset"),
   zoomIn: mustQuery<HTMLButtonElement>("#zoom-in"),
@@ -464,13 +468,27 @@ elements.chatForm.addEventListener("submit", (event) => {
   queueAction(() => sendChat(elements.chatBody.value))
 })
 elements.zoomOut.addEventListener("click", () => {
-  renderViewportControls(renderer.zoomOut())
+  renderer.zoomOut()
+  renderCameraControls(renderer.getCameraState())
 })
 elements.zoomReset.addEventListener("click", () => {
-  renderViewportControls(renderer.resetZoom())
+  renderer.resetZoom()
+  renderCameraControls(renderer.getCameraState())
 })
 elements.zoomIn.addEventListener("click", () => {
-  renderViewportControls(renderer.zoomIn())
+  renderer.zoomIn()
+  renderCameraControls(renderer.getCameraState())
+})
+elements.cameraFollow.addEventListener("click", () => {
+  renderCameraControls(renderer.setCameraMode("follow_player"))
+})
+elements.cameraFit.addEventListener("click", () => {
+  renderCameraControls(renderer.setCameraMode("fit_room"))
+})
+elements.zoomPreset.addEventListener("change", () => {
+  const zoomPreset = elements.zoomPreset.value
+  if (!isRendererZoomPresetId(zoomPreset) || zoomPreset === "custom") return
+  renderCameraControls(renderer.setZoomPreset(zoomPreset))
 })
 document.addEventListener("keydown", (event) => {
   const direction = directionForKey(event.key)
@@ -517,7 +535,7 @@ void renderer.advanceTime().then(
     publishToast("The office view could not start.", "error")
   },
 )
-renderViewportControls(renderer.getViewportState())
+renderCameraControls(renderer.getCameraState())
 renderMeetingControls()
 renderMediaPanel()
 renderMapGenerationResult()
@@ -1547,7 +1565,7 @@ function upsertRenderedPlayer(player: PlayerSnapshot): void {
 function renderPlayers(): void {
   const players = [...state.players.values()]
   renderer.updatePlayers(players)
-  renderViewportControls(renderer.getViewportState())
+  renderCameraControls(renderer.getCameraState())
 
   players.forEach((player) => {
     if (!player.rejected) return
@@ -1645,10 +1663,25 @@ function movementRejectionLabel(reason: MovementRejectedReason): string {
   }
 }
 
-function renderViewportControls(viewport: RendererViewportState): void {
-  elements.zoomReset.textContent = `${Math.round(viewport.zoomFactor * 100)}%`
-  elements.zoomOut.disabled = !viewport.canZoomOut
-  elements.zoomIn.disabled = !viewport.canZoomIn
+function renderCameraControls(camera: RendererCameraState): void {
+  elements.zoomReset.textContent = `${Math.round(camera.zoomFactor * 100)}%`
+  elements.zoomOut.disabled = !camera.canZoomOut
+  elements.zoomIn.disabled = !camera.canZoomIn
+  elements.cameraFollow.setAttribute(
+    "aria-pressed",
+    String(camera.mode === "follow_player"),
+  )
+  elements.cameraFit.setAttribute(
+    "aria-pressed",
+    String(camera.mode === "fit_room"),
+  )
+  elements.zoomPreset.value = camera.zoomPreset
+}
+
+function isRendererZoomPresetId(
+  zoomPreset: string,
+): zoomPreset is RendererZoomPresetId {
+  return ["room", "standard", "near", "focus", "custom"].includes(zoomPreset)
 }
 
 function renderMapSwitcher(): void {
@@ -2718,6 +2751,7 @@ function renderDemoToText(): string {
       })),
     },
     renderer: renderer.getCapabilityInfo(),
+    camera: renderer.getCameraState(),
     viewport: renderer.getViewportState(),
     map: state.fixtureMap
       ? {

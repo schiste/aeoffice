@@ -132,6 +132,9 @@ function collectUnreachableControls() {
         "#zoom-out",
         "#zoom-reset",
         "#zoom-in",
+        "#camera-follow",
+        "#camera-fit",
+        "#zoom-preset",
         "details[data-mobile-collapsible] summary",
       ].join(","),
     ),
@@ -337,6 +340,7 @@ async function verifyViewport(browser, url, viewport) {
 
 async function assertResponsiveLayout(page, viewport, phase) {
   const report = await page.evaluate(() => window.inspectResponsiveLayout())
+  const state = await renderGameToText(page)
   const label = `${viewport.name}/${phase}`
 
   assert.ok(
@@ -349,9 +353,21 @@ async function assertResponsiveLayout(page, viewport, phase) {
   )
   assert.ok(
     report.canvas.visibleAreaRatio >=
-      (viewport.expectedMode === "mobile" ? 0.26 : 0.2),
+      (viewport.expectedMode === "mobile" ? 0.28 : 0.2),
     `${label}: canvas not prominent enough: ${report.canvas.visibleAreaRatio}`,
   )
+  assert.equal(
+    state.camera.localPlayerVisible,
+    true,
+    `${label}: local player should stay visible in camera view`,
+  )
+  if (viewport.expectedMode === "mobile") {
+    assert.equal(
+      state.camera.defaultZoomFactor,
+      1,
+      `${label}: mobile camera should use the mobile default zoom`,
+    )
+  }
   assertNoFindings(report.unreachableControls, `${label}: unreachable controls`)
   assertNoFindings(report.textOverflow, `${label}: text overflow`)
   assertNoFindings(report.controlOverlaps, `${label}: overlapping controls`)

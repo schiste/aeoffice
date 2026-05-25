@@ -74,12 +74,14 @@ body {
 
 button,
 input,
+select,
 textarea {
   font: inherit;
 }
 
 button,
 input,
+select,
 textarea,
 summary {
   outline: none;
@@ -127,6 +129,7 @@ button:disabled {
 
 button:focus-visible,
 input:focus-visible,
+select:focus-visible,
 textarea:focus-visible,
 summary:focus-visible {
   box-shadow:
@@ -135,6 +138,7 @@ summary:focus-visible {
 }
 
 input,
+select,
 textarea {
   min-width: 0;
   min-height: var(--control-height);
@@ -671,7 +675,7 @@ h1 {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  min-width: 206px;
+  min-width: 412px;
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
   background: var(--surface-panel);
@@ -857,6 +861,45 @@ h1 {
   display: flex;
   justify-content: end;
   gap: var(--space-2);
+}
+
+.camera-mode-control {
+  display: flex;
+  flex: 0 0 auto;
+  overflow: hidden;
+  border: 1px solid rgba(35, 102, 90, 0.28);
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+}
+
+.camera-mode-control button {
+  min-width: 62px;
+  min-height: 36px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--accent-strong);
+  padding-inline: var(--space-2);
+}
+
+.camera-mode-control button[aria-pressed="true"] {
+  background: var(--accent);
+  color: #ffffff;
+}
+
+.camera-mode-control button:hover:not(:disabled) {
+  border-color: transparent;
+}
+
+.camera-preset-select {
+  flex: 0 1 112px;
+  min-height: 36px;
+  border-color: rgba(35, 102, 90, 0.28);
+  background-color: var(--surface-raised);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 750;
+  padding: 0 30px 0 var(--space-2);
 }
 
 .viewport-tools button {
@@ -1243,6 +1286,7 @@ h1 {
   }
 
   .map-tools-panel {
+    flex-wrap: wrap;
     justify-content: space-between;
     min-width: 0;
   }
@@ -1331,7 +1375,17 @@ h1 {
   }
 
   .viewport-tools {
+    order: 4;
     justify-content: end;
+  }
+
+  .camera-mode-control {
+    order: 2;
+  }
+
+  .camera-preset-select {
+    order: 3;
+    flex: 1 1 116px;
   }
 
   .media-meta {
@@ -1401,6 +1455,10 @@ h1 {
     right: var(--space-2);
     left: var(--space-2);
     bottom: var(--space-2);
+  }
+
+  .camera-mode-control button {
+    min-width: 54px;
   }
 
   .map {

@@ -21,8 +21,11 @@ import { OfficeScene } from "./office-scene"
 import type {
   FixtureMap,
   RenderedPlayer,
+  RendererCameraMode,
+  RendererCameraState,
   RendererCapabilityInfo,
   RendererViewportState,
+  RendererZoomPresetId,
 } from "./types"
 
 export class PhaserOfficeRenderer {
@@ -105,19 +108,38 @@ export class PhaserOfficeRenderer {
   }
 
   zoomIn(): RendererViewportState {
-    return this.setZoomFactor(this.zoomFactor + ZOOM_STEP)
+    return this.setZoomFactor(this.getCameraState().zoomFactor + ZOOM_STEP)
   }
 
   zoomOut(): RendererViewportState {
-    return this.setZoomFactor(this.zoomFactor - ZOOM_STEP)
+    return this.setZoomFactor(this.getCameraState().zoomFactor - ZOOM_STEP)
   }
 
   resetZoom(): RendererViewportState {
-    return this.setZoomFactor(DEFAULT_ZOOM_FACTOR)
+    this.setZoomPreset("standard")
+    return this.getViewportState()
   }
 
   getViewportState(): RendererViewportState {
     return this.scene.getViewportState()
+  }
+
+  getCameraState(): RendererCameraState {
+    return this.scene.getCameraState()
+  }
+
+  setCameraMode(mode: RendererCameraMode): RendererCameraState {
+    this.scene.setCameraMode(mode)
+    const state = this.getCameraState()
+    this.zoomFactor = state.zoomFactor
+    return state
+  }
+
+  setZoomPreset(zoomPreset: RendererZoomPresetId): RendererCameraState {
+    this.scene.setZoomPreset(zoomPreset)
+    const state = this.getCameraState()
+    this.zoomFactor = state.zoomFactor
+    return state
   }
 
   projectWorldToViewport(point: { readonly x: number; readonly y: number }): {
@@ -166,7 +188,7 @@ export class PhaserOfficeRenderer {
     this.renderTask = this.queueRender(async (scene) => {
       await scene.renderFixtureMap(fixtureMap, this.players)
       scene.setActiveZones(this.activeZoneIds)
-      scene.setZoomFactor(this.zoomFactor)
+      this.zoomFactor = scene.getCameraState().zoomFactor
     })
   }
 
@@ -181,6 +203,7 @@ export class PhaserOfficeRenderer {
   private setZoomFactor(zoomFactor: number): RendererViewportState {
     this.zoomFactor = clamp(zoomFactor, MIN_ZOOM_FACTOR, MAX_ZOOM_FACTOR)
     this.scene.setZoomFactor(this.zoomFactor)
+    this.zoomFactor = this.scene.getCameraState().zoomFactor
     return this.getViewportState()
   }
 
@@ -197,7 +220,7 @@ export class PhaserOfficeRenderer {
 
     this.game.scale.resize(width, height)
     this.scene.resizeViewport(width, height)
-    this.scene.setZoomFactor(this.zoomFactor)
+    this.zoomFactor = this.scene.getCameraState().zoomFactor
   }
 
   private resolveReady: (scene: OfficeScene) => void = () => undefined
