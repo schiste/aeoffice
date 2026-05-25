@@ -150,37 +150,37 @@ async function main() {
     await assertNonBlankMapScreenshot(page)
     await page.setViewportSize({ width: 1280, height: 900 })
     await page.waitForTimeout(250)
+    const realtimeReady = await waitForTextState(
+      page,
+      (state) => state.movement.realtime.status === "open",
+    )
+    assert.equal(realtimeReady.movement.realtime.status, "open")
 
     const beforeMoveState = await renderGameToText(page)
     const beforeMove = beforeMoveState.player
     const predictedBefore = beforeMoveState.movement.prediction.totalPredicted
-    let delayedMoveRequest = false
-    await page.route("**/world/message", async (route) => {
-      const body = route.request().postDataJSON()
-      if (!delayedMoveRequest && body?.message?.type === "move") {
-        delayedMoveRequest = true
-        await new Promise((resolve) => setTimeout(resolve, 280))
-      }
-      await route.continue()
-    })
+    const realtimeSentBefore = beforeMoveState.movement.realtime.sentCount
     await page.keyboard.press("ArrowDown")
     const predictedMove = await waitForTextState(
       page,
       (state) => {
         const localPlayer = state.players.find((player) => player.local)
         return (
-          state.movement.prediction.active === true &&
-          state.movement.prediction.direction === "down" &&
-          state.movement.prediction.requestedVector?.x === 0 &&
-          state.movement.prediction.requestedVector?.y === 1 &&
-          state.player.x === beforeMove.x &&
-          state.player.y === beforeMove.y &&
+          state.movement.realtime.status === "open" &&
+          state.movement.realtime.sentCount > realtimeSentBefore &&
+          state.movement.prediction.totalPredicted > predictedBefore &&
+          state.movement.prediction.lastRequestedVector?.x === 0 &&
+          state.movement.prediction.lastRequestedVector?.y === 1 &&
+          state.movement.prediction.lastDirection === "down" &&
           localPlayer &&
-          (localPlayer.x !== beforeMove.x || localPlayer.y !== beforeMove.y)
+          (localPlayer.x !== beforeMove.visualX ||
+            localPlayer.y !== beforeMove.visualY ||
+            state.player.x !== beforeMove.x ||
+            state.player.y !== beforeMove.y)
         )
       },
     )
-    assert.equal(predictedMove.movement.prediction.lastOutcome, "predicted")
+    assert.equal(predictedMove.movement.realtime.status, "open")
     assert.ok(
       predictedMove.movement.prediction.totalPredicted > predictedBefore,
       `Expected a new predicted movement, got ${JSON.stringify(predictedMove.movement.prediction)}.`,
@@ -193,7 +193,6 @@ async function main() {
           state.player.y !== beforeMove.y ||
           state.movement.lastRejectedReason),
     )
-    await page.unroute("**/world/message")
     assert.equal(
       moved.movement.prediction.mode,
       "client_prediction_server_reconciliation",
@@ -217,15 +216,7 @@ async function main() {
       beforeDiagonal.movement.prediction.totalConfirmed +
       beforeDiagonal.movement.prediction.totalCorrected +
       beforeDiagonal.movement.prediction.totalServerRejected
-    let delayedDiagonalRequest = false
-    await page.route("**/world/message", async (route) => {
-      const body = route.request().postDataJSON()
-      if (!delayedDiagonalRequest && body?.message?.type === "move") {
-        delayedDiagonalRequest = true
-        await new Promise((resolve) => setTimeout(resolve, 350))
-      }
-      await route.continue()
-    })
+    const diagonalRealtimeSentBefore = beforeDiagonal.movement.realtime.sentCount
     await page.keyboard.down("ArrowUp")
     await page.waitForTimeout(20)
     await page.keyboard.down("ArrowRight")
@@ -238,6 +229,7 @@ async function main() {
         page,
         (state) =>
           state.movement.prediction.active === false &&
+          state.movement.realtime.sentCount > diagonalRealtimeSentBefore &&
           state.movement.prediction.totalPredicted > diagonalPredictedBefore &&
           state.movement.prediction.lastRequestedVector?.x === 0.707 &&
           state.movement.prediction.lastRequestedVector?.y === -0.707 &&
@@ -299,7 +291,6 @@ async function main() {
       undefined,
       `Expected no server protocol mismatch, got ${JSON.stringify(diagonalMoved.movement.serverProtocolMismatch)}.`,
     )
-    await page.unroute("**/world/message")
     assert.ok(
       diagonalMoved.movement.prediction.totalPredicted >
         diagonalPredictedBefore,
@@ -586,6 +577,10 @@ function assertRenderStateContract(state) {
   assert.equal(typeof state.movement?.motion?.active, "boolean")
   assert.equal(typeof state.movement?.motion?.speedPxPerSecond, "number")
   assert.equal(typeof state.movement?.motion?.correctionPx, "number")
+  assert.equal(typeof state.movement?.realtime?.status, "string")
+  assert.equal(typeof state.movement?.realtime?.sentCount, "number")
+  assert.equal(typeof state.movement?.realtime?.receivedCount, "number")
+  assert.equal(typeof state.movement?.realtime?.fallbackCount, "number")
   assert.equal(typeof state.movement?.prediction?.lastOutcome, "string")
   assert.equal(typeof state.movement?.prediction?.totalPredicted, "number")
   assert.equal(typeof state.movement?.prediction?.totalConfirmed, "number")

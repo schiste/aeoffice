@@ -25,6 +25,7 @@ import {
   type ClientMotionIntent,
   type ClientMotionSnapshot,
 } from "./client-motion-controller"
+import { WorldRealtimeTransport } from "./world-realtime-transport"
 import {
   directionForMovementVector,
   isDirection,
@@ -525,6 +526,9 @@ const movementInput: MovementInputState = {
   shiftRunning: false,
 }
 const clientMotion = new ClientMotionController()
+const worldRealtime = new WorldRealtimeTransport((events) =>
+  applyEvents(events as readonly WorldEvent[]),
+)
 const recentEvents: string[] = []
 const chatMessages: ChatRecord[] = []
 const movementDebugRecords: MovementDebugRecord[] = []
@@ -822,6 +826,7 @@ async function startDemo(): Promise<void> {
     state.position = playerSnapshotPosition(joined.player)
     state.direction = joined.player.direction ?? "down"
     resetClientMotion(state.position, state.direction)
+    worldRealtime.connect(state.clientId)
     upsertRenderedPlayer(joined.player)
     renderPlayers()
     state.joined = true
@@ -1039,6 +1044,7 @@ async function resetDemo(
   state.lastChatBody = undefined
   state.lastMovementRejection = undefined
   state.serverProtocolMismatch = undefined
+  worldRealtime.disconnect()
   state.players.clear()
   chatMessages.length = 0
   renderChatMessages()
@@ -1157,18 +1163,24 @@ async function move(
     seq,
   )
   state.seq += 1
+  const message = {
+    type: "move" as const,
+    vector,
+    direction,
+    movementMode,
+    seq,
+  }
+
+  if (worldRealtime.send(state.clientId, message)) {
+    logMovementDebug("realtime-send", `seq=${seq} transport=websocket`)
+    return
+  }
 
   let body: { events: readonly WorldEvent[] }
   try {
     body = await postJson<{ events: readonly WorldEvent[] }>("/world/message", {
       clientId: state.clientId,
-      message: {
-        type: "move",
-        vector,
-        direction,
-        movementMode,
-        seq,
-      },
+      message,
     })
   } catch (error: unknown) {
     if (isRecoverableWorldError(error)) {
@@ -3549,6 +3561,7 @@ function recoverFromWorldLoss(reason: string): void {
   state.meetingZoneId = undefined
   state.mediaRequestPending = false
   state.lastMovementRejection = undefined
+  worldRealtime.disconnect()
   clearMediaSession()
   chatMessages.length = 0
   renderChatMessages()
@@ -4454,6 +4467,7 @@ function renderDemoToText(): string {
       serverProtocolMismatch: state.serverProtocolMismatch,
       repeatMs: MOVE_REPEAT_MS,
       rejectionFeedbackMs: MOVEMENT_REJECTION_FEEDBACK_MS,
+      realtime: worldRealtime.snapshot(),
       motion: clientMotionTextState(),
       prediction: movementPredictionTextState(),
       debugLog: movementDebugRecords.map(movementDebugLine),

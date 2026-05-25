@@ -126,6 +126,12 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   avatar now moves every animation frame with velocity smoothing, soft
   correction blending, collision-aware prediction, and a direct renderer path
   that avoids restarting position tweens during direction changes.
+- Movement transport has started moving off HTTP request/response: the local
+  dev host now exposes `/world/realtime` as a WebSocket gateway, the browser
+  streams move intents through `WorldRealtimeTransport` when the socket is open,
+  and `/world/message` remains as a fallback for startup or unavailable sockets.
+  The gateway still calls the same `WorldRoomController`, so server authority is
+  unchanged and can later be wrapped by a real Colyseus room.
 - The standalone develop-web-game client was retried with the repo
   `node_modules` on `NODE_PATH`, but the skill script still cannot resolve its
   own ESM `playwright` import. Repo-native Playwright smoke/renderer/responsive

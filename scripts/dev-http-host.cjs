@@ -1,4 +1,5 @@
 const { createServer } = require("node:http")
+const { createHash } = require("node:crypto")
 const { readFile } = require("node:fs/promises")
 const { resolve, sep } = require("node:path")
 
@@ -108,9 +109,19 @@ function createDevelopmentRuntime(options = {}) {
 function startDevelopmentServer(options = {}) {
   const hostname = options.hostname ?? DEFAULT_HOSTNAME
   const port = options.port ?? DEFAULT_PORT
-  const handler =
-    options.handler ?? createDevelopmentFetchHandler(options.env ?? process.env)
+  const runtime = options.runtime ??
+    (options.handler
+      ? undefined
+      : createDevelopmentRuntime({
+          env: options.env ?? process.env,
+          clock: options.clock,
+        }))
+  const handler = options.handler ?? runtime.handler
   const server = createServer(createNodeRequestHandler(handler))
+
+  if (runtime) {
+    installDevelopmentWorldRealtimeGateway(server, runtime.worldRuntime, options.clock)
+  }
 
   return new Promise((resolve, reject) => {
     server.once("error", reject)
@@ -119,9 +130,234 @@ function startDevelopmentServer(options = {}) {
       resolve({
         server,
         url: `http://${hostname}:${server.address().port}`,
+        runtime,
       })
     })
   })
+}
+
+function installDevelopmentWorldRealtimeGateway(server, worldRuntime, clock) {
+  const sockets = new Map()
+
+  server.on("upgrade", (request, socket, head) => {
+    const url = new URL(
+      request.url ?? "/",
+      `http://${request.headers.host ?? `${DEFAULT_HOSTNAME}:${DEFAULT_PORT}`}`,
+    )
+
+    if (url.pathname !== "/world/realtime") {
+      socket.destroy()
+      return
+    }
+
+    const key = headerValue(request.headers["sec-websocket-key"])
+    if (!key) {
+      socket.destroy()
+      return
+    }
+
+    socket.write(webSocketHandshakeResponse(key))
+    let clientId =
+      typeof url.searchParams.get("clientId") === "string"
+        ? url.searchParams.get("clientId")
+        : undefined
+    let pending = Buffer.from(head ?? Buffer.alloc(0))
+
+    if (clientId) {
+      sockets.set(clientId, socket)
+    }
+
+    socket.on("data", (chunk) => {
+      pending = Buffer.concat([pending, chunk])
+      const parsed = readWebSocketFrames(pending)
+      pending = parsed.remaining
+
+      for (const frame of parsed.frames) {
+        if (frame.opcode === 8) {
+          socket.end(encodeWebSocketFrame("", 8))
+          return
+        }
+
+        if (frame.opcode === 9) {
+          socket.write(encodeWebSocketFrame(frame.payload, 10))
+          continue
+        }
+
+        if (frame.opcode !== 1) continue
+
+        try {
+          const packet = JSON.parse(frame.payload.toString("utf8"))
+          if (!packet || typeof packet !== "object") continue
+          if (packet.type !== "world_message") continue
+          if (typeof packet.clientId !== "string") continue
+
+          clientId = packet.clientId
+          sockets.set(clientId, socket)
+
+          const events = worldRuntime.controller.receive(
+            packet.clientId,
+            packet.message,
+            clock?.nowMs() ?? Date.now(),
+          )
+          routeRealtimeWorldEvents(sockets, packet.clientId, events)
+        } catch (error) {
+          sendWebSocketJson(socket, {
+            type: "world_realtime_error",
+            reason: error instanceof Error ? error.message : "Invalid realtime packet.",
+          })
+        }
+      }
+    })
+
+    socket.on("close", () => {
+      if (clientId && sockets.get(clientId) === socket) {
+        sockets.delete(clientId)
+      }
+    })
+    socket.on("error", () => {
+      if (clientId && sockets.get(clientId) === socket) {
+        sockets.delete(clientId)
+      }
+    })
+  })
+}
+
+function routeRealtimeWorldEvents(sockets, senderClientId, events) {
+  for (const event of events) {
+    if (event.type === "broadcast") {
+      for (const [clientId, socket] of sockets) {
+        if (event.exceptClientId === clientId) continue
+        sendWebSocketJson(socket, {
+          type: "world_events",
+          transport: "websocket",
+          events: [event],
+        })
+      }
+      continue
+    }
+
+    if (event.type === "send") {
+      for (const clientId of event.clientIds ?? []) {
+        const socket = sockets.get(clientId)
+        if (!socket) continue
+        sendWebSocketJson(socket, {
+          type: "world_events",
+          transport: "websocket",
+          events: [event],
+        })
+      }
+      continue
+    }
+
+    const sender = sockets.get(senderClientId)
+    if (sender) {
+      sendWebSocketJson(sender, {
+        type: "world_events",
+        transport: "websocket",
+        events: [event],
+      })
+    }
+  }
+}
+
+function webSocketHandshakeResponse(key) {
+  const accept = createHash("sha1")
+    .update(`${key}258EAFA5-E914-47DA-95CA-C5AB0DC85B11`)
+    .digest("base64")
+
+  return [
+    "HTTP/1.1 101 Switching Protocols",
+    "Upgrade: websocket",
+    "Connection: Upgrade",
+    `Sec-WebSocket-Accept: ${accept}`,
+    "",
+    "",
+  ].join("\r\n")
+}
+
+function sendWebSocketJson(socket, packet) {
+  socket.write(encodeWebSocketFrame(JSON.stringify(packet), 1))
+}
+
+function encodeWebSocketFrame(payload, opcode = 1) {
+  const payloadBuffer = Buffer.isBuffer(payload)
+    ? payload
+    : Buffer.from(String(payload), "utf8")
+  const header =
+    payloadBuffer.length < 126
+      ? Buffer.from([0x80 | opcode, payloadBuffer.length])
+      : payloadBuffer.length <= 0xffff
+        ? Buffer.from([
+            0x80 | opcode,
+            126,
+            (payloadBuffer.length >> 8) & 0xff,
+            payloadBuffer.length & 0xff,
+          ])
+        : Buffer.concat([
+            Buffer.from([0x80 | opcode, 127, 0, 0, 0, 0]),
+            uint32Buffer(payloadBuffer.length),
+          ])
+
+  return Buffer.concat([header, payloadBuffer])
+}
+
+function readWebSocketFrames(buffer) {
+  const frames = []
+  let offset = 0
+
+  while (buffer.length - offset >= 2) {
+    const first = buffer[offset]
+    const second = buffer[offset + 1]
+    const opcode = first & 0x0f
+    const masked = (second & 0x80) !== 0
+    let length = second & 0x7f
+    let headerLength = 2
+
+    if (length === 126) {
+      if (buffer.length - offset < 4) break
+      length = buffer.readUInt16BE(offset + 2)
+      headerLength = 4
+    } else if (length === 127) {
+      if (buffer.length - offset < 10) break
+      const high = buffer.readUInt32BE(offset + 2)
+      const low = buffer.readUInt32BE(offset + 6)
+      if (high !== 0) {
+        throw new Error("Realtime frame is too large for the development host.")
+      }
+      length = low
+      headerLength = 10
+    }
+
+    const maskLength = masked ? 4 : 0
+    const frameLength = headerLength + maskLength + length
+    if (buffer.length - offset < frameLength) break
+
+    const mask = masked
+      ? buffer.subarray(offset + headerLength, offset + headerLength + 4)
+      : undefined
+    const payloadStart = offset + headerLength + maskLength
+    const payload = Buffer.from(buffer.subarray(payloadStart, payloadStart + length))
+
+    if (mask) {
+      for (let index = 0; index < payload.length; index += 1) {
+        payload[index] ^= mask[index % 4]
+      }
+    }
+
+    frames.push({ opcode, payload })
+    offset += frameLength
+  }
+
+  return {
+    frames,
+    remaining: buffer.subarray(offset),
+  }
+}
+
+function uint32Buffer(value) {
+  const buffer = Buffer.alloc(4)
+  buffer.writeUInt32BE(value, 0)
+  return buffer
 }
 
 function rewriteRequestPath(request, prefix) {
@@ -582,8 +818,11 @@ module.exports = {
   createNodeRequestHandler,
   createPrefixedFetchHandler,
   createStaticWebHandler,
+  encodeWebSocketFrame,
+  installDevelopmentWorldRealtimeGateway,
   jsonResponse,
   nodeRequestToFetchRequest,
+  readWebSocketFrames,
   startDevelopmentServer,
   writeFetchResponse,
 }

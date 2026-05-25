@@ -3,6 +3,8 @@ const {
   createDevelopmentRuntime,
   createNodeRequestHandler,
   createPrefixedFetchHandler,
+  encodeWebSocketFrame,
+  readWebSocketFrames,
   writeFetchResponse,
 } = require("./dev-http-host.cjs")
 
@@ -79,6 +81,7 @@ async function main() {
   assert.equal(fakeOutgoing.statusCode, 202)
   assert.equal(fakeOutgoing.headers["x-test"], "ok")
   assert.equal(fakeOutgoing.body, "accepted")
+  assertWebSocketFrameHelpers()
 
   const nodeHandler = createNodeRequestHandler(
     async (request) =>
@@ -136,6 +139,7 @@ async function main() {
   assert.equal(appScript.status, 200)
   const appScriptBody = await appScript.text()
   assert.match(appScriptBody, /render_game_to_text/)
+  assert.match(appScriptBody, /\/world\/realtime/)
   assert.match(appScriptBody, /\/world\/snapshot/)
   assert.equal(appStyles.status, 200)
   assert.match(await appStyles.text(), /\.phaser-world-host/)
@@ -197,6 +201,39 @@ function assetPathFromHtml(html, attribute) {
   const match = html.match(new RegExp(`${attribute}="(/app/assets/[^"]+)"`))
   assert.ok(match, `Expected ${attribute} app asset in HTML.`)
   return match[1]
+}
+
+function assertWebSocketFrameHelpers() {
+  const serverFrame = encodeWebSocketFrame(JSON.stringify({ ok: true }))
+  const parsedServerFrame = readWebSocketFrames(serverFrame)
+
+  assert.equal(parsedServerFrame.frames.length, 1)
+  assert.equal(parsedServerFrame.frames[0].opcode, 1)
+  assert.deepEqual(
+    JSON.parse(parsedServerFrame.frames[0].payload.toString("utf8")),
+    { ok: true },
+  )
+  assert.equal(parsedServerFrame.remaining.length, 0)
+
+  const maskedClientFrame = maskedTextFrame("hello")
+  const parsedClientFrame = readWebSocketFrames(maskedClientFrame)
+
+  assert.equal(parsedClientFrame.frames.length, 1)
+  assert.equal(parsedClientFrame.frames[0].payload.toString("utf8"), "hello")
+}
+
+function maskedTextFrame(text) {
+  const payload = Buffer.from(text)
+  const mask = Buffer.from([1, 2, 3, 4])
+  const frame = Buffer.alloc(2 + mask.length + payload.length)
+
+  frame[0] = 0x81
+  frame[1] = 0x80 | payload.length
+  mask.copy(frame, 2)
+  payload.forEach((byte, index) => {
+    frame[6 + index] = byte ^ mask[index % 4]
+  })
+  return frame
 }
 
 class FakeOutgoing {

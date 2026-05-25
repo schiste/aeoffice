@@ -34,5 +34,6 @@ Current implementation:
 Next step:
 
 - Replace the local verifier with production JWT verification.
-- Wrap `WorldRoomController` in a real Colyseus `Room` class or WebSocket
-  transport after the local app-layer loop is stable.
+- Promote the current `/world/realtime` development WebSocket transport into a
+  real Colyseus `Room` class that wraps `WorldRoomController` instead of
+  duplicating movement authority.
