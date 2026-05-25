@@ -217,15 +217,18 @@ async function main() {
       const body = route.request().postDataJSON()
       if (!delayedDiagonalRequest && body?.message?.type === "move") {
         delayedDiagonalRequest = true
-        await new Promise((resolve) => setTimeout(resolve, 1500))
+        await new Promise((resolve) => setTimeout(resolve, 350))
       }
       await route.continue()
     })
     await page.keyboard.down("ArrowUp")
-    await page.waitForTimeout(40)
+    await page.waitForTimeout(20)
     await page.keyboard.down("ArrowRight")
+    await page.waitForTimeout(80)
     let diagonalMoved
     try {
+      await page.keyboard.up("ArrowRight")
+      await page.keyboard.up("ArrowUp")
       diagonalMoved = await waitForTextState(
         page,
         (state) =>
@@ -253,6 +256,18 @@ async function main() {
       y: -0.707,
     })
     assert.equal(diagonalMoved.movement.prediction.lastCollisionSlide, true)
+    assert.ok(
+      diagonalMoved.movement.debugLog.some((entry) =>
+        /keys=up\+right/.test(entry),
+      ),
+      `Expected movement debug log to include real keyboard chord state, got ${JSON.stringify(diagonalMoved.movement.debugLog)}.`,
+    )
+    assert.ok(
+      diagonalMoved.movement.debugLog.some((entry) =>
+        /vector=1,-1/.test(entry),
+      ),
+      `Expected movement debug log to include diagonal vector, got ${JSON.stringify(diagonalMoved.movement.debugLog)}.`,
+    )
     await page.unroute("**/world/message")
     assert.ok(
       diagonalMoved.movement.prediction.totalPredicted >

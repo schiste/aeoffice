@@ -247,9 +247,15 @@ interface AppState {
 interface MovementInputState {
   readonly pressedDirections: Direction[]
   readonly pressedControls: MovementControlIntent[]
+  pendingIntent?: MovementIntent
   timerId?: number
   inFlight: boolean
   lastRequestedDirection?: Direction
+}
+
+interface MovementIntent {
+  readonly vector: MovementVector
+  readonly direction: Direction
 }
 
 interface MovementControlIntent {
@@ -263,6 +269,12 @@ interface ChatRecord {
   readonly id: string
   readonly body: string
   readonly recipientCount: number
+}
+
+interface MovementDebugRecord {
+  readonly atMs: number
+  readonly label: string
+  readonly detail: string
 }
 
 interface MapGenerationState {
@@ -475,12 +487,14 @@ const state: AppState = {
 const movementInput: MovementInputState = {
   pressedDirections: [],
   pressedControls: [],
+  pendingIntent: undefined,
   timerId: undefined,
   inFlight: false,
   lastRequestedDirection: undefined,
 }
 const recentEvents: string[] = []
 const chatMessages: ChatRecord[] = []
+const movementDebugRecords: MovementDebugRecord[] = []
 const toasts = new Map<string, number>()
 
 const elements = {
@@ -548,6 +562,8 @@ const elements = {
   zoomOut: mustQuery<HTMLButtonElement>("#zoom-out"),
   zoomReset: mustQuery<HTMLButtonElement>("#zoom-reset"),
   zoomIn: mustQuery<HTMLButtonElement>("#zoom-in"),
+  movementDebugLog: mustQuery<HTMLOListElement>("#movement-debug-log"),
+  movementDebugCopy: mustQuery<HTMLButtonElement>("#movement-debug-copy"),
   mobileCollapsibleSections: [
     ...document.querySelectorAll<HTMLDetailsElement>("[data-mobile-collapsible]"),
   ],
@@ -609,6 +625,9 @@ elements.toggleCamera.addEventListener("click", () => toggleCamera())
 document
   .querySelectorAll<HTMLButtonElement>("[data-move-x][data-move-y][data-facing]")
   .forEach((button) => installMovementControlButton(button))
+elements.movementDebugCopy.addEventListener("click", () => {
+  void copyMovementDebugLog()
+})
 elements.chatForm.addEventListener("submit", (event) => {
   event.preventDefault()
   queueAction(() => sendChat(elements.chatBody.value))
@@ -641,8 +660,12 @@ document.addEventListener("keydown", (event) => {
   if (!direction) return
 
   event.preventDefault()
-  if (event.repeat) return
+  if (event.repeat) {
+    logMovementDebug("key-repeat", `${event.key} ignored`)
+    return
+  }
 
+  logMovementDebug("key-down", `${event.key} -> ${direction}`)
   pressDirection(direction)
 })
 document.addEventListener("keyup", (event) => {
@@ -650,9 +673,11 @@ document.addEventListener("keyup", (event) => {
   if (!direction) return
 
   event.preventDefault()
+  logMovementDebug("key-up", `${event.key} -> ${direction}`)
   releaseDirection(direction)
 })
 window.addEventListener("blur", () => {
+  logMovementDebug("blur", "cleared held movement")
   stopHeldMovement()
 })
 mobileLayoutQuery.addEventListener("change", () => syncResponsiveToolSections())
@@ -1001,6 +1026,10 @@ async function move(vector: MovementVector, direction: Direction): Promise<void>
   if (!state.joined) return
 
   const seq = state.seq
+  logMovementDebug(
+    "send",
+    `seq=${seq} vector=${formatMovementVector(vector)} facing=${direction} pos=${formatMovementVector(state.position)}`,
+  )
   const prediction = beginClientMovementPrediction(vector, direction, seq)
   state.seq += 1
 
@@ -1017,12 +1046,15 @@ async function move(vector: MovementVector, direction: Direction): Promise<void>
     })
   } catch (error: unknown) {
     if (isRecoverableWorldError(error)) {
+      logMovementDebug("recover", `seq=${seq} reason=unknown_client`)
       recoverFromWorldLoss("unknown_client")
       return
     }
     abandonClientMovementPrediction(prediction)
+    logMovementDebug("error", `seq=${seq} ${errorMessage(error)}`)
     throw error
   }
+  logMovementDebug("response", `seq=${seq} events=${body.events?.length ?? 0}`)
   applyEvents(body.events ?? [])
 }
 
@@ -1047,6 +1079,10 @@ function beginClientMovementPrediction(
   state.movementPrediction.last = prediction
   state.movementPrediction.lastSentAtMs = prediction.startedAtMs
   state.movementPrediction.lastCorrectionPx = undefined
+  logMovementDebug(
+    "predict",
+    `seq=${seq} requested=${formatMovementVector(prediction.requestedVector)} applied=${formatMovementVector(prediction.appliedVector)} target=${formatMovementVector(prediction.target)} slide=${prediction.collisionSlide}`,
+  )
 
   if (prediction.blockedLocally) {
     state.movementPrediction.totalClientBlocked += 1
@@ -1111,6 +1147,10 @@ function installMovementControlButton(button: HTMLButtonElement): void {
 
     event.preventDefault()
     button.setPointerCapture(event.pointerId)
+    logMovementDebug(
+      "pad-down",
+      `id=${event.pointerId} vector=${formatMovementVector(intent.vector)} facing=${intent.direction}`,
+    )
     pressMovementControl({
       ...intent,
       id: event.pointerId,
@@ -1119,17 +1159,24 @@ function installMovementControlButton(button: HTMLButtonElement): void {
   })
   button.addEventListener("pointerup", (event) => {
     event.preventDefault()
+    logMovementDebug("pad-up", `id=${event.pointerId}`)
     releaseMovementControl(event.pointerId)
   })
   button.addEventListener("pointercancel", (event) => {
+    logMovementDebug("pad-cancel", `id=${event.pointerId}`)
     releaseMovementControl(event.pointerId)
   })
   button.addEventListener("lostpointercapture", (event) => {
+    logMovementDebug("pad-lost", `id=${event.pointerId}`)
     releaseMovementControl(event.pointerId)
   })
   button.addEventListener("click", (event) => {
     event.preventDefault()
     if (event.detail === 0) {
+      logMovementDebug(
+        "pad-click",
+        `vector=${formatMovementVector(intent.vector)} facing=${intent.direction}`,
+      )
       requestMove(intent.vector, intent.direction)
     }
   })
@@ -1289,7 +1336,14 @@ function activeHeldMovementIntent():
 
 function requestMoveFromHeldInput(): void {
   const intent = activeHeldMovementIntent()
-  if (!intent) return
+  if (!intent) {
+    logMovementDebug("intent", "none")
+    return
+  }
+  logMovementDebug(
+    "intent",
+    `vector=${formatMovementVector(intent.vector)} facing=${intent.direction} keys=${movementInput.pressedDirections.join("+") || "-"} pads=${movementInput.pressedControls.length}`,
+  )
   requestMove(intent.vector, intent.direction)
 }
 
@@ -1318,12 +1372,35 @@ function clampMovementComponent(value: number): -1 | 0 | 1 {
 }
 
 function requestMove(vector: MovementVector, direction: Direction): void {
-  if (!state.joined || movementInput.inFlight) return
+  if (!state.joined) {
+    logMovementDebug(
+      "ignore",
+      `not_joined vector=${formatMovementVector(vector)} facing=${direction}`,
+    )
+    return
+  }
+  if (movementInput.inFlight) {
+    movementInput.pendingIntent = { vector, direction }
+    logMovementDebug(
+      "queue",
+      `in_flight vector=${formatMovementVector(vector)} facing=${direction}`,
+    )
+    return
+  }
 
   movementInput.inFlight = true
   movementInput.lastRequestedDirection = direction
   void queueAction(() => move(vector, direction)).finally(() => {
     movementInput.inFlight = false
+    const pendingIntent = movementInput.pendingIntent
+    movementInput.pendingIntent = undefined
+    if (pendingIntent) {
+      logMovementDebug(
+        "dequeue",
+        `vector=${formatMovementVector(pendingIntent.vector)} facing=${pendingIntent.direction}`,
+      )
+      requestMove(pendingIntent.vector, pendingIntent.direction)
+    }
   })
 }
 
@@ -2384,6 +2461,10 @@ function applyServerMessage(message: ServerMessage): void {
       state.position = position
       state.direction = message.direction
       state.lastMovementRejection = undefined
+      logMovementDebug(
+        "server",
+        `seq=${message.seqAck ?? "-"} pos=${formatMovementVector(position)} facing=${message.direction}`,
+      )
     }
 
     if (message.playerId === state.companion.playerId) {
@@ -2455,17 +2536,29 @@ function reconcileClientMovementPrediction(
   if (rejected) {
     state.movementPrediction.totalServerRejected += 1
     state.movementPrediction.lastOutcome = "server_rejected"
+    logMovementDebug(
+      "reconcile",
+      `seq=${prediction.seq} rejected correction=${state.movementPrediction.lastCorrectionPx}`,
+    )
     return
   }
 
   if (movementPredictionMatches(prediction, authoritativePosition)) {
     state.movementPrediction.totalConfirmed += 1
     state.movementPrediction.lastOutcome = "confirmed"
+    logMovementDebug(
+      "reconcile",
+      `seq=${prediction.seq} confirmed correction=${state.movementPrediction.lastCorrectionPx}`,
+    )
     return
   }
 
   state.movementPrediction.totalCorrected += 1
   state.movementPrediction.lastOutcome = "corrected"
+  logMovementDebug(
+    "reconcile",
+    `seq=${prediction.seq} corrected correction=${state.movementPrediction.lastCorrectionPx}`,
+  )
 }
 
 function seedLocalRenderedPlayer(): void {
@@ -2534,6 +2627,10 @@ function applyMovementRejection(
     reconcileClientMovementPrediction(position, message.seqAck, true)
     state.position = position
     state.direction = direction
+    logMovementDebug(
+      "rejected",
+      `seq=${message.seqAck ?? "-"} reason=${message.reason} pos=${formatMovementVector(position)}`,
+    )
   }
 
   if (message.playerId === state.companion.playerId) {
@@ -3413,6 +3510,54 @@ function recordEvent(message: string): void {
   recentEvents.splice(MAX_RECENT_EVENTS)
 }
 
+function logMovementDebug(label: string, detail: string): void {
+  movementDebugRecords.unshift({
+    atMs: Date.now(),
+    label,
+    detail,
+  })
+  movementDebugRecords.splice(80)
+  renderMovementDebugLog()
+}
+
+function renderMovementDebugLog(): void {
+  elements.movementDebugLog.replaceChildren(
+    ...movementDebugRecords.map((record) => {
+      const item = document.createElement("li")
+      item.textContent = movementDebugLine(record)
+      return item
+    }),
+  )
+}
+
+async function copyMovementDebugLog(): Promise<void> {
+  const text = movementDebugRecords.map(movementDebugLine).join("\n")
+
+  try {
+    await navigator.clipboard.writeText(text)
+    elements.movementDebugCopy.textContent = "Copied"
+  } catch {
+    elements.movementDebugCopy.textContent = "Select"
+    elements.movementDebugLog.focus()
+  } finally {
+    window.setTimeout(() => {
+      elements.movementDebugCopy.textContent = "Copy"
+    }, 1200)
+  }
+}
+
+function movementDebugLine(record: MovementDebugRecord): string {
+  return `${new Date(record.atMs).toLocaleTimeString()} ${record.label}: ${record.detail}`
+}
+
+function formatMovementVector(vector: Vector2 | MovementVector): string {
+  return `${formatMovementNumber(vector.x)},${formatMovementNumber(vector.y)}`
+}
+
+function formatMovementNumber(value: number): string {
+  return Number(value.toFixed(3)).toString()
+}
+
 function titleCaseName(value: string): string {
   return value
     .replace(/^wikimedia-/, "")
@@ -3987,11 +4132,14 @@ function renderDemoToText(): string {
     movement: {
       heldDirection: activeHeldDirection(),
       heldVector: activeHeldMovementIntent()?.vector,
+      pendingVector: movementInput.pendingIntent?.vector,
+      pendingDirection: movementInput.pendingIntent?.direction,
       inFlight: movementInput.inFlight,
       lastRejectedReason: state.lastMovementRejection?.reason,
       repeatMs: MOVE_REPEAT_MS,
       rejectionFeedbackMs: MOVEMENT_REJECTION_FEEDBACK_MS,
       prediction: movementPredictionTextState(),
+      debugLog: movementDebugRecords.map(movementDebugLine),
     },
     meeting: {
       activeZoneId: state.activeZone?.id,

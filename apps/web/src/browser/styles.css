@@ -1137,6 +1137,61 @@ h1 {
   background: rgba(255, 255, 255, 0.42);
 }
 
+.movement-debug-panel {
+  display: grid;
+  gap: var(--space-2);
+  border: 1px solid rgba(34, 45, 42, 0.14);
+  border-radius: var(--radius-sm);
+  background: rgba(19, 31, 30, 0.04);
+  padding: var(--space-2);
+}
+
+.movement-debug-tool {
+  order: 4;
+  min-width: 0;
+}
+
+.movement-debug-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  color: var(--ink-soft);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.movement-debug-header button {
+  min-height: 28px;
+  padding: 0 var(--space-2);
+  font-size: 11px;
+}
+
+.movement-debug-log {
+  display: grid;
+  max-height: 156px;
+  margin: 0;
+  overflow: auto;
+  padding: 0;
+  color: var(--ink);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    "Liberation Mono", monospace;
+  font-size: 11px;
+  line-height: 1.45;
+  list-style: none;
+}
+
+.movement-debug-log li {
+  overflow-wrap: anywhere;
+  border-top: 1px solid rgba(34, 45, 42, 0.08);
+  padding: 4px 0;
+}
+
+.movement-debug-log li:first-child {
+  border-top: 0;
+}
+
 .chat-heading {
   display: flex;
   align-items: center;
@@ -1254,6 +1309,10 @@ h1 {
   }
 
   .side-panel-header {
+    grid-column: 1 / -1;
+  }
+
+  .movement-debug-tool {
     grid-column: 1 / -1;
   }
 

@@ -596,3 +596,18 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   `npm run qa:renderer`, `npm run check`, `node --check
   scripts/frontend-smoke.test.cjs`, and `git diff --check`. Mobile joined and
   expanded Move-control screenshots were visually inspected.
+- Added an in-app Movement trace panel to debug diagonal input on real devices.
+  The trace records key down/up, d-pad pointer events, active held vectors,
+  in-flight queue/dequeue behavior, client prediction, server responses, and
+  reconciliation. `render_game_to_text.movement.debugLog` exposes the same
+  lines for automation, and the panel has a Copy button for sharing logs.
+- The movement input path now preserves the latest intent that arrives while a
+  request is in flight, then sends it immediately after the current move
+  resolves. This specifically covers quick diagonal key chords where the second
+  key used to arrive before the first request completed.
+- Verification passed after the Movement trace work: `npm --workspace
+  @aedventure/web run build`, `npm run smoke:frontend`,
+  `npm run qa:responsive`, `npm run qa:renderer`, `npm run check`,
+  `node --check scripts/frontend-smoke.test.cjs`, and `git diff --check`.
+  A focused mobile screenshot confirmed the full-width Movement trace panel is
+  readable.
