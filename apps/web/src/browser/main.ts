@@ -11,12 +11,15 @@ import {
 } from "./phaser-office-renderer"
 import { validateFixtureMapForRenderer } from "./renderer/map-render-validation"
 import {
+  CLIENT_INPUT_HISTORY_LIMIT,
   CLIENT_MOVEMENT_FRAME_MS,
   CLIENT_PREDICTION_MAX_STEP_MS,
   createClientMovementPrediction,
   initialMovementPredictionState,
   movementPredictionCorrectionPx,
   movementPredictionMatches,
+  replayMovementPredictions,
+  trimMovementPredictionHistory,
   type ClientMovementPrediction,
   type MovementPredictionState,
 } from "./movement-prediction"
@@ -280,6 +283,14 @@ interface MovementIntent {
   readonly vector: MovementVector
   readonly direction: Direction
   readonly movementMode: MovementMode
+}
+
+interface MovementReconciliationResult {
+  readonly acknowledged: ClientMovementPrediction
+  readonly authoritativePosition: Vector2
+  readonly replayTarget: Vector2
+  readonly replayCount: number
+  readonly rejected: boolean
 }
 
 interface MovementControlIntent {
@@ -965,6 +976,11 @@ async function syncWorldSnapshot(): Promise<boolean> {
 function applyWorldSnapshot(players: readonly PlayerSnapshot[]): void {
   state.snapshotPlayerIds = players.map((player) => player.playerId)
   state.movementPrediction.active = undefined
+  state.movementPrediction.pending = []
+  state.movementPrediction.lastAckSeq = undefined
+  state.movementPrediction.lastReplayCount = 0
+  state.movementPrediction.lastReplayCorrectionPx = undefined
+  state.movementPrediction.lastReplayTarget = undefined
 
   const local = players.find((player) => player.playerId === state.playerId)
   if (local) {
@@ -1209,19 +1225,23 @@ function beginClientMovementPrediction(
     vector,
     direction,
     movementMode,
-    from: state.position,
+    from: movementPredictionBasePosition(),
     map: collisionMapForFixtureMap(state.fixtureMap),
     lastSentAtMs: state.movementPrediction.lastSentAtMs,
     nowMs: Date.now(),
   })
 
-  state.movementPrediction.active = prediction
+  state.movementPrediction.pending = trimMovementPredictionHistory([
+    ...state.movementPrediction.pending,
+    prediction,
+  ])
+  state.movementPrediction.active = state.movementPrediction.pending.at(-1)
   state.movementPrediction.last = prediction
   state.movementPrediction.lastSentAtMs = prediction.startedAtMs
   state.movementPrediction.lastCorrectionPx = undefined
   logMovementDebug(
     "predict",
-    `seq=${seq} mode=${prediction.movementMode} speed=${prediction.speedPxPerSecond} requested=${formatMovementVector(prediction.requestedVector)} applied=${formatMovementVector(prediction.appliedVector)} target=${formatMovementVector(prediction.target)} slide=${prediction.collisionSlide}`,
+    `seq=${seq} mode=${prediction.movementMode} speed=${prediction.speedPxPerSecond} requested=${formatMovementVector(prediction.requestedVector)} applied=${formatMovementVector(prediction.appliedVector)} from=${formatMovementVector(prediction.from)} target=${formatMovementVector(prediction.target)} pending=${state.movementPrediction.pending.length} slide=${prediction.collisionSlide}`,
   )
 
   if (prediction.blockedLocally) {
@@ -1241,6 +1261,10 @@ function beginClientMovementPrediction(
   })
   renderPlayers()
   return prediction
+}
+
+function movementPredictionBasePosition(): Vector2 {
+  return state.movementPrediction.pending.at(-1)?.target ?? state.position
 }
 
 function applyClientMovementBlock(prediction: ClientMovementPrediction): void {
@@ -1263,9 +1287,15 @@ function applyClientMovementBlock(prediction: ClientMovementPrediction): void {
 function abandonClientMovementPrediction(
   prediction: ClientMovementPrediction | undefined,
 ): void {
-  if (!prediction || state.movementPrediction.active?.seq !== prediction.seq) return
+  if (!prediction) return
 
-  state.movementPrediction.active = undefined
+  const pending = state.movementPrediction.pending.filter(
+    (candidate) => candidate.seq !== prediction.seq,
+  )
+  if (pending.length === state.movementPrediction.pending.length) return
+
+  state.movementPrediction.pending = pending
+  state.movementPrediction.active = pending.at(-1)
   state.movementPrediction.totalCorrected += 1
   state.movementPrediction.lastOutcome = "corrected"
   state.movementPrediction.lastCorrectionPx = movementPredictionCorrectionPx(
@@ -2663,10 +2693,14 @@ function applyServerMessage(message: ServerMessage): void {
 
     if (localPlayerMoved) {
       observeServerMovementProtocol(message)
-      reconcileClientMovementPrediction(position, message.seqAck, false)
+      const reconciliation = reconcileClientMovementPrediction(
+        position,
+        message.seqAck,
+        false,
+      )
       state.position = position
       state.direction = message.direction
-      clientMotion.reconcile(position)
+      clientMotion.reconcile(reconciliation?.replayTarget ?? position)
       state.lastMovementRejection = undefined
       logMovementDebug(
         "server",
@@ -2729,44 +2763,126 @@ function reconcileClientMovementPrediction(
   authoritativePosition: Vector2,
   seqAck: number | undefined,
   rejected: boolean,
-): void {
-  const prediction = state.movementPrediction.active
-  if (!prediction) return
-  if (seqAck !== undefined && prediction.seq !== seqAck) return
+): MovementReconciliationResult | undefined {
+  const pending = state.movementPrediction.pending
+  const ackIndex =
+    seqAck === undefined
+      ? pending.length - 1
+      : pending.findIndex((prediction) => prediction.seq === seqAck)
 
+  if (ackIndex < 0) return undefined
+
+  const acknowledged = pending[ackIndex]
+  const unacknowledged = pending.slice(ackIndex + 1)
   const correctionPx = movementPredictionCorrectionPx(
-    prediction,
+    acknowledged,
     authoritativePosition,
   )
-  state.movementPrediction.active = undefined
+  const replay = replayPendingMovementPredictions(
+    authoritativePosition,
+    unacknowledged,
+  )
+  const replayCorrectionPx = vectorDistancePx(
+    authoritativePosition,
+    replay.target,
+  )
+
+  state.movementPrediction.pending = replay.predictions
+  state.movementPrediction.active = replay.predictions.at(-1)
+  state.movementPrediction.last = acknowledged
+  state.movementPrediction.lastAckSeq = acknowledged.seq
   state.movementPrediction.lastCorrectionPx = Number(correctionPx.toFixed(2))
+  state.movementPrediction.lastReplayCount = replay.predictions.length
+  state.movementPrediction.totalReplayed += replay.predictions.length
+  state.movementPrediction.lastReplayCorrectionPx = Number(
+    replayCorrectionPx.toFixed(2),
+  )
+  state.movementPrediction.lastReplayTarget = replay.target
 
   if (rejected) {
     state.movementPrediction.totalServerRejected += 1
     state.movementPrediction.lastOutcome = "server_rejected"
     logMovementDebug(
       "reconcile",
-      `seq=${prediction.seq} rejected correction=${state.movementPrediction.lastCorrectionPx}`,
+      `seq=${acknowledged.seq} rejected correction=${state.movementPrediction.lastCorrectionPx} replay=${replay.predictions.length} pending=${formatPredictionSeqs(replay.predictions)}`,
     )
-    return
+    return {
+      acknowledged,
+      authoritativePosition,
+      replayTarget: replay.target,
+      replayCount: replay.predictions.length,
+      rejected,
+    }
   }
 
-  if (movementPredictionMatches(prediction, authoritativePosition)) {
+  if (movementPredictionMatches(acknowledged, authoritativePosition)) {
     state.movementPrediction.totalConfirmed += 1
     state.movementPrediction.lastOutcome = "confirmed"
     logMovementDebug(
       "reconcile",
-      `seq=${prediction.seq} confirmed correction=${state.movementPrediction.lastCorrectionPx}`,
+      `seq=${acknowledged.seq} confirmed correction=${state.movementPrediction.lastCorrectionPx} replay=${replay.predictions.length} pending=${formatPredictionSeqs(replay.predictions)}`,
     )
-    return
+    return {
+      acknowledged,
+      authoritativePosition,
+      replayTarget: replay.target,
+      replayCount: replay.predictions.length,
+      rejected,
+    }
   }
 
   state.movementPrediction.totalCorrected += 1
   state.movementPrediction.lastOutcome = "corrected"
   logMovementDebug(
     "reconcile",
-    `seq=${prediction.seq} corrected correction=${state.movementPrediction.lastCorrectionPx}`,
+    `seq=${acknowledged.seq} corrected correction=${state.movementPrediction.lastCorrectionPx} replay=${replay.predictions.length} pending=${formatPredictionSeqs(replay.predictions)}`,
   )
+  return {
+    acknowledged,
+    authoritativePosition,
+    replayTarget: replay.target,
+    replayCount: replay.predictions.length,
+    rejected,
+  }
+}
+
+function replayPendingMovementPredictions(
+  authoritativePosition: Vector2,
+  pending: readonly ClientMovementPrediction[],
+): {
+  readonly predictions: ClientMovementPrediction[]
+  readonly target: Vector2
+} {
+  if (pending.length === 0) {
+    return {
+      predictions: [],
+      target: authoritativePosition,
+    }
+  }
+
+  if (!state.fixtureMap) {
+    const predictions = trimMovementPredictionHistory(pending)
+    return {
+      predictions,
+      target: predictions.at(-1)?.target ?? authoritativePosition,
+    }
+  }
+
+  return replayMovementPredictions({
+    from: authoritativePosition,
+    predictions: pending,
+    map: collisionMapForFixtureMap(state.fixtureMap),
+  })
+}
+
+function vectorDistancePx(a: Vector2, b: Vector2): number {
+  return Math.hypot(a.x - b.x, a.y - b.y)
+}
+
+function formatPredictionSeqs(
+  predictions: readonly ClientMovementPrediction[],
+): string {
+  return predictions.map((prediction) => prediction.seq).join(",") || "-"
 }
 
 function seedLocalRenderedPlayer(): void {
@@ -2848,10 +2964,16 @@ function applyMovementRejection(
 
   if (message.playerId === state.playerId) {
     observeServerMovementProtocol(message)
-    reconcileClientMovementPrediction(position, message.seqAck, true)
+    const reconciliation = reconcileClientMovementPrediction(
+      position,
+      message.seqAck,
+      true,
+    )
     state.position = position
     state.direction = direction
-    clientMotion.reconcile(position, { rejected: true })
+    clientMotion.reconcile(reconciliation?.replayTarget ?? position, {
+      rejected: !reconciliation || reconciliation.replayCount === 0,
+    })
     logMovementDebug(
       "rejected",
       `seq=${message.seqAck ?? "-"} reason=${message.reason} pos=${formatMovementVector(position)} ${formatServerMovementTelemetry(message)}`,
@@ -4307,11 +4429,15 @@ function movementPredictionTextState() {
   return {
     mode: "client_prediction_server_reconciliation",
     maxStepMs: CLIENT_PREDICTION_MAX_STEP_MS,
+    historyLimit: CLIENT_INPUT_HISTORY_LIMIT,
     active: Boolean(prediction.active),
     seq: prediction.active?.seq,
+    pendingCount: prediction.pending.length,
+    pendingSeqs: prediction.pending.map((pending) => pending.seq),
     direction: prediction.active?.direction,
     movementMode: prediction.active?.movementMode,
     lastSeq: prediction.last?.seq,
+    lastAckSeq: prediction.lastAckSeq,
     lastDirection: prediction.last?.direction,
     lastMovementMode: prediction.last?.movementMode,
     requestedVector: prediction.active
@@ -4353,7 +4479,13 @@ function movementPredictionTextState() {
     totalCorrected: prediction.totalCorrected,
     totalClientBlocked: prediction.totalClientBlocked,
     totalServerRejected: prediction.totalServerRejected,
+    totalReplayed: prediction.totalReplayed,
+    lastReplayCount: prediction.lastReplayCount,
     lastCorrectionPx: prediction.lastCorrectionPx,
+    lastReplayCorrectionPx: prediction.lastReplayCorrectionPx,
+    lastReplayTarget: prediction.lastReplayTarget
+      ? roundedVector(prediction.lastReplayTarget)
+      : undefined,
   }
 }
 

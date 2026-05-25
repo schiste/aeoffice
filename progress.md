@@ -648,3 +648,18 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   `node --check scripts/frontend-smoke.test.cjs`, and `git diff --check`.
   A focused mobile screenshot confirmed the full-width Movement trace panel is
   readable.
+- Client reconciliation now keeps a bounded pending input history and replays
+  unacknowledged moves after each server ack. New predictions chain from the
+  latest pending target, acknowledgements prune through `seqAck`, and the local
+  motion controller blends toward the replayed target while `state.position`
+  remains the server-confirmed coordinate.
+- `render_game_to_text.movement.prediction` now exposes input-history and replay
+  telemetry: history limit, pending count/seqs, last ack seq, replay count,
+  total replay operations, replay target, and replay correction distance.
+- Verification passed after input-history replay: `npm --workspace
+  @aedventure/web run build`, `node --check scripts/frontend-smoke.test.cjs`,
+  `npm run smoke:frontend`, `npm run qa:renderer`,
+  `npm run qa:responsive`, and `npm run check`. Representative renderer and
+  mobile responsive screenshots were visually inspected from the latest QA
+  artifact folders. The standalone develop-web-game client still fails before
+  navigation because it cannot resolve its own `playwright` package.

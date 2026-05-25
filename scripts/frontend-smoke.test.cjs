@@ -131,6 +131,7 @@ async function main() {
     assert.equal(joined.lifecycle.stageOverlay.hidden, true)
     assert.equal(joined.movement.repeatMs, 60)
     assert.equal(joined.movement.prediction.maxStepMs, 60)
+    assert.equal(joined.movement.prediction.historyLimit, 48)
     assert.equal(joined.movement.motion.mode, "continuous_local_motion")
     assert.equal(joined.movement.motion.movementMode, "walk")
     assert.equal(joined.movement.movementMode, "walk")
@@ -202,6 +203,12 @@ async function main() {
         moved.movement.prediction.totalClientBlocked >= 1,
       `Expected movement to use client prediction, got ${JSON.stringify(moved.movement.prediction)}.`,
     )
+    assert.equal(
+      moved.movement.prediction.pendingCount,
+      moved.movement.prediction.pendingSeqs.length,
+    )
+    assert.equal(typeof moved.movement.prediction.totalReplayed, "number")
+    assert.equal(typeof moved.movement.prediction.lastReplayCount, "number")
     assert.ok(
       ["confirmed", "predicted", "server_rejected", "client_blocked"].includes(
         moved.movement.prediction.lastOutcome,
@@ -255,6 +262,16 @@ async function main() {
     assert.equal(
       typeof diagonalMoved.movement.prediction.lastCollisionSlide,
       "boolean",
+    )
+    assert.ok(
+      diagonalMoved.movement.prediction.lastAckSeq >=
+        beforeDiagonal.movement.prediction.lastAckSeq ||
+        beforeDiagonal.movement.prediction.lastAckSeq === undefined,
+      `Expected diagonal reconciliation to expose an ack sequence, got ${JSON.stringify(diagonalMoved.movement.prediction)}.`,
+    )
+    assert.equal(
+      diagonalMoved.movement.prediction.pendingCount,
+      diagonalMoved.movement.prediction.pendingSeqs.length,
     )
     assert.ok(
       diagonalMoved.movement.debugLog.some((entry) =>
@@ -587,6 +604,14 @@ function assertRenderStateContract(state) {
   assert.equal(typeof state.movement?.prediction?.totalCorrected, "number")
   assert.equal(typeof state.movement?.prediction?.totalClientBlocked, "number")
   assert.equal(typeof state.movement?.prediction?.totalServerRejected, "number")
+  assert.equal(typeof state.movement?.prediction?.historyLimit, "number")
+  assert.equal(typeof state.movement?.prediction?.pendingCount, "number")
+  assert.ok(
+    Array.isArray(state.movement?.prediction?.pendingSeqs),
+    "Expected prediction.pendingSeqs in render_game_to_text.",
+  )
+  assert.equal(typeof state.movement?.prediction?.totalReplayed, "number")
+  assert.equal(typeof state.movement?.prediction?.lastReplayCount, "number")
   if (state.movement?.prediction?.active) {
     assert.equal(typeof state.movement.prediction.requestedVector?.x, "number")
     assert.equal(typeof state.movement.prediction.requestedVector?.y, "number")

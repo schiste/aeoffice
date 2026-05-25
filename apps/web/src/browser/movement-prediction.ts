@@ -42,8 +42,12 @@ export interface ClientMovementPrediction {
 
 export interface MovementPredictionState {
   active?: ClientMovementPrediction
+  pending: ClientMovementPrediction[]
   last?: ClientMovementPrediction
+  lastAckSeq?: number
   lastSentAtMs?: number
+  lastReplayCount: number
+  totalReplayed: number
   totalPredicted: number
   totalConfirmed: number
   totalCorrected: number
@@ -51,6 +55,8 @@ export interface MovementPredictionState {
   totalServerRejected: number
   lastOutcome: MovementPredictionOutcome
   lastCorrectionPx?: number
+  lastReplayCorrectionPx?: number
+  lastReplayTarget?: Vector2
 }
 
 export interface CreateClientMovementPredictionInput {
@@ -62,9 +68,22 @@ export interface CreateClientMovementPredictionInput {
   readonly map: CollisionMap
   readonly lastSentAtMs?: number
   readonly nowMs: number
+  readonly deltaMs?: number
   readonly playerSize?: Size
   readonly speedPxPerSecond?: number
   readonly runSpeedPxPerSecond?: number
+}
+
+export interface ReplayMovementPredictionsInput {
+  readonly from: Vector2
+  readonly predictions: readonly ClientMovementPrediction[]
+  readonly map: CollisionMap
+  readonly playerSize?: Size
+}
+
+export interface ReplayMovementPredictionsResult {
+  readonly predictions: ClientMovementPrediction[]
+  readonly target: Vector2
 }
 
 export const CLIENT_WALK_SPEED_PX_PER_SECOND = 88
@@ -78,12 +97,17 @@ export const CLIENT_PREDICTION_PLAYER_SIZE: Size = {
   height: 16,
 }
 export const CLIENT_PREDICTION_POSITION_EPSILON_PX = 1.75
+export const CLIENT_INPUT_HISTORY_LIMIT = 48
 
 export function initialMovementPredictionState(): MovementPredictionState {
   return {
     active: undefined,
+    pending: [],
     last: undefined,
+    lastAckSeq: undefined,
     lastSentAtMs: undefined,
+    lastReplayCount: 0,
+    totalReplayed: 0,
     totalPredicted: 0,
     totalConfirmed: 0,
     totalCorrected: 0,
@@ -91,6 +115,8 @@ export function initialMovementPredictionState(): MovementPredictionState {
     totalServerRejected: 0,
     lastOutcome: "idle",
     lastCorrectionPx: undefined,
+    lastReplayCorrectionPx: undefined,
+    lastReplayTarget: undefined,
   }
 }
 
@@ -100,7 +126,11 @@ export function createClientMovementPrediction(
   const playerSize = input.playerSize ?? CLIENT_PREDICTION_PLAYER_SIZE
   const speedPxPerSecond =
     movementSpeedPxPerSecond(input.movementMode ?? "walk", input)
-  const deltaMs = movementPredictionDeltaMs(input.lastSentAtMs, input.nowMs)
+  const deltaMs = movementPredictionDeltaMs(
+    input.lastSentAtMs,
+    input.nowMs,
+    input.deltaMs,
+  )
   const distance = (speedPxPerSecond * deltaMs) / 1000
   const result = simulateMovement({
     current: input.from,
@@ -128,6 +158,46 @@ export function createClientMovementPrediction(
     blockedLocally: !result.accepted,
     collisionSlide: result.collisionSlide,
   }
+}
+
+export function replayMovementPredictions(
+  input: ReplayMovementPredictionsInput,
+): ReplayMovementPredictionsResult {
+  let cursor = input.from
+  const predictions = input.predictions.map((prediction) => {
+    const replayed = createClientMovementPrediction({
+      seq: prediction.seq,
+      vector: prediction.requestedVector,
+      direction: prediction.direction,
+      movementMode: prediction.movementMode,
+      from: cursor,
+      map: input.map,
+      nowMs: prediction.startedAtMs,
+      deltaMs: prediction.deltaMs,
+      playerSize: input.playerSize,
+      speedPxPerSecond:
+        prediction.movementMode === "walk"
+          ? prediction.speedPxPerSecond
+          : undefined,
+      runSpeedPxPerSecond:
+        prediction.movementMode === "run"
+          ? prediction.speedPxPerSecond
+          : undefined,
+    })
+    cursor = replayed.target
+    return replayed
+  })
+
+  return {
+    predictions,
+    target: cursor,
+  }
+}
+
+export function trimMovementPredictionHistory(
+  predictions: readonly ClientMovementPrediction[],
+): ClientMovementPrediction[] {
+  return predictions.slice(-CLIENT_INPUT_HISTORY_LIMIT)
 }
 
 function movementSpeedPxPerSecond(
@@ -166,7 +236,15 @@ export function movementPredictionMatches(
 function movementPredictionDeltaMs(
   lastSentAtMs: number | undefined,
   nowMs: number,
+  overrideDeltaMs: number | undefined,
 ): number {
+  if (overrideDeltaMs !== undefined) {
+    return Math.max(
+      0,
+      Math.min(overrideDeltaMs, CLIENT_PREDICTION_MAX_STEP_MS),
+    )
+  }
+
   const previousSentAtMs = lastSentAtMs ?? nowMs - CLIENT_PREDICTION_MAX_STEP_MS
   return Math.max(
     0,
