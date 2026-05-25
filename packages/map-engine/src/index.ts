@@ -1,4 +1,9 @@
-import type { Direction } from "@aedventure/protocol"
+import {
+  directionForMovementVector,
+  movementVectorForDirection,
+  type Direction,
+  type MovementVector,
+} from "@aedventure/protocol"
 
 export interface Vector2 {
   readonly x: number
@@ -37,7 +42,7 @@ export interface Zone {
 
 export interface MovementSimulationInput {
   readonly current: Vector2
-  readonly direction: Direction
+  readonly vector: MovementVector
   readonly seq: number
   readonly map: CollisionMap
   readonly playerSize: Size
@@ -54,6 +59,9 @@ export interface MovementSimulationResult {
   readonly seqAck: number
   readonly position: Vector2
   readonly attemptedPosition: Vector2
+  readonly requestedVector: MovementVector
+  readonly appliedVector: MovementVector
+  readonly collisionSlide: boolean
   readonly direction: Direction
   readonly enteredZoneIds: readonly string[]
   readonly leftZoneIds: readonly string[]
@@ -64,24 +72,33 @@ const MAX_SIMULATION_STEP_MS = 250
 export function simulateMovement(
   input: MovementSimulationInput,
 ): MovementSimulationResult {
+  const normalizedVector = normalizeMovementVector(input.vector)
   const deltaMs = Math.max(0, Math.min(input.deltaMs, MAX_SIMULATION_STEP_MS))
-  const attemptedPosition = moveByDirection(
+  const distance = (input.speedPxPerSecond * deltaMs) / 1000
+  const attemptedPosition = moveByVector(
     input.current,
-    input.direction,
-    (input.speedPxPerSecond * deltaMs) / 1000,
+    normalizedVector,
+    distance,
   )
 
   if (input.deltaMs > MAX_SIMULATION_STEP_MS) {
-    return rejected(input, attemptedPosition, "speed_limit")
+    return rejected(input, attemptedPosition, normalizedVector, "speed_limit")
   }
 
-  if (collidesWithMap(input.map, attemptedPosition, input.playerSize)) {
-    return rejected(input, attemptedPosition, "collision")
+  const resolvedMovement = resolveMovementAgainstCollision(
+    input,
+    normalizedVector,
+    attemptedPosition,
+    distance,
+  )
+
+  if (!resolvedMovement) {
+    return rejected(input, attemptedPosition, normalizedVector, "collision")
   }
 
   const nextZoneIds = zonesAtPosition(
     input.zones ?? [],
-    attemptedPosition,
+    resolvedMovement.position,
     input.playerSize,
   ).map((zone) => zone.id)
   const permissionFailure = firstMissingZonePermission(
@@ -91,7 +108,7 @@ export function simulateMovement(
   )
 
   if (permissionFailure) {
-    return rejected(input, attemptedPosition, "zone_permission")
+    return rejected(input, attemptedPosition, normalizedVector, "zone_permission")
   }
 
   const currentZoneIds = input.currentZoneIds ?? []
@@ -99,11 +116,27 @@ export function simulateMovement(
   return {
     accepted: true,
     seqAck: input.seq,
-    position: attemptedPosition,
+    position: resolvedMovement.position,
     attemptedPosition,
-    direction: input.direction,
+    requestedVector: normalizedVector,
+    appliedVector: resolvedMovement.appliedVector,
+    collisionSlide: resolvedMovement.collisionSlide,
+    direction: directionForMovementVector(resolvedMovement.appliedVector),
     enteredZoneIds: nextZoneIds.filter((zoneId) => !currentZoneIds.includes(zoneId)),
     leftZoneIds: currentZoneIds.filter((zoneId) => !nextZoneIds.includes(zoneId)),
+  }
+}
+
+export function moveByVector(
+  current: Vector2,
+  vector: MovementVector,
+  distance: number,
+): Vector2 {
+  const normalized = normalizeMovementVector(vector)
+
+  return {
+    x: current.x + normalized.x * distance,
+    y: current.y + normalized.y * distance,
   }
 }
 
@@ -112,16 +145,7 @@ export function moveByDirection(
   direction: Direction,
   distance: number,
 ): Vector2 {
-  switch (direction) {
-    case "up":
-      return { x: current.x, y: current.y - distance }
-    case "down":
-      return { x: current.x, y: current.y + distance }
-    case "left":
-      return { x: current.x - distance, y: current.y }
-    case "right":
-      return { x: current.x + distance, y: current.y }
-  }
+  return moveByVector(current, movementVectorForDirection(direction), distance)
 }
 
 export function collidesWithMap(
@@ -164,6 +188,7 @@ export function zonesAtPosition(
 function rejected(
   input: MovementSimulationInput,
   attemptedPosition: Vector2,
+  normalizedVector: MovementVector,
   reason: "collision" | "speed_limit" | "zone_permission",
 ): MovementSimulationResult {
   return {
@@ -172,9 +197,92 @@ function rejected(
     seqAck: input.seq,
     position: input.current,
     attemptedPosition,
-    direction: input.direction,
+    requestedVector: normalizedVector,
+    appliedVector: { x: 0, y: 0 },
+    collisionSlide: false,
+    direction: directionForMovementVector(normalizedVector),
     enteredZoneIds: [],
     leftZoneIds: [],
+  }
+}
+
+function resolveMovementAgainstCollision(
+  input: MovementSimulationInput,
+  normalizedVector: MovementVector,
+  attemptedPosition: Vector2,
+  distance: number,
+):
+  | {
+      readonly position: Vector2
+      readonly appliedVector: MovementVector
+      readonly collisionSlide: boolean
+    }
+  | undefined {
+  if (!collidesWithMap(input.map, attemptedPosition, input.playerSize)) {
+    return {
+      position: attemptedPosition,
+      appliedVector: normalizedVector,
+      collisionSlide: false,
+    }
+  }
+
+  const axisCandidates = axisSlideCandidates(input.current, normalizedVector, distance)
+
+  for (const candidate of axisCandidates) {
+    if (!collidesWithMap(input.map, candidate.position, input.playerSize)) {
+      return {
+        ...candidate,
+        collisionSlide: true,
+      }
+    }
+  }
+
+  return undefined
+}
+
+function axisSlideCandidates(
+  current: Vector2,
+  normalizedVector: MovementVector,
+  distance: number,
+): readonly {
+  readonly position: Vector2
+  readonly appliedVector: MovementVector
+}[] {
+  if (normalizedVector.x === 0 || normalizedVector.y === 0) return []
+
+  const horizontal = {
+    position: {
+      x: current.x + normalizedVector.x * distance,
+      y: current.y,
+    },
+    appliedVector: {
+      x: Math.sign(normalizedVector.x),
+      y: 0,
+    },
+  }
+  const vertical = {
+    position: {
+      x: current.x,
+      y: current.y + normalizedVector.y * distance,
+    },
+    appliedVector: {
+      x: 0,
+      y: Math.sign(normalizedVector.y),
+    },
+  }
+
+  return Math.abs(normalizedVector.x) >= Math.abs(normalizedVector.y)
+    ? [horizontal, vertical]
+    : [vertical, horizontal]
+}
+
+function normalizeMovementVector(vector: MovementVector): MovementVector {
+  const length = Math.hypot(vector.x, vector.y)
+  if (length === 0) return { x: 0, y: 1 }
+
+  return {
+    x: vector.x / length,
+    y: vector.y / length,
   }
 }
 

@@ -1,11 +1,13 @@
 import {
-  collidesWithMap,
-  moveByDirection,
   type CollisionMap,
   type Size,
+  simulateMovement,
 } from "@aedventure/map-engine"
-
-type Direction = "up" | "down" | "left" | "right"
+import {
+  directionForMovementVector,
+  type Direction,
+  type MovementVector,
+} from "@aedventure/protocol"
 
 interface Vector2 {
   readonly x: number
@@ -23,6 +25,8 @@ export type MovementPredictionOutcome =
 export interface ClientMovementPrediction {
   readonly seq: number
   readonly direction: Direction
+  readonly requestedVector: MovementVector
+  readonly appliedVector: MovementVector
   readonly from: Vector2
   readonly attempted: Vector2
   readonly target: Vector2
@@ -30,10 +34,12 @@ export interface ClientMovementPrediction {
   readonly deltaMs: number
   readonly distance: number
   readonly blockedLocally: boolean
+  readonly collisionSlide: boolean
 }
 
 export interface MovementPredictionState {
   active?: ClientMovementPrediction
+  last?: ClientMovementPrediction
   lastSentAtMs?: number
   totalPredicted: number
   totalConfirmed: number
@@ -46,7 +52,8 @@ export interface MovementPredictionState {
 
 export interface CreateClientMovementPredictionInput {
   readonly seq: number
-  readonly direction: Direction
+  readonly vector: MovementVector
+  readonly direction?: Direction
   readonly from: Vector2
   readonly map: CollisionMap
   readonly lastSentAtMs?: number
@@ -66,6 +73,7 @@ export const CLIENT_PREDICTION_POSITION_EPSILON_PX = 1.75
 export function initialMovementPredictionState(): MovementPredictionState {
   return {
     active: undefined,
+    last: undefined,
     lastSentAtMs: undefined,
     totalPredicted: 0,
     totalConfirmed: 0,
@@ -85,19 +93,29 @@ export function createClientMovementPrediction(
     input.speedPxPerSecond ?? CLIENT_PREDICTION_SPEED_PX_PER_SECOND
   const deltaMs = movementPredictionDeltaMs(input.lastSentAtMs, input.nowMs)
   const distance = (speedPxPerSecond * deltaMs) / 1000
-  const attempted = moveByDirection(input.from, input.direction, distance)
-  const blockedLocally = collidesWithMap(input.map, attempted, playerSize)
+  const result = simulateMovement({
+    current: input.from,
+    vector: input.vector,
+    seq: input.seq,
+    map: input.map,
+    playerSize,
+    speedPxPerSecond,
+    deltaMs,
+  })
 
   return {
     seq: input.seq,
-    direction: input.direction,
+    direction: input.direction ?? directionForMovementVector(input.vector),
+    requestedVector: result.requestedVector,
+    appliedVector: result.appliedVector,
     from: input.from,
-    attempted,
-    target: blockedLocally ? input.from : attempted,
+    attempted: result.attemptedPosition,
+    target: result.position,
     startedAtMs: input.nowMs,
     deltaMs,
     distance,
-    blockedLocally,
+    blockedLocally: !result.accepted,
+    collisionSlide: result.collisionSlide,
   }
 }
 

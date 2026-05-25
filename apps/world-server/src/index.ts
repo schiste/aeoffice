@@ -2,6 +2,7 @@ import {
   animationForDirection,
   isChatSendMessage,
   isMoveIntentMessage,
+  movementVectorForMoveIntent,
   type ChatRejectedMessage,
   type ChatSendMessage,
   type ClientMessage,
@@ -191,7 +192,7 @@ export class AuthoritativeWorld {
     )
     const result = simulateMovement({
       current: state.position,
-      direction: message.direction,
+      vector: movementVectorForMoveIntent(message),
       seq: message.seq,
       map: this.config.map,
       playerSize: this.config.playerSize,
@@ -203,7 +204,7 @@ export class AuthoritativeWorld {
     })
 
     state.lastProcessedAt = nowMs
-    state.direction = message.direction
+    state.direction = message.direction ?? result.direction
     state.lastSeqAck = message.seq
 
     if (!result.accepted) {

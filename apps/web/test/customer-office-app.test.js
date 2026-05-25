@@ -204,11 +204,16 @@ async function main() {
   assert.equal(app.getState().players[0].x, 48)
   assert.equal(app.getState().players[0].lastSeqAck, 1)
 
-  await app.sendChat("room", "Hello from the app layer", nowMs + 500)
+  await app.moveVector({ x: 1, y: 1 }, nowMs + 500, "right")
+  assert.equal(Math.round(app.getState().players[0].x), 59)
+  assert.equal(Math.round(app.getState().players[0].y), 43)
+  assert.equal(app.getState().players[0].lastSeqAck, 2)
+
+  await app.sendChat("room", "Hello from the app layer", nowMs + 750)
   assert.equal(app.getState().chatLog.length, 1)
   assert.deepEqual(app.getState().chatLog[0].recipientPlayerIds, ["player-2"])
 
-  const media = await app.joinMediaZone("meeting-zone", nowMs + 750)
+  const media = await app.joinMediaZone("meeting-zone", nowMs + 1000)
   assert.equal(media.status, "issued")
   assert.equal(media.room, "zone:room-lobby:meeting-zone")
   assert.equal(media.canPublish, true)
@@ -228,6 +233,7 @@ async function main() {
     ["updated", 32, 32],
     ["updated", 64, 32],
     ["updated", 48, 32],
+    ["updated", 59.31370849898476, 43.31370849898476],
     ["chat", "Hello from the app layer"],
     ["media", "zone:room-lobby:meeting-zone"],
     ["left"],

@@ -13,12 +13,14 @@ Responsibilities:
 The first required protocol replacement is movement:
 
 ```json
-{ "type": "move", "direction": "down", "seq": 42 }
+{ "type": "move", "vector": { "x": 1, "y": -1 }, "direction": "right", "seq": 42 }
 ```
 
 Current implementation:
 
-- `MoveIntentMessage` validates the client movement intent.
+- `MoveIntentMessage` validates the client movement intent. New clients send a
+  normalized-intent movement vector; `direction` is only a cardinal facing hint
+  for animation and legacy clients.
 - `PlayerStateMessage` broadcasts server-authoritative position.
 - `MovementRejectedMessage` rejects invalid movement without accepting client
   coordinates.

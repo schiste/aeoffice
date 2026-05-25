@@ -564,3 +564,25 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   were visually inspected from the latest QA artifact folders. The standalone
   develop-web-game client remains blocked by its own missing `playwright`
   module resolution, while repo-owned Playwright suites continue to pass.
+- Diagonal movement is now first-class and still server-authoritative. Clients
+  send `{ type: "move", vector, direction, seq }`; the protocol accepts vector
+  intents with legacy direction fallback, the map engine normalizes diagonal
+  vectors so speed stays constant, and collision resolution can slide along a
+  clear axis instead of hard-stopping every diagonal collision.
+- Browser input now combines held arrow/WASD keys into diagonal vectors while
+  keeping the last active key as the facing hint. Client prediction uses the
+  same map-engine vector simulation as the world server, and
+  `render_game_to_text.movement.prediction` exposes last vector, applied vector,
+  and collision-slide telemetry for automation.
+- Verification passed for the diagonal slice:
+  `npm --workspace @aedventure/protocol run build`,
+  `npm --workspace @aedventure/map-engine run build`,
+  `node packages/map-engine/test/movement.test.js`,
+  `npm --workspace @aedventure/world-server run build`,
+  `node apps/world-server/test/authoritative-world.test.js`,
+  `node apps/web/test/customer-office-app.test.js`,
+  `npm --workspace @aedventure/web run build`,
+  `npm run smoke:frontend`, `npm run qa:renderer`,
+  `npm run qa:responsive`, `npm run check`, and `git diff --check`.
+  Representative renderer and responsive QA screenshots were visually
+  inspected from the latest artifact folders.

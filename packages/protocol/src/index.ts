@@ -11,6 +11,11 @@ export const CHAT_SCOPES = [
 export type Direction = (typeof DIRECTIONS)[number]
 export type ChatScope = (typeof CHAT_SCOPES)[number]
 
+export interface MovementVector {
+  readonly x: number
+  readonly y: number
+}
+
 export type ClientMessage = MoveIntentMessage | ChatSendMessage
 
 export type ServerMessage =
@@ -22,7 +27,8 @@ export type ServerMessage =
 
 export interface MoveIntentMessage {
   readonly type: "move"
-  readonly direction: Direction
+  readonly vector?: MovementVector
+  readonly direction?: Direction
   readonly seq: number
   readonly protocolVersion?: typeof PROTOCOL_VERSION
 }
@@ -103,6 +109,43 @@ export function isDirection(value: unknown): value is Direction {
   return typeof value === "string" && DIRECTIONS.includes(value as Direction)
 }
 
+export function isMovementVector(value: unknown): value is MovementVector {
+  if (!isRecord(value)) return false
+
+  return (
+    isMovementComponent(value.x) &&
+    isMovementComponent(value.y) &&
+    Math.hypot(value.x, value.y) > 0
+  )
+}
+
+export function movementVectorForDirection(direction: Direction): MovementVector {
+  switch (direction) {
+    case "up":
+      return { x: 0, y: -1 }
+    case "down":
+      return { x: 0, y: 1 }
+    case "left":
+      return { x: -1, y: 0 }
+    case "right":
+      return { x: 1, y: 0 }
+  }
+}
+
+export function directionForMovementVector(vector: MovementVector): Direction {
+  if (Math.abs(vector.x) > Math.abs(vector.y)) {
+    return vector.x < 0 ? "left" : "right"
+  }
+
+  return vector.y < 0 ? "up" : "down"
+}
+
+export function movementVectorForMoveIntent(
+  message: MoveIntentMessage,
+): MovementVector {
+  return message.vector ?? movementVectorForDirection(message.direction ?? "down")
+}
+
 export function isChatScope(value: unknown): value is ChatScope {
   return typeof value === "string" && CHAT_SCOPES.includes(value as ChatScope)
 }
@@ -114,7 +157,9 @@ export function isMoveIntentMessage(value: unknown): value is MoveIntentMessage 
 
   return (
     value.type === "move" &&
-    isDirection(value.direction) &&
+    (isMovementVector(value.vector) || isDirection(value.direction)) &&
+    (value.vector === undefined || isMovementVector(value.vector)) &&
+    (value.direction === undefined || isDirection(value.direction)) &&
     typeof seq === "number" &&
     Number.isInteger(seq) &&
     seq >= 0
@@ -149,4 +194,13 @@ export function animationForDirection(
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null
+}
+
+function isMovementComponent(value: unknown): value is number {
+  return (
+    typeof value === "number" &&
+    Number.isFinite(value) &&
+    value >= -1 &&
+    value <= 1
+  )
 }

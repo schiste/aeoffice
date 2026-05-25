@@ -263,7 +263,7 @@ Legacy SkyOffice currently accepts:
 The target client sends:
 
 ```json
-{ "type": "move", "direction": "down", "seq": 42 }
+{ "type": "move", "vector": { "x": 1, "y": -1 }, "direction": "right", "seq": 42 }
 ```
 
 The server computes:

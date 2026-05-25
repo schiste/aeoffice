@@ -1,8 +1,13 @@
+import {
+  directionForMovementVector,
+  movementVectorForDirection,
+} from "@aedventure/protocol"
 import type {
   ChatDeliveredMessage,
   ChatScope,
   ClientMessage,
   Direction,
+  MovementVector,
   ServerMessage,
 } from "@aedventure/protocol"
 import type {
@@ -267,10 +272,19 @@ export class CustomerVirtualOfficeApp {
   }
 
   async move(direction: Direction, nowMs: number): Promise<void> {
+    await this.moveVector(movementVectorForDirection(direction), nowMs, direction)
+  }
+
+  async moveVector(
+    vector: MovementVector,
+    nowMs: number,
+    facingDirection = directionForMovementVector(vector),
+  ): Promise<void> {
     await this.sendAndApply(
       {
         type: "move",
-        direction,
+        vector,
+        direction: facingDirection,
         seq: this.nextSeq(),
       },
       nowMs,

@@ -117,6 +117,18 @@ assert.equal(delayedMove.type, "player_state")
 assert.equal(delayedMove.x, 48)
 assert.equal(delayedMove.y, 32)
 
+const diagonalMove = idleWorld.handleClientMessage(
+  "idle-player",
+  { type: "move", vector: { x: 1, y: -1 }, direction: "right", seq: 2 },
+  5250,
+)
+
+assert.equal(diagonalMove.type, "player_state")
+assert.equal(Math.round(diagonalMove.x), 59)
+assert.equal(Math.round(diagonalMove.y), 21)
+assert.equal(diagonalMove.direction, "right")
+assert.equal(diagonalMove.anim, "adam_walk_right")
+
 const towardObstacle = permittedWorld.handleClientMessage(
   "p2",
   { type: "move", direction: "down", seq: 2 },

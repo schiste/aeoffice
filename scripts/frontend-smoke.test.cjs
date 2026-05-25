@@ -166,6 +166,8 @@ async function main() {
         return (
           state.movement.prediction.active === true &&
           state.movement.prediction.direction === "down" &&
+          state.movement.prediction.requestedVector?.x === 0 &&
+          state.movement.prediction.requestedVector?.y === 1 &&
           state.player.x === beforeMove.x &&
           state.player.y === beforeMove.y &&
           localPlayer &&
@@ -201,6 +203,61 @@ async function main() {
         moved.movement.prediction.lastOutcome,
       ),
       `Unexpected prediction outcome ${moved.movement.prediction.lastOutcome}.`,
+    )
+
+    const beforeDiagonal = await renderGameToText(page)
+    const diagonalPredictedBefore =
+      beforeDiagonal.movement.prediction.totalPredicted
+    const diagonalSettledBefore =
+      beforeDiagonal.movement.prediction.totalConfirmed +
+      beforeDiagonal.movement.prediction.totalCorrected +
+      beforeDiagonal.movement.prediction.totalServerRejected
+    let delayedDiagonalRequest = false
+    await page.route("**/world/message", async (route) => {
+      const body = route.request().postDataJSON()
+      if (
+        !delayedDiagonalRequest &&
+        body?.message?.type === "move"
+      ) {
+        delayedDiagonalRequest = true
+        await new Promise((resolve) => setTimeout(resolve, 1500))
+      }
+      await route.continue()
+    })
+    await page.evaluate(() => {
+      if (!window.__aedventureRendererTest?.requestMove) {
+        throw new Error("Missing renderer smoke movement hook.")
+      }
+      void window.__aedventureRendererTest.requestMove({ x: 1, y: -1 }, "right")
+    })
+    const diagonalMoved = await waitForTextState(
+      page,
+      (state) =>
+        state.movement.prediction.active === false &&
+        state.movement.prediction.totalPredicted > diagonalPredictedBefore &&
+        state.movement.prediction.lastRequestedVector?.x === 0.707 &&
+        state.movement.prediction.lastRequestedVector?.y === -0.707 &&
+        state.movement.prediction.lastDirection === "right" &&
+        state.movement.prediction.totalConfirmed +
+          state.movement.prediction.totalCorrected +
+          state.movement.prediction.totalServerRejected >
+          diagonalSettledBefore,
+    )
+    assert.ok(
+      diagonalMoved.movement.prediction.totalPredicted >
+        diagonalPredictedBefore,
+      `Expected diagonal movement to use client prediction, got ${JSON.stringify(diagonalMoved.movement.prediction)}.`,
+    )
+    assert.deepEqual(diagonalMoved.movement.prediction.lastRequestedVector, {
+      x: 0.707,
+      y: -0.707,
+    })
+    assert.equal(diagonalMoved.movement.prediction.lastCollisionSlide, true)
+    await page.unroute("**/world/message")
+    assert.ok(
+      diagonalMoved.movement.prediction.totalPredicted >
+        diagonalPredictedBefore,
+      "Expected diagonal move to complete after server reconciliation.",
     )
 
     await page.locator("#chat-body").fill(SMOKE_MESSAGE)
@@ -457,6 +514,13 @@ function assertRenderStateContract(state) {
   assert.equal(typeof state.movement?.prediction?.totalCorrected, "number")
   assert.equal(typeof state.movement?.prediction?.totalClientBlocked, "number")
   assert.equal(typeof state.movement?.prediction?.totalServerRejected, "number")
+  if (state.movement?.prediction?.active) {
+    assert.equal(typeof state.movement.prediction.requestedVector?.x, "number")
+    assert.equal(typeof state.movement.prediction.requestedVector?.y, "number")
+    assert.equal(typeof state.movement.prediction.appliedVector?.x, "number")
+    assert.equal(typeof state.movement.prediction.appliedVector?.y, "number")
+    assert.equal(typeof state.movement.prediction.collisionSlide, "boolean")
+  }
   assert.equal(typeof state.map?.renderer, "string")
   assert.equal(typeof state.renderer?.requestedRenderer, "string")
   assert.equal(typeof state.renderer?.actualRenderer, "string")

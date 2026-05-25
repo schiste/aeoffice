@@ -132,7 +132,8 @@ Client sends intent:
 ```json
 {
   "type": "move",
-  "direction": "down",
+  "vector": { "x": 1, "y": -1 },
+  "direction": "right",
   "seq": 42
 }
 ```

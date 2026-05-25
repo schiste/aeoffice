@@ -19,6 +19,12 @@ import {
   type MovementPredictionState,
 } from "./movement-prediction"
 import {
+  directionForMovementVector,
+  movementVectorForDirection,
+  type Direction,
+  type MovementVector,
+} from "@aedventure/protocol"
+import {
   compileDeterministicPromptMap,
   compilePresetMap,
   presetMapSummaries,
@@ -30,7 +36,6 @@ import {
   type VisualAssetFrameMetadata,
 } from "@aedventure/asset-registry"
 
-type Direction = "up" | "down" | "left" | "right"
 type StatusState = "idle" | "pending" | "ready" | "blocked"
 type ToastTone = "info" | "success" | "warning" | "error"
 type MapSwitcherId = PresetMapId | "generated"
@@ -593,7 +598,7 @@ elements.toggleMic.addEventListener("click", () => toggleMic())
 elements.toggleCamera.addEventListener("click", () => toggleCamera())
 document.querySelectorAll<HTMLButtonElement>("[data-direction]").forEach((button) => {
   button.addEventListener("click", () =>
-    requestMove(button.dataset.direction as Direction),
+    requestDirectionalMove(button.dataset.direction as Direction),
   )
 })
 elements.chatForm.addEventListener("submit", (event) => {
@@ -737,7 +742,7 @@ async function startDemo(): Promise<void> {
     await joinCompanion()
     const synced = await syncWorldSnapshot()
     if (!synced) return
-    await move("right")
+    await move(movementVectorForDirection("right"), "right")
     if (!state.joined) return
     await sendChat(elements.chatBody.value)
     if (!state.joined) return
@@ -984,11 +989,11 @@ async function leaveWorldSafely(clientId: string, label: string): Promise<void> 
   }
 }
 
-async function move(direction: Direction): Promise<void> {
+async function move(vector: MovementVector, direction: Direction): Promise<void> {
   if (!state.joined) return
 
   const seq = state.seq
-  const prediction = beginClientMovementPrediction(direction, seq)
+  const prediction = beginClientMovementPrediction(vector, direction, seq)
   state.seq += 1
 
   let body: { events: readonly WorldEvent[] }
@@ -997,6 +1002,7 @@ async function move(direction: Direction): Promise<void> {
       clientId: state.clientId,
       message: {
         type: "move",
+        vector,
         direction,
         seq,
       },
@@ -1013,6 +1019,7 @@ async function move(direction: Direction): Promise<void> {
 }
 
 function beginClientMovementPrediction(
+  vector: MovementVector,
   direction: Direction,
   seq: number,
 ): ClientMovementPrediction | undefined {
@@ -1020,6 +1027,7 @@ function beginClientMovementPrediction(
 
   const prediction = createClientMovementPrediction({
     seq,
+    vector,
     direction,
     from: state.position,
     map: collisionMapForFixtureMap(state.fixtureMap),
@@ -1028,6 +1036,7 @@ function beginClientMovementPrediction(
   })
 
   state.movementPrediction.active = prediction
+  state.movementPrediction.last = prediction
   state.movementPrediction.lastSentAtMs = prediction.startedAtMs
   state.movementPrediction.lastCorrectionPx = undefined
 
@@ -1089,7 +1098,7 @@ function pressDirection(direction: Direction): void {
   releaseDirection(direction)
   movementInput.pressedDirections.push(direction)
   startHeldMovement()
-  requestMove(direction)
+  requestMoveFromHeldInput()
 }
 
 function releaseDirection(direction: Direction): void {
@@ -1107,9 +1116,7 @@ function startHeldMovement(): void {
   if (movementInput.timerId !== undefined) return
 
   movementInput.timerId = window.setInterval(() => {
-    const direction = activeHeldDirection()
-    if (!direction) return
-    requestMove(direction)
+    requestMoveFromHeldInput()
   }, MOVE_REPEAT_MS)
 }
 
@@ -1123,15 +1130,64 @@ function stopHeldMovement(): void {
 }
 
 function activeHeldDirection(): Direction | undefined {
-  return movementInput.pressedDirections.at(-1)
+  return activeHeldMovementIntent()?.direction
 }
 
-function requestMove(direction: Direction): void {
+function activeHeldMovementIntent():
+  | {
+      readonly vector: MovementVector
+      readonly direction: Direction
+    }
+  | undefined {
+  const pressed = new Set(movementInput.pressedDirections)
+  const vector = {
+    x: (pressed.has("right") ? 1 : 0) + (pressed.has("left") ? -1 : 0),
+    y: (pressed.has("down") ? 1 : 0) + (pressed.has("up") ? -1 : 0),
+  }
+
+  if (vector.x === 0 && vector.y === 0) return undefined
+
+  return {
+    vector,
+    direction:
+      movementInput.pressedDirections
+        .filter((direction) => vectorIncludesDirection(vector, direction))
+        .at(-1) ?? directionForMovementVector(vector),
+  }
+}
+
+function requestMoveFromHeldInput(): void {
+  const intent = activeHeldMovementIntent()
+  if (!intent) return
+  requestMove(intent.vector, intent.direction)
+}
+
+function requestDirectionalMove(direction: Direction): void {
+  requestMove(movementVectorForDirection(direction), direction)
+}
+
+function vectorIncludesDirection(
+  vector: MovementVector,
+  direction: Direction,
+): boolean {
+  switch (direction) {
+    case "up":
+      return vector.y < 0
+    case "down":
+      return vector.y > 0
+    case "left":
+      return vector.x < 0
+    case "right":
+      return vector.x > 0
+  }
+}
+
+function requestMove(vector: MovementVector, direction: Direction): void {
   if (!state.joined || movementInput.inFlight) return
 
   movementInput.inFlight = true
   movementInput.lastRequestedDirection = direction
-  void queueAction(() => move(direction)).finally(() => {
+  void queueAction(() => move(vector, direction)).finally(() => {
     movementInput.inFlight = false
   })
 }
@@ -1757,6 +1813,18 @@ async function moveLocalPlayerForSmoke(position: Vector2): Promise<void> {
   })
   renderPlayers()
   updateActiveZoneFromPosition()
+  await renderer.advanceTime()
+}
+
+async function requestMoveForSmoke(
+  vector: MovementVector,
+  direction: Direction,
+): Promise<void> {
+  if (!state.joined) {
+    throw new Error("Cannot request a smoke movement before joining the world.")
+  }
+
+  await move(vector, direction)
   await renderer.advanceTime()
 }
 
@@ -3666,7 +3734,24 @@ function movementPredictionTextState() {
     active: Boolean(prediction.active),
     seq: prediction.active?.seq,
     direction: prediction.active?.direction,
+    lastSeq: prediction.last?.seq,
+    lastDirection: prediction.last?.direction,
+    requestedVector: prediction.active
+      ? roundedVector(prediction.active.requestedVector)
+      : undefined,
+    lastRequestedVector: prediction.last
+      ? roundedVector(prediction.last.requestedVector)
+      : undefined,
+    appliedVector: prediction.active
+      ? roundedVector(prediction.active.appliedVector)
+      : undefined,
+    lastAppliedVector: prediction.last
+      ? roundedVector(prediction.last.appliedVector)
+      : undefined,
+    collisionSlide: prediction.active?.collisionSlide ?? false,
+    lastCollisionSlide: prediction.last?.collisionSlide ?? false,
     blockedLocally: prediction.active?.blockedLocally ?? false,
+    lastBlockedLocally: prediction.last?.blockedLocally ?? false,
     from: prediction.active
       ? roundedVector(prediction.active.from)
       : undefined,
@@ -3694,8 +3779,8 @@ function movementPredictionTextState() {
 
 function roundedVector(position: Vector2): Vector2 {
   return {
-    x: Math.round(position.x),
-    y: Math.round(position.y),
+    x: Number(position.x.toFixed(3)),
+    y: Number(position.y.toFixed(3)),
   }
 }
 
@@ -3766,6 +3851,7 @@ function renderDemoToText(): string {
     snapshotPlayerIds: state.snapshotPlayerIds,
     movement: {
       heldDirection: activeHeldDirection(),
+      heldVector: activeHeldMovementIntent()?.vector,
       inFlight: movementInput.inFlight,
       lastRejectedReason: state.lastMovementRejection?.reason,
       repeatMs: MOVE_REPEAT_MS,
@@ -3940,6 +4026,10 @@ declare global {
       ) => Promise<void>
       renderZoneFixtureCase: () => Promise<ZoneFixtureResult>
       moveLocalPlayer: (position: Vector2) => Promise<void>
+      requestMove: (
+        vector: MovementVector,
+        direction: Direction,
+      ) => Promise<void>
       setZoneDebugOverlay: (enabled: boolean) => Promise<void>
       setRendererEffects: (options: RendererEffectsOptions) => Promise<void>
     }
@@ -3991,6 +4081,7 @@ if (localAutomationHost()) {
     },
     renderZoneFixtureCase: renderZoneFixtureCaseForSmoke,
     moveLocalPlayer: moveLocalPlayerForSmoke,
+    requestMove: requestMoveForSmoke,
     setZoneDebugOverlay: async (enabled) => {
       renderer.setZoneDebugOverlayEnabled(enabled)
       await renderer.advanceTime()
