@@ -67,13 +67,36 @@ async function main() {
         state.map?.activeMapId === "generated" &&
         state.map.generatedAvailable === true &&
         state.map.validation?.valid === true &&
+        state.map.generatedPreview?.mode === "applied" &&
+        state.map.generatedPreview?.previewMatchesRendered === true &&
         /entry spots are clear/.test(state.map.validationSummary ?? ""),
+    )
+    assert.equal(generated.map.aiReadiness.rendererAgnostic, true)
+    assert.deepEqual(generated.map.aiReadiness.compilerOutputs, [
+      "render_layers",
+      "collision_layers",
+      "zones",
+    ])
+    assert.equal(generated.map.aiReadiness.previewMatchesRendered, true)
+    assert.equal(
+      generated.map.generatedPreview.previewFingerprint,
+      generated.map.generatedPreview.appliedFingerprint,
+    )
+    assert.equal(
+      generated.map.generatedPreview.appliedFingerprint,
+      generated.mapValidation.renderFingerprint,
+    )
+    assert.equal(generated.renderer.mapValidation.collisionLayerPresent, true)
+    assert.ok(
+      generated.map.validation.checks.every((check) => check.status === "pass"),
+      "Expected explainable generated-map validation checks to pass.",
     )
     assert.equal(
       generated.map.availableMaps.find((map) => map.id === "generated").disabled,
       false,
     )
     assert.equal(await generatedMapButton.isDisabled(), false)
+    await assertInvalidMapPreflight(page)
 
     await page.locator('[data-map-id="meeting_room"]').click()
     const meetingRoom = await waitForTextState(
@@ -381,6 +404,10 @@ function assertRenderStateContract(state) {
   assert.equal(typeof state.renderer?.actualRenderer, "string")
   assert.equal(typeof state.renderer?.webgl?.available, "boolean")
   assert.equal(typeof state.renderer?.rounding?.vertexRoundMode, "string")
+  assert.equal(state.mapValidation?.source, "renderer_preflight")
+  assert.equal(typeof state.mapValidation?.valid, "boolean")
+  assert.equal(typeof state.mapValidation?.renderFingerprint, "string")
+  assert.equal(state.renderer?.mapValidation?.source, "renderer_preflight")
   assert.equal(state.performance?.source, "renderer_runtime")
   assert.equal(typeof state.performance?.target?.targetFps, "number")
   assert.equal(typeof state.performance?.lifecycle?.gameInstanceId, "number")
@@ -492,6 +519,13 @@ function assertRendererCapabilities(state) {
   )
   assert.equal(state.renderer.effects.capability.webglAvailable, true)
   assert.equal(state.renderer.effects.capability.contextLost, false)
+  assert.equal(state.renderer.mapValidation.valid, true)
+  assert.equal(state.renderer.mapValidation.mutationSafe, true)
+  assert.equal(typeof state.renderer.mapValidation.collisionLayerPresent, "boolean")
+  assert.ok(
+    state.renderer.mapValidation.visualFootprintCount >= 1,
+    "Expected renderer visual-footprint preflight checks.",
+  )
   assertRendererPerformance(state.renderer.performance)
   assertRendererPerformance(state.performance)
   assert.equal(state.renderer.assets.atlasId, "atlas.internal.office.polished_v1")
@@ -986,6 +1020,40 @@ async function assertLargeGpuMapSmoke(page) {
   assert.ok(
     cadence.maxMs < 250,
     `Expected large GPU map max frame cadence below collapse threshold, got ${cadence.maxMs}ms.`,
+  )
+}
+
+async function assertInvalidMapPreflight(page) {
+  const invalidAttempt = await page.evaluate(async () => {
+    if (!window.__aedventureRendererTest?.attemptInvalidMap) {
+      throw new Error("Missing invalid map preflight test API.")
+    }
+
+    return window.__aedventureRendererTest.attemptInvalidMap()
+  })
+
+  assert.equal(invalidAttempt.accepted, false)
+  assert.match(
+    invalidAttempt.error,
+    /Renderer map preflight failed before Phaser mutation/,
+  )
+  assert.match(invalidAttempt.error, /Visual footprint/)
+  assert.equal(invalidAttempt.after.activeMapId, invalidAttempt.before.activeMapId)
+  assert.equal(
+    invalidAttempt.after.mapRenderCount,
+    invalidAttempt.before.mapRenderCount,
+  )
+  assert.notEqual(
+    invalidAttempt.after.renderFingerprint,
+    invalidAttempt.before.renderFingerprint,
+    "Expected rejected map fingerprint to be reported without mutating the scene.",
+  )
+
+  const state = await renderGameToText(page)
+  assert.equal(state.map.activeMapId, invalidAttempt.before.activeMapId)
+  assert.equal(
+    state.performance.lifecycle.mapRenderCount,
+    invalidAttempt.before.mapRenderCount,
   )
 }
 

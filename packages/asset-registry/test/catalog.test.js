@@ -142,8 +142,12 @@ assert.equal(compiled.layers.floor.gids[0][0], 12)
 assert.equal(compiled.layers.walls.gids[0][0], 46)
 assert.equal(compiled.layers.walls.gids[0][1], 45)
 assert.equal(compiled.layers.objects.gids[3][4], 201)
+assert.equal(compiled.renderLayers.objects.gids[3][4], 201)
 assert.equal(compiled.layers.objects.gids[2][4], 160)
 assert.equal(compiled.layers.objects.gids[1][9], 305)
+assert.equal(compiled.collisionLayers.movement.name, "movement")
+assert.equal(compiled.collisionLayers.movement.blocked[3][4], true)
+assert.equal(compiled.collisionLayers.movement.blocked[5][6], false)
 assert.deepEqual(compiled.zones[0], {
   id: "meeting-zone",
   xStart: 3,
@@ -164,6 +168,17 @@ const generated = compileDeterministicPromptMap(
 )
 
 assert.equal(generated.validation.valid, true)
+assert.match(generated.validation.summary, /Map preflight passed/)
+assert.deepEqual(
+  generated.validation.checks.map((check) => [check.id, check.status]),
+  [
+    ["blocked_tiles", "pass"],
+    ["collision_layer", "pass"],
+    ["compiler_output", "pass"],
+    ["spawn_clearance", "pass"],
+    ["zone_bounds", "pass"],
+  ],
+)
 assert.equal(generated.definition.roomDimensions.width, 14)
 assert.equal(generated.definition.roomDimensions.height, 11)
 assert.equal(

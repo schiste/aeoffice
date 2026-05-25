@@ -7,6 +7,7 @@ import {
   type RendererPerformanceInfo,
   type RendererZoomPresetId,
 } from "./phaser-office-renderer"
+import { validateFixtureMapForRenderer } from "./renderer/map-render-validation"
 import {
   compileDeterministicPromptMap,
   compilePresetMap,
@@ -68,6 +69,15 @@ interface FixtureMap {
       readonly floor: TileLayer
       readonly walls: TileLayer
       readonly objects: TileLayer
+    }
+    readonly collisionLayers?: {
+      readonly movement: {
+        readonly name: "movement"
+        readonly width: number
+        readonly height: number
+        readonly blocked: readonly (readonly boolean[])[]
+        readonly blockedTiles: readonly Vector2[]
+      }
     }
     readonly zones: readonly FixtureZone[]
   }
@@ -192,6 +202,7 @@ interface AppState {
   cameraEnabled: boolean
   mapGeneration: MapGenerationState
   generatedRoom?: GeneratedRoomState
+  generatedPreview?: GeneratedMapPreviewState
   lastMediaRoom?: string
   lastChatBody?: string
   lastMovementRejection?: {
@@ -221,11 +232,27 @@ interface MapGenerationState {
   readonly prompt: string
   readonly keywords: readonly string[]
   readonly validation?: PromptMapValidation
+  readonly preview?: GeneratedMapPreviewState
 }
 
 interface GeneratedRoomState {
   readonly fixtureMap: FixtureMap
   readonly mapGeneration: MapGenerationState
+}
+
+interface GeneratedMapPreviewState {
+  readonly mode: "preflight" | "invalid" | "applied"
+  readonly mdiSchema: "semantic_map_definition"
+  readonly rendererAgnostic: true
+  readonly compilerOutputs: readonly ["render_layers", "collision_layers", "zones"]
+  readonly previewFingerprint: string
+  readonly appliedFingerprint?: string
+  readonly previewMatchesRendered: boolean
+  readonly rendererPreflight: {
+    readonly valid: boolean
+    readonly errors: readonly string[]
+    readonly visualFootprintCount: number
+  }
 }
 
 interface DepthFixtureCaseResult {
@@ -262,6 +289,21 @@ interface BigMapBenchmarkResult {
   readonly gameInstanceIds: readonly number[]
   readonly repeatedLargeMapDisplayObjectDelta: number
   readonly repeatedLargeMapTextureDelta: number
+}
+
+interface InvalidMapAttemptResult {
+  readonly accepted: boolean
+  readonly error?: string
+  readonly before: {
+    readonly activeMapId?: string
+    readonly mapRenderCount: number
+    readonly renderFingerprint: string
+  }
+  readonly after: {
+    readonly activeMapId?: string
+    readonly mapRenderCount: number
+    readonly renderFingerprint: string
+  }
 }
 
 type MediaTokenResponse =
@@ -352,6 +394,7 @@ const state: AppState = {
     validation: undefined,
   },
   generatedRoom: undefined,
+  generatedPreview: undefined,
   lastMediaRoom: undefined,
   lastChatBody: undefined,
   lastMovementRejection: undefined,
@@ -1123,6 +1166,7 @@ async function generateMapFromPrompt(): Promise<void> {
   try {
     const generated = compileDeterministicPromptMap(prompt)
     const fixtureMap = fixtureMapFromCompiledMap(generated)
+    const preview = generatedPreviewForFixtureMap(fixtureMap, "preflight")
     const mapGeneration = {
       source: "generated" as const,
       mapId: "generated" as const,
@@ -1130,6 +1174,24 @@ async function generateMapFromPrompt(): Promise<void> {
       prompt,
       keywords: generated.keywords,
       validation: generated.validation,
+      preview,
+    }
+    state.generatedPreview = preview
+    renderMapGenerationResult()
+
+    if (!generated.validation.valid || !preview.rendererPreflight.valid) {
+      state.generatedPreview = {
+        ...preview,
+        mode: "invalid",
+      }
+      publishToast(
+        generated.validation.errors[0] ??
+          preview.rendererPreflight.errors[0] ??
+          "Generated map is invalid",
+        "warning",
+      )
+      renderMapGenerationResult()
+      return
     }
 
     state.generatedRoom = {
@@ -1139,14 +1201,6 @@ async function generateMapFromPrompt(): Promise<void> {
 
     await switchToFixtureMap(fixtureMap, mapGeneration)
 
-    if (!generated.validation.valid) {
-      publishToast(
-        generated.validation.errors[0] ?? "Generated map is invalid",
-        "warning",
-      )
-      return
-    }
-
     publishToast("Generated room ready", "success")
   } finally {
     elements.generateMap.disabled = false
@@ -1154,6 +1208,62 @@ async function generateMapFromPrompt(): Promise<void> {
       ? "Regenerate room"
       : "Generate room"
     renderMapSwitcher()
+  }
+}
+
+function generatedPreviewForFixtureMap(
+  fixtureMap: FixtureMap,
+  mode: GeneratedMapPreviewState["mode"],
+  appliedFingerprint?: string,
+): GeneratedMapPreviewState {
+  const rendererPreflight = validateFixtureMapForRenderer(fixtureMap)
+  const previewFingerprint = rendererPreflight.renderFingerprint
+
+  return {
+    mode,
+    mdiSchema: "semantic_map_definition",
+    rendererAgnostic: true,
+    compilerOutputs: ["render_layers", "collision_layers", "zones"],
+    previewFingerprint,
+    appliedFingerprint,
+    previewMatchesRendered: appliedFingerprint
+      ? previewFingerprint === appliedFingerprint
+      : false,
+    rendererPreflight: {
+      valid: rendererPreflight.valid,
+      errors: rendererPreflight.errors,
+      visualFootprintCount: rendererPreflight.visualFootprintCount,
+    },
+  }
+}
+
+function validFixtureValidation(fixtureMap: FixtureMap): PromptMapValidation {
+  return {
+    valid: true,
+    errors: [],
+    checks: [
+      {
+        id: "blocked_tiles",
+        status: "pass",
+        message: `${fixtureMap.compiled.blockedTiles.length} blocked movement tiles are in bounds.`,
+      },
+      {
+        id: "spawn_clearance",
+        status: "pass",
+        message: `${fixtureMap.spawnPoints.length} entry spots are clear and inside the room.`,
+      },
+      {
+        id: "zone_bounds",
+        status: "pass",
+        message: `${fixtureMap.compiled.zones.length} interaction zones are inside the room bounds.`,
+      },
+    ],
+    summary: "Fixture map preflight passed for smoke automation.",
+    blockedTileCount: fixtureMap.compiled.blockedTiles.length,
+    spawnCount: fixtureMap.spawnPoints.length,
+    zoneCount: fixtureMap.compiled.zones.length,
+    spawnIds: fixtureMap.spawnPoints.map((spawn) => spawn.id),
+    zoneIds: fixtureMap.compiled.zones.map((zone) => zone.id),
   }
 }
 
@@ -1174,6 +1284,27 @@ async function switchToFixtureMap(
     })
     await configureDevWorldGeometry(fixtureMap)
     applyFixtureMap(fixtureMap, mapGeneration)
+    if (mapGeneration.source === "generated" && state.generatedRoom) {
+      await renderer.advanceTime()
+      const appliedPreview = generatedPreviewForFixtureMap(
+        fixtureMap,
+        "applied",
+        renderer.getMapValidationInfo().renderFingerprint,
+      )
+      state.generatedPreview = appliedPreview
+      state.generatedRoom = {
+        fixtureMap,
+        mapGeneration: {
+          ...mapGeneration,
+          preview: appliedPreview,
+        },
+      }
+      state.mapGeneration = {
+        ...state.mapGeneration,
+        preview: appliedPreview,
+      }
+      renderMapGenerationResult()
+    }
     setLifecycleStatus("empty", roomReadyLabel(mapGeneration.label))
     renderMapSwitcher()
   } catch (error: unknown) {
@@ -1243,15 +1374,7 @@ async function renderLargeStaticMapForSmoke(
     label: "Renderer stress map",
     prompt: "Large generated static map renderer smoke",
     keywords: ["large", "renderer", "stress"],
-    validation: {
-      valid: true,
-      errors: [],
-      blockedTileCount: fixtureMap.compiled.blockedTiles.length,
-      spawnCount: fixtureMap.spawnPoints.length,
-      zoneCount: fixtureMap.compiled.zones.length,
-      spawnIds: fixtureMap.spawnPoints.map((spawn) => spawn.id),
-      zoneIds: fixtureMap.compiled.zones.map((zone) => zone.id),
-    },
+    validation: validFixtureValidation(fixtureMap),
   })
 }
 
@@ -1302,6 +1425,33 @@ async function runBigMapBenchmarkForSmoke(): Promise<BigMapBenchmarkResult> {
   }
 }
 
+async function attemptInvalidMapForSmoke(): Promise<InvalidMapAttemptResult> {
+  const before = {
+    activeMapId: state.mapGeneration.mapId,
+    mapRenderCount: renderer.getPerformanceInfo().lifecycle.mapRenderCount,
+    renderFingerprint: renderer.getMapValidationInfo().renderFingerprint,
+  }
+  const invalidMap = invalidVisualFootprintFixtureMap()
+  const preflight = renderer.preflightMap(invalidMap)
+  const accepted = preflight.valid
+  const error = preflight.valid
+    ? undefined
+    : `Renderer map preflight failed before Phaser mutation: ${preflight.errors.join(" ")}`
+
+  await renderer.advanceTime()
+
+  return {
+    accepted,
+    error,
+    before,
+    after: {
+      activeMapId: state.mapGeneration.mapId,
+      mapRenderCount: renderer.getPerformanceInfo().lifecycle.mapRenderCount,
+      renderFingerprint: renderer.getMapValidationInfo().renderFingerprint,
+    },
+  }
+}
+
 async function renderDepthFixtureCaseForSmoke(
   caseId: DepthFixtureCaseId,
 ): Promise<DepthFixtureCaseResult> {
@@ -1316,15 +1466,7 @@ async function renderDepthFixtureCaseForSmoke(
     label: `Depth case: ${caseId}`,
     prompt: `Renderer depth smoke ${caseId}`,
     keywords: ["renderer", "depth", caseId],
-    validation: {
-      valid: true,
-      errors: [],
-      blockedTileCount: depthCase.fixtureMap.compiled.blockedTiles.length,
-      spawnCount: depthCase.fixtureMap.spawnPoints.length,
-      zoneCount: 0,
-      spawnIds: depthCase.fixtureMap.spawnPoints.map((spawn) => spawn.id),
-      zoneIds: [],
-    },
+    validation: validFixtureValidation(depthCase.fixtureMap),
   })
   state.joined = true
   state.position = depthCase.playerPosition
@@ -1390,15 +1532,7 @@ async function renderAvatarFixtureCaseForSmoke(): Promise<AvatarFixtureResult> {
     label: "Avatar fixture",
     prompt: "Renderer avatar system fixture",
     keywords: ["renderer", "avatar"],
-    validation: {
-      valid: true,
-      errors: [],
-      blockedTileCount: fixtureMap.compiled.blockedTiles.length,
-      spawnCount: fixtureMap.spawnPoints.length,
-      zoneCount: 0,
-      spawnIds: fixtureMap.spawnPoints.map((spawn) => spawn.id),
-      zoneIds: [],
-    },
+    validation: validFixtureValidation(fixtureMap),
   })
   state.joined = true
   state.position = players[0].position
@@ -1445,15 +1579,7 @@ async function renderZoneFixtureCaseForSmoke(): Promise<ZoneFixtureResult> {
     label: "Zone fixture",
     prompt: "Renderer zone presentation fixture",
     keywords: ["renderer", "zone"],
-    validation: {
-      valid: true,
-      errors: [],
-      blockedTileCount: fixtureMap.compiled.blockedTiles.length,
-      spawnCount: fixtureMap.spawnPoints.length,
-      zoneCount: fixtureMap.compiled.zones.length,
-      spawnIds: fixtureMap.spawnPoints.map((spawn) => spawn.id),
-      zoneIds: fixtureMap.compiled.zones.map((zone) => zone.id),
-    },
+    validation: validFixtureValidation(fixtureMap),
   })
   state.joined = true
   state.position = fixtureSpawnPosition(fixtureMap, "default")
@@ -1801,6 +1927,36 @@ function largeStaticFixtureMap(width: number, height: number): FixtureMap {
     ],
     catalog: {
       tokens: [floorToken, wallToken, cornerToken, plantToken, chairToken],
+    },
+  }
+}
+
+function invalidVisualFootprintFixtureMap(): FixtureMap {
+  const generated = compileDeterministicPromptMap(DEFAULT_MAP_PROMPT)
+  const fixtureMap = fixtureMapFromCompiledMap(generated)
+  const tableToken = visualTokenById("item.large_conference_table")
+  const objects = fixtureMap.compiled.layers.objects.gids.map((row) => [...row])
+  const invalidX = fixtureMap.compiled.width - 1
+  const invalidY = fixtureMap.compiled.height - 1
+
+  objects[invalidY][invalidX] = tableToken.provisionalGid
+
+  return {
+    ...fixtureMap,
+    compiled: {
+      ...fixtureMap.compiled,
+      layers: {
+        ...fixtureMap.compiled.layers,
+        objects: {
+          ...fixtureMap.compiled.layers.objects,
+          gids: objects,
+        },
+      },
+    },
+    catalog: {
+      tokens: fixtureMap.catalog.tokens.some((token) => token.id === tableToken.id)
+        ? fixtureMap.catalog.tokens
+        : [...fixtureMap.catalog.tokens, tableToken],
     },
   }
 }
@@ -2251,6 +2407,7 @@ function renderMapGenerationResult(): void {
     ? state.mapGeneration
     : state.generatedRoom?.mapGeneration
   const validation = previewMap?.validation
+  const preview = previewMap?.preview ?? state.generatedPreview
 
   if (!previewMap || !validation) {
     setGeneratorPreviewState(
@@ -2279,7 +2436,13 @@ function renderMapGenerationResult(): void {
       ? `Saved from: "${previewMap.prompt}"`
       : "Pick an example or describe a room, then generate a playable map."
 
-  setGeneratorPreviewState(previewState, status, detail)
+  setGeneratorPreviewState(
+    preview?.mode === "applied" && preview.previewMatchesRendered
+      ? "ready"
+      : previewState,
+    status,
+    preview ? `${detail} - ${previewDetail(preview)}` : detail,
+  )
   elements.validationBlocked.textContent = `${validation.blockedTileCount} tiles`
   elements.validationSpawns.textContent = validation.valid
     ? `${validation.spawnCount} ready`
@@ -2364,6 +2527,16 @@ function generatedRoomDetail(mapGeneration: MapGenerationState): string {
   return `Prompt: "${mapGeneration.prompt}" - Features: ${features}`
 }
 
+function previewDetail(preview: GeneratedMapPreviewState): string {
+  if (preview.mode === "applied" && preview.previewMatchesRendered) {
+    return "Preview matches the rendered room."
+  }
+  if (!preview.rendererPreflight.valid) {
+    return `Preview blocked before rendering: ${preview.rendererPreflight.errors.join(" ")}`
+  }
+  return "Preview passed renderer preflight."
+}
+
 function generatedFeatureLabels(keywords: readonly string[]): string {
   const featureLabels: string[] = []
   const hasKeyword = (keyword: string) => keywords.includes(keyword)
@@ -2385,6 +2558,24 @@ function generatedFeatureLabels(keywords: readonly string[]): string {
 function validationHumanSummary(validation: PromptMapValidation): string {
   if (!validation.valid) {
     return `Needs review: ${validation.errors.join(" ")}`
+  }
+
+  if (validation.checks.length > 0) {
+    const orderedCheckIds: PromptMapValidation["checks"][number]["id"][] = [
+      "spawn_clearance",
+      "zone_bounds",
+      "collision_layer",
+    ]
+    const messageById = new Map(
+      validation.checks
+        .filter((check) => check.status === "pass")
+        .map((check) => [check.id, check.message]),
+    )
+
+    return orderedCheckIds
+      .map((id) => messageById.get(id))
+      .filter((message): message is string => Boolean(message))
+      .join(" ")
   }
 
   const spawnCopy =
@@ -3162,6 +3353,7 @@ function renderDemoToText(): string {
     },
     renderer: renderer.getCapabilityInfo(),
     effects: renderer.getEffectsInfo(),
+    mapValidation: renderer.getMapValidationInfo(),
     performance: renderer.getPerformanceInfo(),
     avatars: renderer.getAvatarInfo(),
     zones: renderer.getZoneInfo(),
@@ -3188,6 +3380,14 @@ function renderDemoToText(): string {
           generatedAvailable: Boolean(state.generatedRoom),
           generatedPreviewStatus: elements.mapGenerationStatus.textContent,
           generatedPreviewDetail: elements.generatedPreviewDetail.textContent,
+          generatedPreview: state.mapGeneration.preview ?? state.generatedPreview,
+          aiReadiness: {
+            mdiSchema: "semantic_map_definition",
+            rendererAgnostic: true,
+            compilerOutputs: ["render_layers", "collision_layers", "zones"],
+            previewMatchesRendered:
+              state.mapGeneration.preview?.previewMatchesRendered ?? false,
+          },
           validationSummary: elements.validationSummary.textContent,
           prompt: state.mapGeneration.prompt,
           keywords: state.mapGeneration.keywords,
@@ -3201,6 +3401,8 @@ function renderDemoToText(): string {
             ? {
                 valid: state.mapGeneration.validation.valid,
                 errors: state.mapGeneration.validation.errors,
+                summary: state.mapGeneration.validation.summary,
+                checks: state.mapGeneration.validation.checks,
                 blockedTileCount: state.mapGeneration.validation.blockedTileCount,
                 spawnCount: state.mapGeneration.validation.spawnCount,
                 zoneCount: state.mapGeneration.validation.zoneCount,
@@ -3242,6 +3444,7 @@ declare global {
         readonly height?: number
       }) => Promise<void>
       runBigMapBenchmark: () => Promise<BigMapBenchmarkResult>
+      attemptInvalidMap: () => Promise<InvalidMapAttemptResult>
       renderDepthFixtureCase: (
         caseId: DepthFixtureCaseId,
       ) => Promise<DepthFixtureCaseResult>
@@ -3273,6 +3476,7 @@ if (localAutomationHost()) {
   window.__aedventureRendererTest = {
     renderLargeStaticMap: renderLargeStaticMapForSmoke,
     runBigMapBenchmark: runBigMapBenchmarkForSmoke,
+    attemptInvalidMap: attemptInvalidMapForSmoke,
     renderDepthFixtureCase: renderDepthFixtureCaseForSmoke,
     renderAvatarFixtureCase: renderAvatarFixtureCaseForSmoke,
     moveAvatarFixturePlayer: moveAvatarFixturePlayerForSmoke,

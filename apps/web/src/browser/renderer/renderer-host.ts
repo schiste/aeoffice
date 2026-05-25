@@ -28,6 +28,7 @@ import type {
   RendererCapabilityInfo,
   RendererEffectsInfo,
   RendererEffectsOptions,
+  RendererMapValidationInfo,
   RendererPerformanceInfo,
   RendererViewportState,
   RendererZoneInteractionState,
@@ -99,11 +100,12 @@ export class PhaserOfficeRenderer {
   }
 
   renderMap(fixtureMap: FixtureMap): void {
-    this.fixtureMap = fixtureMap
     this.renderTask = this.queueRender(async (scene) => {
       await scene.renderFixtureMap(fixtureMap, this.players)
+      this.fixtureMap = fixtureMap
       scene.setZoneInteractionState(this.zoneInteractionState)
     })
+    void this.renderTask.catch(() => undefined)
   }
 
   updatePlayers(players: readonly RenderedPlayer[]): void {
@@ -203,6 +205,14 @@ export class PhaserOfficeRenderer {
     return this.scene.getPerformanceInfo(this.gameInstanceId)
   }
 
+  getMapValidationInfo(): RendererMapValidationInfo {
+    return this.scene.getMapValidationInfo()
+  }
+
+  preflightMap(fixtureMap: FixtureMap): RendererMapValidationInfo {
+    return this.scene.preflightFixtureMap(fixtureMap)
+  }
+
   projectWorldToViewport(point: { readonly x: number; readonly y: number }): {
     readonly x: number
     readonly y: number
@@ -217,6 +227,7 @@ export class PhaserOfficeRenderer {
       this.scene.getAssetPipelineInfo(),
       this.scene.getDepthInfo(),
       this.scene.getEffectsInfo(),
+      this.scene.getMapValidationInfo(),
       this.getPerformanceInfo(),
     )
   }

@@ -460,3 +460,27 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   were visually inspected. The generic develop-web-game skill client still
   cannot run because its script cannot resolve its own `playwright` package,
   while the repo-owned Playwright smoke uses the local dependency successfully.
+- Phase 11 AI-generated map readiness is implemented. The asset registry now
+  exposes `MapDefinitionInterface` as the renderer-agnostic semantic map
+  contract and compiles it into explicit render layers, a movement collision
+  layer, zones, and explainable validation checks.
+- The browser renderer now runs a Phaser-specific preflight before scene
+  mutation. It validates render layer dimensions, referenced GIDs, visual
+  footprint bounds, collision layer dimensions, and zone bounds, then exposes a
+  deterministic render fingerprint through `render_game_to_text`.
+- Generated-room flow now creates preview metadata before applying the map:
+  MDI schema, compiler output categories, renderer preflight result, preview
+  fingerprint, applied fingerprint, and `previewMatchesRendered`. The UI detail
+  now reports when the preview matches the rendered room.
+- Invalid generated/AI-style maps fail before Phaser mutation. The frontend
+  smoke attempts a map with an out-of-bounds visual footprint and verifies that
+  map render count and active app map remain unchanged while the rejected
+  fingerprint and validation error are still explainable.
+- Added `docs/ai-map-readiness.md` documenting the MDI -> compiler output ->
+  renderer preflight contract and preview fidelity gate.
+- Verification passed: `npm --workspace @aedventure/asset-registry run build`,
+  `node packages/asset-registry/test/catalog.test.js`,
+  `npm --workspace @aedventure/web run build`, `npm run smoke:frontend`,
+  `npm run qa:responsive`, `npm run check`, and `git diff --check`.
+  Representative desktop and narrow-mobile QA screenshots were visually
+  inspected.

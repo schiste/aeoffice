@@ -120,6 +120,8 @@ export interface SemanticMapDefinition {
   }
 }
 
+export type MapDefinitionInterface = SemanticMapDefinition
+
 export interface SemanticWallPlacement {
   readonly x: number
   readonly y: number
@@ -153,14 +155,30 @@ export interface CompiledSemanticMap {
   readonly width: number
   readonly height: number
   readonly tileSize: number
+  readonly renderLayers: {
+    readonly floor: CompiledTileLayer
+    readonly walls: CompiledTileLayer
+    readonly objects: CompiledTileLayer
+  }
   readonly layers: {
     readonly floor: CompiledTileLayer
     readonly walls: CompiledTileLayer
     readonly objects: CompiledTileLayer
   }
+  readonly collisionLayers: {
+    readonly movement: CompiledCollisionLayer
+  }
   readonly blockedTiles: readonly { readonly x: number; readonly y: number }[]
   readonly zones: readonly SemanticZoneDefinition[]
   readonly referencedTokenIds: readonly string[]
+}
+
+export interface CompiledCollisionLayer {
+  readonly name: "movement"
+  readonly width: number
+  readonly height: number
+  readonly blocked: readonly (readonly boolean[])[]
+  readonly blockedTiles: readonly { readonly x: number; readonly y: number }[]
 }
 
 export interface PromptMapSpawnPoint {
@@ -174,11 +192,24 @@ export interface PromptMapSpawnPoint {
 export interface PromptMapValidation {
   readonly valid: boolean
   readonly errors: readonly string[]
+  readonly checks: readonly PromptMapValidationCheck[]
+  readonly summary: string
   readonly blockedTileCount: number
   readonly spawnCount: number
   readonly zoneCount: number
   readonly spawnIds: readonly string[]
   readonly zoneIds: readonly string[]
+}
+
+export interface PromptMapValidationCheck {
+  readonly id:
+    | "collision_layer"
+    | "spawn_clearance"
+    | "zone_bounds"
+    | "blocked_tiles"
+    | "compiler_output"
+  readonly status: "pass" | "fail"
+  readonly message: string
 }
 
 export interface DeterministicPromptMapResult {
@@ -932,10 +963,18 @@ export function compileSemanticMapDefinition(
     width,
     height,
     tileSize: catalog.tileSize,
+    renderLayers: {
+      floor,
+      walls,
+      objects,
+    },
     layers: {
       floor,
       walls,
       objects,
+    },
+    collisionLayers: {
+      movement: createMovementCollisionLayer(width, height, blockedTiles),
     },
     blockedTiles,
     zones: definition.layers.zones ?? [],
@@ -1359,12 +1398,22 @@ function validatePromptMap(
   spawnPoints: readonly PromptMapSpawnPoint[],
 ): PromptMapValidation {
   const errors: string[] = []
+  const checks: PromptMapValidationCheck[] = []
   const blockedTileKeys = new Set<string>()
+  const fail = (id: PromptMapValidationCheck["id"], message: string) => {
+    errors.push(message)
+    checks.push({ id, status: "fail", message })
+  }
+  const pass = (id: PromptMapValidationCheck["id"], message: string) => {
+    checks.push({ id, status: "pass", message })
+  }
 
   for (const tile of compiled.blockedTiles) {
     const key = `${tile.x}:${tile.y}`
 
-    if (blockedTileKeys.has(key)) errors.push(`Duplicate blocked tile ${key}.`)
+    if (blockedTileKeys.has(key)) {
+      fail("blocked_tiles", `Duplicate blocked tile ${key}.`)
+    }
     blockedTileKeys.add(key)
 
     if (
@@ -1373,8 +1422,55 @@ function validatePromptMap(
       tile.x >= compiled.width ||
       tile.y >= compiled.height
     ) {
-      errors.push(`Blocked tile ${key} is outside the map.`)
+      fail("blocked_tiles", `Blocked tile ${key} is outside the map.`)
     }
+  }
+
+  if (blockedTileKeys.size === compiled.blockedTiles.length) {
+    pass(
+      "blocked_tiles",
+      `${compiled.blockedTiles.length} blocked movement tiles are unique and in bounds.`,
+    )
+  }
+
+  const collisionBlockedCount = compiled.collisionLayers.movement.blocked.reduce(
+    (total, row) =>
+      total + row.reduce((rowTotal, blocked) => rowTotal + (blocked ? 1 : 0), 0),
+    0,
+  )
+  if (
+    compiled.collisionLayers.movement.width !== compiled.width ||
+    compiled.collisionLayers.movement.height !== compiled.height ||
+    collisionBlockedCount !== blockedTileKeys.size
+  ) {
+    fail(
+      "collision_layer",
+      "Movement collision layer does not match compiled blocked tiles.",
+    )
+  } else {
+    pass(
+      "collision_layer",
+      `Movement collision layer matches ${collisionBlockedCount} blocked tiles.`,
+    )
+  }
+
+  if (
+    compiled.renderLayers.floor.width === compiled.width &&
+    compiled.renderLayers.walls.width === compiled.width &&
+    compiled.renderLayers.objects.width === compiled.width &&
+    compiled.renderLayers.floor.height === compiled.height &&
+    compiled.renderLayers.walls.height === compiled.height &&
+    compiled.renderLayers.objects.height === compiled.height
+  ) {
+    pass(
+      "compiler_output",
+      "Compiler emitted renderer-agnostic render layers, collision layer, and zones.",
+    )
+  } else {
+    fail(
+      "compiler_output",
+      "Compiled render layer dimensions do not match the map dimensions.",
+    )
   }
 
   for (const spawn of spawnPoints) {
@@ -1390,17 +1486,28 @@ function validatePromptMap(
       tile.x >= compiled.width ||
       tile.y >= compiled.height
     ) {
-      errors.push(`Spawn ${spawn.id} is outside the map.`)
+      fail("spawn_clearance", `Spawn ${spawn.id} is outside the map.`)
     }
 
     if (blockedTileKeys.has(key)) {
-      errors.push(`Spawn ${spawn.id} overlaps blocked tile ${key}.`)
+      fail("spawn_clearance", `Spawn ${spawn.id} overlaps blocked tile ${key}.`)
     }
+  }
+  if (
+    spawnPoints.length > 0 &&
+    !checks.some(
+      (check) => check.id === "spawn_clearance" && check.status === "fail",
+    )
+  ) {
+    pass(
+      "spawn_clearance",
+      `${spawnPoints.length} entry spots are clear and inside the room.`,
+    )
   }
 
   for (const zone of compiled.zones) {
     if (zone.xStart >= zone.xEnd || zone.yStart >= zone.yEnd) {
-      errors.push(`Zone ${zone.id} has invalid bounds.`)
+      fail("zone_bounds", `Zone ${zone.id} has invalid bounds.`)
     }
 
     if (
@@ -1409,22 +1516,68 @@ function validatePromptMap(
       zone.xEnd > compiled.width ||
       zone.yEnd > compiled.height
     ) {
-      errors.push(`Zone ${zone.id} is outside the map.`)
+      fail("zone_bounds", `Zone ${zone.id} is outside the map.`)
     }
   }
+  if (
+    compiled.zones.length > 0 &&
+    !checks.some((check) => check.id === "zone_bounds" && check.status === "fail")
+  ) {
+    pass(
+      "zone_bounds",
+      `${compiled.zones.length} interaction zones are inside the room bounds.`,
+    )
+  }
 
-  if (compiled.blockedTiles.length === 0) errors.push("Generated map has no blocked tiles.")
-  if (spawnPoints.length === 0) errors.push("Generated map has no spawn points.")
-  if (compiled.zones.length === 0) errors.push("Generated map has no zones.")
+  if (compiled.blockedTiles.length === 0) {
+    fail("blocked_tiles", "Generated map has no blocked tiles.")
+  }
+  if (spawnPoints.length === 0) {
+    fail("spawn_clearance", "Generated map has no spawn points.")
+  }
+  if (compiled.zones.length === 0) {
+    fail("zone_bounds", "Generated map has no zones.")
+  }
 
   return {
     valid: errors.length === 0,
     errors,
+    checks,
+    summary:
+      errors.length === 0
+        ? "Map preflight passed: render layers, movement collision, spawn points, and zones are consistent."
+        : `Map preflight failed: ${errors.join(" ")}`,
     blockedTileCount: compiled.blockedTiles.length,
     spawnCount: spawnPoints.length,
     zoneCount: compiled.zones.length,
     spawnIds: spawnPoints.map((spawn) => spawn.id),
     zoneIds: compiled.zones.map((zone) => zone.id),
+  }
+}
+
+function createMovementCollisionLayer(
+  width: number,
+  height: number,
+  blockedTiles: readonly { readonly x: number; readonly y: number }[],
+): CompiledCollisionLayer {
+  const blocked = Array.from({ length: height }, () =>
+    Array.from({ length: width }, () => false),
+  )
+
+  for (const tile of blockedTiles) {
+    if (tile.x < 0 || tile.y < 0 || tile.x >= width || tile.y >= height) {
+      continue
+    }
+
+    blocked[tile.y][tile.x] = true
+  }
+
+  return {
+    name: "movement",
+    width,
+    height,
+    blocked,
+    blockedTiles,
   }
 }
 

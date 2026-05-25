@@ -15,6 +15,7 @@ import {
   RendererTelemetry,
   type RendererTelemetrySnapshot,
 } from "./renderer-telemetry"
+import { validateFixtureMapForRenderer } from "./map-render-validation"
 import { rendererPerformanceInfo } from "./performance-info"
 import { createMultiTileVariantGids } from "./semantic-tiles"
 import { TILESET_KEY, TILESET_NAME } from "./constants"
@@ -30,6 +31,7 @@ import type {
   RendererDepthInfo,
   RendererEffectsInfo,
   RendererEffectsOptions,
+  RendererMapValidationInfo,
   RendererPerformanceInfo,
   RendererTilemapInfo,
   RendererViewportState,
@@ -53,6 +55,7 @@ export class OfficeScene extends Phaser.Scene {
   private assetPipelineInfo: RendererAssetPipelineInfo = emptyAssetPipelineInfo()
   private objectDepthInfo: RendererDepthInfo["objects"] = []
   private rendererDepthInfo: RendererDepthInfo
+  private mapValidationInfo: RendererMapValidationInfo = emptyMapValidationInfo()
   private mapRenderCount = 0
   private lastMapRenderDurationMs = 0
   private lastTileSize = 32
@@ -84,6 +87,13 @@ export class OfficeScene extends Phaser.Scene {
     players: readonly RenderedPlayer[],
   ): Promise<void> {
     const renderStartedAt = performance.now()
+    const mapValidation = this.preflightFixtureMap(fixtureMap)
+    if (!mapValidation.valid) {
+      throw new Error(
+        `Renderer map preflight failed before Phaser mutation: ${mapValidation.errors.join(" ")}`,
+      )
+    }
+
     const atlas = await this.atlasPromise
     const tileSize = fixtureMap.compiled.tileSize
     const widthInPixels = fixtureMap.compiled.width * tileSize
@@ -235,6 +245,11 @@ export class OfficeScene extends Phaser.Scene {
     this.effectsLayer.setOptions(options)
   }
 
+  preflightFixtureMap(fixtureMap: FixtureMap): RendererMapValidationInfo {
+    this.mapValidationInfo = validateFixtureMapForRenderer(fixtureMap)
+    return this.mapValidationInfo
+  }
+
   triggerAvatarEmote(playerId: string, emoteId: AvatarEmoteId): void {
     this.avatarRenderer.triggerEmote(playerId, emoteId)
   }
@@ -300,6 +315,10 @@ export class OfficeScene extends Phaser.Scene {
     })
   }
 
+  getMapValidationInfo(): RendererMapValidationInfo {
+    return this.mapValidationInfo
+  }
+
   private updateViewportCulling(): void {
     const worldView = this.cameraController.getCameraState().worldView
     const cullingKey = [
@@ -339,4 +358,17 @@ function tilemapInfoFromLayers(
 
 function emptyTilemapInfo(): RendererTilemapInfo {
   return tilemapInfoFromLayers([])
+}
+
+function emptyMapValidationInfo(): RendererMapValidationInfo {
+  return {
+    source: "renderer_preflight",
+    valid: true,
+    mutationSafe: true,
+    errors: [],
+    checkedLayerNames: [],
+    visualFootprintCount: 0,
+    collisionLayerPresent: false,
+    renderFingerprint: "map-unrendered",
+  }
 }

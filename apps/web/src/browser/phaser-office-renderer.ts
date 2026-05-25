@@ -10,6 +10,7 @@ export type {
   RendererCapabilityInfo,
   RendererEffectsInfo,
   RendererEffectsOptions,
+  RendererMapValidationInfo,
   RendererPerformanceInfo,
   RendererViewportState,
   RendererZoneInteractionState,

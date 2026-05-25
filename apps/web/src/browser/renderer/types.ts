@@ -21,10 +21,30 @@ export interface FixtureMap {
       readonly objects: TileLayer
     }
     readonly zones: readonly FixtureZone[]
+    readonly collisionLayers?: {
+      readonly movement: {
+        readonly name: "movement"
+        readonly width: number
+        readonly height: number
+        readonly blocked: readonly (readonly boolean[])[]
+        readonly blockedTiles: readonly Vector2[]
+      }
+    }
   }
   readonly catalog: {
     readonly tokens: readonly FixtureToken[]
   }
+}
+
+export interface RendererMapValidationInfo {
+  readonly source: "renderer_preflight"
+  readonly valid: boolean
+  readonly mutationSafe: boolean
+  readonly errors: readonly string[]
+  readonly checkedLayerNames: readonly string[]
+  readonly visualFootprintCount: number
+  readonly collisionLayerPresent: boolean
+  readonly renderFingerprint: string
 }
 
 export interface TileLayer {
@@ -410,6 +430,7 @@ export interface RendererCapabilityInfo {
   readonly depth: RendererDepthInfo
   readonly tilemap: RendererTilemapInfo
   readonly effects: RendererEffectsInfo
+  readonly mapValidation: RendererMapValidationInfo
   readonly performance: RendererPerformanceInfo
   readonly webgl: {
     readonly available: boolean
