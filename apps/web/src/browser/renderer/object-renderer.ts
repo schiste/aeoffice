@@ -38,8 +38,11 @@ export class ObjectRenderer {
 
   releaseActiveSprites(): void {
     this.activeSprites.forEach(({ sprite }) => {
+      this.scene.tweens.killTweensOf(sprite)
       sprite.setVisible(false)
       sprite.setActive(false)
+      sprite.setAngle(0)
+      sprite.setAlpha(1)
       sprite.setName("pooled-object-sprite")
       this.spritePool.push(sprite)
     })
@@ -88,6 +91,7 @@ export class ObjectRenderer {
         sprite.setDepth(depth)
         sprite.setData("depth", depth)
         sprite.setData("zAnchor", token.asset?.zAnchor)
+        this.applyAmbientMotion(sprite, token.id, x, y)
         this.activeSprites.push({
           sprite,
           bounds: new Phaser.Geom.Rectangle(
@@ -144,6 +148,7 @@ export class ObjectRenderer {
         sprite.setDepth(depth)
         sprite.setData("depth", depth)
         sprite.setData("zAnchor", token.asset.zAnchor)
+        this.applyAmbientMotion(sprite, token.id, x, y)
         this.activeSprites.push({
           sprite,
           bounds: new Phaser.Geom.Rectangle(
@@ -215,9 +220,12 @@ export class ObjectRenderer {
     const pooledSprite = this.spritePool.pop()
 
     if (pooledSprite) {
+      this.scene.tweens.killTweensOf(pooledSprite)
       pooledSprite.setTexture(textureKey)
       pooledSprite.setVisible(true)
       pooledSprite.setActive(true)
+      pooledSprite.setAngle(0)
+      pooledSprite.setAlpha(1)
       this.reusedSpriteCount += 1
       return pooledSprite
     }
@@ -225,6 +233,25 @@ export class ObjectRenderer {
     const sprite = this.scene.add.image(0, 0, textureKey)
     this.createdSpriteCount += 1
     return sprite
+  }
+
+  private applyAmbientMotion(
+    sprite: Phaser.GameObjects.Image,
+    tokenId: string,
+    tileX: number,
+    tileY: number,
+  ): void {
+    if (!ambientMotionToken(tokenId)) return
+
+    this.scene.tweens.add({
+      targets: sprite,
+      y: sprite.y - 1.15,
+      duration: 1700 + ((tileX * 137 + tileY * 83) % 520),
+      delay: (tileX * 97 + tileY * 53) % 420,
+      yoyo: true,
+      repeat: -1,
+      ease: "Sine.easeInOut",
+    })
   }
 
   private createTokenTextures(
@@ -300,4 +327,12 @@ function objectTextureKey(
     token.provisionalGid,
     token.asset?.frameId ?? token.id,
   ].join("-")
+}
+
+function ambientMotionToken(tokenId: string): boolean {
+  return (
+    tokenId.includes("plant") ||
+    tokenId.includes("coffee") ||
+    tokenId.includes("water_cooler")
+  )
 }

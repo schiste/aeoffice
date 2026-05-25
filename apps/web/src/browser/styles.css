@@ -774,6 +774,19 @@ h1 {
   width: 100%;
   height: 100%;
   image-rendering: pixelated;
+  transition:
+    opacity 180ms ease,
+    transform 220ms ease;
+}
+
+.map[data-transition="switching"] canvas {
+  opacity: 0.2;
+  transform: scale(0.985);
+}
+
+.map[data-transition="entering"] canvas {
+  opacity: 1;
+  transform: scale(1);
 }
 
 .side-panel {

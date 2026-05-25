@@ -245,6 +245,8 @@ class AvatarView {
     this.focusTarget = scene.add.container(player.position.x, player.position.y)
     this.cameraTarget = scene.add.zone(player.position.x, player.position.y, 2, 2)
     this.visualRoot = scene.add.container(0, 0)
+    const entryAnimation = player.entryAnimation ?? "fade"
+    this.focusTarget.setAlpha(entryAnimation === "fade" ? 0 : 1)
     this.focusTarget.setName(`avatar:${player.playerId}`)
     this.focusTarget.setVertexRoundMode("off")
     this.visualRoot.setVertexRoundMode("off")
@@ -311,6 +313,14 @@ class AvatarView {
     this.applyAnimationPose(this.animation)
     this.applyCameraAwareLabelScale()
     this.startIdleTween(this.animation, player.position)
+    if (entryAnimation === "fade") {
+      this.scene.tweens.add({
+        targets: this.focusTarget,
+        alpha: 1,
+        duration: 180,
+        ease: "Sine.easeOut",
+      })
+    }
     this.update(player)
   }
 

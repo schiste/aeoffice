@@ -118,6 +118,9 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   Run toggle and Shift momentary run, sends `movementMode` through the protocol,
   predicts with 88 px/s walk and 148 px/s run speeds, and the world server owns
   the accepted speed for each movement response.
+- Phase 14 has started: map switches now use a short room transition, avatars
+  fade into rooms on entry, and lightweight ambient object motion is applied to
+  plants/coffee-style props without changing gameplay authority.
 - The standalone develop-web-game client was retried with the repo
   `node_modules` on `NODE_PATH`, but the skill script still cannot resolve its
   own ESM `playwright` import. Repo-native Playwright smoke/renderer/responsive

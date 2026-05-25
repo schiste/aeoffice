@@ -246,6 +246,7 @@ export interface RenderedPlayer {
   readonly position: Vector2
   readonly direction: Direction
   readonly movementMode?: MovementMode
+  readonly entryAnimation?: "fade" | "none"
   readonly local: boolean
   readonly rejected?: boolean
 }

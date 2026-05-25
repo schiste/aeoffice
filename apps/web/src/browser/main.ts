@@ -1769,6 +1769,7 @@ async function switchToFixtureMap(
   fixtureMap: FixtureMap,
   mapGeneration: MapGenerationState,
 ): Promise<void> {
+  await beginRoomTransition()
   setLifecycleStatus(
     "map_reloading",
     `Reloading ${mapGeneration.label}`,
@@ -1782,8 +1783,8 @@ async function switchToFixtureMap(
     })
     await configureDevWorldGeometry(fixtureMap)
     applyFixtureMap(fixtureMap, mapGeneration)
+    await finishRoomTransition()
     if (mapGeneration.source === "generated" && state.generatedRoom) {
-      await renderer.advanceTime()
       const appliedPreview = generatedPreviewForFixtureMap(
         fixtureMap,
         "applied",
@@ -1806,6 +1807,7 @@ async function switchToFixtureMap(
     setLifecycleStatus("empty", roomReadyLabel(mapGeneration.label))
     renderMapSwitcher()
   } catch (error: unknown) {
+    delete elements.map.dataset.transition
     setLifecycleStatus(
       "recovering",
       "Map reload failed",
@@ -1814,6 +1816,25 @@ async function switchToFixtureMap(
     )
     throw error
   }
+}
+
+async function beginRoomTransition(): Promise<void> {
+  elements.map.dataset.transition = "switching"
+  await delay(90)
+}
+
+async function finishRoomTransition(): Promise<void> {
+  await renderer.advanceTime()
+  elements.map.dataset.transition = "entering"
+  window.setTimeout(() => {
+    if (elements.map.dataset.transition === "entering") {
+      delete elements.map.dataset.transition
+    }
+  }, 260)
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, ms))
 }
 
 function applyFixtureMap(
@@ -1982,6 +2003,13 @@ async function renderDepthFixtureCaseForSmoke(
   state.direction = "down"
   state.players.clear()
   seedLocalRenderedPlayer()
+  const depthPlayer = state.players.get(state.playerId)
+  if (depthPlayer) {
+    state.players.set(state.playerId, {
+      ...depthPlayer,
+      entryAnimation: "none",
+    })
+  }
   renderPlayers()
   renderer.setCameraMode("fit_room")
   await renderer.advanceTime()
