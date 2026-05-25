@@ -9,5 +9,7 @@ export type {
   RendererCameraState,
   RendererCapabilityInfo,
   RendererViewportState,
+  RendererZoneInteractionState,
+  RendererZonePresentationInfo,
   RendererZoomPresetId,
 } from "./renderer/types"

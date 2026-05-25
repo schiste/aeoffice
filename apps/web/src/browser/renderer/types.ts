@@ -61,6 +61,62 @@ export interface FixtureZone {
   readonly zoneType: string
 }
 
+export type RendererZoneKind =
+  | "meeting"
+  | "private"
+  | "portal"
+  | "lobby"
+  | "quiet"
+  | "generic"
+
+export type RendererZoneAvailability =
+  | "passive"
+  | "hovered"
+  | "available"
+  | "joined"
+
+export type RendererZoneAction = "join_meeting" | "enter_private" | "enter_portal"
+
+export interface RendererZoneBounds {
+  readonly x: number
+  readonly y: number
+  readonly width: number
+  readonly height: number
+}
+
+export interface RendererZoneInteractionState {
+  readonly activeZoneIds: readonly string[]
+  readonly availableActionZoneIds?: readonly string[]
+  readonly joinedZoneIds?: readonly string[]
+}
+
+export interface RendererZoneInfo {
+  readonly id: string
+  readonly zoneType: string
+  readonly kind: RendererZoneKind
+  readonly bounds: RendererZoneBounds
+  readonly active: boolean
+  readonly hovered: boolean
+  readonly availability: RendererZoneAvailability
+  readonly availableAction?: RendererZoneAction
+  readonly label: string
+  readonly labelVisible: boolean
+  readonly labelScale: number
+  readonly markerVisible: boolean
+  readonly debugVisible: boolean
+}
+
+export interface RendererZonePresentationInfo {
+  readonly source: "compiled_map"
+  readonly zoneCount: number
+  readonly hoveredZoneId?: string
+  readonly activeZoneIds: readonly string[]
+  readonly availableActionZoneIds: readonly string[]
+  readonly joinedZoneIds: readonly string[]
+  readonly debugOverlayEnabled: boolean
+  readonly zones: readonly RendererZoneInfo[]
+}
+
 export interface RenderedPlayer {
   readonly playerId: string
   readonly name: string

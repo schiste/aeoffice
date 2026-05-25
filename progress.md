@@ -95,6 +95,14 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   idle/walk animation keys, readable labels, emote hooks, local/remote
   interpolation profiles, and future cosmetic slots. `npm run build`,
   `npm run smoke:frontend`, `npm run qa:responsive`, and `npm run check` passed.
+- Phase 8 zone presentation is implemented: Phaser zones now have passive
+  affordances, active/hovered visual states, action markers, zoom-aware labels,
+  kind-specific styling for meeting/private/portal/quiet/lobby zones, debug
+  bounds, and zone telemetry in `window.render_game_to_text`.
+- The frontend smoke now verifies meeting-zone action availability, that meeting
+  controls remain locked outside valid meeting state, debug zone bounds, private
+  and portal affordances, and renderer zone state. `npm run build`,
+  `npm run smoke:frontend`, `npm run qa:responsive`, and `npm run check` passed.
 - Meeting-zone interactions now use the compiled map zones in the browser app:
   the Phaser renderer highlights the active zone, the app exposes Join/Leave
   meeting controls outside the canvas, and media is no longer auto-joined when

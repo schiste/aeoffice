@@ -27,6 +27,8 @@ import type {
   RendererCameraState,
   RendererCapabilityInfo,
   RendererViewportState,
+  RendererZoneInteractionState,
+  RendererZonePresentationInfo,
   RendererZoomPresetId,
 } from "./types"
 
@@ -38,6 +40,11 @@ export class PhaserOfficeRenderer {
   private readonly capabilityReporter: RendererCapabilityReporter
   private zoomFactor = DEFAULT_ZOOM_FACTOR
   private activeZoneIds: readonly string[] = []
+  private zoneInteractionState: RendererZoneInteractionState = {
+    activeZoneIds: [],
+    availableActionZoneIds: [],
+    joinedZoneIds: [],
+  }
   private players: readonly RenderedPlayer[] = DEFAULT_RENDERED_PLAYERS
   private fixtureMap?: FixtureMap
   private renderTask: Promise<void> = Promise.resolve()
@@ -89,7 +96,7 @@ export class PhaserOfficeRenderer {
     this.fixtureMap = fixtureMap
     this.renderTask = this.queueRender(async (scene) => {
       await scene.renderFixtureMap(fixtureMap, this.players)
-      scene.setActiveZones(this.activeZoneIds)
+      scene.setZoneInteractionState(this.zoneInteractionState)
     })
   }
 
@@ -103,9 +110,27 @@ export class PhaserOfficeRenderer {
 
   setActiveZones(zoneIds: readonly string[]): void {
     this.activeZoneIds = [...zoneIds]
+    this.zoneInteractionState = {
+      activeZoneIds: this.activeZoneIds,
+      availableActionZoneIds: this.activeZoneIds,
+      joinedZoneIds: [],
+    }
     void this.renderTask.then(async () => {
       const scene = await this.ready
       scene.setActiveZones(this.activeZoneIds)
+    })
+  }
+
+  setZoneInteractionState(state: RendererZoneInteractionState): void {
+    this.activeZoneIds = [...state.activeZoneIds]
+    this.zoneInteractionState = {
+      activeZoneIds: [...state.activeZoneIds],
+      availableActionZoneIds: [...(state.availableActionZoneIds ?? [])],
+      joinedZoneIds: [...(state.joinedZoneIds ?? [])],
+    }
+    void this.renderTask.then(async () => {
+      const scene = await this.ready
+      scene.setZoneInteractionState(this.zoneInteractionState)
     })
   }
 
@@ -150,6 +175,14 @@ export class PhaserOfficeRenderer {
 
   getAvatarInfo(): RendererAvatarInfo {
     return this.scene.getAvatarInfo()
+  }
+
+  setZoneDebugOverlayEnabled(enabled: boolean): void {
+    this.scene.setZoneDebugOverlayEnabled(enabled)
+  }
+
+  getZoneInfo(): RendererZonePresentationInfo {
+    return this.scene.getZoneInfo()
   }
 
   projectWorldToViewport(point: { readonly x: number; readonly y: number }): {
@@ -197,7 +230,7 @@ export class PhaserOfficeRenderer {
 
     this.renderTask = this.queueRender(async (scene) => {
       await scene.renderFixtureMap(fixtureMap, this.players)
-      scene.setActiveZones(this.activeZoneIds)
+      scene.setZoneInteractionState(this.zoneInteractionState)
       this.zoomFactor = scene.getCameraState().zoomFactor
     })
   }

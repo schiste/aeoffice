@@ -241,6 +241,11 @@ interface AvatarFixtureResult {
   readonly directions: readonly Direction[]
 }
 
+interface ZoneFixtureResult {
+  readonly zoneIds: readonly string[]
+  readonly zoneTypes: readonly string[]
+}
+
 type MediaTokenResponse =
   | {
       readonly status: "issued"
@@ -1023,6 +1028,7 @@ async function joinMeeting(): Promise<void> {
     )
   } finally {
     state.mediaRequestPending = false
+    renderZonePresentation()
     renderMeetingControls()
     renderMediaPanel()
   }
@@ -1037,6 +1043,7 @@ function leaveMeetingLocally(message: string): void {
   state.meetingZoneId = undefined
   clearMediaSession()
   setConnectionStatus("media", "idle", "Media off")
+  renderZonePresentation()
   renderMeetingControls()
   renderMediaPanel()
   publishToast(message, "info")
@@ -1363,6 +1370,53 @@ async function moveAvatarFixturePlayerForSmoke(
   await renderer.advanceTime()
 }
 
+async function renderZoneFixtureCaseForSmoke(): Promise<ZoneFixtureResult> {
+  const fixtureMap = zoneFixtureMap()
+
+  await configureDevWorldGeometry(fixtureMap)
+  applyFixtureMap(fixtureMap, {
+    source: "generated",
+    mapId: "generated",
+    label: "Zone fixture",
+    prompt: "Renderer zone presentation fixture",
+    keywords: ["renderer", "zone"],
+    validation: {
+      valid: true,
+      errors: [],
+      blockedTileCount: fixtureMap.compiled.blockedTiles.length,
+      spawnCount: fixtureMap.spawnPoints.length,
+      zoneCount: fixtureMap.compiled.zones.length,
+      spawnIds: fixtureMap.spawnPoints.map((spawn) => spawn.id),
+      zoneIds: fixtureMap.compiled.zones.map((zone) => zone.id),
+    },
+  })
+  state.joined = true
+  state.position = fixtureSpawnPosition(fixtureMap, "default")
+  state.direction = "down"
+  state.players.clear()
+  seedLocalRenderedPlayer()
+  renderPlayers()
+  updateActiveZoneFromPosition()
+  await renderer.advanceTime()
+
+  return {
+    zoneIds: fixtureMap.compiled.zones.map((zone) => zone.id),
+    zoneTypes: fixtureMap.compiled.zones.map((zone) => zone.zoneType),
+  }
+}
+
+async function moveLocalPlayerForSmoke(position: Vector2): Promise<void> {
+  state.position = position
+  upsertRenderedPlayer({
+    playerId: state.playerId,
+    position,
+    direction: state.direction,
+  })
+  renderPlayers()
+  updateActiveZoneFromPosition()
+  await renderer.advanceTime()
+}
+
 function depthFixtureCase(caseId: DepthFixtureCaseId): {
   readonly fixtureMap: FixtureMap
   readonly expectedLayerAtSample: "avatar" | "object"
@@ -1448,6 +1502,98 @@ function avatarFixtureMap(): FixtureMap {
     ],
     catalog: {
       tokens: [floorToken, wallToken, cornerToken],
+    },
+  }
+}
+
+function zoneFixtureMap(): FixtureMap {
+  const width = 14
+  const height = 10
+  const tileSize = starterVisualAssetCatalog.tileSize
+  const floorToken = visualTokenById("floor.polished_concrete")
+  const wallToken = visualTokenById("wall.glass.straight")
+  const cornerToken = visualTokenById("wall.glass.corner")
+  const doorToken = visualTokenById("item.door_single")
+  const floor = gridOf(width, height, floorToken.provisionalGid)
+  const walls = gridOf(width, height, 0)
+  const objects = gridOf(width, height, 0)
+  const blockedTiles: Vector2[] = []
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const edge = x === 0 || y === 0 || x === width - 1 || y === height - 1
+      if (!edge) continue
+
+      const corner =
+        (x === 0 || x === width - 1) && (y === 0 || y === height - 1)
+      walls[y][x] = corner ? cornerToken.provisionalGid : wallToken.provisionalGid
+      blockedTiles.push({ x, y })
+    }
+  }
+
+  objects[7][2] = doorToken.provisionalGid
+
+  return {
+    definition: {
+      style: "clean_glass",
+    },
+    compiled: {
+      width,
+      height,
+      tileSize,
+      blockedTiles,
+      layers: {
+        floor: { gids: floor },
+        walls: { gids: walls },
+        objects: { gids: objects },
+      },
+      zones: [
+        {
+          id: "meeting-zone",
+          xStart: 2,
+          yStart: 2,
+          xEnd: 5,
+          yEnd: 5,
+          zoneType: "meeting_private",
+        },
+        {
+          id: "private-zone",
+          xStart: 7,
+          yStart: 2,
+          xEnd: 11,
+          yEnd: 5,
+          zoneType: "private",
+        },
+        {
+          id: "portal-door",
+          xStart: 2,
+          yStart: 6,
+          xEnd: 5,
+          yEnd: 8,
+          zoneType: "portal",
+        },
+        {
+          id: "quiet-zone",
+          xStart: 7,
+          yStart: 6,
+          xEnd: 12,
+          yEnd: 8,
+          zoneType: "quiet",
+        },
+      ],
+    },
+    spawnPoints: [
+      {
+        id: "default",
+        position: tileCenter(3, 3, tileSize),
+      },
+      {
+        id: "guest",
+        position: tileCenter(9, 3, tileSize),
+      },
+    ],
+    catalog: {
+      tokens: [floorToken, wallToken, cornerToken, doorToken],
     },
   }
 }
@@ -2075,7 +2221,7 @@ function updateActiveZoneFromPosition(): void {
   const nextZoneId = zone?.id
 
   state.activeZone = zone
-  renderer.setActiveZones(nextZoneId ? [nextZoneId] : [])
+  renderZonePresentation()
   if (!activeMeetingZone() && !state.mediaSession) {
     state.micEnabled = false
     state.cameraEnabled = false
@@ -2102,6 +2248,23 @@ function updateActiveZoneFromPosition(): void {
 
   renderMeetingControls()
   renderMediaPanel()
+}
+
+function renderZonePresentation(): void {
+  const activeZoneIds = state.activeZone ? [state.activeZone.id] : []
+  const availableActionZoneIds =
+    state.joined && state.activeZone && hasZoneActionAffordance(state.activeZone)
+      ? [state.activeZone.id]
+      : []
+  const joinedZoneIds = state.meetingJoined && state.meetingZoneId
+    ? [state.meetingZoneId]
+    : []
+
+  renderer.setZoneInteractionState({
+    activeZoneIds,
+    availableActionZoneIds,
+    joinedZoneIds,
+  })
 }
 
 function setGeneratorPreviewState(
@@ -2421,7 +2584,7 @@ function recoverFromWorldLoss(reason: string): void {
   state.direction = "down"
   seedLocalRenderedPlayer()
   renderPlayers()
-  renderer.setActiveZones([])
+  renderZonePresentation()
   setConnectionStatus(
     "session",
     state.sessionId ? "ready" : "idle",
@@ -2459,6 +2622,17 @@ function roomOccupancyLabel(totalPlayers = state.players.size): string {
 
 function isMeetingZone(zone: FixtureZone): boolean {
   return zone.zoneType.includes("meeting")
+}
+
+function hasZoneActionAffordance(zone: FixtureZone): boolean {
+  const raw = `${zone.zoneType} ${zone.id}`.toLowerCase()
+
+  return (
+    isMeetingZone(zone) ||
+    raw.includes("private") ||
+    raw.includes("portal") ||
+    raw.includes("door")
+  )
 }
 
 function meetingZoneLabel(zoneId: string | undefined, currentZone: FixtureZone | undefined): string {
@@ -2907,6 +3081,7 @@ function renderDemoToText(): string {
     },
     renderer: renderer.getCapabilityInfo(),
     avatars: renderer.getAvatarInfo(),
+    zones: renderer.getZoneInfo(),
     camera: renderer.getCameraState(),
     viewport: renderer.getViewportState(),
     map: state.fixtureMap
@@ -2996,6 +3171,9 @@ declare global {
         playerId: string,
         emoteId: AvatarEmoteId,
       ) => Promise<void>
+      renderZoneFixtureCase: () => Promise<ZoneFixtureResult>
+      moveLocalPlayer: (position: Vector2) => Promise<void>
+      setZoneDebugOverlay: (enabled: boolean) => Promise<void>
     }
   }
 }
@@ -3014,6 +3192,12 @@ if (localAutomationHost()) {
     moveAvatarFixturePlayer: moveAvatarFixturePlayerForSmoke,
     triggerAvatarEmote: async (playerId, emoteId) => {
       renderer.triggerAvatarEmote(playerId, emoteId)
+      await renderer.advanceTime()
+    },
+    renderZoneFixtureCase: renderZoneFixtureCaseForSmoke,
+    moveLocalPlayer: moveLocalPlayerForSmoke,
+    setZoneDebugOverlay: async (enabled) => {
+      renderer.setZoneDebugOverlayEnabled(enabled)
       await renderer.advanceTime()
     },
   }

@@ -86,6 +86,9 @@ async function main() {
         state.map.generatedPreviewStatus === "Generated room saved",
     )
     assert.equal(meetingRoom.lifecycle.stageOverlay.hidden, false)
+    assert.equal(meetingRoom.zones.zoneCount, 1)
+    assert.equal(meetingRoom.zones.zones[0].availability, "passive")
+    assert.equal(meetingRoom.zones.zones[0].markerVisible, false)
     await assertNonBlankMapScreenshot(page)
     await assertMeetingControls(page, {
       panelState: "outside",
@@ -156,6 +159,13 @@ async function main() {
         state.media.cameraDisabled === false,
     )
     assert.equal(meetingReady.media.panelStatus, "Available in zone")
+    const meetingZone = meetingReady.zones.zones.find(
+      (zone) => zone.id === "meeting-zone",
+    )
+    assert.equal(meetingZone.availability, "available")
+    assert.equal(meetingZone.availableAction, "join_meeting")
+    assert.equal(meetingZone.markerVisible, true)
+    assert.equal(meetingZone.labelVisible, true)
     await assertMeetingControls(page, {
       panelState: "available",
       joinEnabled: true,
@@ -214,6 +224,10 @@ async function main() {
     assert.equal(media.media.canPublish, true)
     assert.equal(media.media.canSubscribe, true)
     assert.equal(media.meeting.panelState, "joined")
+    assert.equal(
+      media.zones.zones.find((zone) => zone.id === "meeting-zone")?.availability,
+      "joined",
+    )
     assert.equal(media.media.mic, "off")
     assert.equal(media.media.camera, "off")
     assertRenderStateContract(media)
@@ -302,6 +316,7 @@ async function main() {
     await assertWebGLContextRecovery(page)
     await assertLargeGpuMapSmoke(page)
     await assertAvatarSystemSmoke(page)
+    await assertZonePresentationSmoke(page)
     await assertDepthSortingSmoke(page)
 
     assert.deepEqual(consoleErrors, [])
@@ -392,6 +407,12 @@ function assertRenderStateContract(state) {
   assert.ok(
     Array.isArray(state.avatars?.players),
     "Expected avatars.players in render_game_to_text.",
+  )
+  assert.equal(state.zones?.source, "compiled_map")
+  assert.equal(typeof state.zones?.zoneCount, "number")
+  assert.ok(
+    Array.isArray(state.zones?.zones),
+    "Expected zones.zones in render_game_to_text.",
   )
   assertCameraStateContract(state)
 }
@@ -984,6 +1005,121 @@ async function assertAvatarSystemSmoke(page) {
     (state) =>
       state.avatars.players.find((player) => player.playerId === "avatar-violet")
         ?.emoteId === "raise_hand",
+  )
+}
+
+async function assertZonePresentationSmoke(page) {
+  const fixture = await page.evaluate(async () => {
+    if (!window.__aedventureRendererTest?.renderZoneFixtureCase) {
+      throw new Error("Missing renderer zone test API.")
+    }
+
+    return window.__aedventureRendererTest.renderZoneFixtureCase()
+  })
+  await page.evaluate(() => window.advanceTime())
+
+  const zoneState = await waitForTextState(
+    page,
+    (state) =>
+      state.map?.label === "Zone fixture" &&
+      state.zones.zoneCount === 4 &&
+      state.zones.zones.some(
+        (zone) =>
+          zone.id === "meeting-zone" &&
+          zone.availability === "available" &&
+          zone.availableAction === "join_meeting",
+      ),
+    9000,
+  )
+
+  assert.deepEqual(fixture.zoneIds, [
+    "meeting-zone",
+    "private-zone",
+    "portal-door",
+    "quiet-zone",
+  ])
+  assert.deepEqual(fixture.zoneTypes, [
+    "meeting_private",
+    "private",
+    "portal",
+    "quiet",
+  ])
+  assert.deepEqual(
+    zoneState.zones.zones.map((zone) => [zone.id, zone.kind]),
+    [
+      ["meeting-zone", "meeting"],
+      ["private-zone", "private"],
+      ["portal-door", "portal"],
+      ["quiet-zone", "quiet"],
+    ],
+  )
+
+  const meetingZone = zoneState.zones.zones.find(
+    (zone) => zone.id === "meeting-zone",
+  )
+  assert.equal(meetingZone.active, true)
+  assert.equal(meetingZone.markerVisible, true)
+  assert.equal(meetingZone.labelVisible, true)
+  assert.equal(zoneState.meeting.panelState, "available")
+  assert.equal(zoneState.meeting.joinDisabled, false)
+  assert.ok(
+    meetingZone.labelScale >= 0.72 && meetingZone.labelScale <= 1.18,
+    `Expected zoom-aware zone label scale, got ${meetingZone.labelScale}.`,
+  )
+
+  await page.evaluate(async () => {
+    if (!window.__aedventureRendererTest?.setZoneDebugOverlay) {
+      throw new Error("Missing zone debug test API.")
+    }
+
+    await window.__aedventureRendererTest.setZoneDebugOverlay(true)
+  })
+  const debug = await waitForTextState(
+    page,
+    (state) =>
+      state.zones.debugOverlayEnabled === true &&
+      state.zones.zones.every((zone) => zone.debugVisible === true),
+  )
+  assert.equal(debug.zones.debugOverlayEnabled, true)
+  await assertNonBlankMapScreenshot(page)
+
+  await page.evaluate(async () => {
+    if (!window.__aedventureRendererTest?.moveLocalPlayer) {
+      throw new Error("Missing local movement zone test API.")
+    }
+
+    await window.__aedventureRendererTest.moveLocalPlayer({ x: 288, y: 112 })
+  })
+  const privateZone = await waitForTextState(
+    page,
+    (state) =>
+      state.zones.activeZoneIds.includes("private-zone") &&
+      state.zones.zones.find((zone) => zone.id === "private-zone")
+        ?.availableAction === "enter_private",
+  )
+  assert.equal(privateZone.meeting.panelState, "outside")
+  assert.equal(privateZone.meeting.joinDisabled, true)
+  assert.equal(
+    privateZone.zones.zones.find((zone) => zone.id === "private-zone")
+      .markerVisible,
+    true,
+  )
+
+  await page.evaluate(async () => {
+    await window.__aedventureRendererTest.moveLocalPlayer({ x: 112, y: 208 })
+  })
+  const portalZone = await waitForTextState(
+    page,
+    (state) =>
+      state.zones.activeZoneIds.includes("portal-door") &&
+      state.zones.zones.find((zone) => zone.id === "portal-door")
+        ?.availableAction === "enter_portal",
+  )
+  assert.equal(portalZone.meeting.joinDisabled, true)
+  assert.equal(
+    portalZone.zones.zones.find((zone) => zone.id === "portal-door")
+      .markerVisible,
+    true,
   )
 }
 

@@ -28,6 +28,8 @@ import type {
   RendererDepthInfo,
   RendererTilemapInfo,
   RendererViewportState,
+  RendererZoneInteractionState,
+  RendererZonePresentationInfo,
   RendererZoomPresetId,
 } from "./types"
 
@@ -192,6 +194,14 @@ export class OfficeScene extends Phaser.Scene {
     this.zoneRenderer.setActiveZones(zoneIds)
   }
 
+  setZoneInteractionState(state: RendererZoneInteractionState): void {
+    this.zoneRenderer.setInteractionState(state)
+  }
+
+  setZoneDebugOverlayEnabled(enabled: boolean): void {
+    this.zoneRenderer.setDebugOverlayEnabled(enabled)
+  }
+
   triggerAvatarEmote(playerId: string, emoteId: AvatarEmoteId): void {
     this.avatarRenderer.triggerEmote(playerId, emoteId)
   }
@@ -202,6 +212,10 @@ export class OfficeScene extends Phaser.Scene {
 
   getAvatarInfo(): RendererAvatarInfo {
     return this.avatarRenderer.getAvatarInfo()
+  }
+
+  getZoneInfo(): RendererZonePresentationInfo {
+    return this.zoneRenderer.getZoneInfo()
   }
 
   getCameraState(): RendererCameraState {
