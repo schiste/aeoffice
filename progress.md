@@ -539,3 +539,28 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   `git diff --check`. Representative joined/depth renderer screenshots were
   visually inspected from
   `/var/folders/f2/krjzd4c15nn491pm37zrkp1h0000gn/T/aedventure-renderer-qa`.
+- Avatar movement now uses browser-side client prediction with server
+  reconciliation. The client still sends only `{ type: "move", direction, seq }`
+  to the world server, but immediately animates the local rendered player
+  against the same `@aedventure/map-engine` collision rules used by the server.
+- Authoritative app state remains separate from rendered state: `state.position`
+  updates only after `player_state`/`movement_rejected`, while `state.players`
+  can hold the predicted visual target. `render_game_to_text.movement.prediction`
+  exposes active prediction, attempted/target coordinates, totals, correction
+  distance, and last outcome for agents and automation.
+- Avatar name/emote text now uses 4x Phaser text resolution plus linear texture
+  filtering, while pixel-art world assets remain nearest-neighbor. Local avatar
+  smoothing reports `client_prediction_reconciliation`; remote avatars report
+  `remote_interpolation`.
+- Movement repeat cadence is now 125ms so held movement produces smaller,
+  more frequent server-authoritative steps while preserving the 64px/s world
+  speed. The local interpolation profile was retuned to glide through those
+  steps with a near-continuous linear tween.
+- Frontend smoke now delays one `/world/message` move request and proves the
+  predicted visual avatar moves before the authoritative player position
+  changes. Verification passed: `npm --workspace @aedventure/web run build`,
+  `npm run smoke:frontend`, `npm run qa:renderer`, `npm run qa:responsive`,
+  `npm run check`, and `git diff --check`. Renderer and responsive screenshots
+  were visually inspected from the latest QA artifact folders. The standalone
+  develop-web-game client remains blocked by its own missing `playwright`
+  module resolution, while repo-owned Playwright suites continue to pass.

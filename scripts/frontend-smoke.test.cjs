@@ -129,7 +129,7 @@ async function main() {
     )
     assert.equal(joined.lifecycle.phase, "joined")
     assert.equal(joined.lifecycle.stageOverlay.hidden, true)
-    assert.equal(joined.movement.repeatMs, 190)
+    assert.equal(joined.movement.repeatMs, 125)
     assert.equal(joined.viewport.canZoomIn, true)
     assert.equal(joined.viewport.canZoomOut, true)
     assertCameraStateContract(joined)
@@ -146,14 +146,61 @@ async function main() {
     await page.setViewportSize({ width: 1280, height: 900 })
     await page.waitForTimeout(250)
 
-    const beforeMove = joined.player
+    const beforeMoveState = await renderGameToText(page)
+    const beforeMove = beforeMoveState.player
+    const predictedBefore = beforeMoveState.movement.prediction.totalPredicted
+    let delayedMoveRequest = false
+    await page.route("**/world/message", async (route) => {
+      const body = route.request().postDataJSON()
+      if (!delayedMoveRequest && body?.message?.type === "move") {
+        delayedMoveRequest = true
+        await new Promise((resolve) => setTimeout(resolve, 280))
+      }
+      await route.continue()
+    })
     await page.keyboard.press("ArrowDown")
-    await waitForTextState(
+    const predictedMove = await waitForTextState(
+      page,
+      (state) => {
+        const localPlayer = state.players.find((player) => player.local)
+        return (
+          state.movement.prediction.active === true &&
+          state.movement.prediction.direction === "down" &&
+          state.player.x === beforeMove.x &&
+          state.player.y === beforeMove.y &&
+          localPlayer &&
+          (localPlayer.x !== beforeMove.x || localPlayer.y !== beforeMove.y)
+        )
+      },
+    )
+    assert.equal(predictedMove.movement.prediction.lastOutcome, "predicted")
+    assert.ok(
+      predictedMove.movement.prediction.totalPredicted > predictedBefore,
+      `Expected a new predicted movement, got ${JSON.stringify(predictedMove.movement.prediction)}.`,
+    )
+    const moved = await waitForTextState(
       page,
       (state) =>
-        state.player.x !== beforeMove.x ||
-        state.player.y !== beforeMove.y ||
-        state.movement.lastRejectedReason,
+        state.movement.prediction.active === false &&
+        (state.player.x !== beforeMove.x ||
+          state.player.y !== beforeMove.y ||
+          state.movement.lastRejectedReason),
+    )
+    await page.unroute("**/world/message")
+    assert.equal(
+      moved.movement.prediction.mode,
+      "client_prediction_server_reconciliation",
+    )
+    assert.ok(
+      moved.movement.prediction.totalPredicted >= 1 ||
+        moved.movement.prediction.totalClientBlocked >= 1,
+      `Expected movement to use client prediction, got ${JSON.stringify(moved.movement.prediction)}.`,
+    )
+    assert.ok(
+      ["confirmed", "predicted", "server_rejected", "client_blocked"].includes(
+        moved.movement.prediction.lastOutcome,
+      ),
+      `Unexpected prediction outcome ${moved.movement.prediction.lastOutcome}.`,
     )
 
     await page.locator("#chat-body").fill(SMOKE_MESSAGE)
@@ -399,6 +446,17 @@ function assertRenderStateContract(state) {
   assert.equal(typeof state.media?.panelStatus, "string")
   assert.equal(typeof state.media?.tokenIssued, "boolean")
   assert.equal(typeof state.meeting?.panelState, "string")
+  assert.equal(
+    state.movement?.prediction?.mode,
+    "client_prediction_server_reconciliation",
+  )
+  assert.equal(typeof state.movement?.prediction?.active, "boolean")
+  assert.equal(typeof state.movement?.prediction?.lastOutcome, "string")
+  assert.equal(typeof state.movement?.prediction?.totalPredicted, "number")
+  assert.equal(typeof state.movement?.prediction?.totalConfirmed, "number")
+  assert.equal(typeof state.movement?.prediction?.totalCorrected, "number")
+  assert.equal(typeof state.movement?.prediction?.totalClientBlocked, "number")
+  assert.equal(typeof state.movement?.prediction?.totalServerRejected, "number")
   assert.equal(typeof state.map?.renderer, "string")
   assert.equal(typeof state.renderer?.requestedRenderer, "string")
   assert.equal(typeof state.renderer?.actualRenderer, "string")
@@ -1250,13 +1308,16 @@ async function assertAvatarSystemSmoke(page) {
     assert.ok(player, `Expected ${avatarId} avatar render state.`)
     assert.equal(player.labelVisible, true)
     assert.equal(player.labelVisibilityReason, "visible")
-    assert.equal(player.labelResolution, 3)
+    assert.equal(player.labelResolution, 4)
+    assert.equal(player.labelTextureFilter, "linear")
     assert.ok(
       player.labelScreenScale >= 0.72 && player.labelScreenScale <= 1.08,
       `Expected zoom-aware label scale, got ${player.labelScreenScale}.`,
     )
     assert.deepEqual(player.movementSmoothing, {
-      mode: "confirmed_position_tween",
+      mode: player.local
+        ? "client_prediction_reconciliation"
+        : "remote_interpolation",
       logicalVertexRoundMode: "off",
       visualTransformIsolation: "inner_visual_root",
     })

@@ -426,7 +426,7 @@ export interface RendererAvatarPlayerInfo {
   readonly interpolationProfile: "local" | "remote"
   readonly interpolationActive: boolean
   readonly movementSmoothing: {
-    readonly mode: "confirmed_position_tween"
+    readonly mode: "client_prediction_reconciliation" | "remote_interpolation"
     readonly logicalVertexRoundMode: "off"
     readonly visualTransformIsolation: "inner_visual_root"
   }
@@ -434,6 +434,7 @@ export interface RendererAvatarPlayerInfo {
   readonly labelVisibilityReason: "visible" | "overlap_suppressed"
   readonly labelBounds: RendererDepthPlacementBounds
   readonly labelResolution: number
+  readonly labelTextureFilter: "linear"
   readonly labelScreenScale: number
   readonly emoteId?: AvatarEmoteId
   readonly cosmeticSlots: readonly AvatarCosmeticSlot[]

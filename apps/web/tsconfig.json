@@ -10,6 +10,9 @@
       "path": "../../packages/asset-registry"
     },
     {
+      "path": "../../packages/map-engine"
+    },
+    {
       "path": "../../packages/protocol"
     },
     {

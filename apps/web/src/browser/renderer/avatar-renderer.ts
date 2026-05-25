@@ -39,7 +39,8 @@ export interface AvatarFollowTarget {
   readonly cameraTarget: Phaser.GameObjects.Zone
 }
 
-const LABEL_TEXT_RESOLUTION = 3
+const LABEL_TEXT_RESOLUTION = 4
+const LABEL_TEXTURE_FILTER = "linear" as const
 const LABEL_SCREEN_SCALE_MIN = 0.72
 const LABEL_SCREEN_SCALE_MAX = 1.08
 
@@ -265,6 +266,7 @@ class AvatarView {
       resolution: LABEL_TEXT_RESOLUTION,
     })
     this.label.setResolution(LABEL_TEXT_RESOLUTION)
+    this.applySmoothTextTexture(this.label)
     this.label.setOrigin(0.5, 0.5)
     this.labelShadow = scene.add.rectangle(1, -29, this.labelWidth, 17, 0x20201d, 0.16)
     this.labelBack = scene.add.rectangle(0, -31, this.labelWidth, 17, 0xfffdf7, 0.93)
@@ -282,6 +284,7 @@ class AvatarView {
       resolution: LABEL_TEXT_RESOLUTION,
     })
     this.emoteText.setResolution(LABEL_TEXT_RESOLUTION)
+    this.applySmoothTextTexture(this.emoteText)
     this.emoteText.setOrigin(0.5, 0.5)
     this.emoteBack.setVisible(false)
     this.emoteText.setVisible(false)
@@ -336,6 +339,7 @@ class AvatarView {
     this.interpolationProfile = avatarInterpolationProfile(player.local)
     this.cosmetics = player.cosmetics ?? {}
     this.label.setText(player.name)
+    this.applySmoothTextTexture(this.label)
     this.resizeLabel()
     this.applyAppearance(nextAppearance)
     this.applyAnimationPose(nextAnimation)
@@ -392,6 +396,7 @@ class AvatarView {
     this.emoteBack.setVisible(true)
     this.emoteText.setVisible(true)
     this.emoteText.setText(emote.glyph)
+    this.applySmoothTextTexture(this.emoteText)
     this.emoteBack.setAlpha(0.96)
     this.emoteText.setAlpha(1)
     this.emoteBack.setPosition(12, -38)
@@ -457,7 +462,9 @@ class AvatarView {
       interpolationProfile: this.interpolationProfile.id,
       interpolationActive: this.positionTween?.isPlaying() ?? false,
       movementSmoothing: {
-        mode: "confirmed_position_tween",
+        mode: this.playerLocal
+          ? "client_prediction_reconciliation"
+          : "remote_interpolation",
         logicalVertexRoundMode: "off",
         visualTransformIsolation: "inner_visual_root",
       },
@@ -465,6 +472,7 @@ class AvatarView {
       labelVisibilityReason: this.labelReason,
       labelBounds: this.currentLabelBounds(),
       labelResolution: LABEL_TEXT_RESOLUTION,
+      labelTextureFilter: LABEL_TEXTURE_FILTER,
       labelScreenScale: this.currentLabelScale(),
       emoteId: this.currentEmoteId,
       cosmeticSlots: this.appearance.cosmeticSlots,
@@ -520,10 +528,7 @@ class AvatarView {
 
   private showRejected(direction: Direction): void {
     this.rejectionTween?.stop()
-    this.positionTween?.stop()
     const palette = this.appearance.palette
-    this.focusTarget.setPosition(this.lastPosition.x, this.lastPosition.y)
-    this.cameraTarget.setPosition(this.lastPosition.x, this.lastPosition.y)
     this.torso.setStrokeStyle(2, 0xffd166, 1)
     this.rejectionTween = this.scene.tweens.add({
       targets: this.visualRoot,
@@ -542,6 +547,10 @@ class AvatarView {
         this.startIdleTween(this.animation, this.lastPosition)
       },
     })
+  }
+
+  private applySmoothTextTexture(text: Phaser.GameObjects.Text): void {
+    text.texture.setFilter(Phaser.Textures.FilterMode.LINEAR)
   }
 
   private applyAppearance(appearance: AvatarAppearanceMetadata): void {

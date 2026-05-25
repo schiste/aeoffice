@@ -11,6 +11,14 @@ import {
 } from "./phaser-office-renderer"
 import { validateFixtureMapForRenderer } from "./renderer/map-render-validation"
 import {
+  createClientMovementPrediction,
+  initialMovementPredictionState,
+  movementPredictionCorrectionPx,
+  movementPredictionMatches,
+  type ClientMovementPrediction,
+  type MovementPredictionState,
+} from "./movement-prediction"
+import {
   compileDeterministicPromptMap,
   compilePresetMap,
   presetMapSummaries,
@@ -139,6 +147,8 @@ type ServerMessage =
       readonly x: number
       readonly y: number
       readonly direction: Direction
+      readonly seqAck?: number
+      readonly serverTime?: number
     }
   | {
       readonly type: "chat_delivered"
@@ -152,6 +162,7 @@ type ServerMessage =
       readonly x: number
       readonly y: number
       readonly seqAck: number
+      readonly serverTime?: number
     }
   | {
       readonly type: "protocol_error"
@@ -196,6 +207,7 @@ interface AppState {
   fixtureMap?: FixtureMap
   players: Map<string, RenderedPlayer>
   snapshotPlayerIds: string[]
+  movementPrediction: MovementPredictionState
   lifecycle: {
     phase: LifecyclePhase
     message: string
@@ -354,7 +366,7 @@ interface MediaSession {
   readonly expiresAt: string
 }
 
-const MOVE_REPEAT_MS = 190
+const MOVE_REPEAT_MS = 125
 const MOVEMENT_REJECTION_FEEDBACK_MS = 900
 const TOAST_TTL_MS = 4200
 const MAX_TOASTS = 3
@@ -413,6 +425,7 @@ const state: AppState = {
   fixtureMap: undefined,
   players: new Map(),
   snapshotPlayerIds: [],
+  movementPrediction: initialMovementPredictionState(),
   lifecycle: {
     phase: "empty",
     message: "Room empty",
@@ -850,6 +863,7 @@ async function syncWorldSnapshot(): Promise<boolean> {
 
 function applyWorldSnapshot(players: readonly PlayerSnapshot[]): void {
   state.snapshotPlayerIds = players.map((player) => player.playerId)
+  state.movementPrediction.active = undefined
 
   const local = players.find((player) => player.playerId === state.playerId)
   if (local) {
@@ -915,6 +929,7 @@ async function resetDemo(
   state.sessionId = undefined
   state.seq = 1
   state.direction = "down"
+  state.movementPrediction = initialMovementPredictionState()
   state.joined = false
   state.companion.joined = false
   state.companion.direction = "down"
@@ -972,6 +987,10 @@ async function leaveWorldSafely(clientId: string, label: string): Promise<void> 
 async function move(direction: Direction): Promise<void> {
   if (!state.joined) return
 
+  const seq = state.seq
+  const prediction = beginClientMovementPrediction(direction, seq)
+  state.seq += 1
+
   let body: { events: readonly WorldEvent[] }
   try {
     body = await postJson<{ events: readonly WorldEvent[] }>("/world/message", {
@@ -979,7 +998,7 @@ async function move(direction: Direction): Promise<void> {
       message: {
         type: "move",
         direction,
-        seq: state.seq,
+        seq,
       },
     })
   } catch (error: unknown) {
@@ -987,10 +1006,83 @@ async function move(direction: Direction): Promise<void> {
       recoverFromWorldLoss("unknown_client")
       return
     }
+    abandonClientMovementPrediction(prediction)
     throw error
   }
-  state.seq += 1
   applyEvents(body.events ?? [])
+}
+
+function beginClientMovementPrediction(
+  direction: Direction,
+  seq: number,
+): ClientMovementPrediction | undefined {
+  if (!state.fixtureMap) return undefined
+
+  const prediction = createClientMovementPrediction({
+    seq,
+    direction,
+    from: state.position,
+    map: collisionMapForFixtureMap(state.fixtureMap),
+    lastSentAtMs: state.movementPrediction.lastSentAtMs,
+    nowMs: Date.now(),
+  })
+
+  state.movementPrediction.active = prediction
+  state.movementPrediction.lastSentAtMs = prediction.startedAtMs
+  state.movementPrediction.lastCorrectionPx = undefined
+
+  if (prediction.blockedLocally) {
+    state.movementPrediction.totalClientBlocked += 1
+    state.movementPrediction.lastOutcome = "client_blocked"
+    applyClientMovementBlock(prediction)
+    return prediction
+  }
+
+  state.movementPrediction.totalPredicted += 1
+  state.movementPrediction.lastOutcome = "predicted"
+  upsertRenderedPlayer({
+    playerId: state.playerId,
+    position: prediction.target,
+    direction,
+  })
+  renderPlayers()
+  return prediction
+}
+
+function applyClientMovementBlock(prediction: ClientMovementPrediction): void {
+  const showFeedback = shouldShowMovementRejectionFeedback("collision")
+  state.direction = prediction.direction
+  upsertRenderedPlayer({
+    playerId: state.playerId,
+    position: prediction.from,
+    direction: prediction.direction,
+    rejected: showFeedback,
+  })
+  renderPlayers()
+
+  if (showFeedback) {
+    publishToast(movementRejectionLabel("collision"), "info")
+  }
+}
+
+function abandonClientMovementPrediction(
+  prediction: ClientMovementPrediction | undefined,
+): void {
+  if (!prediction || state.movementPrediction.active?.seq !== prediction.seq) return
+
+  state.movementPrediction.active = undefined
+  state.movementPrediction.totalCorrected += 1
+  state.movementPrediction.lastOutcome = "corrected"
+  state.movementPrediction.lastCorrectionPx = movementPredictionCorrectionPx(
+    prediction,
+    state.position,
+  )
+  upsertRenderedPlayer({
+    playerId: state.playerId,
+    position: state.position,
+    direction: state.direction,
+  })
+  renderPlayers()
 }
 
 function pressDirection(direction: Direction): void {
@@ -1373,6 +1465,7 @@ function applyFixtureMap(
 ): void {
   state.fixtureMap = fixtureMap
   state.mapGeneration = mapGeneration
+  state.movementPrediction = initialMovementPredictionState()
   if (state.devTools.gated) {
     state.devTools.activeFixtureId = devFixtureIdForMapGeneration(mapGeneration)
   }
@@ -2048,14 +2141,18 @@ function tileCenter(x: number, y: number, tileSize: number): Vector2 {
   }
 }
 
+function collisionMapForFixtureMap(fixtureMap: FixtureMap) {
+  return {
+    width: fixtureMap.compiled.width * fixtureMap.compiled.tileSize,
+    height: fixtureMap.compiled.height * fixtureMap.compiled.tileSize,
+    tileSize: fixtureMap.compiled.tileSize,
+    blockedTiles: fixtureMap.compiled.blockedTiles,
+  }
+}
+
 async function configureDevWorldGeometry(fixtureMap: FixtureMap): Promise<void> {
   await postJson("/dev/world-geometry", {
-    map: {
-      width: fixtureMap.compiled.width * fixtureMap.compiled.tileSize,
-      height: fixtureMap.compiled.height * fixtureMap.compiled.tileSize,
-      tileSize: fixtureMap.compiled.tileSize,
-      blockedTiles: fixtureMap.compiled.blockedTiles,
-    },
+    map: collisionMapForFixtureMap(fixtureMap),
     zones: fixtureMap.compiled.zones.map((zone) => ({
       id: zone.id,
       bounds: {
@@ -2080,6 +2177,7 @@ function applyServerMessage(message: ServerMessage): void {
     const localPlayerMoved = message.playerId === state.playerId
 
     if (localPlayerMoved) {
+      reconcileClientMovementPrediction(position, message.seqAck, false)
       state.position = position
       state.direction = message.direction
       state.lastMovementRejection = undefined
@@ -2133,6 +2231,38 @@ function applyServerMessage(message: ServerMessage): void {
 function eventVisibleToClient(event: WorldEvent): boolean {
   if (event.type === "broadcast") return event.exceptClientId !== state.clientId
   return Array.isArray(event.clientIds) && event.clientIds.includes(state.clientId)
+}
+
+function reconcileClientMovementPrediction(
+  authoritativePosition: Vector2,
+  seqAck: number | undefined,
+  rejected: boolean,
+): void {
+  const prediction = state.movementPrediction.active
+  if (!prediction) return
+  if (seqAck !== undefined && prediction.seq !== seqAck) return
+
+  const correctionPx = movementPredictionCorrectionPx(
+    prediction,
+    authoritativePosition,
+  )
+  state.movementPrediction.active = undefined
+  state.movementPrediction.lastCorrectionPx = Number(correctionPx.toFixed(2))
+
+  if (rejected) {
+    state.movementPrediction.totalServerRejected += 1
+    state.movementPrediction.lastOutcome = "server_rejected"
+    return
+  }
+
+  if (movementPredictionMatches(prediction, authoritativePosition)) {
+    state.movementPrediction.totalConfirmed += 1
+    state.movementPrediction.lastOutcome = "confirmed"
+    return
+  }
+
+  state.movementPrediction.totalCorrected += 1
+  state.movementPrediction.lastOutcome = "corrected"
 }
 
 function seedLocalRenderedPlayer(): void {
@@ -2198,6 +2328,7 @@ function applyMovementRejection(
   const showFeedback = shouldShowMovementRejectionFeedback(message.reason)
 
   if (message.playerId === state.playerId) {
+    reconcileClientMovementPrediction(position, message.seqAck, true)
     state.position = position
     state.direction = direction
   }
@@ -2893,6 +3024,7 @@ function recoverFromWorldLoss(reason: string): void {
 
   stopHeldMovement()
   state.seq = 1
+  state.movementPrediction = initialMovementPredictionState()
   state.joined = false
   state.companion.joined = false
   state.companion.direction = "down"
@@ -3526,6 +3658,47 @@ function directionForKey(key: string): Direction | undefined {
   }
 }
 
+function movementPredictionTextState() {
+  const prediction = state.movementPrediction
+
+  return {
+    mode: "client_prediction_server_reconciliation",
+    active: Boolean(prediction.active),
+    seq: prediction.active?.seq,
+    direction: prediction.active?.direction,
+    blockedLocally: prediction.active?.blockedLocally ?? false,
+    from: prediction.active
+      ? roundedVector(prediction.active.from)
+      : undefined,
+    attempted: prediction.active
+      ? roundedVector(prediction.active.attempted)
+      : undefined,
+    target: prediction.active
+      ? roundedVector(prediction.active.target)
+      : undefined,
+    deltaMs: prediction.active
+      ? Math.round(prediction.active.deltaMs)
+      : undefined,
+    distance: prediction.active
+      ? Number(prediction.active.distance.toFixed(2))
+      : undefined,
+    lastOutcome: prediction.lastOutcome,
+    totalPredicted: prediction.totalPredicted,
+    totalConfirmed: prediction.totalConfirmed,
+    totalCorrected: prediction.totalCorrected,
+    totalClientBlocked: prediction.totalClientBlocked,
+    totalServerRejected: prediction.totalServerRejected,
+    lastCorrectionPx: prediction.lastCorrectionPx,
+  }
+}
+
+function roundedVector(position: Vector2): Vector2 {
+  return {
+    x: Math.round(position.x),
+    y: Math.round(position.y),
+  }
+}
+
 function renderDemoToText(): string {
   const overlay = stageOverlayContent()
 
@@ -3597,6 +3770,7 @@ function renderDemoToText(): string {
       lastRejectedReason: state.lastMovementRejection?.reason,
       repeatMs: MOVE_REPEAT_MS,
       rejectionFeedbackMs: MOVEMENT_REJECTION_FEEDBACK_MS,
+      prediction: movementPredictionTextState(),
     },
     meeting: {
       activeZoneId: state.activeZone?.id,
