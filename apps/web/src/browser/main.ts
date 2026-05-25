@@ -21,6 +21,11 @@ import {
   type MovementPredictionState,
 } from "./movement-prediction"
 import {
+  ClientMotionController,
+  type ClientMotionIntent,
+  type ClientMotionSnapshot,
+} from "./client-motion-controller"
+import {
   directionForMovementVector,
   isDirection,
   movementVectorForDirection,
@@ -519,6 +524,7 @@ const movementInput: MovementInputState = {
   runToggled: false,
   shiftRunning: false,
 }
+const clientMotion = new ClientMotionController()
 const recentEvents: string[] = []
 const chatMessages: ChatRecord[] = []
 const movementDebugRecords: MovementDebugRecord[] = []
@@ -766,6 +772,7 @@ renderIdentityControls()
 renderMovementModeControl()
 renderLifecycleStatus()
 syncResponsiveToolSections()
+startClientMotionLoop()
 
 async function startDemo(): Promise<void> {
   elements.start.disabled = true
@@ -814,6 +821,7 @@ async function startDemo(): Promise<void> {
 
     state.position = playerSnapshotPosition(joined.player)
     state.direction = joined.player.direction ?? "down"
+    resetClientMotion(state.position, state.direction)
     upsertRenderedPlayer(joined.player)
     renderPlayers()
     state.joined = true
@@ -957,6 +965,7 @@ function applyWorldSnapshot(players: readonly PlayerSnapshot[]): void {
   if (local) {
     state.position = playerSnapshotPosition(local)
     state.direction = local.direction ?? state.direction
+    clientMotion.reconcile(state.position, { force: true })
   }
 
   const companion = players.find(
@@ -1053,6 +1062,7 @@ async function resetDemo(
     state.companion.position = fixtureSpawnPosition(state.fixtureMap, "guest")
   }
 
+  resetClientMotion(state.position, state.direction)
   seedLocalRenderedPlayer()
   renderPlayers()
   updateActiveZoneFromPosition()
@@ -1073,6 +1083,59 @@ async function leaveWorldSafely(clientId: string, label: string): Promise<void> 
   } catch (error: unknown) {
     recordEvent(`${label} leave skipped: ${errorMessage(error)}`)
   }
+}
+
+function startClientMotionLoop(): void {
+  const frame = (nowMs: number) => {
+    stepClientMotionFrame(nowMs)
+    window.requestAnimationFrame(frame)
+  }
+
+  window.requestAnimationFrame(frame)
+}
+
+function stepClientMotionFrame(nowMs: number): void {
+  if (!state.joined || !state.fixtureMap) return
+
+  const result = clientMotion.step({
+    nowMs,
+    intent: activeHeldMovementIntent(),
+    map: collisionMapForFixtureMap(state.fixtureMap),
+  })
+
+  if (!result.changed) return
+  renderLocalPlayerFromMotion(result.snapshot)
+}
+
+function primeClientMotionIntent(intent: ClientMotionIntent): void {
+  if (!state.joined || !state.fixtureMap) return
+
+  const result = clientMotion.step({
+    nowMs: performance.now(),
+    intent,
+    map: collisionMapForFixtureMap(state.fixtureMap),
+  })
+
+  if (!result.changed) return
+  renderLocalPlayerFromMotion(result.snapshot)
+}
+
+function renderLocalPlayerFromMotion(snapshot: ClientMotionSnapshot): void {
+  const player = state.players.get(state.playerId)
+  if (!player) return
+
+  state.players.set(state.playerId, {
+    ...player,
+    position: snapshot.position,
+    direction: snapshot.direction,
+    movementMode: snapshot.movementMode,
+  })
+  renderPlayers({ refreshCameraControls: false })
+  updateActiveZoneFromPosition()
+}
+
+function resetClientMotion(position: Vector2, direction: Direction): void {
+  clientMotion.reset(position, direction)
 }
 
 async function move(
@@ -1197,6 +1260,7 @@ function abandonClientMovementPrediction(
     prediction,
     state.position,
   )
+  clientMotion.reconcile(state.position, { force: true })
   upsertRenderedPlayer({
     playerId: state.playerId,
     position: state.position,
@@ -1464,6 +1528,7 @@ function requestMove(
     )
     return
   }
+  primeClientMotionIntent({ vector, direction, movementMode })
   if (movementInput.inFlight) {
     movementInput.pendingIntent = { vector, direction, movementMode }
     logMovementDebug(
@@ -1475,22 +1540,27 @@ function requestMove(
 
   movementInput.inFlight = true
   movementInput.lastRequestedDirection = direction
-  void queueAction(() => move(vector, direction, movementMode)).finally(() => {
-    movementInput.inFlight = false
-    const pendingIntent = movementInput.pendingIntent
-    movementInput.pendingIntent = undefined
-    if (pendingIntent) {
-      logMovementDebug(
-        "dequeue",
-        `vector=${formatMovementVector(pendingIntent.vector)} facing=${pendingIntent.direction} mode=${pendingIntent.movementMode}`,
-      )
-      requestMove(
-        pendingIntent.vector,
-        pendingIntent.direction,
-        pendingIntent.movementMode,
-      )
-    }
-  })
+  void move(vector, direction, movementMode)
+    .catch((error: unknown) => {
+      recordEvent(`Movement failed: ${technicalErrorDetail(error)}`)
+      publishToast(friendlyActionError(error), "error")
+    })
+    .finally(() => {
+      movementInput.inFlight = false
+      const pendingIntent = movementInput.pendingIntent
+      movementInput.pendingIntent = undefined
+      if (pendingIntent) {
+        logMovementDebug(
+          "dequeue",
+          `vector=${formatMovementVector(pendingIntent.vector)} facing=${pendingIntent.direction} mode=${pendingIntent.movementMode}`,
+        )
+        requestMove(
+          pendingIntent.vector,
+          pendingIntent.direction,
+          pendingIntent.movementMode,
+        )
+      }
+    })
 }
 
 async function sendChat(body: string): Promise<void> {
@@ -1848,6 +1918,7 @@ function applyFixtureMap(
     state.devTools.activeFixtureId = devFixtureIdForMapGeneration(mapGeneration)
   }
   state.position = fixtureSpawnPosition(fixtureMap, "default")
+  resetClientMotion(state.position, state.direction)
   state.companion.position = fixtureSpawnPosition(fixtureMap, "guest")
   seedLocalRenderedPlayer()
   syncRendererDevTools()
@@ -2001,6 +2072,7 @@ async function renderDepthFixtureCaseForSmoke(
   state.joined = true
   state.position = depthCase.playerPosition
   state.direction = "down"
+  resetClientMotion(state.position, state.direction)
   state.players.clear()
   seedLocalRenderedPlayer()
   const depthPlayer = state.players.get(state.playerId)
@@ -2074,6 +2146,7 @@ async function renderAvatarFixtureCaseForSmoke(): Promise<AvatarFixtureResult> {
   state.joined = true
   state.position = players[0].position
   state.direction = players[0].direction
+  resetClientMotion(state.position, state.direction)
   state.profile.avatarId = "ember"
   state.profile.displayName = "Ember Ada"
   state.players.clear()
@@ -2121,6 +2194,7 @@ async function renderZoneFixtureCaseForSmoke(): Promise<ZoneFixtureResult> {
   state.joined = true
   state.position = fixtureSpawnPosition(fixtureMap, "default")
   state.direction = "down"
+  resetClientMotion(state.position, state.direction)
   state.players.clear()
   seedLocalRenderedPlayer()
   renderPlayers()
@@ -2135,6 +2209,7 @@ async function renderZoneFixtureCaseForSmoke(): Promise<ZoneFixtureResult> {
 
 async function moveLocalPlayerForSmoke(position: Vector2): Promise<void> {
   state.position = position
+  clientMotion.reconcile(position, { force: true })
   upsertRenderedPlayer({
     playerId: state.playerId,
     position,
@@ -2579,6 +2654,7 @@ function applyServerMessage(message: ServerMessage): void {
       reconcileClientMovementPrediction(position, message.seqAck, false)
       state.position = position
       state.direction = message.direction
+      clientMotion.reconcile(position)
       state.lastMovementRejection = undefined
       logMovementDebug(
         "server",
@@ -2684,15 +2760,24 @@ function reconcileClientMovementPrediction(
 function seedLocalRenderedPlayer(): void {
   upsertRenderedPlayer({
     playerId: state.playerId,
-    position: state.position,
-    direction: state.direction,
+    position: clientMotion.renderedPosition(state.position),
+    direction: clientMotion.renderedDirection(state.direction),
+    movementMode: clientMotion.renderedMovementMode("walk"),
   })
 }
 
 function upsertRenderedPlayer(player: PlayerSnapshot): void {
-  const position = playerSnapshotPosition(player)
-  const direction = player.direction ?? "down"
-  const movementMode = player.movementMode ?? "walk"
+  const snapshotPosition = playerSnapshotPosition(player)
+  const local = player.playerId === state.playerId
+  const position = local
+    ? clientMotion.renderedPosition(snapshotPosition)
+    : snapshotPosition
+  const direction = local
+    ? clientMotion.renderedDirection(player.direction ?? "down")
+    : player.direction ?? "down"
+  const movementMode = local
+    ? clientMotion.renderedMovementMode(player.movementMode ?? "walk")
+    : player.movementMode ?? "walk"
 
   state.players.set(player.playerId, {
     playerId: player.playerId,
@@ -2701,15 +2786,19 @@ function upsertRenderedPlayer(player: PlayerSnapshot): void {
     position,
     direction,
     movementMode,
-    local: player.playerId === state.playerId,
+    local,
     rejected: player.rejected,
   })
 }
 
-function renderPlayers(): void {
+function renderPlayers(
+  options: { readonly refreshCameraControls?: boolean } = {},
+): void {
   const players = [...state.players.values()]
   renderer.updatePlayers(players)
-  renderCameraControls(renderer.getCameraState())
+  if (options.refreshCameraControls !== false) {
+    renderCameraControls(renderer.getCameraState())
+  }
 
   players.forEach((player) => {
     if (!player.rejected) return
@@ -2750,6 +2839,7 @@ function applyMovementRejection(
     reconcileClientMovementPrediction(position, message.seqAck, true)
     state.position = position
     state.direction = direction
+    clientMotion.reconcile(position, { rejected: true })
     logMovementDebug(
       "rejected",
       `seq=${message.seqAck ?? "-"} reason=${message.reason} pos=${formatMovementVector(position)} ${formatServerMovementTelemetry(message)}`,
@@ -3068,10 +3158,11 @@ function renderMapGenerationResult(): void {
 }
 
 function updateActiveZoneFromPosition(): void {
+  const position = clientMotion.renderedPosition(state.position)
   const zone = state.fixtureMap
     ? zoneContainingPoint(
         state.fixtureMap.compiled.zones,
-        state.position,
+        position,
         state.fixtureMap.compiled.tileSize,
       )
     : undefined
@@ -3469,6 +3560,7 @@ function recoverFromWorldLoss(reason: string): void {
   }
 
   state.direction = "down"
+  resetClientMotion(state.position, state.direction)
   seedLocalRenderedPlayer()
   renderPlayers()
   renderZonePresentation()
@@ -4252,6 +4344,26 @@ function movementPredictionTextState() {
   }
 }
 
+function clientMotionTextState() {
+  const motion = clientMotion.snapshot()
+
+  return {
+    mode: "continuous_local_motion",
+    active: motion.active,
+    inputActive: motion.inputActive,
+    correcting: motion.correcting,
+    x: Number(motion.position.x.toFixed(3)),
+    y: Number(motion.position.y.toFixed(3)),
+    velocity: roundedVector(motion.velocity),
+    speedPxPerSecond: motion.speedPxPerSecond,
+    targetSpeedPxPerSecond: motion.targetSpeedPxPerSecond,
+    direction: motion.direction,
+    movementMode: motion.movementMode,
+    lastFrameDeltaMs: motion.lastFrameDeltaMs,
+    correctionPx: motion.correctionPx,
+  }
+}
+
 function roundedVector(position: Vector2): Vector2 {
   return {
     x: Number(position.x.toFixed(3)),
@@ -4302,7 +4414,10 @@ function renderDemoToText(): string {
       avatarId: state.profile.avatarId,
       x: Math.round(state.position.x),
       y: Math.round(state.position.y),
+      visualX: Math.round(clientMotion.renderedPosition(state.position).x),
+      visualY: Math.round(clientMotion.renderedPosition(state.position).y),
       direction: state.direction,
+      visualDirection: clientMotion.renderedDirection(state.direction),
     },
     companion: {
       id: state.companion.playerId,
@@ -4339,6 +4454,7 @@ function renderDemoToText(): string {
       serverProtocolMismatch: state.serverProtocolMismatch,
       repeatMs: MOVE_REPEAT_MS,
       rejectionFeedbackMs: MOVEMENT_REJECTION_FEEDBACK_MS,
+      motion: clientMotionTextState(),
       prediction: movementPredictionTextState(),
       debugLog: movementDebugRecords.map(movementDebugLine),
     },

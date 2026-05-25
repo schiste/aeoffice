@@ -429,7 +429,10 @@ export interface RendererAvatarPlayerInfo {
   readonly interpolationProfile: "local" | "remote"
   readonly interpolationActive: boolean
   readonly movementSmoothing: {
-    readonly mode: "client_prediction_reconciliation" | "remote_interpolation"
+    readonly mode:
+      | "continuous_local_motion"
+      | "client_prediction_reconciliation"
+      | "remote_interpolation"
     readonly logicalVertexRoundMode: "off"
     readonly visualTransformIsolation: "inner_visual_root"
   }

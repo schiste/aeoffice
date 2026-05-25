@@ -131,6 +131,8 @@ async function main() {
     assert.equal(joined.lifecycle.stageOverlay.hidden, true)
     assert.equal(joined.movement.repeatMs, 60)
     assert.equal(joined.movement.prediction.maxStepMs, 60)
+    assert.equal(joined.movement.motion.mode, "continuous_local_motion")
+    assert.equal(joined.movement.motion.movementMode, "walk")
     assert.equal(joined.movement.movementMode, "walk")
     assert.equal(joined.movement.runToggled, false)
     assert.equal(joined.viewport.canZoomIn, true)
@@ -580,6 +582,10 @@ function assertRenderStateContract(state) {
   assert.equal(typeof state.movement?.prediction?.active, "boolean")
   assert.equal(typeof state.movement?.movementMode, "string")
   assert.equal(typeof state.movement?.runToggled, "boolean")
+  assert.equal(state.movement?.motion?.mode, "continuous_local_motion")
+  assert.equal(typeof state.movement?.motion?.active, "boolean")
+  assert.equal(typeof state.movement?.motion?.speedPxPerSecond, "number")
+  assert.equal(typeof state.movement?.motion?.correctionPx, "number")
   assert.equal(typeof state.movement?.prediction?.lastOutcome, "string")
   assert.equal(typeof state.movement?.prediction?.totalPredicted, "number")
   assert.equal(typeof state.movement?.prediction?.totalConfirmed, "number")
@@ -1453,7 +1459,7 @@ async function assertAvatarSystemSmoke(page) {
     )
     assert.deepEqual(player.movementSmoothing, {
       mode: player.local
-        ? "client_prediction_reconciliation"
+        ? "continuous_local_motion"
         : "remote_interpolation",
       logicalVertexRoundMode: "off",
       visualTransformIsolation: "inner_visual_root",

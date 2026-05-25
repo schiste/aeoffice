@@ -121,6 +121,11 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
 - Phase 14 has started: map switches now use a short room transition, avatars
   fade into rooms on entry, and lightweight ambient object motion is applied to
   plants/coffee-style props without changing gameplay authority.
+- Local movement has moved to a continuous client-motion controller. The
+  authoritative server position is still tracked separately, but the local
+  avatar now moves every animation frame with velocity smoothing, soft
+  correction blending, collision-aware prediction, and a direct renderer path
+  that avoids restarting position tweens during direction changes.
 - The standalone develop-web-game client was retried with the repo
   `node_modules` on `NODE_PATH`, but the skill script still cannot resolve its
   own ESM `playwright` import. Repo-native Playwright smoke/renderer/responsive

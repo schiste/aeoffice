@@ -193,6 +193,7 @@ class AvatarView {
   private idleTween?: Phaser.Tweens.Tween
   private walkTween?: Phaser.Tweens.Tween
   private footTween?: Phaser.Tweens.Tween
+  private walkTweenAction?: AvatarAnimationAction
   private positionTween?: Phaser.Tweens.Tween
   private rejectionTween?: Phaser.Tweens.Tween
   private emoteTween?: Phaser.Tweens.Tween
@@ -361,11 +362,19 @@ class AvatarView {
     this.focusTarget.setDepth(avatarDepth(this.focusTarget.y))
 
     if (moved) {
-      this.interpolateTo(player.position, this.interpolationProfile)
+      if (player.local) {
+        this.moveDirectlyTo(player.position)
+      } else {
+        this.interpolateTo(player.position, this.interpolationProfile)
+      }
       this.startWalkTween(nextAnimation)
     } else if (directionChanged || identityChanged || movementModeChanged) {
       this.cameraTarget.setPosition(player.position.x, player.position.y)
-      this.startWalkTween(nextAnimation)
+      if (nextAction === "idle") {
+        this.startIdleTween(nextAnimation, player.position)
+      } else {
+        this.startWalkTween(nextAnimation)
+      }
     } else if (!this.walkTween?.isPlaying()) {
       this.startIdleTween(nextAnimation, player.position)
     }
@@ -478,7 +487,7 @@ class AvatarView {
       interpolationActive: this.positionTween?.isPlaying() ?? false,
       movementSmoothing: {
         mode: this.playerLocal
-          ? "client_prediction_reconciliation"
+          ? "continuous_local_motion"
           : "remote_interpolation",
         logicalVertexRoundMode: "off",
         visualTransformIsolation: "inner_visual_root",
@@ -504,6 +513,14 @@ class AvatarView {
     this.emoteTween?.stop()
     this.focusTarget.destroy(true)
     this.cameraTarget.destroy()
+  }
+
+  private moveDirectlyTo(position: Vector2): void {
+    this.positionTween?.stop()
+    this.focusTarget.setPosition(position.x, position.y)
+    this.cameraTarget.setPosition(position.x, position.y)
+    this.focusTarget.setDepth(avatarDepth(this.focusTarget.y))
+    this.applyCameraAwareLabelScale()
   }
 
   private interpolateTo(
@@ -629,12 +646,22 @@ class AvatarView {
       repeat: animation.repeat,
       ease: "Sine.easeInOut",
     })
+    this.walkTweenAction = undefined
   }
 
   private startWalkTween(animation: AvatarAnimationDefinition): void {
+    if (
+      this.walkTween?.isPlaying() &&
+      this.footTween?.isPlaying() &&
+      this.walkTweenAction === animation.action
+    ) {
+      return
+    }
+
     this.idleTween?.stop()
     this.walkTween?.stop()
     this.footTween?.stop()
+    this.walkTweenAction = animation.action
     this.visualRoot.setPosition(0, 0)
     this.visualRoot.setScale(1, 1)
     this.walkTween = this.scene.tweens.add({
