@@ -1,0 +1,401 @@
+import Phaser from "phaser"
+
+import { EFFECTS_AMBIENT_DEPTH } from "./constants"
+import { isWebGLRenderer } from "./capability-reporter"
+import type {
+  FixtureMap,
+  RendererEffectsDisableReason,
+  RendererEffectsInfo,
+  RendererEffectsOptions,
+  RendererEffectsQuality,
+  RendererResolvedEffectsQuality,
+  RendererTenantLightingMode,
+} from "./types"
+
+interface MapRenderBounds {
+  readonly width: number
+  readonly height: number
+}
+
+interface EffectsCapability {
+  readonly webglAvailable: boolean
+  readonly contextLost: boolean
+  readonly lowCapability: boolean
+  readonly filtersAvailable: boolean
+  readonly maxTextureSize?: number
+}
+
+interface EffectsObjectCounts {
+  ambientShapes: number
+  lightShapes: number
+  shadowShapes: number
+}
+
+const MIN_EFFECTS_TEXTURE_SIZE = 1024
+
+export class EffectsLayer {
+  private requestedEnabled = true
+  private requestedQuality: RendererEffectsQuality = "auto"
+  private tenantLighting: RendererTenantLightingMode = "day"
+  private lowCapabilityOverride = false
+  private graphics?: Phaser.GameObjects.Graphics
+  private filterControllers: Phaser.Filters.Controller[] = []
+  private lastFixtureMap?: FixtureMap
+  private lastBounds?: MapRenderBounds
+  private info: RendererEffectsInfo = disabledEffectsInfo({
+    requestedEnabled: true,
+    requestedQuality: "auto",
+    tenantLighting: "day",
+    capability: emptyCapability(),
+    disabledReason: "not_webgl",
+  })
+
+  constructor(private readonly scene: Phaser.Scene) {}
+
+  renderFixtureMap(
+    fixtureMap: FixtureMap,
+    bounds: MapRenderBounds,
+  ): void {
+    this.lastFixtureMap = fixtureMap
+    this.lastBounds = bounds
+    this.rebuild()
+  }
+
+  setOptions(options: RendererEffectsOptions): void {
+    if (options.enabled !== undefined) {
+      this.requestedEnabled = options.enabled
+    }
+    if (options.quality !== undefined) {
+      this.requestedQuality = options.quality
+    }
+    if (options.tenantLighting !== undefined) {
+      this.tenantLighting = options.tenantLighting
+    }
+    if (options.lowCapabilityOverride !== undefined) {
+      this.lowCapabilityOverride = options.lowCapabilityOverride
+    }
+    this.rebuild()
+  }
+
+  clear(): void {
+    this.destroyGraphics()
+    this.destroyFilters()
+  }
+
+  getInfo(): RendererEffectsInfo {
+    return this.info
+  }
+
+  private rebuild(): void {
+    this.clear()
+    const capability = this.detectCapability()
+    const disabledReason = this.disabledReason(capability)
+    const fixtureMap = this.lastFixtureMap
+    const bounds = this.lastBounds
+
+    if (disabledReason || !fixtureMap || !bounds) {
+      this.info = disabledEffectsInfo({
+        requestedEnabled: this.requestedEnabled,
+        requestedQuality: this.requestedQuality,
+        tenantLighting: this.tenantLighting,
+        capability,
+        disabledReason: disabledReason ?? "not_webgl",
+      })
+      return
+    }
+
+    const quality = this.resolvedQuality()
+    const appliedFilters = this.applyCameraFilters(quality)
+    const counts = this.drawStaticRoomPass(fixtureMap, bounds, quality)
+    this.info = {
+      source: "renderer_runtime",
+      authority: "visual_only",
+      requested: {
+        enabled: this.requestedEnabled,
+        quality: this.requestedQuality,
+        tenantLighting: this.tenantLighting,
+      },
+      enabled: true,
+      quality,
+      deterministic: true,
+      animationMode: "static",
+      capability,
+      applied: {
+        webglFilters: appliedFilters,
+        ambientEffects: ["ambient_tint", "tenant_lighting_tint"],
+        lightPass: quality === "premium" ? "static_room_lights" : "none",
+        shadowPass: quality === "premium" ? "static_corner_shadows" : "none",
+        selectionOutlines: "zone_renderer",
+        hoverOutlines: "zone_renderer",
+        tenantLighting: this.tenantLighting,
+      },
+      objectCounts: counts,
+    }
+  }
+
+  private detectCapability(): EffectsCapability {
+    const renderer = this.scene.game.renderer
+    const webglAvailable = isWebGLRenderer(renderer)
+    const gl = webglAvailable ? renderer.gl : undefined
+    const maxTextureSize = gl?.getParameter(gl.MAX_TEXTURE_SIZE) as
+      | number
+      | undefined
+    const contextLost = webglAvailable ? renderer.contextLost : false
+    const lowCapability =
+      this.lowCapabilityOverride ||
+      !maxTextureSize ||
+      maxTextureSize < MIN_EFFECTS_TEXTURE_SIZE
+
+    return {
+      webglAvailable,
+      contextLost,
+      lowCapability,
+      filtersAvailable: this.cameraFiltersAvailable(),
+      maxTextureSize,
+    }
+  }
+
+  private cameraFiltersAvailable(): boolean {
+    const filters = (
+      this.scene.cameras.main as Phaser.Cameras.Scene2D.Camera & {
+        filters?: {
+          internal?: {
+            addColorMatrix?: unknown
+          }
+        }
+      }
+    ).filters
+
+    return typeof filters?.internal?.addColorMatrix === "function"
+  }
+
+  private disabledReason(
+    capability: EffectsCapability,
+  ): RendererEffectsDisableReason | undefined {
+    if (!this.requestedEnabled || this.requestedQuality === "off") {
+      return "forced_off"
+    }
+    if (!capability.webglAvailable) return "not_webgl"
+    if (capability.contextLost) return "context_lost"
+    if (capability.lowCapability) return "low_capability"
+    return undefined
+  }
+
+  private resolvedQuality(): RendererResolvedEffectsQuality {
+    if (this.requestedQuality === "low") return "low"
+    if (this.requestedQuality === "premium") return "premium"
+    return "premium"
+  }
+
+  private applyCameraFilters(
+    quality: RendererResolvedEffectsQuality,
+  ): readonly string[] {
+    if (quality === "off" || !this.cameraFiltersAvailable()) return []
+
+    try {
+      const colorMatrix = this.scene.cameras.main.filters.internal.addColorMatrix()
+      colorMatrix.active = true
+      colorMatrix.colorMatrix.reset()
+      colorMatrix.colorMatrix.brightness(
+        this.tenantLighting === "night" ? 0.92 : 1.02,
+      )
+      colorMatrix.colorMatrix.saturate(
+        this.tenantLighting === "tenant_theme" ? 1.08 : 1.02,
+        true,
+      )
+      this.filterControllers.push(colorMatrix)
+      return ["camera_color_matrix"]
+    } catch {
+      this.destroyFilters()
+      return []
+    }
+  }
+
+  private drawStaticRoomPass(
+    fixtureMap: FixtureMap,
+    bounds: MapRenderBounds,
+    quality: RendererResolvedEffectsQuality,
+  ): EffectsObjectCounts {
+    const counts: EffectsObjectCounts = {
+      ambientShapes: 0,
+      lightShapes: 0,
+      shadowShapes: 0,
+    }
+    const palette = effectsPalette(fixtureMap.definition.style, this.tenantLighting)
+    const graphics = this.scene.add.graphics()
+    graphics.setDepth(EFFECTS_AMBIENT_DEPTH)
+
+    graphics.fillStyle(palette.ambientColor, palette.ambientAlpha)
+    graphics.fillRect(0, 0, bounds.width, bounds.height)
+    counts.ambientShapes += 1
+
+    if (quality === "premium") {
+      this.drawStaticLights(graphics, fixtureMap, bounds, palette.lightColor, counts)
+      this.drawCornerShadows(graphics, bounds, counts)
+    }
+
+    this.graphics = graphics
+    return counts
+  }
+
+  private drawStaticLights(
+    graphics: Phaser.GameObjects.Graphics,
+    fixtureMap: FixtureMap,
+    bounds: MapRenderBounds,
+    color: number,
+    counts: EffectsObjectCounts,
+  ): void {
+    const roomLightWidth = Math.min(bounds.width * 0.58, 520)
+    const roomLightHeight = Math.min(bounds.height * 0.48, 360)
+    graphics.fillStyle(color, this.tenantLighting === "night" ? 0.075 : 0.045)
+    graphics.fillEllipse(
+      bounds.width / 2,
+      bounds.height / 2,
+      roomLightWidth,
+      roomLightHeight,
+    )
+    counts.lightShapes += 1
+
+    fixtureMap.compiled.zones.slice(0, 4).forEach((zone) => {
+      const centerX =
+        ((zone.xStart + zone.xEnd) / 2) * fixtureMap.compiled.tileSize
+      const centerY =
+        ((zone.yStart + zone.yEnd) / 2) * fixtureMap.compiled.tileSize
+      const width = Math.max(
+        96,
+        (zone.xEnd - zone.xStart) * fixtureMap.compiled.tileSize * 1.15,
+      )
+      const height = Math.max(
+        72,
+        (zone.yEnd - zone.yStart) * fixtureMap.compiled.tileSize * 1.2,
+      )
+
+      graphics.fillStyle(color, 0.035)
+      graphics.fillEllipse(centerX, centerY, width, height)
+      counts.lightShapes += 1
+    })
+  }
+
+  private drawCornerShadows(
+    graphics: Phaser.GameObjects.Graphics,
+    bounds: MapRenderBounds,
+    counts: EffectsObjectCounts,
+  ): void {
+    const horizontal = Math.min(96, bounds.width * 0.12)
+    const vertical = Math.min(96, bounds.height * 0.12)
+
+    graphics.fillStyle(0x17201d, this.tenantLighting === "night" ? 0.09 : 0.045)
+    graphics.fillRect(0, 0, bounds.width, vertical)
+    graphics.fillRect(0, bounds.height - vertical, bounds.width, vertical)
+    graphics.fillRect(0, 0, horizontal, bounds.height)
+    graphics.fillRect(bounds.width - horizontal, 0, horizontal, bounds.height)
+    counts.shadowShapes += 4
+  }
+
+  private destroyGraphics(): void {
+    this.graphics?.destroy()
+    this.graphics = undefined
+  }
+
+  private destroyFilters(): void {
+    this.filterControllers.forEach((controller) => {
+      controller.active = false
+      controller.destroy()
+    })
+    this.filterControllers = []
+  }
+}
+
+function effectsPalette(
+  style: string,
+  tenantLighting: RendererTenantLightingMode,
+): {
+  readonly ambientColor: number
+  readonly ambientAlpha: number
+  readonly lightColor: number
+} {
+  if (tenantLighting === "night") {
+    return {
+      ambientColor: 0x24364f,
+      ambientAlpha: 0.075,
+      lightColor: 0xffe0a6,
+    }
+  }
+
+  if (tenantLighting === "tenant_theme") {
+    return {
+      ambientColor: 0x2d7c83,
+      ambientAlpha: 0.045,
+      lightColor: 0xcff7ef,
+    }
+  }
+
+  if (style.includes("wood") || style.includes("cozy")) {
+    return {
+      ambientColor: 0xffd9a6,
+      ambientAlpha: 0.035,
+      lightColor: 0xfff1c8,
+    }
+  }
+
+  if (style.includes("glass")) {
+    return {
+      ambientColor: 0xd8eef5,
+      ambientAlpha: 0.04,
+      lightColor: 0xf2fbff,
+    }
+  }
+
+  return {
+    ambientColor: 0xe6edf0,
+    ambientAlpha: 0.035,
+    lightColor: 0xffffff,
+  }
+}
+
+function disabledEffectsInfo(options: {
+  readonly requestedEnabled: boolean
+  readonly requestedQuality: RendererEffectsQuality
+  readonly tenantLighting: RendererTenantLightingMode
+  readonly capability: EffectsCapability
+  readonly disabledReason: RendererEffectsDisableReason
+}): RendererEffectsInfo {
+  return {
+    source: "renderer_runtime",
+    authority: "visual_only",
+    requested: {
+      enabled: options.requestedEnabled,
+      quality: options.requestedQuality,
+      tenantLighting: options.tenantLighting,
+    },
+    enabled: false,
+    quality: "off",
+    deterministic: true,
+    animationMode: "static",
+    disabledReason: options.disabledReason,
+    capability: options.capability,
+    applied: {
+      webglFilters: [],
+      ambientEffects: [],
+      lightPass: "none",
+      shadowPass: "none",
+      selectionOutlines: "zone_renderer",
+      hoverOutlines: "zone_renderer",
+      tenantLighting: options.tenantLighting,
+    },
+    objectCounts: {
+      ambientShapes: 0,
+      lightShapes: 0,
+      shadowShapes: 0,
+    },
+  }
+}
+
+function emptyCapability(): EffectsCapability {
+  return {
+    webglAvailable: false,
+    contextLost: false,
+    lowCapability: true,
+    filtersAvailable: false,
+  }
+}

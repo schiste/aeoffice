@@ -3,6 +3,7 @@ import {
   type AvatarEmoteId,
   type RenderedPlayer,
   type RendererCameraState,
+  type RendererEffectsOptions,
   type RendererZoomPresetId,
 } from "./phaser-office-renderer"
 import {
@@ -3080,6 +3081,7 @@ function renderDemoToText(): string {
       })),
     },
     renderer: renderer.getCapabilityInfo(),
+    effects: renderer.getEffectsInfo(),
     avatars: renderer.getAvatarInfo(),
     zones: renderer.getZoneInfo(),
     camera: renderer.getCameraState(),
@@ -3174,6 +3176,7 @@ declare global {
       renderZoneFixtureCase: () => Promise<ZoneFixtureResult>
       moveLocalPlayer: (position: Vector2) => Promise<void>
       setZoneDebugOverlay: (enabled: boolean) => Promise<void>
+      setRendererEffects: (options: RendererEffectsOptions) => Promise<void>
     }
   }
 }
@@ -3198,6 +3201,10 @@ if (localAutomationHost()) {
     moveLocalPlayer: moveLocalPlayerForSmoke,
     setZoneDebugOverlay: async (enabled) => {
       renderer.setZoneDebugOverlayEnabled(enabled)
+      await renderer.advanceTime()
+    },
+    setRendererEffects: async (options) => {
+      renderer.setEffectsOptions(options)
       await renderer.advanceTime()
     },
   }

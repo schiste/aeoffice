@@ -26,6 +26,8 @@ import type {
   RendererCameraMode,
   RendererCameraState,
   RendererCapabilityInfo,
+  RendererEffectsInfo,
+  RendererEffectsOptions,
   RendererViewportState,
   RendererZoneInteractionState,
   RendererZonePresentationInfo,
@@ -181,8 +183,16 @@ export class PhaserOfficeRenderer {
     this.scene.setZoneDebugOverlayEnabled(enabled)
   }
 
+  setEffectsOptions(options: RendererEffectsOptions): void {
+    this.scene.setEffectsOptions(options)
+  }
+
   getZoneInfo(): RendererZonePresentationInfo {
     return this.scene.getZoneInfo()
+  }
+
+  getEffectsInfo(): RendererEffectsInfo {
+    return this.scene.getEffectsInfo()
   }
 
   projectWorldToViewport(point: { readonly x: number; readonly y: number }): {
@@ -198,6 +208,7 @@ export class PhaserOfficeRenderer {
       this.scene.getTilemapInfo(),
       this.scene.getAssetPipelineInfo(),
       this.scene.getDepthInfo(),
+      this.scene.getEffectsInfo(),
     )
   }
 

@@ -117,6 +117,59 @@ export interface RendererZonePresentationInfo {
   readonly zones: readonly RendererZoneInfo[]
 }
 
+export type RendererEffectsQuality = "auto" | "off" | "low" | "premium"
+export type RendererResolvedEffectsQuality = "off" | "low" | "premium"
+export type RendererTenantLightingMode = "day" | "night" | "tenant_theme"
+
+export type RendererEffectsDisableReason =
+  | "forced_off"
+  | "not_webgl"
+  | "context_lost"
+  | "low_capability"
+
+export interface RendererEffectsOptions {
+  readonly enabled?: boolean
+  readonly quality?: RendererEffectsQuality
+  readonly tenantLighting?: RendererTenantLightingMode
+  readonly lowCapabilityOverride?: boolean
+}
+
+export interface RendererEffectsInfo {
+  readonly source: "renderer_runtime"
+  readonly authority: "visual_only"
+  readonly requested: {
+    readonly enabled: boolean
+    readonly quality: RendererEffectsQuality
+    readonly tenantLighting: RendererTenantLightingMode
+  }
+  readonly enabled: boolean
+  readonly quality: RendererResolvedEffectsQuality
+  readonly deterministic: boolean
+  readonly animationMode: "static"
+  readonly disabledReason?: RendererEffectsDisableReason
+  readonly capability: {
+    readonly webglAvailable: boolean
+    readonly contextLost: boolean
+    readonly lowCapability: boolean
+    readonly filtersAvailable: boolean
+    readonly maxTextureSize?: number
+  }
+  readonly applied: {
+    readonly webglFilters: readonly string[]
+    readonly ambientEffects: readonly string[]
+    readonly lightPass: "none" | "static_room_lights"
+    readonly shadowPass: "none" | "static_corner_shadows"
+    readonly selectionOutlines: "zone_renderer"
+    readonly hoverOutlines: "zone_renderer"
+    readonly tenantLighting: RendererTenantLightingMode
+  }
+  readonly objectCounts: {
+    readonly ambientShapes: number
+    readonly lightShapes: number
+    readonly shadowShapes: number
+  }
+}
+
 export interface RenderedPlayer {
   readonly playerId: string
   readonly name: string
@@ -340,6 +393,7 @@ export interface RendererCapabilityInfo {
   readonly assets: RendererAssetPipelineInfo
   readonly depth: RendererDepthInfo
   readonly tilemap: RendererTilemapInfo
+  readonly effects: RendererEffectsInfo
   readonly webgl: {
     readonly available: boolean
     readonly contextLost: boolean

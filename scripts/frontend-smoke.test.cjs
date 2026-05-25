@@ -315,6 +315,7 @@ async function main() {
     assertRendererCapabilities(recovered)
     await assertWebGLContextRecovery(page)
     await assertLargeGpuMapSmoke(page)
+    await assertEffectsLayerSmoke(page)
     await assertAvatarSystemSmoke(page)
     await assertZonePresentationSmoke(page)
     await assertDepthSortingSmoke(page)
@@ -414,6 +415,19 @@ function assertRenderStateContract(state) {
     Array.isArray(state.zones?.zones),
     "Expected zones.zones in render_game_to_text.",
   )
+  assert.equal(state.effects?.source, "renderer_runtime")
+  assert.equal(state.effects?.authority, "visual_only")
+  assert.equal(typeof state.effects?.enabled, "boolean")
+  assert.equal(state.effects?.deterministic, true)
+  assert.equal(state.effects?.animationMode, "static")
+  assert.ok(
+    Array.isArray(state.effects?.applied?.webglFilters),
+    "Expected effects.applied.webglFilters in render_game_to_text.",
+  )
+  assert.ok(
+    Array.isArray(state.effects?.applied?.ambientEffects),
+    "Expected effects.applied.ambientEffects in render_game_to_text.",
+  )
   assertCameraStateContract(state)
 }
 
@@ -459,6 +473,19 @@ function assertRendererCapabilities(state) {
   assert.equal(state.renderer.tilemap.zoneLayerMode, "graphics")
   assert.equal(state.renderer.tilemap.avatarLayerMode, "display_objects")
   assert.equal(state.renderer.tilemap.labelLayerMode, "display_objects")
+  assert.equal(state.renderer.effects.source, "renderer_runtime")
+  assert.equal(state.renderer.effects.authority, "visual_only")
+  assert.equal(state.renderer.effects.deterministic, true)
+  assert.equal(state.renderer.effects.enabled, true)
+  assert.equal(state.renderer.effects.quality, "premium")
+  assert.equal(state.renderer.effects.applied.selectionOutlines, "zone_renderer")
+  assert.equal(state.renderer.effects.applied.hoverOutlines, "zone_renderer")
+  assert.ok(
+    state.renderer.effects.applied.ambientEffects.includes("ambient_tint"),
+    "Expected deterministic ambient tint effect.",
+  )
+  assert.equal(state.renderer.effects.capability.webglAvailable, true)
+  assert.equal(state.renderer.effects.capability.contextLost, false)
   assert.equal(state.renderer.assets.atlasId, "atlas.internal.office.polished_v1")
   assert.equal(state.renderer.assets.primarySource, "internal_atlas")
   assert.equal(state.renderer.assets.atlasLoaded, true)
@@ -844,7 +871,121 @@ async function assertLargeGpuMapSmoke(page) {
   assertRendererCapabilities(large)
   await assertNonBlankMapScreenshot(page)
 
-  const cadence = await page.evaluate(async () => {
+  const cadence = await measureFrameCadence(page)
+
+  assert.ok(
+    cadence.averageMs < 50,
+    `Expected large GPU map average frame cadence below collapse threshold, got ${cadence.averageMs}ms.`,
+  )
+  assert.ok(
+    cadence.p95Ms < 90,
+    `Expected large GPU map p95 frame cadence below collapse threshold, got ${cadence.p95Ms}ms.`,
+  )
+  assert.ok(
+    cadence.maxMs < 250,
+    `Expected large GPU map max frame cadence below collapse threshold, got ${cadence.maxMs}ms.`,
+  )
+}
+
+async function assertEffectsLayerSmoke(page) {
+  const baseline = await renderGameToText(page)
+  assert.equal(baseline.effects.source, "renderer_runtime")
+  assert.equal(baseline.effects.authority, "visual_only")
+  assert.equal(baseline.effects.enabled, true)
+  assert.equal(baseline.effects.quality, "premium")
+  assert.equal(baseline.effects.deterministic, true)
+  assert.equal(baseline.effects.animationMode, "static")
+  assert.equal(baseline.effects.applied.lightPass, "static_room_lights")
+  assert.equal(baseline.effects.applied.shadowPass, "static_corner_shadows")
+  assert.equal(baseline.effects.applied.selectionOutlines, "zone_renderer")
+  assert.equal(baseline.effects.applied.hoverOutlines, "zone_renderer")
+  assert.equal(baseline.effects.applied.tenantLighting, "day")
+  assert.ok(
+    baseline.effects.objectCounts.ambientShapes >= 1,
+    "Expected static ambient effect geometry.",
+  )
+  assert.ok(
+    baseline.effects.objectCounts.lightShapes >= 1,
+    "Expected static light pass geometry.",
+  )
+  assert.ok(
+    baseline.effects.objectCounts.shadowShapes >= 1,
+    "Expected static shadow pass geometry.",
+  )
+  if (baseline.effects.capability.filtersAvailable) {
+    assert.ok(
+      baseline.effects.applied.webglFilters.includes("camera_color_matrix"),
+      "Expected low-cost camera color-matrix filter when Phaser filters are available.",
+    )
+  }
+
+  const cadence = await measureFrameCadence(page)
+  assert.ok(
+    cadence.averageMs < 50,
+    `Expected effects average frame cadence below collapse threshold, got ${cadence.averageMs}ms.`,
+  )
+  assert.ok(
+    cadence.p95Ms < 90,
+    `Expected effects p95 frame cadence below collapse threshold, got ${cadence.p95Ms}ms.`,
+  )
+  assert.ok(
+    cadence.maxMs < 250,
+    `Expected effects max frame cadence below collapse threshold, got ${cadence.maxMs}ms.`,
+  )
+
+  await page.evaluate(async () => {
+    if (!window.__aedventureRendererTest?.setRendererEffects) {
+      throw new Error("Missing renderer effects test API.")
+    }
+
+    await window.__aedventureRendererTest.setRendererEffects({
+      lowCapabilityOverride: true,
+    })
+  })
+  const lowCapability = await waitForTextState(
+    page,
+    (state) =>
+      state.effects.enabled === false &&
+      state.effects.disabledReason === "low_capability" &&
+      state.effects.capability.lowCapability === true,
+  )
+  assert.equal(lowCapability.effects.objectCounts.ambientShapes, 0)
+  assert.deepEqual(lowCapability.effects.applied.webglFilters, [])
+  await assertNonBlankMapScreenshot(page)
+
+  await page.evaluate(async () => {
+    await window.__aedventureRendererTest.setRendererEffects({
+      lowCapabilityOverride: false,
+      enabled: true,
+      quality: "auto",
+      tenantLighting: "night",
+    })
+  })
+  const night = await waitForTextState(
+    page,
+    (state) =>
+      state.effects.enabled === true &&
+      state.effects.applied.tenantLighting === "night" &&
+      state.renderer.effects.applied.tenantLighting === "night",
+  )
+  assert.equal(night.effects.deterministic, true)
+  await assertNonBlankMapScreenshot(page)
+
+  await page.evaluate(async () => {
+    await window.__aedventureRendererTest.setRendererEffects({
+      tenantLighting: "day",
+    })
+  })
+  await waitForTextState(
+    page,
+    (state) =>
+      state.effects.enabled === true &&
+      state.effects.applied.tenantLighting === "day",
+  )
+}
+
+async function measureFrameCadence(page) {
+  return page.evaluate(async () => {
     const samples = []
     let last
 
@@ -873,19 +1014,6 @@ async function assertLargeGpuMapSmoke(page) {
       window.requestAnimationFrame(step)
     })
   })
-
-  assert.ok(
-    cadence.averageMs < 50,
-    `Expected large GPU map average frame cadence below collapse threshold, got ${cadence.averageMs}ms.`,
-  )
-  assert.ok(
-    cadence.p95Ms < 90,
-    `Expected large GPU map p95 frame cadence below collapse threshold, got ${cadence.p95Ms}ms.`,
-  )
-  assert.ok(
-    cadence.maxMs < 250,
-    `Expected large GPU map max frame cadence below collapse threshold, got ${cadence.maxMs}ms.`,
-  )
 }
 
 async function assertAvatarSystemSmoke(page) {

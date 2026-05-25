@@ -19,6 +19,7 @@ export const CAMERA_FOLLOW_LERP = 0.16
 export const CAMERA_DEADZONE_WIDTH = 120
 export const CAMERA_DEADZONE_HEIGHT = 92
 export const FURNITURE_DEPTH_BASE = 900
+export const EFFECTS_AMBIENT_DEPTH = 30
 export const ZONE_DEPTH = 760
 export const ZONE_LABEL_DEPTH = 765
 export const OBJECT_TEXTURE_PREFIX = "semantic-fixture-object"

@@ -8,6 +8,8 @@ export type {
   RendererCameraMode,
   RendererCameraState,
   RendererCapabilityInfo,
+  RendererEffectsInfo,
+  RendererEffectsOptions,
   RendererViewportState,
   RendererZoneInteractionState,
   RendererZonePresentationInfo,

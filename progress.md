@@ -420,3 +420,18 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
 - Verification passed: `npm run check`, explicit `npm run smoke:frontend`, and
   `npm run qa:responsive`. Desktop and mobile responsive screenshots were
   visually inspected after the migration.
+- Phaser 4 Effects Layer phase is applied. The renderer now has a dedicated
+  visual-only effects subsystem for WebGL-gated camera color grading, static
+  ambient tinting, room light ellipses, corner shadows, and tenant lighting
+  modes. Zone hover/selection outlines remain owned by the zone renderer, and
+  no effects state feeds movement, collision, permissions, or media authority.
+- Effects degrade cleanly: low-capability or forced-off modes destroy camera
+  filters and effect geometry, while `render_game_to_text` reports enabled
+  state, requested quality, tenant lighting, capability flags, applied passes,
+  and deterministic/static animation mode.
+- Verification passed: `npm --workspace @aedventure/web run build`,
+  `npm run smoke:frontend`, `npm run qa:responsive`, `npm run check`, and
+  `git diff --check`. The frontend smoke now covers normal effects, forced
+  low-capability disable, night lighting re-enable, nonblank screenshots, and
+  frame cadence thresholds. Representative desktop and narrow-mobile QA
+  screenshots were visually inspected.

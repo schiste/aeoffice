@@ -8,6 +8,7 @@ import { AvatarRenderer } from "./avatar-renderer"
 import { CameraController } from "./camera-controller"
 import { depthInfo, emptyDepthInfo } from "./depth"
 import { DepthDebugOverlay } from "./depth-debug-overlay"
+import { EffectsLayer } from "./effects-layer"
 import { TilemapRenderer } from "./tilemap-renderer"
 import { ObjectRenderer } from "./object-renderer"
 import {
@@ -26,6 +27,8 @@ import type {
   RendererCameraMode,
   RendererCameraState,
   RendererDepthInfo,
+  RendererEffectsInfo,
+  RendererEffectsOptions,
   RendererTilemapInfo,
   RendererViewportState,
   RendererZoneInteractionState,
@@ -39,6 +42,7 @@ export class OfficeScene extends Phaser.Scene {
   private readonly tilemapRenderer: TilemapRenderer
   private readonly objectRenderer: ObjectRenderer
   private readonly zoneRenderer: ZoneRenderer
+  private readonly effectsLayer: EffectsLayer
   private readonly depthDebugOverlay: DepthDebugOverlay
   private readonly telemetry = new RendererTelemetry()
   private readonly atlasPromise = loadInternalOfficeAtlas()
@@ -55,6 +59,7 @@ export class OfficeScene extends Phaser.Scene {
     this.tilemapRenderer = new TilemapRenderer(this)
     this.objectRenderer = new ObjectRenderer(this)
     this.zoneRenderer = new ZoneRenderer(this)
+    this.effectsLayer = new EffectsLayer(this)
     this.depthDebugOverlay = new DepthDebugOverlay(this)
     this.rendererDepthInfo = emptyDepthInfo(this.depthDebugOverlay.isEnabled())
   }
@@ -77,6 +82,7 @@ export class OfficeScene extends Phaser.Scene {
     this.avatarRenderer.clear()
     this.cameraController.clearFollow()
     this.zoneRenderer.clear()
+    this.effectsLayer.clear()
     this.depthDebugOverlay.clear()
     this.children.removeAll(true)
     this.depthDebugOverlay.releaseDisplayObjects()
@@ -135,6 +141,10 @@ export class OfficeScene extends Phaser.Scene {
       10,
     )
     this.tilemapInfo = tilemapInfoFromLayers([floorLayerInfo, wallLayerInfo])
+    this.effectsLayer.renderFixtureMap(fixtureMap, {
+      width: widthInPixels,
+      height: heightInPixels,
+    })
     const furnitureDepthInfo = this.objectRenderer.paintObjectSprites(
       fixtureMap.compiled.layers.objects,
       fixtureMap.catalog.tokens,
@@ -202,6 +212,10 @@ export class OfficeScene extends Phaser.Scene {
     this.zoneRenderer.setDebugOverlayEnabled(enabled)
   }
 
+  setEffectsOptions(options: RendererEffectsOptions): void {
+    this.effectsLayer.setOptions(options)
+  }
+
   triggerAvatarEmote(playerId: string, emoteId: AvatarEmoteId): void {
     this.avatarRenderer.triggerEmote(playerId, emoteId)
   }
@@ -216,6 +230,10 @@ export class OfficeScene extends Phaser.Scene {
 
   getZoneInfo(): RendererZonePresentationInfo {
     return this.zoneRenderer.getZoneInfo()
+  }
+
+  getEffectsInfo(): RendererEffectsInfo {
+    return this.effectsLayer.getInfo()
   }
 
   getCameraState(): RendererCameraState {
