@@ -65,11 +65,24 @@ export interface RenderedPlayer {
   readonly playerId: string
   readonly name: string
   readonly avatarId?: string
+  readonly cosmetics?: Partial<Record<AvatarCosmeticSlot, string>>
+  readonly emoteId?: AvatarEmoteId
   readonly position: Vector2
   readonly direction: Direction
   readonly local: boolean
   readonly rejected?: boolean
 }
+
+export type AvatarAnimationAction = "idle" | "walk"
+
+export type AvatarEmoteId = "wave" | "raise_hand" | "focus"
+
+export type AvatarCosmeticSlot =
+  | "hair"
+  | "face"
+  | "torso"
+  | "accessory"
+  | "badge"
 
 export interface RendererViewportState {
   readonly viewportWidth: number
@@ -177,6 +190,7 @@ export interface RendererDepthPlayerInfo {
   readonly depth: number
   readonly zAnchor: Vector2
   readonly labelBounds: RendererDepthPlacementBounds
+  readonly labelVisible: boolean
 }
 
 export interface RendererDepthInfo {
@@ -200,6 +214,43 @@ export interface RendererAssetPipelineInfo {
   readonly fallbackTokenIds: readonly string[]
   readonly exportScale?: number
   readonly retinaStrategy?: string
+}
+
+export interface RendererAvatarAnimationInfo {
+  readonly key: string
+  readonly action: AvatarAnimationAction
+  readonly direction: Direction
+  readonly durationMs: number
+}
+
+export interface RendererAvatarPlayerInfo {
+  readonly playerId: string
+  readonly name: string
+  readonly avatarId: string
+  readonly local: boolean
+  readonly direction: Direction
+  readonly currentPosition: Vector2
+  readonly targetPosition: Vector2
+  readonly animation: RendererAvatarAnimationInfo
+  readonly interpolationProfile: "local" | "remote"
+  readonly interpolationActive: boolean
+  readonly labelVisible: boolean
+  readonly labelVisibilityReason: "visible" | "overlap_suppressed"
+  readonly labelBounds: RendererDepthPlacementBounds
+  readonly emoteId?: AvatarEmoteId
+  readonly cosmeticSlots: readonly AvatarCosmeticSlot[]
+  readonly cosmetics: Partial<Record<AvatarCosmeticSlot, string>>
+}
+
+export interface RendererAvatarInfo {
+  readonly source: "renderer_runtime"
+  readonly availableAvatarIds: readonly string[]
+  readonly animationKeys: readonly string[]
+  readonly animationCount: number
+  readonly emoteIds: readonly AvatarEmoteId[]
+  readonly interpolationProfiles: readonly ("local" | "remote")[]
+  readonly cosmeticSlots: readonly AvatarCosmeticSlot[]
+  readonly players: readonly RendererAvatarPlayerInfo[]
 }
 
 export interface RendererCapabilityInfo {

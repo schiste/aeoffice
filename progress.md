@@ -87,6 +87,14 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   assertions. The standalone develop-web-game client is still blocked because
   its skill script cannot resolve its own `playwright` package, while the repo
   Playwright smoke/QA scripts run successfully.
+- Phase 7 avatar system is implemented: avatar appearance, animation,
+  interpolation, emote, and cosmetic-slot metadata now lives in a renderer
+  registry; Phaser avatar drawing consumes that registry and exposes avatar
+  telemetry through `window.render_game_to_text`.
+- The frontend smoke now renders a four-avatar fixture, checks directional
+  idle/walk animation keys, readable labels, emote hooks, local/remote
+  interpolation profiles, and future cosmetic slots. `npm run build`,
+  `npm run smoke:frontend`, `npm run qa:responsive`, and `npm run check` passed.
 - Meeting-zone interactions now use the compiled map zones in the browser app:
   the Phaser renderer highlights the active zone, the app exposes Join/Leave
   meeting controls outside the canvas, and media is no longer auto-joined when

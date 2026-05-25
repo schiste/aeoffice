@@ -19,7 +19,9 @@ import { TILESET_KEY, TILESET_NAME } from "./constants"
 import { ZoneRenderer } from "./zone-renderer"
 import type {
   FixtureMap,
+  AvatarEmoteId,
   RenderedPlayer,
+  RendererAvatarInfo,
   RendererAssetPipelineInfo,
   RendererCameraMode,
   RendererCameraState,
@@ -190,8 +192,16 @@ export class OfficeScene extends Phaser.Scene {
     this.zoneRenderer.setActiveZones(zoneIds)
   }
 
+  triggerAvatarEmote(playerId: string, emoteId: AvatarEmoteId): void {
+    this.avatarRenderer.triggerEmote(playerId, emoteId)
+  }
+
   getViewportState(): RendererViewportState {
     return this.cameraController.getViewportState()
+  }
+
+  getAvatarInfo(): RendererAvatarInfo {
+    return this.avatarRenderer.getAvatarInfo()
   }
 
   getCameraState(): RendererCameraState {

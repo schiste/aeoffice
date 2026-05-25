@@ -301,6 +301,7 @@ async function main() {
     assertRendererCapabilities(recovered)
     await assertWebGLContextRecovery(page)
     await assertLargeGpuMapSmoke(page)
+    await assertAvatarSystemSmoke(page)
     await assertDepthSortingSmoke(page)
 
     assert.deepEqual(consoleErrors, [])
@@ -378,6 +379,19 @@ function assertRenderStateContract(state) {
   assert.ok(
     Array.isArray(state.renderer?.depth?.players),
     "Expected renderer.depth.players in render_game_to_text.",
+  )
+  assert.equal(state.avatars?.source, "renderer_runtime")
+  assert.ok(
+    Array.isArray(state.avatars?.availableAvatarIds),
+    "Expected avatars.availableAvatarIds in render_game_to_text.",
+  )
+  assert.ok(
+    Array.isArray(state.avatars?.animationKeys),
+    "Expected avatars.animationKeys in render_game_to_text.",
+  )
+  assert.ok(
+    Array.isArray(state.avatars?.players),
+    "Expected avatars.players in render_game_to_text.",
   )
   assertCameraStateContract(state)
 }
@@ -850,6 +864,126 @@ async function assertLargeGpuMapSmoke(page) {
   assert.ok(
     cadence.maxMs < 250,
     `Expected large GPU map max frame cadence below collapse threshold, got ${cadence.maxMs}ms.`,
+  )
+}
+
+async function assertAvatarSystemSmoke(page) {
+  const fixture = await page.evaluate(async () => {
+    if (!window.__aedventureRendererTest?.renderAvatarFixtureCase) {
+      throw new Error("Missing renderer avatar test API.")
+    }
+
+    return window.__aedventureRendererTest.renderAvatarFixtureCase()
+  })
+  await page.evaluate(() => window.advanceTime())
+
+  const avatarState = await waitForTextState(
+    page,
+    (state) =>
+      state.map?.label === "Avatar fixture" &&
+      state.avatars.players.length === 4 &&
+      state.avatars.players.every((player) => player.labelVisible),
+    9000,
+  )
+
+  assert.deepEqual(avatarState.avatars.availableAvatarIds, [
+    "ember",
+    "cobalt",
+    "moss",
+    "violet",
+  ])
+  assert.equal(avatarState.avatars.animationCount, 32)
+  assert.deepEqual(avatarState.avatars.interpolationProfiles, ["local", "remote"])
+  assert.deepEqual(avatarState.avatars.emoteIds, ["wave", "raise_hand", "focus"])
+  assert.deepEqual(fixture.avatarIds, ["ember", "cobalt", "moss", "violet"])
+  assert.deepEqual(fixture.directions, ["down", "right", "left", "up"])
+  assert.ok(
+    avatarState.avatars.cosmeticSlots.includes("accessory"),
+    "Expected future cosmetic slots in avatar registry.",
+  )
+
+  const playersByAvatar = new Map(
+    avatarState.avatars.players.map((player) => [player.avatarId, player]),
+  )
+  for (const avatarId of fixture.avatarIds) {
+    const player = playersByAvatar.get(avatarId)
+    assert.ok(player, `Expected ${avatarId} avatar render state.`)
+    assert.equal(player.labelVisible, true)
+    assert.equal(player.labelVisibilityReason, "visible")
+    assert.equal(player.animation.action, "idle")
+    assert.match(player.animation.key, new RegExp(`^${avatarId}_idle_`))
+    assert.ok(player.labelBounds.width >= 48)
+  }
+
+  const localAvatar = avatarState.avatars.players.find((player) => player.local)
+  const remoteAvatar = avatarState.avatars.players.find(
+    (player) => player.playerId === "avatar-cobalt",
+  )
+  assert.equal(localAvatar.interpolationProfile, "local")
+  assert.equal(remoteAvatar.interpolationProfile, "remote")
+  assert.equal(remoteAvatar.emoteId, "wave")
+  await assertNonBlankMapScreenshot(page)
+
+  await page.evaluate(async () => {
+    if (!window.__aedventureRendererTest?.moveAvatarFixturePlayer) {
+      throw new Error("Missing avatar movement test API.")
+    }
+
+    await window.__aedventureRendererTest.moveAvatarFixturePlayer(
+      "avatar-cobalt",
+      { x: 288, y: 192 },
+      "down",
+    )
+  })
+  const moving = await waitForTextState(
+    page,
+    (state) => {
+      const remote = state.avatars.players.find(
+        (player) => player.playerId === "avatar-cobalt",
+      )
+
+      return (
+        remote?.interpolationProfile === "remote" &&
+        remote?.animation.action === "walk" &&
+        remote?.interpolationActive === true
+      )
+    },
+  )
+  assert.equal(
+    moving.avatars.players.find((player) => player.playerId === "avatar-cobalt")
+      .labelVisible,
+    true,
+  )
+
+  await waitForTextState(
+    page,
+    (state) => {
+      const remote = state.avatars.players.find(
+        (player) => player.playerId === "avatar-cobalt",
+      )
+
+      return remote?.interpolationActive === false &&
+        remote?.targetPosition.x === 288 &&
+        remote?.targetPosition.y === 192
+    },
+    9000,
+  )
+
+  await page.evaluate(async () => {
+    if (!window.__aedventureRendererTest?.triggerAvatarEmote) {
+      throw new Error("Missing avatar emote test API.")
+    }
+
+    await window.__aedventureRendererTest.triggerAvatarEmote(
+      "avatar-violet",
+      "raise_hand",
+    )
+  })
+  await waitForTextState(
+    page,
+    (state) =>
+      state.avatars.players.find((player) => player.playerId === "avatar-violet")
+        ?.emoteId === "raise_hand",
   )
 }
 

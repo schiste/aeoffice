@@ -1,5 +1,6 @@
 import {
   PhaserOfficeRenderer,
+  type AvatarEmoteId,
   type RenderedPlayer,
   type RendererCameraState,
   type RendererZoomPresetId,
@@ -232,6 +233,12 @@ interface DepthFixtureCaseResult {
   readonly sampleViewport: Vector2
   readonly playerPosition: Vector2
   readonly occluderTokenId: string
+}
+
+interface AvatarFixtureResult {
+  readonly playerIds: readonly string[]
+  readonly avatarIds: readonly AvatarId[]
+  readonly directions: readonly Direction[]
 }
 
 type MediaTokenResponse =
@@ -1253,6 +1260,7 @@ async function renderDepthFixtureCaseForSmoke(
   state.players.clear()
   seedLocalRenderedPlayer()
   renderPlayers()
+  renderer.setCameraMode("fit_room")
   await renderer.advanceTime()
 
   return {
@@ -1263,6 +1271,96 @@ async function renderDepthFixtureCaseForSmoke(
     playerPosition: depthCase.playerPosition,
     occluderTokenId: depthCase.occluderTokenId,
   }
+}
+
+async function renderAvatarFixtureCaseForSmoke(): Promise<AvatarFixtureResult> {
+  const fixtureMap = avatarFixtureMap()
+  const players: readonly RenderedPlayer[] = [
+    {
+      playerId: "avatar-ember",
+      name: "Ember Ada",
+      avatarId: "ember",
+      position: tileCenter(3, 3, fixtureMap.compiled.tileSize),
+      direction: "down",
+      local: true,
+    },
+    {
+      playerId: "avatar-cobalt",
+      name: "Cobalt Grace",
+      avatarId: "cobalt",
+      position: tileCenter(6, 3, fixtureMap.compiled.tileSize),
+      direction: "right",
+      local: false,
+      emoteId: "wave",
+    },
+    {
+      playerId: "avatar-moss",
+      name: "Moss Lin",
+      avatarId: "moss",
+      position: tileCenter(3, 6, fixtureMap.compiled.tileSize),
+      direction: "left",
+      local: false,
+    },
+    {
+      playerId: "avatar-violet",
+      name: "Violet Kim",
+      avatarId: "violet",
+      position: tileCenter(6, 6, fixtureMap.compiled.tileSize),
+      direction: "up",
+      local: false,
+    },
+  ]
+
+  await configureDevWorldGeometry(fixtureMap)
+  applyFixtureMap(fixtureMap, {
+    source: "generated",
+    mapId: "generated",
+    label: "Avatar fixture",
+    prompt: "Renderer avatar system fixture",
+    keywords: ["renderer", "avatar"],
+    validation: {
+      valid: true,
+      errors: [],
+      blockedTileCount: fixtureMap.compiled.blockedTiles.length,
+      spawnCount: fixtureMap.spawnPoints.length,
+      zoneCount: 0,
+      spawnIds: fixtureMap.spawnPoints.map((spawn) => spawn.id),
+      zoneIds: [],
+    },
+  })
+  state.joined = true
+  state.position = players[0].position
+  state.direction = players[0].direction
+  state.profile.avatarId = "ember"
+  state.profile.displayName = "Ember Ada"
+  state.players.clear()
+  players.forEach((player) => state.players.set(player.playerId, player))
+  renderPlayers()
+  await renderer.advanceTime()
+
+  return {
+    playerIds: players.map((player) => player.playerId),
+    avatarIds: players.map((player) => player.avatarId as AvatarId),
+    directions: players.map((player) => player.direction),
+  }
+}
+
+async function moveAvatarFixturePlayerForSmoke(
+  playerId: string,
+  position: Vector2,
+  direction: Direction,
+): Promise<void> {
+  const player = state.players.get(playerId)
+  if (!player) throw new Error(`Missing avatar fixture player ${playerId}.`)
+
+  state.players.set(playerId, {
+    ...player,
+    position,
+    direction,
+    emoteId: undefined,
+  })
+  renderPlayers()
+  await renderer.advanceTime()
 }
 
 function depthFixtureCase(caseId: DepthFixtureCaseId): {
@@ -1280,7 +1378,7 @@ function depthFixtureCase(caseId: DepthFixtureCaseId): {
   const sample =
     caseId === "table_player_front"
       ? { x: 144, y: 158 }
-      : { x: 144, y: 150 }
+      : { x: 144, y: 144 }
   const occluderTokenId = tableCase
     ? "item.large_conference_table"
     : "wall.wood.straight"
@@ -1295,6 +1393,62 @@ function depthFixtureCase(caseId: DepthFixtureCaseId): {
     sample,
     playerPosition,
     occluderTokenId,
+  }
+}
+
+function avatarFixtureMap(): FixtureMap {
+  const width = 12
+  const height = 10
+  const tileSize = starterVisualAssetCatalog.tileSize
+  const floorToken = visualTokenById("floor.wood_parquet")
+  const wallToken = visualTokenById("wall.neutral.straight")
+  const cornerToken = visualTokenById("wall.neutral.corner")
+  const floor = gridOf(width, height, floorToken.provisionalGid)
+  const walls = gridOf(width, height, 0)
+  const objects = gridOf(width, height, 0)
+  const blockedTiles: Vector2[] = []
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const edge = x === 0 || y === 0 || x === width - 1 || y === height - 1
+      if (!edge) continue
+
+      const corner =
+        (x === 0 || x === width - 1) && (y === 0 || y === height - 1)
+      walls[y][x] = corner ? cornerToken.provisionalGid : wallToken.provisionalGid
+      blockedTiles.push({ x, y })
+    }
+  }
+
+  return {
+    definition: {
+      style: "cozy_wood",
+    },
+    compiled: {
+      width,
+      height,
+      tileSize,
+      blockedTiles,
+      layers: {
+        floor: { gids: floor },
+        walls: { gids: walls },
+        objects: { gids: objects },
+      },
+      zones: [],
+    },
+    spawnPoints: [
+      {
+        id: "default",
+        position: tileCenter(3, 3, tileSize),
+      },
+      {
+        id: "guest",
+        position: tileCenter(6, 3, tileSize),
+      },
+    ],
+    catalog: {
+      tokens: [floorToken, wallToken, cornerToken],
+    },
   }
 }
 
@@ -2701,6 +2855,7 @@ function renderDemoToText(): string {
       y: Math.round(player.position.y),
       direction: player.direction,
       local: player.local,
+      emoteId: player.emoteId,
     })),
     snapshotPlayerIds: state.snapshotPlayerIds,
     movement: {
@@ -2751,6 +2906,7 @@ function renderDemoToText(): string {
       })),
     },
     renderer: renderer.getCapabilityInfo(),
+    avatars: renderer.getAvatarInfo(),
     camera: renderer.getCameraState(),
     viewport: renderer.getViewportState(),
     map: state.fixtureMap
@@ -2830,6 +2986,16 @@ declare global {
       renderDepthFixtureCase: (
         caseId: DepthFixtureCaseId,
       ) => Promise<DepthFixtureCaseResult>
+      renderAvatarFixtureCase: () => Promise<AvatarFixtureResult>
+      moveAvatarFixturePlayer: (
+        playerId: string,
+        position: Vector2,
+        direction: Direction,
+      ) => Promise<void>
+      triggerAvatarEmote: (
+        playerId: string,
+        emoteId: AvatarEmoteId,
+      ) => Promise<void>
     }
   }
 }
@@ -2844,6 +3010,12 @@ if (localAutomationHost()) {
   window.__aedventureRendererTest = {
     renderLargeStaticMap: renderLargeStaticMapForSmoke,
     renderDepthFixtureCase: renderDepthFixtureCaseForSmoke,
+    renderAvatarFixtureCase: renderAvatarFixtureCaseForSmoke,
+    moveAvatarFixturePlayer: moveAvatarFixturePlayerForSmoke,
+    triggerAvatarEmote: async (playerId, emoteId) => {
+      renderer.triggerAvatarEmote(playerId, emoteId)
+      await renderer.advanceTime()
+    },
   }
 }
 

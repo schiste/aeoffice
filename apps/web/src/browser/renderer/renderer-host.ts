@@ -19,8 +19,10 @@ import {
 import { clamp } from "./math"
 import { OfficeScene } from "./office-scene"
 import type {
+  AvatarEmoteId,
   FixtureMap,
   RenderedPlayer,
+  RendererAvatarInfo,
   RendererCameraMode,
   RendererCameraState,
   RendererCapabilityInfo,
@@ -140,6 +142,14 @@ export class PhaserOfficeRenderer {
     const state = this.getCameraState()
     this.zoomFactor = state.zoomFactor
     return state
+  }
+
+  triggerAvatarEmote(playerId: string, emoteId: AvatarEmoteId): void {
+    this.scene.triggerAvatarEmote(playerId, emoteId)
+  }
+
+  getAvatarInfo(): RendererAvatarInfo {
+    return this.scene.getAvatarInfo()
   }
 
   projectWorldToViewport(point: { readonly x: number; readonly y: number }): {

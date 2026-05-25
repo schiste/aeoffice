@@ -1,6 +1,21 @@
 import Phaser from "phaser"
 
 import {
+  avatarAnimationDefinition,
+  avatarAnimationKeys,
+  avatarAppearance,
+  avatarEmoteDefinition,
+  avatarInterpolationProfile,
+  AVATAR_COSMETIC_SLOTS,
+  AVATAR_EMOTE_IDS,
+  AVATAR_IDS,
+  fallbackAvatarId,
+  resolveAvatarId,
+  type AvatarAnimationDefinition,
+  type AvatarAppearanceMetadata,
+  type AvatarInterpolationProfile,
+} from "./avatar-registry"
+import {
   AVATAR_HEIGHT,
   AVATAR_WIDTH,
   RENDERER_VERTEX_ROUND_MODE,
@@ -8,58 +23,17 @@ import {
 import { avatarDepth } from "./depth"
 import { clamp } from "./math"
 import type {
+  AvatarAnimationAction,
+  AvatarCosmeticSlot,
+  AvatarEmoteId,
   Direction,
   RenderedPlayer,
+  RendererAvatarInfo,
+  RendererAvatarPlayerInfo,
+  RendererDepthPlacementBounds,
   RendererDepthPlayerInfo,
   Vector2,
 } from "./types"
-
-const AVATAR_STYLES: Record<
-  string,
-  {
-    readonly torso: number
-    readonly torsoDark: number
-    readonly head: number
-    readonly accent: number
-    readonly hair: number
-  }
-> = {
-  ember: {
-    torso: 0xc45b40,
-    torsoDark: 0x873727,
-    head: 0xffd3a3,
-    accent: 0xf6a04f,
-    hair: 0x5a3323,
-  },
-  cobalt: {
-    torso: 0x316f9f,
-    torsoDark: 0x1d4260,
-    head: 0xf0c7a1,
-    accent: 0x9dc7e4,
-    hair: 0x273748,
-  },
-  moss: {
-    torso: 0x3c8759,
-    torsoDark: 0x24543a,
-    head: 0xd7b38e,
-    accent: 0xa7d18f,
-    hair: 0x473522,
-  },
-  violet: {
-    torso: 0x755aa5,
-    torsoDark: 0x49336f,
-    head: 0xe0b995,
-    accent: 0xc8b4f2,
-    hair: 0x332444,
-  },
-  companion: {
-    torso: 0x316f9f,
-    torsoDark: 0x1d4260,
-    head: 0xf0c7a1,
-    accent: 0x9dc7e4,
-    hair: 0x273748,
-  },
-}
 
 export interface AvatarFollowTarget {
   readonly playerId: string
@@ -105,6 +79,7 @@ export class AvatarRenderer {
       }
     })
 
+    this.applyLabelLayout()
     this.depthPlayers = players.map((player) =>
       rendererDepthPlayerInfo(player, this.avatars.get(player.playerId)),
     )
@@ -112,8 +87,49 @@ export class AvatarRenderer {
     return localAvatar
   }
 
+  triggerEmote(playerId: string, emoteId: AvatarEmoteId): void {
+    this.avatars.get(playerId)?.playEmote(emoteId)
+  }
+
   getDepthInfo(): readonly RendererDepthPlayerInfo[] {
     return this.depthPlayers
+  }
+
+  getAvatarInfo(): RendererAvatarInfo {
+    return {
+      source: "renderer_runtime",
+      availableAvatarIds: AVATAR_IDS,
+      animationKeys: avatarAnimationKeys(),
+      animationCount: avatarAnimationKeys().length,
+      emoteIds: AVATAR_EMOTE_IDS,
+      interpolationProfiles: ["local", "remote"],
+      cosmeticSlots: AVATAR_COSMETIC_SLOTS,
+      players: [...this.avatars.values()].map((avatar) => avatar.info()),
+    }
+  }
+
+  private applyLabelLayout(): void {
+    const acceptedLabels: RendererDepthPlacementBounds[] = []
+    const orderedAvatars = [...this.avatars.values()].sort((first, second) => {
+      if (first.local !== second.local) return first.local ? -1 : 1
+      return first.targetPosition.y - second.targetPosition.y
+    })
+
+    orderedAvatars.forEach((avatar) => {
+      const bounds = avatar.currentLabelBounds()
+      const overlaps = acceptedLabels.some((accepted) =>
+        rectanglesOverlap(bounds, accepted, 6),
+      )
+      const visible = avatar.local || !overlaps
+
+      avatar.setLabelVisibility(
+        visible,
+        visible ? "visible" : "overlap_suppressed",
+      )
+      if (visible) {
+        acceptedLabels.push(bounds)
+      }
+    })
   }
 }
 
@@ -121,7 +137,7 @@ function rendererDepthPlayerInfo(
   player: RenderedPlayer,
   avatar: AvatarView | undefined,
 ): RendererDepthPlayerInfo {
-  const labelWidth = avatar?.labelWidth ?? Math.max(44, player.name.length * 7 + 14)
+  const labelBounds = avatar?.currentLabelBounds() ?? fallbackLabelBounds(player)
 
   return {
     playerId: player.playerId,
@@ -129,12 +145,19 @@ function rendererDepthPlayerInfo(
     local: player.local,
     depth: avatarDepth(player.position.y),
     zAnchor: player.position,
-    labelBounds: {
-      x: player.position.x - labelWidth / 2,
-      y: player.position.y - 40,
-      width: labelWidth,
-      height: 24,
-    },
+    labelBounds,
+    labelVisible: avatar?.labelVisible ?? true,
+  }
+}
+
+function fallbackLabelBounds(player: RenderedPlayer): RendererDepthPlacementBounds {
+  const labelWidth = Math.max(44, player.name.length * 7 + 14)
+
+  return {
+    x: player.position.x - labelWidth / 2,
+    y: player.position.y - 42,
+    width: labelWidth,
+    height: 20,
   }
 }
 
@@ -152,43 +175,73 @@ class AvatarView {
   private readonly labelBack: Phaser.GameObjects.Rectangle
   private readonly labelTail: Phaser.GameObjects.Triangle
   private readonly label: Phaser.GameObjects.Text
+  private readonly emoteBack: Phaser.GameObjects.Ellipse
+  private readonly emoteText: Phaser.GameObjects.Text
   private idleTween?: Phaser.Tweens.Tween
   private walkTween?: Phaser.Tweens.Tween
   private footTween?: Phaser.Tweens.Tween
   private positionTween?: Phaser.Tweens.Tween
   private rejectionTween?: Phaser.Tweens.Tween
+  private emoteTween?: Phaser.Tweens.Tween
   private lastPosition: Vector2
   private lastDirection: Direction
   private avatarId: string
-  private local: boolean
+  private appearance: AvatarAppearanceMetadata
+  private animation: AvatarAnimationDefinition
+  private interpolationProfile: AvatarInterpolationProfile
+  private currentEmoteId?: AvatarEmoteId
+  private cosmetics: Partial<Record<AvatarCosmeticSlot, string>> = {}
+  private labelReason: RendererAvatarPlayerInfo["labelVisibilityReason"] =
+    "visible"
+  private labelIsVisible = true
 
-  get labelWidth(): number {
-    return this.label.width + 14
+  get local(): boolean {
+    return this.playerLocal
+  }
+
+  get targetPosition(): Vector2 {
+    return this.lastPosition
+  }
+
+  get labelVisible(): boolean {
+    return this.labelIsVisible
+  }
+
+  private get labelWidth(): number {
+    return clamp(this.label.width + 14, 48, 132)
   }
 
   constructor(
     private readonly scene: Phaser.Scene,
     player: RenderedPlayer,
+    private playerLocal = player.local,
   ) {
-    this.local = player.local
-    this.avatarId = player.avatarId ?? fallbackAvatarId(player)
+    this.avatarId = resolveAvatarId(player.avatarId ?? fallbackAvatarId(player))
+    this.appearance = avatarAppearance(this.avatarId)
+    this.animation = avatarAnimationDefinition(
+      this.avatarId,
+      player.direction,
+      "idle",
+    )
+    this.interpolationProfile = avatarInterpolationProfile(player.local)
     this.lastPosition = player.position
     this.lastDirection = player.direction
+    this.cosmetics = player.cosmetics ?? {}
     this.focusTarget = scene.add.container(player.position.x, player.position.y)
     this.cameraTarget = scene.add.zone(player.position.x, player.position.y, 2, 2)
     this.focusTarget.setName(`avatar:${player.playerId}`)
     this.focusTarget.setVertexRoundMode(RENDERER_VERTEX_ROUND_MODE)
     this.cameraTarget.setName(`camera-anchor:${player.playerId}`)
-    const style = avatarStyle(this.avatarId)
 
+    const palette = this.appearance.palette
     this.shadow = scene.add.ellipse(0, 15, 20, 7, 0x20201d, 0.18)
-    this.leftFoot = scene.add.ellipse(-5, 12, 7, 5, style.torsoDark, 1)
-    this.rightFoot = scene.add.ellipse(5, 12, 7, 5, style.torsoDark, 1)
-    this.torso = scene.add.ellipse(0, 2, AVATAR_WIDTH, AVATAR_HEIGHT, style.torso, 1)
-    this.torso.setStrokeStyle(1, style.torsoDark, 0.55)
-    this.head = scene.add.ellipse(0, -10, 13, 13, style.head, 1)
-    this.hair = scene.add.ellipse(0, -14, 12, 6, style.hair, 1)
-    this.facing = scene.add.triangle(0, -9, 0, -4, 4, 3, -4, 3, style.accent, 0.86)
+    this.leftFoot = scene.add.ellipse(-5, 12, 7, 5, palette.torsoDark, 1)
+    this.rightFoot = scene.add.ellipse(5, 12, 7, 5, palette.torsoDark, 1)
+    this.torso = scene.add.ellipse(0, 2, AVATAR_WIDTH, AVATAR_HEIGHT, palette.torso, 1)
+    this.torso.setStrokeStyle(1, palette.torsoDark, 0.55)
+    this.head = scene.add.ellipse(0, -10, 13, 13, palette.head, 1)
+    this.hair = scene.add.ellipse(0, -14, 12, 6, palette.hair, 1)
+    this.facing = scene.add.triangle(0, -9, 0, -4, 4, 3, -4, 3, palette.accent, 0.86)
     this.label = scene.add.text(0, -31, player.name, {
       color: "#20201d",
       fontFamily: "Aptos, Segoe UI, sans-serif",
@@ -197,36 +250,23 @@ class AvatarView {
       align: "center",
     })
     this.label.setOrigin(0.5, 0.5)
-    this.labelShadow = scene.add.rectangle(
-      1,
-      -29,
-      this.label.width + 14,
-      17,
-      0x20201d,
-      0.16,
-    )
-    this.labelBack = scene.add.rectangle(
-      0,
-      -31,
-      this.label.width + 14,
-      17,
-      0xfffdf7,
-      0.93,
-    )
-    this.labelBack.setStrokeStyle(1, style.torso, 0.65)
-    this.labelTail = scene.add.triangle(
-      0,
-      -21,
-      -4,
-      0,
-      4,
-      0,
-      0,
-      5,
-      0xfffdf7,
-      0.93,
-    )
-    this.labelTail.setStrokeStyle(1, style.torso, 0.55)
+    this.labelShadow = scene.add.rectangle(1, -29, this.labelWidth, 17, 0x20201d, 0.16)
+    this.labelBack = scene.add.rectangle(0, -31, this.labelWidth, 17, 0xfffdf7, 0.93)
+    this.labelBack.setStrokeStyle(1, palette.torso, 0.65)
+    this.labelTail = scene.add.triangle(0, -21, -4, 0, 4, 0, 0, 5, 0xfffdf7, 0.93)
+    this.labelTail.setStrokeStyle(1, palette.torso, 0.55)
+    this.emoteBack = scene.add.ellipse(12, -38, 18, 18, 0xfffdf7, 0.96)
+    this.emoteBack.setStrokeStyle(1, palette.accent, 0.72)
+    this.emoteText = scene.add.text(12, -39, "", {
+      color: "#20201d",
+      fontFamily: "Aptos, Segoe UI, sans-serif",
+      fontSize: "13px",
+      fontStyle: "800",
+      align: "center",
+    })
+    this.emoteText.setOrigin(0.5, 0.5)
+    this.emoteBack.setVisible(false)
+    this.emoteText.setVisible(false)
 
     this.focusTarget.add([
       this.shadow,
@@ -240,8 +280,12 @@ class AvatarView {
       this.labelBack,
       this.labelTail,
       this.label,
+      this.emoteBack,
+      this.emoteText,
     ])
-    this.startIdleTween()
+    this.applyAppearance(this.appearance)
+    this.applyAnimationPose(this.animation)
+    this.startIdleTween(this.animation, player.position)
     this.update(player)
   }
 
@@ -249,43 +293,132 @@ class AvatarView {
     const moved =
       player.position.x !== this.lastPosition.x ||
       player.position.y !== this.lastPosition.y
-    const nextAvatarId = player.avatarId ?? fallbackAvatarId(player)
+    const nextAvatarId = resolveAvatarId(player.avatarId ?? fallbackAvatarId(player))
+    const nextAppearance = avatarAppearance(nextAvatarId)
+    const directionChanged = player.direction !== this.lastDirection
+    const nextAction: AvatarAnimationAction = moved || directionChanged
+      ? "walk"
+      : "idle"
+    const nextAnimation = avatarAnimationDefinition(
+      nextAvatarId,
+      player.direction,
+      nextAction,
+    )
     const identityChanged =
-      player.local !== this.local ||
+      player.local !== this.playerLocal ||
       player.name !== this.label.text ||
       nextAvatarId !== this.avatarId
-    const style = avatarStyle(nextAvatarId)
 
-    this.local = player.local
+    this.playerLocal = player.local
     this.avatarId = nextAvatarId
+    this.appearance = nextAppearance
+    this.animation = nextAnimation
+    this.interpolationProfile = avatarInterpolationProfile(player.local)
+    this.cosmetics = player.cosmetics ?? {}
     this.label.setText(player.name)
-    this.labelShadow.setSize(this.label.width + 14, 17)
-    this.labelBack.setSize(this.label.width + 14, 17)
-    this.labelBack.setStrokeStyle(1, style.torso, 0.65)
-    this.labelTail.setStrokeStyle(1, style.torso, 0.55)
-    this.leftFoot.setFillStyle(style.torsoDark, 1)
-    this.rightFoot.setFillStyle(style.torsoDark, 1)
-    this.torso.setFillStyle(style.torso, 1)
-    this.torso.setStrokeStyle(1, style.torsoDark, 0.55)
-    this.head.setFillStyle(style.head, 1)
-    this.hair.setFillStyle(style.hair, 1)
-    this.facing.setFillStyle(style.accent, 0.86)
+    this.resizeLabel()
+    this.applyAppearance(nextAppearance)
+    this.applyAnimationPose(nextAnimation)
     this.focusTarget.setDepth(avatarDepth(player.position.y))
-    this.setFacing(player.direction)
 
-    if (moved || identityChanged || player.direction !== this.lastDirection) {
-      this.interpolateTo(player.position)
-      this.startWalkTween()
+    if (moved) {
+      this.interpolateTo(player.position, this.interpolationProfile)
+      this.startWalkTween(nextAnimation)
+    } else if (directionChanged || identityChanged) {
+      this.cameraTarget.setPosition(player.position.x, player.position.y)
+      this.startWalkTween(nextAnimation)
     } else if (!this.walkTween?.isPlaying()) {
-      this.startIdleTween()
+      this.startIdleTween(nextAnimation, player.position)
     }
 
     if (player.rejected) {
       this.showRejected(player.direction)
     }
 
+    if (player.emoteId) {
+      this.playEmote(player.emoteId)
+    }
+
     this.lastPosition = player.position
     this.lastDirection = player.direction
+  }
+
+  playEmote(emoteId: AvatarEmoteId): void {
+    const emote = avatarEmoteDefinition(emoteId)
+
+    this.currentEmoteId = emote.id
+    this.emoteTween?.stop()
+    this.emoteBack.setVisible(true)
+    this.emoteText.setVisible(true)
+    this.emoteText.setText(emote.glyph)
+    this.emoteBack.setAlpha(0.96)
+    this.emoteText.setAlpha(1)
+    this.emoteBack.setPosition(12, -38)
+    this.emoteText.setPosition(12, -39)
+    this.emoteTween = this.scene.tweens.add({
+      targets: [this.emoteBack, this.emoteText],
+      y: "-=7",
+      alpha: 0,
+      duration: emote.durationMs,
+      ease: "Sine.easeOut",
+      onComplete: () => {
+        this.currentEmoteId = undefined
+        this.emoteBack.setVisible(false)
+        this.emoteText.setVisible(false)
+      },
+    })
+  }
+
+  setLabelVisibility(
+    visible: boolean,
+    reason: RendererAvatarPlayerInfo["labelVisibilityReason"],
+  ): void {
+    this.labelIsVisible = visible
+    this.labelReason = reason
+    const alpha = visible ? 1 : 0
+
+    this.label.setAlpha(alpha)
+    this.labelBack.setAlpha(visible ? 0.93 : 0)
+    this.labelShadow.setAlpha(visible ? 0.16 : 0)
+    this.labelTail.setAlpha(visible ? 0.93 : 0)
+  }
+
+  currentLabelBounds(): RendererDepthPlacementBounds {
+    return {
+      x: this.focusTarget.x - this.labelWidth / 2,
+      y: this.focusTarget.y + this.animation.pose.labelY - 10,
+      width: this.labelWidth,
+      height: 20,
+    }
+  }
+
+  info(): RendererAvatarPlayerInfo {
+    return {
+      playerId: this.focusTarget.name.replace(/^avatar:/, ""),
+      name: this.label.text,
+      avatarId: this.avatarId,
+      local: this.playerLocal,
+      direction: this.animation.direction,
+      currentPosition: {
+        x: Math.round(this.focusTarget.x),
+        y: Math.round(this.focusTarget.y),
+      },
+      targetPosition: this.lastPosition,
+      animation: {
+        key: this.animation.key,
+        action: this.animation.action,
+        direction: this.animation.direction,
+        durationMs: this.animation.durationMs,
+      },
+      interpolationProfile: this.interpolationProfile.id,
+      interpolationActive: this.positionTween?.isPlaying() ?? false,
+      labelVisible: this.labelIsVisible,
+      labelVisibilityReason: this.labelReason,
+      labelBounds: this.currentLabelBounds(),
+      emoteId: this.currentEmoteId,
+      cosmeticSlots: this.appearance.cosmeticSlots,
+      cosmetics: this.cosmetics,
+    }
   }
 
   destroy(): void {
@@ -294,11 +427,15 @@ class AvatarView {
     this.footTween?.stop()
     this.positionTween?.stop()
     this.rejectionTween?.stop()
+    this.emoteTween?.stop()
     this.focusTarget.destroy(true)
     this.cameraTarget.destroy()
   }
 
-  private interpolateTo(position: Vector2): void {
+  private interpolateTo(
+    position: Vector2,
+    profile: AvatarInterpolationProfile,
+  ): void {
     this.positionTween?.stop()
     const distance = Phaser.Math.Distance.Between(
       this.focusTarget.x,
@@ -306,19 +443,33 @@ class AvatarView {
       position.x,
       position.y,
     )
+
+    if (distance <= profile.positionEpsilon) {
+      this.focusTarget.setPosition(position.x, position.y)
+      this.cameraTarget.setPosition(position.x, position.y)
+      return
+    }
+
     this.positionTween = this.scene.tweens.add({
       targets: [this.focusTarget, this.cameraTarget],
       x: position.x,
       y: position.y,
-      duration: clamp(Math.round(distance * 6.8), 115, 175),
-      ease: "Sine.easeOut",
+      duration: clamp(
+        Math.round(distance * profile.msPerPixel),
+        profile.minDurationMs,
+        profile.maxDurationMs,
+      ),
+      ease: profile.easing,
+      onUpdate: () => {
+        this.focusTarget.setDepth(avatarDepth(this.focusTarget.y))
+      },
     })
   }
 
   private showRejected(direction: Direction): void {
     this.rejectionTween?.stop()
     this.positionTween?.stop()
-    const style = avatarStyle(this.avatarId)
+    const palette = this.appearance.palette
     this.focusTarget.setPosition(this.lastPosition.x, this.lastPosition.y)
     this.torso.setStrokeStyle(2, 0xffd166, 1)
     this.rejectionTween = this.scene.tweens.add({
@@ -334,35 +485,53 @@ class AvatarView {
       onComplete: () => {
         this.focusTarget.setPosition(this.lastPosition.x, this.lastPosition.y)
         this.focusTarget.setScale(1, 1)
-        this.torso.setStrokeStyle(1, style.torsoDark, 0.55)
-        this.startIdleTween()
+        this.torso.setStrokeStyle(1, palette.torsoDark, 0.55)
+        this.startIdleTween(this.animation, this.lastPosition)
       },
     })
   }
 
-  private setFacing(direction: Direction): void {
-    const rotations: Record<Direction, number> = {
-      down: Math.PI,
-      left: Math.PI / 2,
-      right: -Math.PI / 2,
-      up: 0,
-    }
+  private applyAppearance(appearance: AvatarAppearanceMetadata): void {
+    const palette = appearance.palette
 
-    this.facing.setRotation(rotations[direction])
-    this.facing.setPosition(
-      direction === "left" ? -5 : direction === "right" ? 5 : 0,
-      direction === "up" ? -15 : direction === "down" ? -5 : -10,
-    )
-    this.facing.setAlpha(direction === "up" ? 0.18 : 0.86)
-    this.hair.setPosition(
-      direction === "left" ? -3 : direction === "right" ? 3 : 0,
-      direction === "up" ? -12 : -14,
-    )
-    this.leftFoot.setPosition(direction === "right" ? -3 : -5, 12)
-    this.rightFoot.setPosition(direction === "left" ? 3 : 5, 12)
+    this.leftFoot.setFillStyle(palette.torsoDark, 1)
+    this.rightFoot.setFillStyle(palette.torsoDark, 1)
+    this.torso.setFillStyle(palette.torso, 1)
+    this.torso.setStrokeStyle(1, palette.torsoDark, 0.55)
+    this.head.setFillStyle(palette.head, 1)
+    this.hair.setFillStyle(palette.hair, 1)
+    this.facing.setFillStyle(palette.accent, 0.86)
+    this.labelBack.setStrokeStyle(1, palette.torso, 0.65)
+    this.labelTail.setStrokeStyle(1, palette.torso, 0.55)
+    this.emoteBack.setStrokeStyle(1, palette.accent, 0.72)
   }
 
-  private startIdleTween(): void {
+  private applyAnimationPose(animation: AvatarAnimationDefinition): void {
+    const pose = animation.pose
+
+    this.facing.setRotation(pose.facingRotation)
+    this.facing.setPosition(pose.facingX, pose.facingY)
+    this.facing.setAlpha(pose.facingAlpha)
+    this.hair.setPosition(pose.hairX, pose.hairY)
+    this.leftFoot.setPosition(pose.leftFootX, 12)
+    this.rightFoot.setPosition(pose.rightFootX, 12)
+    this.label.setPosition(0, pose.labelY)
+    this.labelShadow.setPosition(1, pose.labelY + 2)
+    this.labelBack.setPosition(0, pose.labelY)
+    this.labelTail.setPosition(0, pose.labelY + 10)
+  }
+
+  private resizeLabel(): void {
+    const width = this.labelWidth
+
+    this.labelShadow.setSize(width, 17)
+    this.labelBack.setSize(width, 17)
+  }
+
+  private startIdleTween(
+    animation: AvatarAnimationDefinition,
+    anchorPosition: Vector2,
+  ): void {
     if (this.idleTween?.isPlaying()) return
 
     this.walkTween?.stop()
@@ -370,43 +539,67 @@ class AvatarView {
     this.leftFoot.setScale(1, 1)
     this.rightFoot.setScale(1, 1)
     this.focusTarget.setScale(1, 1)
-    this.focusTarget.y = this.lastPosition.y
+    this.focusTarget.y = anchorPosition.y
+    this.cameraTarget.setPosition(anchorPosition.x, anchorPosition.y)
     this.idleTween = this.scene.tweens.add({
       targets: this.focusTarget,
-      y: this.lastPosition.y - 1.5,
-      scaleY: 1.025,
-      duration: 1100,
+      y: anchorPosition.y - 1.5,
+      scaleY: animation.bodyScaleY,
+      duration: animation.durationMs,
       yoyo: true,
-      repeat: -1,
+      repeat: animation.repeat,
       ease: "Sine.easeInOut",
     })
   }
 
-  private startWalkTween(): void {
+  private startWalkTween(animation: AvatarAnimationDefinition): void {
     this.idleTween?.stop()
     this.walkTween?.stop()
     this.footTween?.stop()
     this.focusTarget.setScale(1, 1)
     this.walkTween = this.scene.tweens.add({
       targets: this.focusTarget,
-      scaleX: 1.045,
-      scaleY: 0.955,
-      duration: 105,
+      scaleX: animation.bodyScaleX,
+      scaleY: animation.bodyScaleY,
+      duration: animation.durationMs,
       yoyo: true,
-      repeat: 2,
+      repeat: animation.repeat,
       ease: "Sine.easeInOut",
-      onComplete: () => this.startIdleTween(),
+      onComplete: () => {
+        const idleAnimation = avatarAnimationDefinition(
+          this.avatarId,
+          this.lastDirection,
+          "idle",
+        )
+
+        this.animation = idleAnimation
+        this.applyAnimationPose(idleAnimation)
+        this.startIdleTween(idleAnimation, this.lastPosition)
+      },
     })
     this.footTween = this.scene.tweens.add({
       targets: [this.leftFoot, this.rightFoot],
-      scaleX: 1.18,
-      scaleY: 0.82,
-      duration: 90,
+      scaleX: animation.footScaleX,
+      scaleY: animation.footScaleY,
+      duration: Math.max(80, animation.durationMs - 15),
       yoyo: true,
-      repeat: 2,
+      repeat: animation.repeat,
       ease: "Sine.easeInOut",
     })
   }
+}
+
+function rectanglesOverlap(
+  first: RendererDepthPlacementBounds,
+  second: RendererDepthPlacementBounds,
+  padding: number,
+): boolean {
+  return !(
+    first.x + first.width + padding < second.x ||
+    second.x + second.width + padding < first.x ||
+    first.y + first.height + padding < second.y ||
+    second.y + second.height + padding < first.y
+  )
 }
 
 function facingNudgeX(direction: Direction): number {
@@ -419,18 +612,4 @@ function facingNudgeY(direction: Direction): number {
   if (direction === "up") return -4
   if (direction === "down") return 4
   return 0
-}
-
-function fallbackAvatarId(player: RenderedPlayer): string {
-  return player.local ? "ember" : "companion"
-}
-
-function avatarStyle(avatarId: string): {
-  readonly torso: number
-  readonly torsoDark: number
-  readonly head: number
-  readonly accent: number
-  readonly hair: number
-} {
-  return AVATAR_STYLES[avatarId] ?? AVATAR_STYLES.ember
 }
