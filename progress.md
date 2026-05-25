@@ -586,3 +586,13 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   `npm run qa:responsive`, `npm run check`, and `git diff --check`.
   Representative renderer and responsive QA screenshots were visually
   inspected from the latest artifact folders.
+- Follow-up diagonal control fix: the product Move panel now exposes an
+  8-direction d-pad instead of four cardinal-only buttons. Pointer/touch holds
+  feed the same held-input repeater as keyboard chords, active controls get a
+  pressed visual state, and keyboard smoke now verifies the real
+  `ArrowUp` + `ArrowRight` path rather than the automation-only move hook.
+- Verification passed after the d-pad fix: `npm --workspace @aedventure/web run
+  build`, `npm run smoke:frontend`, `npm run qa:responsive`,
+  `npm run qa:renderer`, `npm run check`, `node --check
+  scripts/frontend-smoke.test.cjs`, and `git diff --check`. Mobile joined and
+  expanded Move-control screenshots were visually inspected.

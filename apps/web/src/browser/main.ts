@@ -20,6 +20,7 @@ import {
 } from "./movement-prediction"
 import {
   directionForMovementVector,
+  isDirection,
   movementVectorForDirection,
   type Direction,
   type MovementVector,
@@ -245,9 +246,17 @@ interface AppState {
 
 interface MovementInputState {
   readonly pressedDirections: Direction[]
+  readonly pressedControls: MovementControlIntent[]
   timerId?: number
   inFlight: boolean
   lastRequestedDirection?: Direction
+}
+
+interface MovementControlIntent {
+  readonly id: number
+  readonly vector: MovementVector
+  readonly direction: Direction
+  readonly button?: HTMLButtonElement
 }
 
 interface ChatRecord {
@@ -465,6 +474,7 @@ const state: AppState = {
 }
 const movementInput: MovementInputState = {
   pressedDirections: [],
+  pressedControls: [],
   timerId: undefined,
   inFlight: false,
   lastRequestedDirection: undefined,
@@ -596,11 +606,9 @@ elements.joinMeeting.addEventListener("click", () => queueAction(() => joinMeeti
 elements.leaveMeeting.addEventListener("click", () => queueAction(() => leaveMeeting()))
 elements.toggleMic.addEventListener("click", () => toggleMic())
 elements.toggleCamera.addEventListener("click", () => toggleCamera())
-document.querySelectorAll<HTMLButtonElement>("[data-direction]").forEach((button) => {
-  button.addEventListener("click", () =>
-    requestDirectionalMove(button.dataset.direction as Direction),
-  )
-})
+document
+  .querySelectorAll<HTMLButtonElement>("[data-move-x][data-move-y][data-facing]")
+  .forEach((button) => installMovementControlButton(button))
 elements.chatForm.addEventListener("submit", (event) => {
   event.preventDefault()
   queueAction(() => sendChat(elements.chatBody.value))
@@ -1094,6 +1102,65 @@ function abandonClientMovementPrediction(
   renderPlayers()
 }
 
+function installMovementControlButton(button: HTMLButtonElement): void {
+  const intent = movementIntentForControlButton(button)
+  if (!intent) return
+
+  button.addEventListener("pointerdown", (event) => {
+    if (!state.joined) return
+
+    event.preventDefault()
+    button.setPointerCapture(event.pointerId)
+    pressMovementControl({
+      ...intent,
+      id: event.pointerId,
+      button,
+    })
+  })
+  button.addEventListener("pointerup", (event) => {
+    event.preventDefault()
+    releaseMovementControl(event.pointerId)
+  })
+  button.addEventListener("pointercancel", (event) => {
+    releaseMovementControl(event.pointerId)
+  })
+  button.addEventListener("lostpointercapture", (event) => {
+    releaseMovementControl(event.pointerId)
+  })
+  button.addEventListener("click", (event) => {
+    event.preventDefault()
+    if (event.detail === 0) {
+      requestMove(intent.vector, intent.direction)
+    }
+  })
+}
+
+function movementIntentForControlButton(
+  button: HTMLButtonElement,
+): Omit<MovementControlIntent, "id" | "button"> | undefined {
+  const vector = {
+    x: Number(button.dataset.moveX),
+    y: Number(button.dataset.moveY),
+  }
+  const direction = button.dataset.facing
+
+  if (!Number.isFinite(vector.x) || !Number.isFinite(vector.y)) return undefined
+  if (!isControlVectorComponent(vector.x) || !isControlVectorComponent(vector.y)) {
+    return undefined
+  }
+  if (vector.x === 0 && vector.y === 0) return undefined
+  if (!isDirection(direction)) return undefined
+
+  return {
+    vector,
+    direction,
+  }
+}
+
+function isControlVectorComponent(value: number): value is -1 | 0 | 1 {
+  return value === -1 || value === 0 || value === 1
+}
+
 function pressDirection(direction: Direction): void {
   releaseDirection(direction)
   movementInput.pressedDirections.push(direction)
@@ -1107,8 +1174,34 @@ function releaseDirection(direction: Direction): void {
     movementInput.pressedDirections.splice(index, 1)
   }
 
-  if (movementInput.pressedDirections.length === 0) {
-    stopHeldMovement()
+  if (!hasHeldMovementInput()) {
+    stopHeldMovementTimer()
+  }
+}
+
+function pressMovementControl(intent: MovementControlIntent): void {
+  releaseMovementControl(intent.id)
+  movementInput.pressedControls.push(intent)
+  if (intent.button) {
+    intent.button.dataset.active = "true"
+  }
+  startHeldMovement()
+  requestMoveFromHeldInput()
+}
+
+function releaseMovementControl(id: number): void {
+  const index = movementInput.pressedControls.findIndex(
+    (intent) => intent.id === id,
+  )
+  if (index !== -1) {
+    const [intent] = movementInput.pressedControls.splice(index, 1)
+    if (intent?.button) {
+      delete intent.button.dataset.active
+    }
+  }
+
+  if (!hasHeldMovementInput()) {
+    stopHeldMovementTimer()
   }
 }
 
@@ -1122,11 +1215,27 @@ function startHeldMovement(): void {
 
 function stopHeldMovement(): void {
   movementInput.pressedDirections.length = 0
+  movementInput.pressedControls.forEach((intent) => {
+    if (intent.button) {
+      delete intent.button.dataset.active
+    }
+  })
+  movementInput.pressedControls.length = 0
+  stopHeldMovementTimer()
+}
 
+function stopHeldMovementTimer(): void {
   if (movementInput.timerId !== undefined) {
     window.clearInterval(movementInput.timerId)
     movementInput.timerId = undefined
   }
+}
+
+function hasHeldMovementInput(): boolean {
+  return (
+    movementInput.pressedDirections.length > 0 ||
+    movementInput.pressedControls.length > 0
+  )
 }
 
 function activeHeldDirection(): Direction | undefined {
@@ -1140,19 +1249,41 @@ function activeHeldMovementIntent():
     }
   | undefined {
   const pressed = new Set(movementInput.pressedDirections)
+  const controlVector = movementInput.pressedControls.reduce(
+    (result, intent) => ({
+      x: clampMovementComponent(result.x + intent.vector.x),
+      y: clampMovementComponent(result.y + intent.vector.y),
+    }),
+    { x: 0, y: 0 },
+  )
   const vector = {
-    x: (pressed.has("right") ? 1 : 0) + (pressed.has("left") ? -1 : 0),
-    y: (pressed.has("down") ? 1 : 0) + (pressed.has("up") ? -1 : 0),
+    x: clampMovementComponent(
+      controlVector.x +
+        (pressed.has("right") ? 1 : 0) +
+        (pressed.has("left") ? -1 : 0),
+    ),
+    y: clampMovementComponent(
+      controlVector.y +
+        (pressed.has("down") ? 1 : 0) +
+        (pressed.has("up") ? -1 : 0),
+    ),
   }
 
   if (vector.x === 0 && vector.y === 0) return undefined
+  const orderedIntents = [
+    ...movementInput.pressedDirections.map((direction) => ({
+      direction,
+      vector: movementVectorForDirection(direction),
+    })),
+    ...movementInput.pressedControls,
+  ]
 
   return {
     vector,
     direction:
-      movementInput.pressedDirections
-        .filter((direction) => vectorIncludesDirection(vector, direction))
-        .at(-1) ?? directionForMovementVector(vector),
+      orderedIntents
+        .filter((intent) => vectorIncludesIntent(vector, intent.vector))
+        .at(-1)?.direction ?? directionForMovementVector(vector),
   }
 }
 
@@ -1162,24 +1293,28 @@ function requestMoveFromHeldInput(): void {
   requestMove(intent.vector, intent.direction)
 }
 
-function requestDirectionalMove(direction: Direction): void {
-  requestMove(movementVectorForDirection(direction), direction)
+function vectorIncludesIntent(
+  vector: MovementVector,
+  intentVector: MovementVector,
+): boolean {
+  return (
+    vectorComponentIncludesIntent(vector.x, intentVector.x) &&
+    vectorComponentIncludesIntent(vector.y, intentVector.y) &&
+    (intentVector.x !== 0 || intentVector.y !== 0)
+  )
 }
 
-function vectorIncludesDirection(
-  vector: MovementVector,
-  direction: Direction,
+function vectorComponentIncludesIntent(
+  value: number,
+  intentValue: number,
 ): boolean {
-  switch (direction) {
-    case "up":
-      return vector.y < 0
-    case "down":
-      return vector.y > 0
-    case "left":
-      return vector.x < 0
-    case "right":
-      return vector.x > 0
-  }
+  return intentValue === 0 || Math.sign(value) === Math.sign(intentValue)
+}
+
+function clampMovementComponent(value: number): -1 | 0 | 1 {
+  if (value < 0) return -1
+  if (value > 0) return 1
+  return 0
 }
 
 function requestMove(vector: MovementVector, direction: Direction): void {

@@ -327,10 +327,15 @@
             <details class="tool-section compact-tool" data-mobile-collapsible>
               <summary>Move</summary>
               <div class="controls" aria-label="Movement controls">
-                <button data-direction="up" type="button">↑</button>
-                <button data-direction="left" type="button">←</button>
-                <button data-direction="right" type="button">→</button>
-                <button data-direction="down" type="button">↓</button>
+                <button data-move-x="-1" data-move-y="-1" data-facing="left" type="button" aria-label="Move up-left">↖</button>
+                <button data-move-x="0" data-move-y="-1" data-facing="up" type="button" aria-label="Move up">↑</button>
+                <button data-move-x="1" data-move-y="-1" data-facing="right" type="button" aria-label="Move up-right">↗</button>
+                <button data-move-x="-1" data-move-y="0" data-facing="left" type="button" aria-label="Move left">←</button>
+                <span class="controls-center" aria-hidden="true"></span>
+                <button data-move-x="1" data-move-y="0" data-facing="right" type="button" aria-label="Move right">→</button>
+                <button data-move-x="-1" data-move-y="1" data-facing="left" type="button" aria-label="Move down-left">↙</button>
+                <button data-move-x="0" data-move-y="1" data-facing="down" type="button" aria-label="Move down">↓</button>
+                <button data-move-x="1" data-move-y="1" data-facing="right" type="button" aria-label="Move down-right">↘</button>
               </div>
             </details>
 

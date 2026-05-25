@@ -215,34 +215,34 @@ async function main() {
     let delayedDiagonalRequest = false
     await page.route("**/world/message", async (route) => {
       const body = route.request().postDataJSON()
-      if (
-        !delayedDiagonalRequest &&
-        body?.message?.type === "move"
-      ) {
+      if (!delayedDiagonalRequest && body?.message?.type === "move") {
         delayedDiagonalRequest = true
         await new Promise((resolve) => setTimeout(resolve, 1500))
       }
       await route.continue()
     })
-    await page.evaluate(() => {
-      if (!window.__aedventureRendererTest?.requestMove) {
-        throw new Error("Missing renderer smoke movement hook.")
-      }
-      void window.__aedventureRendererTest.requestMove({ x: 1, y: -1 }, "right")
-    })
-    const diagonalMoved = await waitForTextState(
-      page,
-      (state) =>
-        state.movement.prediction.active === false &&
-        state.movement.prediction.totalPredicted > diagonalPredictedBefore &&
-        state.movement.prediction.lastRequestedVector?.x === 0.707 &&
-        state.movement.prediction.lastRequestedVector?.y === -0.707 &&
-        state.movement.prediction.lastDirection === "right" &&
-        state.movement.prediction.totalConfirmed +
-          state.movement.prediction.totalCorrected +
-          state.movement.prediction.totalServerRejected >
-          diagonalSettledBefore,
-    )
+    await page.keyboard.down("ArrowUp")
+    await page.waitForTimeout(40)
+    await page.keyboard.down("ArrowRight")
+    let diagonalMoved
+    try {
+      diagonalMoved = await waitForTextState(
+        page,
+        (state) =>
+          state.movement.prediction.active === false &&
+          state.movement.prediction.totalPredicted > diagonalPredictedBefore &&
+          state.movement.prediction.lastRequestedVector?.x === 0.707 &&
+          state.movement.prediction.lastRequestedVector?.y === -0.707 &&
+          state.movement.prediction.lastDirection === "right" &&
+          state.movement.prediction.totalConfirmed +
+            state.movement.prediction.totalCorrected +
+            state.movement.prediction.totalServerRejected >
+            diagonalSettledBefore,
+      )
+    } finally {
+      await page.keyboard.up("ArrowRight")
+      await page.keyboard.up("ArrowUp")
+    }
     assert.ok(
       diagonalMoved.movement.prediction.totalPredicted >
         diagonalPredictedBefore,
@@ -258,6 +258,26 @@ async function main() {
       diagonalMoved.movement.prediction.totalPredicted >
         diagonalPredictedBefore,
       "Expected diagonal move to complete after server reconciliation.",
+    )
+
+    const beforePadDiagonal = await renderGameToText(page)
+    await page.locator(".compact-tool").evaluate((section) => {
+      section.open = true
+    })
+    await page.locator('[data-move-x="1"][data-move-y="1"]').click()
+    const padDiagonalMoved = await waitForTextState(
+      page,
+      (state) =>
+        state.movement.prediction.active === false &&
+        state.movement.prediction.totalPredicted >
+          beforePadDiagonal.movement.prediction.totalPredicted &&
+        state.movement.prediction.lastRequestedVector?.x === 0.707 &&
+        state.movement.prediction.lastRequestedVector?.y === 0.707 &&
+        state.movement.prediction.lastDirection === "right",
+    )
+    assert.equal(
+      padDiagonalMoved.movement.prediction.lastRequestedVector.x,
+      0.707,
     )
 
     await page.locator("#chat-body").fill(SMOKE_MESSAGE)

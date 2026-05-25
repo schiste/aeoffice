@@ -1110,13 +1110,31 @@ h1 {
 
 .controls {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--space-2);
 }
 
 .controls button {
+  min-width: 0;
+  aspect-ratio: 1;
   padding: 0;
   font-size: 17px;
+  touch-action: none;
+  user-select: none;
+}
+
+.controls button[data-active="true"] {
+  border-color: rgba(38, 116, 99, 0.52);
+  background: rgba(38, 116, 99, 0.16);
+  color: var(--brand-strong);
+}
+
+.controls-center {
+  display: block;
+  aspect-ratio: 1;
+  border: 1px dashed rgba(34, 45, 42, 0.16);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.42);
 }
 
 .chat-heading {
