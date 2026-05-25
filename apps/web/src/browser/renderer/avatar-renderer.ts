@@ -18,7 +18,6 @@ import {
 import {
   AVATAR_HEIGHT,
   AVATAR_WIDTH,
-  RENDERER_VERTEX_ROUND_MODE,
 } from "./constants"
 import { avatarDepth } from "./depth"
 import { clamp } from "./math"
@@ -39,6 +38,10 @@ export interface AvatarFollowTarget {
   readonly playerId: string
   readonly cameraTarget: Phaser.GameObjects.Zone
 }
+
+const LABEL_TEXT_RESOLUTION = 3
+const LABEL_SCREEN_SCALE_MIN = 0.72
+const LABEL_SCREEN_SCALE_MAX = 1.08
 
 export class AvatarRenderer {
   private readonly avatars = new Map<string, AvatarView>()
@@ -85,6 +88,14 @@ export class AvatarRenderer {
     )
 
     return localAvatar
+  }
+
+  refreshFrame(): void {
+    this.avatars.forEach((avatar) => avatar.syncFrame())
+    this.applyLabelLayout()
+    this.depthPlayers = [...this.avatars.values()].map((avatar) =>
+      avatar.depthInfo(),
+    )
   }
 
   triggerEmote(playerId: string, emoteId: AvatarEmoteId): void {
@@ -164,6 +175,7 @@ function fallbackLabelBounds(player: RenderedPlayer): RendererDepthPlacementBoun
 class AvatarView {
   readonly focusTarget: Phaser.GameObjects.Container
   readonly cameraTarget: Phaser.GameObjects.Zone
+  private readonly visualRoot: Phaser.GameObjects.Container
   private readonly shadow: Phaser.GameObjects.Ellipse
   private readonly leftFoot: Phaser.GameObjects.Ellipse
   private readonly rightFoot: Phaser.GameObjects.Ellipse
@@ -229,8 +241,10 @@ class AvatarView {
     this.cosmetics = player.cosmetics ?? {}
     this.focusTarget = scene.add.container(player.position.x, player.position.y)
     this.cameraTarget = scene.add.zone(player.position.x, player.position.y, 2, 2)
+    this.visualRoot = scene.add.container(0, 0)
     this.focusTarget.setName(`avatar:${player.playerId}`)
-    this.focusTarget.setVertexRoundMode(RENDERER_VERTEX_ROUND_MODE)
+    this.focusTarget.setVertexRoundMode("off")
+    this.visualRoot.setVertexRoundMode("off")
     this.cameraTarget.setName(`camera-anchor:${player.playerId}`)
 
     const palette = this.appearance.palette
@@ -245,10 +259,12 @@ class AvatarView {
     this.label = scene.add.text(0, -31, player.name, {
       color: "#20201d",
       fontFamily: "Aptos, Segoe UI, sans-serif",
-      fontSize: "10px",
-      fontStyle: "700",
+      fontSize: "11px",
+      fontStyle: "600",
       align: "center",
+      resolution: LABEL_TEXT_RESOLUTION,
     })
+    this.label.setResolution(LABEL_TEXT_RESOLUTION)
     this.label.setOrigin(0.5, 0.5)
     this.labelShadow = scene.add.rectangle(1, -29, this.labelWidth, 17, 0x20201d, 0.16)
     this.labelBack = scene.add.rectangle(0, -31, this.labelWidth, 17, 0xfffdf7, 0.93)
@@ -263,12 +279,15 @@ class AvatarView {
       fontSize: "13px",
       fontStyle: "800",
       align: "center",
+      resolution: LABEL_TEXT_RESOLUTION,
     })
+    this.emoteText.setResolution(LABEL_TEXT_RESOLUTION)
     this.emoteText.setOrigin(0.5, 0.5)
     this.emoteBack.setVisible(false)
     this.emoteText.setVisible(false)
 
-    this.focusTarget.add([
+    this.focusTarget.add(this.visualRoot)
+    this.visualRoot.add([
       this.shadow,
       this.leftFoot,
       this.rightFoot,
@@ -285,6 +304,7 @@ class AvatarView {
     ])
     this.applyAppearance(this.appearance)
     this.applyAnimationPose(this.animation)
+    this.applyCameraAwareLabelScale()
     this.startIdleTween(this.animation, player.position)
     this.update(player)
   }
@@ -319,7 +339,8 @@ class AvatarView {
     this.resizeLabel()
     this.applyAppearance(nextAppearance)
     this.applyAnimationPose(nextAnimation)
-    this.focusTarget.setDepth(avatarDepth(player.position.y))
+    this.applyCameraAwareLabelScale()
+    this.focusTarget.setDepth(avatarDepth(this.focusTarget.y))
 
     if (moved) {
       this.interpolateTo(player.position, this.interpolationProfile)
@@ -341,6 +362,26 @@ class AvatarView {
 
     this.lastPosition = player.position
     this.lastDirection = player.direction
+  }
+
+  syncFrame(): void {
+    this.applyCameraAwareLabelScale()
+    this.focusTarget.setDepth(avatarDepth(this.focusTarget.y))
+  }
+
+  depthInfo(): RendererDepthPlayerInfo {
+    return {
+      playerId: this.focusTarget.name.replace(/^avatar:/, ""),
+      name: this.label.text,
+      local: this.playerLocal,
+      depth: avatarDepth(this.focusTarget.y),
+      zAnchor: {
+        x: this.focusTarget.x,
+        y: this.focusTarget.y,
+      },
+      labelBounds: this.currentLabelBounds(),
+      labelVisible: this.labelIsVisible,
+    }
   }
 
   playEmote(emoteId: AvatarEmoteId): void {
@@ -384,11 +425,14 @@ class AvatarView {
   }
 
   currentLabelBounds(): RendererDepthPlacementBounds {
+    const labelScale = this.currentLabelScale()
+    const width = this.labelWidth * labelScale
+
     return {
-      x: this.focusTarget.x - this.labelWidth / 2,
-      y: this.focusTarget.y + this.animation.pose.labelY - 10,
-      width: this.labelWidth,
-      height: 20,
+      x: this.focusTarget.x - width / 2,
+      y: this.focusTarget.y + this.visualRoot.y + this.animation.pose.labelY - 10,
+      width,
+      height: 20 * labelScale,
     }
   }
 
@@ -412,9 +456,16 @@ class AvatarView {
       },
       interpolationProfile: this.interpolationProfile.id,
       interpolationActive: this.positionTween?.isPlaying() ?? false,
+      movementSmoothing: {
+        mode: "confirmed_position_tween",
+        logicalVertexRoundMode: "off",
+        visualTransformIsolation: "inner_visual_root",
+      },
       labelVisible: this.labelIsVisible,
       labelVisibilityReason: this.labelReason,
       labelBounds: this.currentLabelBounds(),
+      labelResolution: LABEL_TEXT_RESOLUTION,
+      labelScreenScale: this.currentLabelScale(),
       emoteId: this.currentEmoteId,
       cosmeticSlots: this.appearance.cosmeticSlots,
       cosmetics: this.cosmetics,
@@ -462,6 +513,7 @@ class AvatarView {
       ease: profile.easing,
       onUpdate: () => {
         this.focusTarget.setDepth(avatarDepth(this.focusTarget.y))
+        this.applyCameraAwareLabelScale()
       },
     })
   }
@@ -471,11 +523,12 @@ class AvatarView {
     this.positionTween?.stop()
     const palette = this.appearance.palette
     this.focusTarget.setPosition(this.lastPosition.x, this.lastPosition.y)
+    this.cameraTarget.setPosition(this.lastPosition.x, this.lastPosition.y)
     this.torso.setStrokeStyle(2, 0xffd166, 1)
     this.rejectionTween = this.scene.tweens.add({
-      targets: this.focusTarget,
-      x: this.focusTarget.x + facingNudgeX(direction),
-      y: this.focusTarget.y + facingNudgeY(direction),
+      targets: this.visualRoot,
+      x: facingNudgeX(direction),
+      y: facingNudgeY(direction),
       scaleX: 1.045,
       scaleY: 0.955,
       duration: 72,
@@ -483,8 +536,8 @@ class AvatarView {
       repeat: 0,
       ease: "Sine.easeOut",
       onComplete: () => {
-        this.focusTarget.setPosition(this.lastPosition.x, this.lastPosition.y)
-        this.focusTarget.setScale(1, 1)
+        this.visualRoot.setPosition(0, 0)
+        this.visualRoot.setScale(1, 1)
         this.torso.setStrokeStyle(1, palette.torsoDark, 0.55)
         this.startIdleTween(this.animation, this.lastPosition)
       },
@@ -519,6 +572,7 @@ class AvatarView {
     this.labelShadow.setPosition(1, pose.labelY + 2)
     this.labelBack.setPosition(0, pose.labelY)
     this.labelTail.setPosition(0, pose.labelY + 10)
+    this.applyCameraAwareLabelScale()
   }
 
   private resizeLabel(): void {
@@ -538,12 +592,13 @@ class AvatarView {
     this.footTween?.stop()
     this.leftFoot.setScale(1, 1)
     this.rightFoot.setScale(1, 1)
-    this.focusTarget.setScale(1, 1)
-    this.focusTarget.y = anchorPosition.y
+    this.visualRoot.setScale(1, 1)
+    this.visualRoot.x = 0
+    this.visualRoot.y = 0
     this.cameraTarget.setPosition(anchorPosition.x, anchorPosition.y)
     this.idleTween = this.scene.tweens.add({
-      targets: this.focusTarget,
-      y: anchorPosition.y - 1.5,
+      targets: this.visualRoot,
+      y: -1.5,
       scaleY: animation.bodyScaleY,
       duration: animation.durationMs,
       yoyo: true,
@@ -556,9 +611,10 @@ class AvatarView {
     this.idleTween?.stop()
     this.walkTween?.stop()
     this.footTween?.stop()
-    this.focusTarget.setScale(1, 1)
+    this.visualRoot.setPosition(0, 0)
+    this.visualRoot.setScale(1, 1)
     this.walkTween = this.scene.tweens.add({
-      targets: this.focusTarget,
+      targets: this.visualRoot,
       scaleX: animation.bodyScaleX,
       scaleY: animation.bodyScaleY,
       duration: animation.durationMs,
@@ -586,6 +642,22 @@ class AvatarView {
       repeat: animation.repeat,
       ease: "Sine.easeInOut",
     })
+  }
+
+  private applyCameraAwareLabelScale(): void {
+    const scale = this.currentLabelScale()
+
+    this.label.setScale(scale)
+    this.labelShadow.setScale(scale)
+    this.labelBack.setScale(scale)
+    this.labelTail.setScale(scale)
+    this.label.setResolution(LABEL_TEXT_RESOLUTION)
+    this.emoteText.setResolution(LABEL_TEXT_RESOLUTION)
+  }
+
+  private currentLabelScale(): number {
+    const zoom = this.scene.cameras.main.zoom || 1
+    return clamp(1 / zoom, LABEL_SCREEN_SCALE_MIN, LABEL_SCREEN_SCALE_MAX)
   }
 }
 

@@ -86,7 +86,7 @@ export class OfficeScene extends Phaser.Scene {
     this.zoneRenderer.bindPointerInput()
     this.syncDevToolOverlays()
     this.events.on(Phaser.Scenes.Events.UPDATE, () => {
-      this.updateViewportCulling()
+      this.updateFrame()
     })
     this.onReady(this)
   }
@@ -386,6 +386,14 @@ export class OfficeScene extends Phaser.Scene {
       this.rendererDepthInfo,
       this.cameraController.getCameraState(),
     )
+  }
+
+  private updateFrame(): void {
+    this.avatarRenderer.refreshFrame()
+    this.refreshDepthInfo()
+    this.depthDebugOverlay.render(this.rendererDepthInfo)
+    this.updateViewportCulling()
+    this.refreshDevToolsOverlay()
   }
 }
 

@@ -425,9 +425,16 @@ export interface RendererAvatarPlayerInfo {
   readonly animation: RendererAvatarAnimationInfo
   readonly interpolationProfile: "local" | "remote"
   readonly interpolationActive: boolean
+  readonly movementSmoothing: {
+    readonly mode: "confirmed_position_tween"
+    readonly logicalVertexRoundMode: "off"
+    readonly visualTransformIsolation: "inner_visual_root"
+  }
   readonly labelVisible: boolean
   readonly labelVisibilityReason: "visible" | "overlap_suppressed"
   readonly labelBounds: RendererDepthPlacementBounds
+  readonly labelResolution: number
+  readonly labelScreenScale: number
   readonly emoteId?: AvatarEmoteId
   readonly cosmeticSlots: readonly AvatarCosmeticSlot[]
   readonly cosmetics: Partial<Record<AvatarCosmeticSlot, string>>

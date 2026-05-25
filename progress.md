@@ -522,3 +522,20 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   `node --check scripts/frontend-smoke.test.cjs`, and `git diff --check`.
   Representative devtools screenshots were visually inspected from
   `/var/folders/f2/krjzd4c15nn491pm37zrkp1h0000gn/T/aedventure-renderer-qa`.
+- Rendering polish pass: avatar name labels now use high-resolution Phaser text
+  and zoom-aware screen scaling so they stay crisp instead of being magnified
+  with the pixel-art world. Avatar label render metadata is exposed through
+  `render_game_to_text.avatars.players`.
+- Avatar movement smoothing was refactored so the logical avatar container
+  interpolates between server-confirmed positions with vertex rounding disabled,
+  while idle/walk/rejection pose animation lives on an inner visual root. This
+  prevents idle bobbing from fighting grid-step movement.
+- Frontend smoke now asserts high-resolution labels, screen-space readable
+  label bounds, the confirmed-position tween smoothing mode, and a true
+  in-between current position while a remote avatar moves toward its target.
+- Verification passed: `npm --workspace @aedventure/web run build`,
+  `npm run smoke:frontend`, `npm run qa:renderer`, `npm run qa:responsive`,
+  `npm run check`, `node --check scripts/frontend-smoke.test.cjs`, and
+  `git diff --check`. Representative joined/depth renderer screenshots were
+  visually inspected from
+  `/var/folders/f2/krjzd4c15nn491pm37zrkp1h0000gn/T/aedventure-renderer-qa`.

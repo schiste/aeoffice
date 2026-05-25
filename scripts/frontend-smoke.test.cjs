@@ -1250,9 +1250,22 @@ async function assertAvatarSystemSmoke(page) {
     assert.ok(player, `Expected ${avatarId} avatar render state.`)
     assert.equal(player.labelVisible, true)
     assert.equal(player.labelVisibilityReason, "visible")
+    assert.equal(player.labelResolution, 3)
+    assert.ok(
+      player.labelScreenScale >= 0.72 && player.labelScreenScale <= 1.08,
+      `Expected zoom-aware label scale, got ${player.labelScreenScale}.`,
+    )
+    assert.deepEqual(player.movementSmoothing, {
+      mode: "confirmed_position_tween",
+      logicalVertexRoundMode: "off",
+      visualTransformIsolation: "inner_visual_root",
+    })
     assert.equal(player.animation.action, "idle")
     assert.match(player.animation.key, new RegExp(`^${avatarId}_idle_`))
-    assert.ok(player.labelBounds.width >= 48)
+    assert.ok(
+      player.labelBounds.width * avatarState.camera.effectiveZoom >= 48,
+      `Expected readable screen-space label width, got ${player.labelBounds.width} at zoom ${avatarState.camera.effectiveZoom}.`,
+    )
   }
 
   const localAvatar = avatarState.avatars.players.find((player) => player.local)
@@ -1293,6 +1306,14 @@ async function assertAvatarSystemSmoke(page) {
     moving.avatars.players.find((player) => player.playerId === "avatar-cobalt")
       .labelVisible,
     true,
+  )
+  const movingRemote = moving.avatars.players.find(
+    (player) => player.playerId === "avatar-cobalt",
+  )
+  assert.ok(
+    movingRemote.currentPosition.x !== movingRemote.targetPosition.x ||
+      movingRemote.currentPosition.y !== movingRemote.targetPosition.y,
+    `Expected remote avatar to be between grid cells while smoothing, got ${JSON.stringify(movingRemote)}.`,
   )
 
   await waitForTextState(
