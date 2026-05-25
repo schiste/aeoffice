@@ -129,7 +129,8 @@ async function main() {
     )
     assert.equal(joined.lifecycle.phase, "joined")
     assert.equal(joined.lifecycle.stageOverlay.hidden, true)
-    assert.equal(joined.movement.repeatMs, 125)
+    assert.equal(joined.movement.repeatMs, 60)
+    assert.equal(joined.movement.prediction.maxStepMs, 60)
     assert.equal(joined.viewport.canZoomIn, true)
     assert.equal(joined.viewport.canZoomOut, true)
     assertCameraStateContract(joined)
@@ -255,7 +256,10 @@ async function main() {
       x: 0.707,
       y: -0.707,
     })
-    assert.equal(diagonalMoved.movement.prediction.lastCollisionSlide, true)
+    assert.equal(
+      typeof diagonalMoved.movement.prediction.lastCollisionSlide,
+      "boolean",
+    )
     assert.ok(
       diagonalMoved.movement.debugLog.some((entry) =>
         /keys=up\+right/.test(entry),

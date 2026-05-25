@@ -187,19 +187,19 @@ export const AVATAR_INTERPOLATION_PROFILES: Record<
 > = {
   local: {
     id: "local",
-    msPerPixel: 10.2,
-    minDurationMs: 118,
-    maxDurationMs: 205,
+    msPerPixel: 15.6,
+    minDurationMs: 54,
+    maxDurationMs: 180,
     easing: "Linear",
-    positionEpsilon: 1,
+    positionEpsilon: 0.35,
   },
   remote: {
     id: "remote",
-    msPerPixel: 8.6,
-    minDurationMs: 165,
-    maxDurationMs: 300,
-    easing: "Cubic.easeInOut",
-    positionEpsilon: 1.5,
+    msPerPixel: 17.8,
+    minDurationMs: 95,
+    maxDurationMs: 260,
+    easing: "Sine.easeInOut",
+    positionEpsilon: 0.75,
   },
 }
 

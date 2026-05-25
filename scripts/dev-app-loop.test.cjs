@@ -11,6 +11,7 @@ const {
 } = require("../apps/web/dist/index.js")
 
 const nowMs = Date.parse("2026-05-23T10:00:00.000Z")
+const DEVELOPMENT_STEP_PX = 3.84
 
 async function main() {
   const runtime = createDevelopmentRuntime({
@@ -67,7 +68,10 @@ async function main() {
   assert.ok(firstApp.getState().worldToken.startsWith("unsigned-local."))
 
   await firstApp.move("right", nowMs + 250)
-  assert.equal(firstApp.getState().players[0].x, firstSpawn.x + 16)
+  assert.equal(
+    firstApp.getState().players[0].x,
+    firstSpawn.x + DEVELOPMENT_STEP_PX,
+  )
   assert.equal(firstApp.getState().players[0].y, firstSpawn.y)
 
   await firstApp.sendChat("room", "Hello through dev host", nowMs + 500)
@@ -84,7 +88,7 @@ async function main() {
   assert.deepEqual(media.participantPlayerIds, ["player-1", "player-2"])
   assert.deepEqual(rendererEvents, [
     ["entered", "player-1"],
-    ["updated", firstSpawn.x + 16, firstSpawn.y],
+    ["updated", firstSpawn.x + DEVELOPMENT_STEP_PX, firstSpawn.y],
     ["chat", "Hello through dev host"],
     ["media", "zone:room-lobby:meeting-zone"],
   ])

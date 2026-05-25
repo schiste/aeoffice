@@ -110,6 +110,10 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
 - `npm run dev:http` now builds the target workspace before starting the local
   HTTP host, so a restart refreshes both backend `dist` modules and the Vite
   browser bundle.
+- Avatar movement has been retuned for continuous-feeling local motion: browser
+  input repeat, client prediction max step, and the local dev world tick now use
+  60 ms frames, while avatar interpolation moves at the same visual speed as the
+  server-authoritative world instead of snapping ahead and pausing.
 - The standalone develop-web-game client was retried with the repo
   `node_modules` on `NODE_PATH`, but the skill script still cannot resolve its
   own ESM `playwright` import. Repo-native Playwright smoke/renderer/responsive

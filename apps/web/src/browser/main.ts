@@ -11,6 +11,8 @@ import {
 } from "./phaser-office-renderer"
 import { validateFixtureMapForRenderer } from "./renderer/map-render-validation"
 import {
+  CLIENT_MOVEMENT_FRAME_MS,
+  CLIENT_PREDICTION_MAX_STEP_MS,
   createClientMovementPrediction,
   initialMovementPredictionState,
   movementPredictionCorrectionPx,
@@ -405,7 +407,7 @@ interface MediaSession {
   readonly expiresAt: string
 }
 
-const MOVE_REPEAT_MS = 125
+const MOVE_REPEAT_MS = CLIENT_MOVEMENT_FRAME_MS
 const MOVEMENT_REJECTION_FEEDBACK_MS = 900
 const TOAST_TTL_MS = 4200
 const MAX_TOASTS = 3
@@ -4090,6 +4092,7 @@ function movementPredictionTextState() {
 
   return {
     mode: "client_prediction_server_reconciliation",
+    maxStepMs: CLIENT_PREDICTION_MAX_STEP_MS,
     active: Boolean(prediction.active),
     seq: prediction.active?.seq,
     direction: prediction.active?.direction,

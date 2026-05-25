@@ -63,7 +63,8 @@ export interface CreateClientMovementPredictionInput {
 }
 
 export const CLIENT_PREDICTION_SPEED_PX_PER_SECOND = 64
-export const CLIENT_PREDICTION_MAX_STEP_MS = 250
+export const CLIENT_MOVEMENT_FRAME_MS = 60
+export const CLIENT_PREDICTION_MAX_STEP_MS = CLIENT_MOVEMENT_FRAME_MS
 export const CLIENT_PREDICTION_PLAYER_SIZE: Size = {
   width: 16,
   height: 16,
