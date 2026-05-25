@@ -1232,6 +1232,75 @@ h1 {
   border-top: 0;
 }
 
+.movement-feel-tool {
+  order: 5;
+}
+
+.movement-feel-tool[hidden] {
+  display: none;
+}
+
+.movement-feel-header,
+.movement-feel-control-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.movement-feel-header {
+  margin-bottom: var(--space-2);
+  color: var(--ink-soft);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.movement-feel-header button {
+  min-height: 28px;
+  padding: 0 var(--space-2);
+  font-size: 11px;
+}
+
+.movement-feel-controls {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.movement-feel-control {
+  display: grid;
+  gap: 4px;
+  border: 1px solid rgba(34, 45, 42, 0.1);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.5);
+  padding: 8px;
+}
+
+.movement-feel-control-header strong {
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.movement-feel-control-header output {
+  color: var(--brand-strong);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.movement-feel-control input[type="range"] {
+  width: 100%;
+  min-height: 24px;
+  padding: 0;
+  accent-color: var(--accent);
+}
+
+.movement-feel-control small {
+  color: var(--ink-soft);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
 .chat-heading {
   display: flex;
   align-items: center;

@@ -28,6 +28,16 @@ import {
   type ClientMotionIntent,
   type ClientMotionSnapshot,
 } from "./client-motion-controller"
+import {
+  DEFAULT_MOVEMENT_FEEL,
+  MOVEMENT_FEEL_CONTROLS,
+  clampMovementFeelValue,
+  formatMovementFeelValue,
+  isMovementFeelTuningKey,
+  normalizeMovementFeel,
+  type MovementFeelTuning,
+  type MovementFeelTuningKey,
+} from "./movement-feel"
 import { WorldRealtimeTransport } from "./world-realtime-transport"
 import {
   directionForMovementVector,
@@ -258,6 +268,7 @@ interface AppState {
   generatedRoom?: GeneratedRoomState
   generatedPreview?: GeneratedMapPreviewState
   devTools: DevToolsAppState
+  movementFeel: MovementFeelTuning
   serverProtocolMismatch?: ServerProtocolMismatchState
   lastMediaRoom?: string
   lastChatBody?: string
@@ -520,6 +531,7 @@ const state: AppState = {
   generatedRoom: undefined,
   generatedPreview: undefined,
   devTools: initialDevToolsState(),
+  movementFeel: DEFAULT_MOVEMENT_FEEL,
   serverProtocolMismatch: undefined,
   lastMediaRoom: undefined,
   lastChatBody: undefined,
@@ -536,7 +548,7 @@ const movementInput: MovementInputState = {
   runToggled: false,
   shiftRunning: false,
 }
-const clientMotion = new ClientMotionController()
+const clientMotion = new ClientMotionController(state.movementFeel)
 const worldRealtime = new WorldRealtimeTransport((events) =>
   applyEvents(events as readonly WorldEvent[]),
 )
@@ -613,6 +625,10 @@ const elements = {
   runToggle: mustQuery<HTMLButtonElement>("#run-toggle"),
   movementDebugLog: mustQuery<HTMLOListElement>("#movement-debug-log"),
   movementDebugCopy: mustQuery<HTMLButtonElement>("#movement-debug-copy"),
+  movementFeelPanel: mustQuery<HTMLDetailsElement>("#movement-feel-panel"),
+  movementFeelSummary: mustQuery<HTMLElement>("#movement-feel-summary"),
+  movementFeelControls: mustQuery<HTMLElement>("#movement-feel-controls"),
+  movementFeelReset: mustQuery<HTMLButtonElement>("#movement-feel-reset"),
   mobileCollapsibleSections: [
     ...document.querySelectorAll<HTMLDetailsElement>("[data-mobile-collapsible]"),
   ],
@@ -682,6 +698,7 @@ document
 elements.movementDebugCopy.addEventListener("click", () => {
   void copyMovementDebugLog()
 })
+installMovementFeelPanel()
 elements.chatForm.addEventListener("submit", (event) => {
   event.preventDefault()
   queueAction(() => sendChat(elements.chatBody.value))
@@ -710,6 +727,8 @@ elements.zoomPreset.addEventListener("change", () => {
   renderCameraControls(renderer.setZoomPreset(zoomPreset))
 })
 document.addEventListener("keydown", (event) => {
+  if (eventTargetConsumesMovementKeys(event.target)) return
+
   if (event.key === "Shift") {
     if (!movementInput.shiftRunning) {
       movementInput.shiftRunning = true
@@ -732,6 +751,8 @@ document.addEventListener("keydown", (event) => {
   pressDirection(direction)
 })
 document.addEventListener("keyup", (event) => {
+  if (eventTargetConsumesMovementKeys(event.target)) return
+
   if (event.key === "Shift") {
     movementInput.shiftRunning = false
     renderMovementModeControl()
@@ -1229,6 +1250,8 @@ function beginClientMovementPrediction(
     map: collisionMapForFixtureMap(state.fixtureMap),
     lastSentAtMs: state.movementPrediction.lastSentAtMs,
     nowMs: Date.now(),
+    speedPxPerSecond: state.movementFeel.walkSpeedPxPerSecond,
+    runSpeedPxPerSecond: state.movementFeel.runSpeedPxPerSecond,
   })
 
   state.movementPrediction.pending = trimMovementPredictionHistory([
@@ -1472,6 +1495,104 @@ function activeMovementMode(): MovementMode {
 function renderMovementModeControl(): void {
   const running = activeMovementMode() === "run"
   elements.runToggle.setAttribute("aria-pressed", String(running))
+}
+
+function installMovementFeelPanel(): void {
+  elements.movementFeelPanel.hidden = !state.devTools.gated
+  if (!state.devTools.gated) return
+
+  elements.movementFeelControls.replaceChildren(
+    ...MOVEMENT_FEEL_CONTROLS.map(createMovementFeelControl),
+  )
+  elements.movementFeelControls.addEventListener("input", (event) => {
+    const input = event.target
+    if (!(input instanceof HTMLInputElement)) return
+
+    const key = input.dataset.feelKey
+    if (!key || !isMovementFeelTuningKey(key)) return
+
+    applyMovementFeelValue(key, Number(input.value))
+  })
+  elements.movementFeelReset.addEventListener("click", () => {
+    applyMovementFeel(DEFAULT_MOVEMENT_FEEL)
+    logMovementDebug("feel", "reset defaults")
+  })
+  applyMovementFeel(state.movementFeel)
+}
+
+function createMovementFeelControl(control: (typeof MOVEMENT_FEEL_CONTROLS)[number]): HTMLElement {
+  const field = document.createElement("label")
+  field.className = "movement-feel-control"
+  field.dataset.feelControl = control.key
+
+  const header = document.createElement("span")
+  header.className = "movement-feel-control-header"
+
+  const label = document.createElement("strong")
+  label.textContent = control.label
+
+  const output = document.createElement("output")
+  output.dataset.feelOutput = control.key
+
+  header.append(label, output)
+
+  const range = document.createElement("input")
+  range.type = "range"
+  range.min = String(control.min)
+  range.max = String(control.max)
+  range.step = String(control.step)
+  range.dataset.feelKey = control.key
+  range.dataset.feelRange = control.key
+
+  const help = document.createElement("small")
+  help.textContent = control.help
+
+  field.append(header, range, help)
+  return field
+}
+
+function applyMovementFeelValue(
+  key: MovementFeelTuningKey,
+  value: number,
+): void {
+  const nextFeel = normalizeMovementFeel({
+    ...state.movementFeel,
+    [key]: clampMovementFeelValue(key, value),
+  })
+  applyMovementFeel(nextFeel)
+  logMovementDebug(
+    "feel",
+    `${key}=${formatMovementFeelValue(key, nextFeel[key])}`,
+  )
+}
+
+function applyMovementFeel(nextFeel: MovementFeelTuning): void {
+  state.movementFeel = normalizeMovementFeel(nextFeel)
+  clientMotion.setFeel(state.movementFeel)
+  renderMovementFeelPanel()
+}
+
+function renderMovementFeelPanel(): void {
+  elements.movementFeelPanel.hidden = !state.devTools.gated
+  if (!state.devTools.gated) return
+
+  elements.movementFeelSummary.textContent = "Client prediction + visual feel"
+  MOVEMENT_FEEL_CONTROLS.forEach((control) => {
+    const value = state.movementFeel[control.key]
+    const range = elements.movementFeelControls.querySelector<HTMLInputElement>(
+      `[data-feel-range="${control.key}"]`,
+    )
+    const output = elements.movementFeelControls.querySelector<HTMLOutputElement>(
+      `[data-feel-output="${control.key}"]`,
+    )
+
+    if (range && document.activeElement !== range) {
+      range.value = String(value)
+    }
+    if (output) {
+      output.value = formatMovementFeelValue(control.key, value)
+    }
+  })
 }
 
 function activeHeldMovementIntent():
@@ -4423,6 +4544,13 @@ function directionForKey(key: string): Direction | undefined {
   }
 }
 
+function eventTargetConsumesMovementKeys(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false
+  return Boolean(
+    target.closest("input, textarea, select, [contenteditable='true']"),
+  )
+}
+
 function movementPredictionTextState() {
   const prediction = state.movementPrediction
 
@@ -4506,6 +4634,29 @@ function clientMotionTextState() {
     movementMode: motion.movementMode,
     lastFrameDeltaMs: motion.lastFrameDeltaMs,
     correctionPx: motion.correctionPx,
+    feel: movementFeelTextState(),
+  }
+}
+
+function movementFeelTextState() {
+  return {
+    source: "client_runtime_tuning",
+    panelVisible: !elements.movementFeelPanel.hidden,
+    controls: MOVEMENT_FEEL_CONTROLS.map((control) => ({
+      key: control.key,
+      label: control.label,
+      value: state.movementFeel[control.key],
+      min: control.min,
+      max: control.max,
+      step: control.step,
+      unit: control.unit,
+    })),
+    values: {
+      ...state.movementFeel,
+    },
+    defaults: {
+      ...DEFAULT_MOVEMENT_FEEL,
+    },
   }
 }
 
@@ -4601,6 +4752,7 @@ function renderDemoToText(): string {
       rejectionFeedbackMs: MOVEMENT_REJECTION_FEEDBACK_MS,
       realtime: worldRealtime.snapshot(),
       motion: clientMotionTextState(),
+      feel: movementFeelTextState(),
       prediction: movementPredictionTextState(),
       debugLog: movementDebugRecords.map(movementDebugLine),
     },
@@ -4652,6 +4804,12 @@ function renderDemoToText(): string {
       availableFixtureIds: DEV_TOOL_FIXTURES,
       lastAction: state.devTools.lastAction,
       overlays: state.devTools.overlays,
+      feelPanel: {
+        visible: !elements.movementFeelPanel.hidden,
+        controlCount: elements.movementFeelControls.querySelectorAll(
+          "[data-feel-control]",
+        ).length,
+      },
       renderer: renderer.getDevToolsInfo(),
       primaryUiControlsExposed: document.querySelectorAll("[data-devtools-control]")
         .length,
@@ -4750,6 +4908,11 @@ declare global {
       selectFixture: (fixtureId: DevToolFixtureId) => Promise<void>
       state: () => unknown
     }
+    __aedventureMovementFeel?: {
+      setValue: (key: MovementFeelTuningKey, value: number) => unknown
+      reset: () => unknown
+      state: () => unknown
+    }
     __aedventureRendererTest?: {
       renderLargeStaticMap: (dimensions?: {
         readonly width?: number
@@ -4811,6 +4974,26 @@ if (localAutomationHost()) {
       await selectDevFixture(fixtureId)
     },
     state: () => JSON.parse(renderDemoToText()).devTools,
+  }
+}
+
+if (localAutomationHost()) {
+  window.__aedventureMovementFeel = {
+    setValue: (key, value) => {
+      if (!state.devTools.gated || !isMovementFeelTuningKey(key)) {
+        return movementFeelTextState()
+      }
+
+      applyMovementFeelValue(key, value)
+      return movementFeelTextState()
+    },
+    reset: () => {
+      if (state.devTools.gated) {
+        applyMovementFeel(DEFAULT_MOVEMENT_FEEL)
+      }
+      return movementFeelTextState()
+    },
+    state: movementFeelTextState,
   }
 }
 

@@ -234,6 +234,13 @@ async function verifyDevTools(browser, url, report) {
     )
 
     assert.equal(initial.devTools.primaryUiControlsExposed, 0)
+    assert.equal(initial.devTools.feelPanel.visible, true)
+    assert.equal(initial.devTools.feelPanel.controlCount, 10)
+    assert.equal(initial.movement.feel.panelVisible, true)
+    assert.equal(
+      initial.movement.feel.values.turnResponseTimeConstantMs,
+      18,
+    )
     assert.equal(initial.zones.debugOverlayEnabled, true)
     assert.equal(initial.renderer.depth.debugOverlayEnabled, true)
     assert.ok(initial.devTools.renderer.overlayObjectCounts.gridLineCount > 0)
@@ -256,7 +263,48 @@ async function verifyDevTools(browser, url, report) {
       overlays: initial.devTools.overlays,
       overlayObjectCounts: initial.devTools.renderer.overlayObjectCounts,
     })
+    const devToolsPagePath = join(ARTIFACT_DIR, "devtools-page.png")
+    await page.screenshot({ path: devToolsPagePath, fullPage: true })
+    report.screenshots.push({
+      label: "devtools-page",
+      path: devToolsPagePath,
+    })
     report.screenshots.push(await captureCanvas(page, "devtools-zone-canvas.png"))
+
+    await page.locator('[data-feel-range="turnResponseTimeConstantMs"]').fill("9")
+    const tunedFeel = await waitForTextState(
+      page,
+      (state) =>
+        state.movement?.feel?.values?.turnResponseTimeConstantMs === 9 &&
+        state.movement?.motion?.feel?.values?.turnResponseTimeConstantMs === 9,
+    )
+    assert.equal(
+      tunedFeel.movement.feel.values.turnResponseTimeConstantMs,
+      9,
+    )
+    assert.ok(
+      tunedFeel.movement.debugLog.some((entry) =>
+        /feel: turnResponseTimeConstantMs=9ms/.test(entry),
+      ),
+      "Expected movement trace to record live feel tuning.",
+    )
+    const apiTunedFeel = await page.evaluate(() => {
+      if (!window.__aedventureMovementFeel?.setValue) {
+        throw new Error("Missing movement feel dev API.")
+      }
+
+      return window.__aedventureMovementFeel.setValue(
+        "collisionSlideSpeedScale",
+        0.65,
+      )
+    })
+    assert.equal(apiTunedFeel.values.collisionSlideSpeedScale, 0.65)
+    report.devTools.push({
+      label: "movement-feel-tuning",
+      turnResponseTimeConstantMs:
+        tunedFeel.movement.feel.values.turnResponseTimeConstantMs,
+      collisionSlideSpeedScale: apiTunedFeel.values.collisionSlideSpeedScale,
+    })
 
     await page.keyboard.press("Alt+Shift+C")
     const collisionOff = await waitForTextState(

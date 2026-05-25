@@ -663,3 +663,24 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   mobile responsive screenshots were visually inspected from the latest QA
   artifact folders. The standalone develop-web-game client still fails before
   navigation because it cannot resolve its own `playwright` package.
+- Movement feel is now a first-class client runtime system. Defaults and tuning
+  metadata live in `apps/web/src/browser/movement-feel.ts`, including explicit
+  values for walk/run speed, acceleration, deceleration, turn response,
+  correction smoothing, correction thresholds, frame step limiting, stop
+  epsilon, and collision slide carry.
+- The local motion controller now consumes a `MovementFeelTuning` object instead
+  of hard-coded constants. Client prediction receives the same walk/run speeds,
+  and turn response is separate from acceleration so direction changes can stay
+  responsive without making starts/stops feel weightless.
+- A devtools-gated Feel tuning panel appears only on local `?devtools=1`
+  sessions. It exposes live sliders for the main feel values, writes changes to
+  `render_game_to_text.movement.feel`, records tuning changes in the Movement
+  trace, and provides an automation API at `window.__aedventureMovementFeel`.
+- Verification passed after the movement-feel slice: `npm --workspace
+  @aedventure/web run build`, `node --check scripts/frontend-smoke.test.cjs`,
+  `node --check scripts/renderer-qa.test.cjs`, `npm run smoke:frontend`,
+  `npm run qa:renderer`, `npm run qa:responsive`, `npm run check`, and
+  `git diff --check`. The devtools full-page screenshot and mobile joined
+  screenshot were visually inspected. The standalone develop-web-game client
+  still fails before navigation because it cannot resolve its own `playwright`
+  package.

@@ -134,6 +134,8 @@ async function main() {
     assert.equal(joined.movement.prediction.historyLimit, 48)
     assert.equal(joined.movement.motion.mode, "continuous_local_motion")
     assert.equal(joined.movement.motion.movementMode, "walk")
+    assertMovementFeelContract(joined)
+    assert.equal(joined.movement.feel.panelVisible, false)
     assert.equal(joined.movement.movementMode, "walk")
     assert.equal(joined.movement.runToggled, false)
     assert.equal(joined.viewport.canZoomIn, true)
@@ -594,6 +596,7 @@ function assertRenderStateContract(state) {
   assert.equal(typeof state.movement?.motion?.active, "boolean")
   assert.equal(typeof state.movement?.motion?.speedPxPerSecond, "number")
   assert.equal(typeof state.movement?.motion?.correctionPx, "number")
+  assertMovementFeelContract(state)
   assert.equal(typeof state.movement?.realtime?.status, "string")
   assert.equal(typeof state.movement?.realtime?.sentCount, "number")
   assert.equal(typeof state.movement?.realtime?.receivedCount, "number")
@@ -642,6 +645,8 @@ function assertRenderStateContract(state) {
   assert.equal(typeof state.renderer?.depth?.debugOverlayEnabled, "boolean")
   assert.equal(typeof state.devTools?.gated, "boolean")
   assert.equal(typeof state.devTools?.enabled, "boolean")
+  assert.equal(typeof state.devTools?.feelPanel?.visible, "boolean")
+  assert.equal(typeof state.devTools?.feelPanel?.controlCount, "number")
   assert.ok(
     Array.isArray(state.devTools?.availableFixtureIds),
     "Expected devTools.availableFixtureIds in render_game_to_text.",
@@ -723,6 +728,43 @@ function assertCameraStateContract(state) {
   assert.equal(typeof state.camera?.followLerp, "number")
   assert.equal(typeof state.camera?.followAnchor, "string")
   assert.equal(typeof state.camera?.localPlayerVisible, "boolean")
+}
+
+function assertMovementFeelContract(state) {
+  assert.equal(state.movement?.feel?.source, "client_runtime_tuning")
+  assert.equal(typeof state.movement?.feel?.panelVisible, "boolean")
+  assert.equal(typeof state.movement?.feel?.values?.walkSpeedPxPerSecond, "number")
+  assert.equal(typeof state.movement?.feel?.values?.runSpeedPxPerSecond, "number")
+  assert.equal(
+    typeof state.movement?.feel?.values?.accelerationTimeConstantMs,
+    "number",
+  )
+  assert.equal(
+    typeof state.movement?.feel?.values?.decelerationTimeConstantMs,
+    "number",
+  )
+  assert.equal(
+    typeof state.movement?.feel?.values?.turnResponseTimeConstantMs,
+    "number",
+  )
+  assert.equal(
+    typeof state.movement?.feel?.values?.activeCorrectionTimeConstantMs,
+    "number",
+  )
+  assert.equal(
+    typeof state.movement?.feel?.values?.collisionSlideSpeedScale,
+    "number",
+  )
+  assert.ok(
+    Array.isArray(state.movement?.feel?.controls),
+    "Expected movement.feel.controls in render_game_to_text.",
+  )
+  assert.ok(
+    state.movement.feel.controls.some(
+      (control) => control.key === "turnResponseTimeConstantMs",
+    ),
+    "Expected turn response to be explicitly tunable.",
+  )
 }
 
 function assertRendererCapabilities(state) {

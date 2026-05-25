@@ -10,11 +10,11 @@ import {
   type MovementVector,
 } from "@aedventure/protocol"
 
+import { CLIENT_PREDICTION_PLAYER_SIZE } from "./movement-prediction"
 import {
-  CLIENT_PREDICTION_PLAYER_SIZE,
-  CLIENT_RUN_SPEED_PX_PER_SECOND,
-  CLIENT_WALK_SPEED_PX_PER_SECOND,
-} from "./movement-prediction"
+  DEFAULT_MOVEMENT_FEEL,
+  type MovementFeelTuning,
+} from "./movement-feel"
 
 interface Vector2 {
   readonly x: number
@@ -53,16 +53,6 @@ export interface ClientMotionSnapshot {
   readonly correctionPx: number
 }
 
-const FRAME_STEP_LIMIT_MS = 50
-const ACCELERATION_TIME_CONSTANT_MS = 34
-const DECELERATION_TIME_CONSTANT_MS = 28
-const ACTIVE_CORRECTION_TIME_CONSTANT_MS = 190
-const IDLE_CORRECTION_TIME_CONSTANT_MS = 90
-const CORRECTION_EPSILON_PX = 0.35
-const SOFT_CORRECTION_THRESHOLD_PX = 1.5
-const HARD_CORRECTION_THRESHOLD_PX = 96
-const STOP_VELOCITY_EPSILON_PX_PER_SECOND = 1.5
-
 export class ClientMotionController {
   private position: Vector2 = { x: 0, y: 0 }
   private velocity: Vector2 = { x: 0, y: 0 }
@@ -73,6 +63,19 @@ export class ClientMotionController {
   private lastFrameDeltaMs = 0
   private inputActive = false
   private initialized = false
+  private feel: MovementFeelTuning = DEFAULT_MOVEMENT_FEEL
+
+  constructor(feel: MovementFeelTuning = DEFAULT_MOVEMENT_FEEL) {
+    this.feel = feel
+  }
+
+  setFeel(feel: MovementFeelTuning): void {
+    this.feel = feel
+  }
+
+  getFeel(): MovementFeelTuning {
+    return this.feel
+  }
 
   reset(position: Vector2, direction: Direction = "down"): void {
     this.position = position
@@ -101,7 +104,7 @@ export class ClientMotionController {
     if (
       options.force ||
       options.rejected ||
-      correctionPx >= HARD_CORRECTION_THRESHOLD_PX
+      correctionPx >= this.feel.hardCorrectionThresholdPx
     ) {
       this.position = authoritativePosition
       this.velocity = { x: 0, y: 0 }
@@ -109,7 +112,7 @@ export class ClientMotionController {
       return
     }
 
-    if (correctionPx <= SOFT_CORRECTION_THRESHOLD_PX) {
+    if (correctionPx <= this.feel.softCorrectionThresholdPx) {
       this.correction = { x: 0, y: 0 }
       return
     }
@@ -130,7 +133,7 @@ export class ClientMotionController {
     const deltaMs = this.frameDeltaMs(input.nowMs, Boolean(intent))
     const targetVector = intent ? normalizeVector(intent.vector) : { x: 0, y: 0 }
     const targetSpeedPxPerSecond = intent
-      ? movementSpeedPxPerSecond(intent.movementMode)
+      ? movementSpeedPxPerSecond(intent.movementMode, this.feel)
       : 0
     const targetVelocity = {
       x: targetVector.x * targetSpeedPxPerSecond,
@@ -138,9 +141,11 @@ export class ClientMotionController {
     }
     const velocityBlend = smoothingFactor(
       deltaMs,
-      intent
-        ? ACCELERATION_TIME_CONSTANT_MS
-        : DECELERATION_TIME_CONSTANT_MS,
+      intent && isTurning(this.velocity, targetVelocity)
+        ? this.feel.turnResponseTimeConstantMs
+        : intent
+          ? this.feel.accelerationTimeConstantMs
+          : this.feel.decelerationTimeConstantMs,
     )
 
     this.inputActive = Boolean(intent)
@@ -149,7 +154,10 @@ export class ClientMotionController {
       y: lerp(this.velocity.y, targetVelocity.y, velocityBlend),
     }
 
-    if (!intent && magnitude(this.velocity) <= STOP_VELOCITY_EPSILON_PX_PER_SECOND) {
+    if (
+      !intent &&
+      magnitude(this.velocity) <= this.feel.stopVelocityEpsilonPxPerSecond
+    ) {
       this.velocity = { x: 0, y: 0 }
     }
 
@@ -180,7 +188,7 @@ export class ClientMotionController {
     return {
       active:
         this.inputActive ||
-        speedPxPerSecond > STOP_VELOCITY_EPSILON_PX_PER_SECOND ||
+        speedPxPerSecond > this.feel.stopVelocityEpsilonPxPerSecond ||
         this.isCorrecting(),
       inputActive: this.inputActive,
       correcting: this.isCorrecting(),
@@ -188,7 +196,7 @@ export class ClientMotionController {
       velocity: this.velocity,
       speedPxPerSecond: Number(speedPxPerSecond.toFixed(2)),
       targetSpeedPxPerSecond: this.inputActive
-        ? movementSpeedPxPerSecond(this.movementMode)
+        ? movementSpeedPxPerSecond(this.movementMode, this.feel)
         : 0,
       direction: this.direction,
       movementMode: this.movementMode,
@@ -221,7 +229,7 @@ export class ClientMotionController {
     const rawDeltaMs = nowMs - previousFrameAtMs
     this.lastFrameDeltaMs = rawDeltaMs <= 0 && activeInput
       ? 1000 / 120
-      : Math.max(0, Math.min(rawDeltaMs, FRAME_STEP_LIMIT_MS))
+      : Math.max(0, Math.min(rawDeltaMs, this.feel.frameStepLimitMs))
     return this.lastFrameDeltaMs
   }
 
@@ -231,7 +239,7 @@ export class ClientMotionController {
     playerSize: Size | undefined,
   ): void {
     const speedPxPerSecond = magnitude(this.velocity)
-    if (speedPxPerSecond <= STOP_VELOCITY_EPSILON_PX_PER_SECOND) return
+    if (speedPxPerSecond <= this.feel.stopVelocityEpsilonPxPerSecond) return
 
     const vector = normalizeVector(this.velocity)
 
@@ -270,8 +278,14 @@ export class ClientMotionController {
     }
     if (result.collisionSlide) {
       this.velocity = {
-        x: result.appliedVector.x * speedPxPerSecond,
-        y: result.appliedVector.y * speedPxPerSecond,
+        x:
+          result.appliedVector.x *
+          speedPxPerSecond *
+          this.feel.collisionSlideSpeedScale,
+        y:
+          result.appliedVector.y *
+          speedPxPerSecond *
+          this.feel.collisionSlideSpeedScale,
       }
     }
   }
@@ -282,8 +296,8 @@ export class ClientMotionController {
     const blend = smoothingFactor(
       deltaMs,
       this.inputActive
-        ? ACTIVE_CORRECTION_TIME_CONSTANT_MS
-        : IDLE_CORRECTION_TIME_CONSTANT_MS,
+        ? this.feel.activeCorrectionTimeConstantMs
+        : this.feel.idleCorrectionTimeConstantMs,
     )
     const step = {
       x: this.correction.x * blend,
@@ -299,20 +313,23 @@ export class ClientMotionController {
       y: this.correction.y - step.y,
     }
 
-    if (magnitude(this.correction) <= CORRECTION_EPSILON_PX) {
+    if (magnitude(this.correction) <= this.feel.correctionEpsilonPx) {
       this.correction = { x: 0, y: 0 }
     }
   }
 
   private isCorrecting(): boolean {
-    return magnitude(this.correction) > CORRECTION_EPSILON_PX
+    return magnitude(this.correction) > this.feel.correctionEpsilonPx
   }
 }
 
-function movementSpeedPxPerSecond(movementMode: MovementMode): number {
+function movementSpeedPxPerSecond(
+  movementMode: MovementMode,
+  feel: MovementFeelTuning,
+): number {
   return movementMode === "run"
-    ? CLIENT_RUN_SPEED_PX_PER_SECOND
-    : CLIENT_WALK_SPEED_PX_PER_SECOND
+    ? feel.runSpeedPxPerSecond
+    : feel.walkSpeedPxPerSecond
 }
 
 function normalizeVector(vector: MovementVector): MovementVector {
@@ -328,6 +345,18 @@ function normalizeVector(vector: MovementVector): MovementVector {
 function smoothingFactor(deltaMs: number, timeConstantMs: number): number {
   if (timeConstantMs <= 0) return 1
   return 1 - Math.exp(-deltaMs / timeConstantMs)
+}
+
+function isTurning(velocity: Vector2, targetVelocity: Vector2): boolean {
+  const speed = magnitude(velocity)
+  const targetSpeed = magnitude(targetVelocity)
+
+  if (speed <= 0 || targetSpeed <= 0) return false
+
+  const dot =
+    (velocity.x * targetVelocity.x + velocity.y * targetVelocity.y) /
+    (speed * targetSpeed)
+  return dot < 0.985
 }
 
 function lerp(from: number, to: number, amount: number): number {

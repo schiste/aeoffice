@@ -9,6 +9,10 @@ import {
   type MovementMode,
   type MovementVector,
 } from "@aedventure/protocol"
+import {
+  MOVEMENT_RUN_SPEED_PX_PER_SECOND,
+  MOVEMENT_WALK_SPEED_PX_PER_SECOND,
+} from "./movement-feel"
 
 interface Vector2 {
   readonly x: number
@@ -86,8 +90,9 @@ export interface ReplayMovementPredictionsResult {
   readonly target: Vector2
 }
 
-export const CLIENT_WALK_SPEED_PX_PER_SECOND = 88
-export const CLIENT_RUN_SPEED_PX_PER_SECOND = 148
+export const CLIENT_WALK_SPEED_PX_PER_SECOND =
+  MOVEMENT_WALK_SPEED_PX_PER_SECOND
+export const CLIENT_RUN_SPEED_PX_PER_SECOND = MOVEMENT_RUN_SPEED_PX_PER_SECOND
 export const CLIENT_PREDICTION_SPEED_PX_PER_SECOND =
   CLIENT_WALK_SPEED_PX_PER_SECOND
 export const CLIENT_MOVEMENT_FRAME_MS = 60
