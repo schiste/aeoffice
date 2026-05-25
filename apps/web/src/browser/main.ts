@@ -2,6 +2,7 @@ import {
   PhaserOfficeRenderer,
   type AvatarEmoteId,
   type RenderedPlayer,
+  type RendererCameraFollowMotion,
   type RendererCameraState,
   type RendererDevToolOverlayId,
   type RendererDevToolOverlayState,
@@ -223,6 +224,7 @@ interface PlayerSnapshot {
   readonly y?: number
   readonly direction?: Direction
   readonly movementMode?: MovementMode
+  readonly cameraMotion?: RendererCameraFollowMotion
   readonly rejected?: boolean
 }
 
@@ -1176,6 +1178,7 @@ function renderLocalPlayerFromMotion(snapshot: ClientMotionSnapshot): void {
     position: snapshot.position,
     direction: snapshot.direction,
     movementMode: snapshot.movementMode,
+    cameraMotion: cameraMotionFromSnapshot(snapshot),
   })
   renderPlayers({ refreshCameraControls: false })
   updateActiveZoneFromPosition()
@@ -3011,11 +3014,14 @@ function formatPredictionSeqs(
 }
 
 function seedLocalRenderedPlayer(): void {
+  const motion = clientMotion.snapshot()
+
   upsertRenderedPlayer({
     playerId: state.playerId,
     position: clientMotion.renderedPosition(state.position),
     direction: clientMotion.renderedDirection(state.direction),
     movementMode: clientMotion.renderedMovementMode("walk"),
+    cameraMotion: cameraMotionFromSnapshot(motion),
   })
 }
 
@@ -3039,9 +3045,24 @@ function upsertRenderedPlayer(player: PlayerSnapshot): void {
     position,
     direction,
     movementMode,
+    cameraMotion: local
+      ? player.cameraMotion ?? cameraMotionFromSnapshot(clientMotion.snapshot())
+      : undefined,
     local,
     rejected: player.rejected,
   })
+}
+
+function cameraMotionFromSnapshot(
+  snapshot: ClientMotionSnapshot,
+): RendererCameraFollowMotion {
+  return {
+    velocity: snapshot.velocity,
+    speedPxPerSecond: snapshot.speedPxPerSecond,
+    inputActive: snapshot.inputActive,
+    correcting: snapshot.correcting,
+    movementMode: snapshot.movementMode,
+  }
 }
 
 function renderPlayers(

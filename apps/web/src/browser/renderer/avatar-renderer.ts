@@ -29,6 +29,7 @@ import type {
   Direction,
   RenderedPlayer,
   RendererAvatarInfo,
+  RendererCameraFollowMotion,
   RendererAvatarPlayerInfo,
   RendererDepthPlacementBounds,
   RendererDepthPlayerInfo,
@@ -38,6 +39,7 @@ import type {
 export interface AvatarFollowTarget {
   readonly playerId: string
   readonly cameraTarget: Phaser.GameObjects.Zone
+  readonly motion?: RendererCameraFollowMotion
 }
 
 const LABEL_TEXT_RESOLUTION = 4
@@ -248,6 +250,7 @@ export class AvatarRenderer {
         localAvatar = {
           playerId: player.playerId,
           cameraTarget: avatar.cameraTarget,
+          motion: player.cameraMotion,
         }
       }
     })

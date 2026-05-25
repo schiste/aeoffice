@@ -85,8 +85,8 @@ export class OfficeScene extends Phaser.Scene {
     this.cameraController.markReady()
     this.zoneRenderer.bindPointerInput()
     this.syncDevToolOverlays()
-    this.events.on(Phaser.Scenes.Events.UPDATE, () => {
-      this.updateFrame()
+    this.events.on(Phaser.Scenes.Events.UPDATE, (_time: number, delta: number) => {
+      this.updateFrame(delta)
     })
     this.onReady(this)
   }
@@ -208,6 +208,7 @@ export class OfficeScene extends Phaser.Scene {
   updatePlayers(players: readonly RenderedPlayer[]): void {
     const followTarget = this.avatarRenderer.updatePlayers(players)
     this.cameraController.follow(followTarget)
+    this.cameraController.updateFrame(1000 / 60)
     this.refreshDepthInfo()
     this.depthDebugOverlay.render(this.rendererDepthInfo)
     this.updateViewportCulling()
@@ -388,8 +389,9 @@ export class OfficeScene extends Phaser.Scene {
     )
   }
 
-  private updateFrame(): void {
+  private updateFrame(deltaMs: number): void {
     this.avatarRenderer.refreshFrame()
+    this.cameraController.updateFrame(deltaMs)
     this.refreshDepthInfo()
     this.depthDebugOverlay.render(this.rendererDepthInfo)
     this.updateViewportCulling()

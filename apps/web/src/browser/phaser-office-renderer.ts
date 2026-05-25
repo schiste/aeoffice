@@ -5,6 +5,7 @@ export type {
   FixtureMap,
   RenderedPlayer,
   RendererAvatarInfo,
+  RendererCameraFollowMotion,
   RendererCameraMode,
   RendererCameraState,
   RendererCapabilityInfo,

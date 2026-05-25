@@ -751,6 +751,24 @@ function assertCameraStateContract(state) {
   assert.equal(typeof state.camera?.deadzone?.height, "number")
   assert.equal(typeof state.camera?.followLerp, "number")
   assert.equal(typeof state.camera?.followAnchor, "string")
+  assert.equal(typeof state.camera?.lead?.enabled, "boolean")
+  assert.equal(typeof state.camera?.lead?.active, "boolean")
+  assert.ok(
+    ["motion_snapshot", "derived_target_delta", "idle"].includes(
+      state.camera?.lead?.source,
+    ),
+    `Expected camera lead source, got ${JSON.stringify(state.camera?.lead)}.`,
+  )
+  assert.equal(typeof state.camera?.lead?.offset?.x, "number")
+  assert.equal(typeof state.camera?.lead?.offset?.y, "number")
+  assert.equal(typeof state.camera?.lead?.targetOffset?.x, "number")
+  assert.equal(typeof state.camera?.lead?.targetOffset?.y, "number")
+  assert.equal(typeof state.camera?.lead?.velocity?.x, "number")
+  assert.equal(typeof state.camera?.lead?.velocity?.y, "number")
+  assert.equal(typeof state.camera?.lead?.speedPxPerSecond, "number")
+  assert.equal(typeof state.camera?.lead?.maxDistancePx, "number")
+  assert.equal(typeof state.camera?.lead?.smoothingTimeConstantMs, "number")
+  assert.equal(typeof state.camera?.lead?.correctionDampingActive, "boolean")
   assert.equal(typeof state.camera?.localPlayerVisible, "boolean")
 }
 
@@ -931,9 +949,11 @@ async function assertCameraExcellence(page) {
 
   assert.equal(baseline.camera.mode, "follow_player")
   assert.equal(baseline.camera.zoomPreset, "standard")
-  assert.equal(baseline.camera.followAnchor, "stable_player_anchor")
+  assert.equal(baseline.camera.followAnchor, "leading_player_anchor")
+  assert.equal(baseline.camera.lead.enabled, true)
   assert.equal(baseline.camera.localPlayerVisible, true)
   await assertIdleCameraStable(page)
+  await assertCameraLead(page)
 
   await page.locator("#camera-fit").click()
   const fitRoom = await waitForTextState(
@@ -956,7 +976,7 @@ async function assertCameraExcellence(page) {
       state.camera.localPlayerVisible === true,
   )
   assert.equal(await page.locator("#camera-follow").getAttribute("aria-pressed"), "true")
-  assert.equal(follow.camera.followAnchor, "stable_player_anchor")
+  assert.equal(follow.camera.followAnchor, "leading_player_anchor")
 
   await page.locator("#zoom-preset").selectOption("focus")
   await waitForTextState(
@@ -982,6 +1002,40 @@ async function assertCameraExcellence(page) {
       state.camera.mode === "follow_player" &&
       state.camera.zoomPreset === "standard" &&
       state.camera.localPlayerVisible === true,
+  )
+}
+
+async function assertCameraLead(page) {
+  await page.keyboard.down("Shift")
+  await page.keyboard.down("ArrowRight")
+  const leading = await waitForTextState(
+    page,
+    (state) =>
+      state.camera.lead.enabled === true &&
+      state.camera.lead.active === true &&
+      state.camera.lead.offset.x > 0 &&
+      state.camera.lead.targetOffset.x > 0 &&
+      state.camera.lead.maxDistancePx >= 40 &&
+      state.camera.lead.source === "motion_snapshot" &&
+      state.movement.motion.inputActive === true &&
+      state.movement.motion.movementMode === "run",
+    3000,
+  )
+
+  assert.equal(leading.camera.localPlayerVisible, true)
+  assert.ok(
+    Math.abs(leading.camera.lead.offset.x) <= leading.camera.lead.maxDistancePx,
+    `Expected bounded camera lead, got ${JSON.stringify(leading.camera.lead)}.`,
+  )
+
+  await page.keyboard.up("ArrowRight")
+  await page.keyboard.up("Shift")
+  await waitForTextState(
+    page,
+    (state) =>
+      state.movement.motion.inputActive === false &&
+      state.camera.lead.source === "motion_snapshot",
+    3000,
   )
 }
 

@@ -725,3 +725,21 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   and mobile QA screenshots were visually inspected. The standalone
   develop-web-game client still fails before navigation because it cannot
   resolve its own `playwright` package.
+- Camera feel now follows an invisible renderer-only leading anchor instead of
+  the raw avatar anchor. The lead offset is based on rendered velocity, grows
+  farther while running, and damps during correction-only movement so
+  reconciliation does not create stop/start camera twitch.
+- Camera state now exposes the follow lead contract in
+  `render_game_to_text.camera.lead`: source, offset, target offset, velocity,
+  speed, max distance, smoothing constant, and whether correction damping is
+  active. The camera follow anchor is reported as `leading_player_anchor`.
+- Deadzone ratios and follow lerp were retuned for the lead anchor, with a
+  slightly tighter deadzone and softer follow easing to make movement feel
+  anticipatory without jittering when idle.
+- Verification passed after the camera-feel pass: `npm --workspace
+  @aedventure/web run build`, `node --check scripts/frontend-smoke.test.cjs`,
+  `npm run smoke:frontend`, `npm run qa:renderer`, and
+  `npm run qa:responsive`. Desktop and mobile QA screenshots were visually
+  inspected. `npm run check` and `git diff --check` also passed. The standalone
+  develop-web-game client still fails before navigation because it cannot
+  resolve its own `playwright` package.

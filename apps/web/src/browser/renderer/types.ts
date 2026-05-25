@@ -246,6 +246,7 @@ export interface RenderedPlayer {
   readonly position: Vector2
   readonly direction: Direction
   readonly movementMode?: MovementMode
+  readonly cameraMotion?: RendererCameraFollowMotion
   readonly entryAnimation?: "fade" | "none"
   readonly local: boolean
   readonly rejected?: boolean
@@ -307,6 +308,27 @@ export interface RendererCameraWorldView {
   readonly height: number
 }
 
+export interface RendererCameraFollowMotion {
+  readonly velocity: Vector2
+  readonly speedPxPerSecond: number
+  readonly inputActive: boolean
+  readonly correcting: boolean
+  readonly movementMode: MovementMode
+}
+
+export interface RendererCameraLeadState {
+  readonly enabled: boolean
+  readonly active: boolean
+  readonly source: "motion_snapshot" | "derived_target_delta" | "idle"
+  readonly offset: Vector2
+  readonly targetOffset: Vector2
+  readonly velocity: Vector2
+  readonly speedPxPerSecond: number
+  readonly maxDistancePx: number
+  readonly smoothingTimeConstantMs: number
+  readonly correctionDampingActive: boolean
+}
+
 export interface RendererCameraState {
   readonly mode: RendererCameraMode
   readonly zoomPreset: RendererZoomPresetId
@@ -326,7 +348,8 @@ export interface RendererCameraState {
   readonly worldView: RendererCameraWorldView
   readonly deadzone: RendererCameraDeadzone
   readonly followLerp: number
-  readonly followAnchor: "stable_player_anchor" | "room_center" | "none"
+  readonly followAnchor: "leading_player_anchor" | "room_center" | "none"
+  readonly lead: RendererCameraLeadState
   readonly followingPlayerId?: string
   readonly localPlayerVisible: boolean
   readonly localPlayerViewportPosition?: Vector2
