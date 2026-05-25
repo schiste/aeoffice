@@ -103,6 +103,13 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   server-side application: authoritative movement responses echo requested and
   applied vectors, collision-slide state, and the browser trace flags legacy or
   stale direction-only server responses as missing telemetry.
+- The browser now promotes missing server movement telemetry into an explicit
+  protocol mismatch state: the world status changes to `Update server`, the
+  movement trace records the restart instruction, and `render_game_to_text`
+  exposes `movement.serverProtocolMismatch` for automation.
+- `npm run dev:http` now builds the target workspace before starting the local
+  HTTP host, so a restart refreshes both backend `dist` modules and the Vite
+  browser bundle.
 - The standalone develop-web-game client was retried with the repo
   `node_modules` on `NODE_PATH`, but the skill script still cannot resolve its
   own ESM `playwright` import. Repo-native Playwright smoke/renderer/responsive

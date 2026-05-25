@@ -241,6 +241,7 @@ interface AppState {
   generatedRoom?: GeneratedRoomState
   generatedPreview?: GeneratedMapPreviewState
   devTools: DevToolsAppState
+  serverProtocolMismatch?: ServerProtocolMismatchState
   lastMediaRoom?: string
   lastChatBody?: string
   lastMovementRejection?: {
@@ -281,6 +282,12 @@ interface MovementDebugRecord {
   readonly atMs: number
   readonly label: string
   readonly detail: string
+}
+
+interface ServerProtocolMismatchState {
+  readonly kind: "movement_vector_telemetry_missing"
+  readonly detectedAtMs: number
+  readonly lastSeqAck?: number
 }
 
 interface MapGenerationState {
@@ -485,6 +492,7 @@ const state: AppState = {
   generatedRoom: undefined,
   generatedPreview: undefined,
   devTools: initialDevToolsState(),
+  serverProtocolMismatch: undefined,
   lastMediaRoom: undefined,
   lastChatBody: undefined,
   lastMovementRejection: undefined,
@@ -985,6 +993,7 @@ async function resetDemo(
   clearMediaSession()
   state.lastChatBody = undefined
   state.lastMovementRejection = undefined
+  state.serverProtocolMismatch = undefined
   state.players.clear()
   chatMessages.length = 0
   renderChatMessages()
@@ -2463,6 +2472,7 @@ function applyServerMessage(message: ServerMessage): void {
     const localPlayerMoved = message.playerId === state.playerId
 
     if (localPlayerMoved) {
+      observeServerMovementProtocol(message)
       reconcileClientMovementPrediction(position, message.seqAck, false)
       state.position = position
       state.direction = message.direction
@@ -2630,6 +2640,7 @@ function applyMovementRejection(
   const showFeedback = shouldShowMovementRejectionFeedback(message.reason)
 
   if (message.playerId === state.playerId) {
+    observeServerMovementProtocol(message)
     reconcileClientMovementPrediction(position, message.seqAck, true)
     state.position = position
     state.direction = direction
@@ -3578,6 +3589,50 @@ function formatServerMovementTelemetry(
   return `serverRequested=${requested} serverApplied=${applied} serverSlide=${slide}`
 }
 
+function observeServerMovementProtocol(message: {
+  readonly seqAck?: number
+  readonly requestedVector?: MovementVector
+  readonly appliedVector?: MovementVector
+  readonly collisionSlide?: boolean
+}): void {
+  if (hasServerMovementTelemetry(message)) {
+    if (state.serverProtocolMismatch) {
+      state.serverProtocolMismatch = undefined
+      setConnectionStatus("world", "ready", "In room")
+      logMovementDebug("protocol", "server movement telemetry restored")
+    }
+    return
+  }
+
+  const firstMismatch = !state.serverProtocolMismatch
+  state.serverProtocolMismatch = {
+    kind: "movement_vector_telemetry_missing",
+    detectedAtMs: Date.now(),
+    lastSeqAck: message.seqAck,
+  }
+  setConnectionStatus("world", "blocked", "Update server")
+
+  if (!firstMismatch) return
+
+  logMovementDebug(
+    "protocol",
+    "server vector telemetry missing; stop and restart npm run dev:http",
+  )
+  publishToast("World server is outdated. Restart npm run dev:http.", "warning")
+}
+
+function hasServerMovementTelemetry(message: {
+  readonly requestedVector?: MovementVector
+  readonly appliedVector?: MovementVector
+  readonly collisionSlide?: boolean
+}): boolean {
+  return (
+    message.requestedVector !== undefined &&
+    message.appliedVector !== undefined &&
+    typeof message.collisionSlide === "boolean"
+  )
+}
+
 function formatMovementNumber(value: number): string {
   return Number(value.toFixed(3)).toString()
 }
@@ -4160,6 +4215,7 @@ function renderDemoToText(): string {
       pendingDirection: movementInput.pendingIntent?.direction,
       inFlight: movementInput.inFlight,
       lastRejectedReason: state.lastMovementRejection?.reason,
+      serverProtocolMismatch: state.serverProtocolMismatch,
       repeatMs: MOVE_REPEAT_MS,
       rejectionFeedbackMs: MOVEMENT_REJECTION_FEEDBACK_MS,
       prediction: movementPredictionTextState(),

@@ -93,13 +93,14 @@ This builds the new TypeScript workspace and runs checks for:
 
 ## Local App-Layer HTTP Host
 
-After building the target workspace, run:
+Run:
 
 ```bash
 npm run dev:http
 ```
 
-This starts a dependency-free Node HTTP host for local smoke testing:
+This builds the target workspace, then starts a dependency-free Node HTTP host
+for local smoke testing:
 
 - Vite-built playable local browser demo is served under `/app`.
 - The local office map is rendered by Phaser 4 from `/dev/fixture-map`; the
@@ -113,8 +114,8 @@ This starts a dependency-free Node HTTP host for local smoke testing:
   verification.
 - The target verification also runs a full local app-layer smoke flow across
   `/dev`, `/api`, `/world`, and `/media`.
-- Run `npm run build` before `npm run dev:http` if you changed browser source;
-  `npm run check` does this as part of target verification.
+- Stop and restart `npm run dev:http` after server-side changes; the running
+  Node process keeps its loaded world/API/media modules in memory.
 
 Run the imported SkyOffice baseline verification with:
 

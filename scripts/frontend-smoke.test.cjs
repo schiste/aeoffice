@@ -280,6 +280,11 @@ async function main() {
       ),
       `Expected current world server to report applied vectors, got ${JSON.stringify(diagonalMoved.movement.debugLog)}.`,
     )
+    assert.equal(
+      diagonalMoved.movement.serverProtocolMismatch,
+      undefined,
+      `Expected no server protocol mismatch, got ${JSON.stringify(diagonalMoved.movement.serverProtocolMismatch)}.`,
+    )
     await page.unroute("**/world/message")
     assert.ok(
       diagonalMoved.movement.prediction.totalPredicted >
