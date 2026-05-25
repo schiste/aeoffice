@@ -180,6 +180,8 @@ type ServerMessage =
       readonly requestedVector?: MovementVector
       readonly appliedVector?: MovementVector
       readonly collisionSlide?: boolean
+      readonly collisionSlideAxis?: "x" | "y" | "corner"
+      readonly collisionSlideDistancePx?: number
       readonly movementMode?: MovementMode
       readonly speedPxPerSecond?: number
     }
@@ -199,6 +201,8 @@ type ServerMessage =
       readonly requestedVector?: MovementVector
       readonly appliedVector?: MovementVector
       readonly collisionSlide?: boolean
+      readonly collisionSlideAxis?: "x" | "y" | "corner"
+      readonly collisionSlideDistancePx?: number
       readonly movementMode?: MovementMode
       readonly speedPxPerSecond?: number
     }
@@ -1264,7 +1268,7 @@ function beginClientMovementPrediction(
   state.movementPrediction.lastCorrectionPx = undefined
   logMovementDebug(
     "predict",
-    `seq=${seq} mode=${prediction.movementMode} speed=${prediction.speedPxPerSecond} requested=${formatMovementVector(prediction.requestedVector)} applied=${formatMovementVector(prediction.appliedVector)} from=${formatMovementVector(prediction.from)} target=${formatMovementVector(prediction.target)} pending=${state.movementPrediction.pending.length} slide=${prediction.collisionSlide}`,
+    `seq=${seq} mode=${prediction.movementMode} speed=${prediction.speedPxPerSecond} requested=${formatMovementVector(prediction.requestedVector)} applied=${formatMovementVector(prediction.appliedVector)} from=${formatMovementVector(prediction.from)} target=${formatMovementVector(prediction.target)} pending=${state.movementPrediction.pending.length} slide=${prediction.collisionSlide} slideAxis=${prediction.collisionSlideAxis ?? "-"} slideDistance=${formatMovementNumber(prediction.collisionSlideDistancePx)}`,
   )
 
   if (prediction.blockedLocally) {
@@ -4031,6 +4035,8 @@ function formatServerMovementTelemetry(
     readonly requestedVector?: MovementVector
     readonly appliedVector?: MovementVector
     readonly collisionSlide?: boolean
+    readonly collisionSlideAxis?: "x" | "y" | "corner"
+    readonly collisionSlideDistancePx?: number
     readonly movementMode?: MovementMode
     readonly speedPxPerSecond?: number
   },
@@ -4042,10 +4048,15 @@ function formatServerMovementTelemetry(
     ? formatMovementVector(message.appliedVector)
     : "legacy/missing"
   const slide = message.collisionSlide ?? "legacy/missing"
+  const slideAxis = message.collisionSlideAxis ?? "-"
+  const slideDistance =
+    message.collisionSlideDistancePx !== undefined
+      ? formatMovementNumber(message.collisionSlideDistancePx)
+      : "-"
   const mode = message.movementMode ?? "legacy/missing"
   const speed = message.speedPxPerSecond ?? "legacy/missing"
 
-  return `serverMode=${mode} serverSpeed=${speed} serverRequested=${requested} serverApplied=${applied} serverSlide=${slide}`
+  return `serverMode=${mode} serverSpeed=${speed} serverRequested=${requested} serverApplied=${applied} serverSlide=${slide} serverSlideAxis=${slideAxis} serverSlideDistance=${slideDistance}`
 }
 
 function observeServerMovementProtocol(message: {
@@ -4581,7 +4592,11 @@ function movementPredictionTextState() {
       ? roundedVector(prediction.last.appliedVector)
       : undefined,
     collisionSlide: prediction.active?.collisionSlide ?? false,
+    collisionSlideAxis: prediction.active?.collisionSlideAxis,
+    collisionSlideDistancePx: prediction.active?.collisionSlideDistancePx,
     lastCollisionSlide: prediction.last?.collisionSlide ?? false,
+    lastCollisionSlideAxis: prediction.last?.collisionSlideAxis,
+    lastCollisionSlideDistancePx: prediction.last?.collisionSlideDistancePx,
     blockedLocally: prediction.active?.blockedLocally ?? false,
     lastBlockedLocally: prediction.last?.blockedLocally ?? false,
     from: prediction.active

@@ -993,6 +993,8 @@ interface MovementTelemetry {
   readonly requestedVector: MovementVector
   readonly appliedVector: MovementVector
   readonly collisionSlide: boolean
+  readonly collisionSlideAxis?: "x" | "y" | "corner"
+  readonly collisionSlideDistancePx: number
   readonly movementMode: MovementMode
   readonly speedPxPerSecond: number
 }
@@ -1001,11 +1003,15 @@ function movementTelemetry(result: {
   readonly requestedVector: MovementVector
   readonly appliedVector: MovementVector
   readonly collisionSlide: boolean
+  readonly collisionSlideAxis?: "x" | "y" | "corner"
+  readonly collisionSlideDistancePx: number
 }, movementMode: MovementMode, speedPxPerSecond: number): MovementTelemetry {
   return {
     requestedVector: result.requestedVector,
     appliedVector: result.appliedVector,
     collisionSlide: result.collisionSlide,
+    collisionSlideAxis: result.collisionSlideAxis,
+    collisionSlideDistancePx: result.collisionSlideDistancePx,
     movementMode,
     speedPxPerSecond,
   }

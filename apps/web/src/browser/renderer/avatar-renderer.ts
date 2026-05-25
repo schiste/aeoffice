@@ -178,6 +178,7 @@ class AvatarView {
   readonly cameraTarget: Phaser.GameObjects.Zone
   private readonly visualRoot: Phaser.GameObjects.Container
   private readonly shadow: Phaser.GameObjects.Ellipse
+  private readonly impactRing: Phaser.GameObjects.Ellipse
   private readonly leftFoot: Phaser.GameObjects.Ellipse
   private readonly rightFoot: Phaser.GameObjects.Ellipse
   private readonly torso: Phaser.GameObjects.Ellipse
@@ -196,6 +197,7 @@ class AvatarView {
   private walkTweenAction?: AvatarAnimationAction
   private positionTween?: Phaser.Tweens.Tween
   private rejectionTween?: Phaser.Tweens.Tween
+  private impactTween?: Phaser.Tweens.Tween
   private emoteTween?: Phaser.Tweens.Tween
   private lastPosition: Vector2
   private lastDirection: Direction
@@ -255,6 +257,9 @@ class AvatarView {
 
     const palette = this.appearance.palette
     this.shadow = scene.add.ellipse(0, 15, 20, 7, 0x20201d, 0.18)
+    this.impactRing = scene.add.ellipse(0, 13, 22, 10, 0xffd166, 0)
+    this.impactRing.setStrokeStyle(2, 0xffd166, 0)
+    this.impactRing.setVisible(false)
     this.leftFoot = scene.add.ellipse(-5, 12, 7, 5, palette.torsoDark, 1)
     this.rightFoot = scene.add.ellipse(5, 12, 7, 5, palette.torsoDark, 1)
     this.torso = scene.add.ellipse(0, 2, AVATAR_WIDTH, AVATAR_HEIGHT, palette.torso, 1)
@@ -297,6 +302,7 @@ class AvatarView {
     this.focusTarget.add(this.visualRoot)
     this.visualRoot.add([
       this.shadow,
+      this.impactRing,
       this.leftFoot,
       this.rightFoot,
       this.torso,
@@ -510,6 +516,7 @@ class AvatarView {
     this.footTween?.stop()
     this.positionTween?.stop()
     this.rejectionTween?.stop()
+    this.impactTween?.stop()
     this.emoteTween?.stop()
     this.focusTarget.destroy(true)
     this.cameraTarget.destroy()
@@ -560,8 +567,26 @@ class AvatarView {
 
   private showRejected(direction: Direction): void {
     this.rejectionTween?.stop()
+    this.impactTween?.stop()
     const palette = this.appearance.palette
     this.torso.setStrokeStyle(2, 0xffd166, 1)
+    this.impactRing.setVisible(true)
+    this.impactRing.setAlpha(0.72)
+    this.impactRing.setScale(0.72, 0.82)
+    this.impactRing.setStrokeStyle(2, 0xffd166, 0.78)
+    this.impactTween = this.scene.tweens.add({
+      targets: this.impactRing,
+      alpha: 0,
+      scaleX: 1.46,
+      scaleY: 1.24,
+      duration: 190,
+      ease: "Sine.easeOut",
+      onComplete: () => {
+        this.impactRing.setVisible(false)
+        this.impactRing.setScale(1, 1)
+        this.impactRing.setStrokeStyle(2, 0xffd166, 0)
+      },
+    })
     this.rejectionTween = this.scene.tweens.add({
       targets: this.visualRoot,
       x: facingNudgeX(direction),

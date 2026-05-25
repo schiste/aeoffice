@@ -42,6 +42,8 @@ export interface ClientMovementPrediction {
   readonly speedPxPerSecond: number
   readonly blockedLocally: boolean
   readonly collisionSlide: boolean
+  readonly collisionSlideAxis?: "x" | "y" | "corner"
+  readonly collisionSlideDistancePx: number
 }
 
 export interface MovementPredictionState {
@@ -162,6 +164,8 @@ export function createClientMovementPrediction(
     speedPxPerSecond,
     blockedLocally: !result.accepted,
     collisionSlide: result.collisionSlide,
+    collisionSlideAxis: result.collisionSlideAxis,
+    collisionSlideDistancePx: result.collisionSlideDistancePx,
   }
 }
 

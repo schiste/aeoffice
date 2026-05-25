@@ -111,9 +111,44 @@ const diagonalSlide = simulateMovement({
 
 assert.equal(diagonalSlide.accepted, true)
 assert.equal(diagonalSlide.collisionSlide, true)
+assert.equal(diagonalSlide.collisionSlideAxis, "x")
+assert.equal(Math.round(diagonalSlide.collisionSlideDistancePx), 16)
 assert.equal(Math.round(diagonalSlide.position.x), 59)
 assert.equal(Math.round(diagonalSlide.position.y), 16)
 assert.deepEqual(diagonalSlide.appliedVector, { x: 1, y: 0 })
+
+const cornerSlide = simulateMovement({
+  current: { x: 47, y: 18 },
+  vector: { x: 1, y: 0 },
+  seq: 7,
+  map,
+  playerSize,
+  speedPxPerSecond: 64,
+  deltaMs: 250,
+})
+
+assert.equal(cornerSlide.accepted, true)
+assert.equal(cornerSlide.collisionSlide, true)
+assert.equal(cornerSlide.collisionSlideAxis, "corner")
+assert.equal(Math.round(cornerSlide.position.x), 63)
+assert.equal(Math.round(cornerSlide.position.y), 16)
+assert.ok(cornerSlide.appliedVector.x > 0.9)
+assert.ok(cornerSlide.appliedVector.y < 0)
+
+const fullyBlocked = simulateMovement({
+  current: { x: 48, y: 32 },
+  vector: { x: 1, y: 0 },
+  seq: 8,
+  map,
+  playerSize,
+  speedPxPerSecond: 64,
+  deltaMs: 250,
+})
+
+assert.equal(fullyBlocked.accepted, false)
+assert.equal(fullyBlocked.reason, "collision")
+assert.equal(fullyBlocked.collisionSlideDistancePx, 0)
+
 assert.equal(
   collidesWithMap(map, { x: 64, y: 32 }, playerSize),
   true,

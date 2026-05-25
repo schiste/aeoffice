@@ -265,6 +265,18 @@ async function main() {
       typeof diagonalMoved.movement.prediction.lastCollisionSlide,
       "boolean",
     )
+    if (diagonalMoved.movement.prediction.lastCollisionSlide) {
+      assert.ok(
+        ["x", "y", "corner"].includes(
+          diagonalMoved.movement.prediction.lastCollisionSlideAxis,
+        ),
+        `Expected slide axis telemetry, got ${JSON.stringify(diagonalMoved.movement.prediction)}.`,
+      )
+      assert.equal(
+        typeof diagonalMoved.movement.prediction.lastCollisionSlideDistancePx,
+        "number",
+      )
+    }
     assert.ok(
       diagonalMoved.movement.prediction.lastAckSeq >=
         beforeDiagonal.movement.prediction.lastAckSeq ||
@@ -622,6 +634,18 @@ function assertRenderStateContract(state) {
     assert.equal(typeof state.movement.prediction.appliedVector?.y, "number")
     assert.equal(typeof state.movement.prediction.speedPxPerSecond, "number")
     assert.equal(typeof state.movement.prediction.collisionSlide, "boolean")
+    if (state.movement.prediction.collisionSlide) {
+      assert.ok(
+        ["x", "y", "corner"].includes(
+          state.movement.prediction.collisionSlideAxis,
+        ),
+        "Expected active collision slide axis telemetry.",
+      )
+      assert.equal(
+        typeof state.movement.prediction.collisionSlideDistancePx,
+        "number",
+      )
+    }
   }
   assert.equal(typeof state.map?.renderer, "string")
   assert.equal(typeof state.renderer?.requestedRenderer, "string")

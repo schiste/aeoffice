@@ -684,3 +684,27 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   screenshot were visually inspected. The standalone develop-web-game client
   still fails before navigation because it cannot resolve its own `playwright`
   package.
+- Collision feel now supports bounded corner sliding in the shared movement
+  engine. Cardinal and diagonal blocked moves can nudge along a nearby clear
+  edge before fully rejecting, so players glide around furniture and wall
+  corners instead of sticking to square tile boundaries.
+- Movement responses, rejections, client predictions, debug logs, and
+  `render_game_to_text.movement.prediction` now expose slide axis and slide
+  distance metadata. This keeps client prediction, server authority, and
+  automation aligned on whether a collision became an axis slide, a corner
+  slide, or a hard block.
+- Blocked movement feedback now includes a short impact ring around the avatar
+  in addition to the existing physical bump. It reads as contact feedback in
+  the world rather than as a primary UI error.
+- Verification passed after the collision-feel pass: `npm --workspace
+  @aedventure/map-engine run build`,
+  `node packages/map-engine/test/movement.test.js`, `npm --workspace
+  @aedventure/protocol run build`, `npm --workspace @aedventure/world-server
+  run build`, `node apps/world-server/test/authoritative-world.test.js`,
+  `npm --workspace @aedventure/web run build`,
+  `node --check scripts/frontend-smoke.test.cjs`,
+  `node --check scripts/renderer-qa.test.cjs`, `npm run smoke:frontend`,
+  `npm run qa:renderer`, `npm run qa:responsive`, `npm run check`, and
+  `git diff --check`. Renderer and mobile responsive screenshots were visually
+  inspected. The standalone develop-web-game client still fails before
+  navigation because it cannot resolve its own `playwright` package.

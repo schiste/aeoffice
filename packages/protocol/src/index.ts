@@ -48,6 +48,8 @@ export interface PlayerStateMessage {
   readonly requestedVector?: MovementVector
   readonly appliedVector?: MovementVector
   readonly collisionSlide?: boolean
+  readonly collisionSlideAxis?: "x" | "y" | "corner"
+  readonly collisionSlideDistancePx?: number
   readonly movementMode?: MovementMode
   readonly speedPxPerSecond?: number
 }
@@ -70,6 +72,8 @@ export interface MovementRejectedMessage {
   readonly requestedVector?: MovementVector
   readonly appliedVector?: MovementVector
   readonly collisionSlide?: boolean
+  readonly collisionSlideAxis?: "x" | "y" | "corner"
+  readonly collisionSlideDistancePx?: number
   readonly movementMode?: MovementMode
   readonly speedPxPerSecond?: number
 }
