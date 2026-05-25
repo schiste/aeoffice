@@ -5,7 +5,7 @@ import type { RendererDepthInfo, RendererDepthObjectInfo } from "./types"
 const DEBUG_DEPTH = 120000
 
 export class DepthDebugOverlay {
-  private readonly enabled = depthDebugEnabled()
+  private enabled = depthDebugEnabled()
   private graphics?: Phaser.GameObjects.Graphics
   private readonly labels: Phaser.GameObjects.Text[] = []
 
@@ -13,6 +13,13 @@ export class DepthDebugOverlay {
 
   isEnabled(): boolean {
     return this.enabled
+  }
+
+  setEnabled(enabled: boolean): void {
+    this.enabled = enabled
+    if (!enabled) {
+      this.clear()
+    }
   }
 
   clear(): void {

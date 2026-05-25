@@ -419,6 +419,27 @@ function assertRenderStateContract(state) {
   assert.equal(typeof state.renderer?.assets?.atlasLoaded, "boolean")
   assert.equal(typeof state.renderer?.assets?.primarySource, "string")
   assert.equal(typeof state.renderer?.depth?.debugOverlayEnabled, "boolean")
+  assert.equal(typeof state.devTools?.gated, "boolean")
+  assert.equal(typeof state.devTools?.enabled, "boolean")
+  assert.ok(
+    Array.isArray(state.devTools?.availableFixtureIds),
+    "Expected devTools.availableFixtureIds in render_game_to_text.",
+  )
+  assert.equal(
+    state.devTools?.primaryUiControlsExposed,
+    0,
+    "Expected no product-facing devtools controls.",
+  )
+  assert.equal(state.devTools?.renderer?.source, "renderer_dev_tools")
+  assert.equal(typeof state.devTools?.renderer?.overlays?.grid, "boolean")
+  assert.equal(
+    typeof state.devTools?.renderer?.overlayObjectCounts?.gridLineCount,
+    "number",
+  )
+  assert.ok(
+    Array.isArray(state.devTools?.renderer?.keyboardShortcuts),
+    "Expected devTools renderer keyboard shortcuts in render_game_to_text.",
+  )
   assert.ok(
     Array.isArray(state.renderer?.depth?.objects),
     "Expected renderer.depth.objects in render_game_to_text.",

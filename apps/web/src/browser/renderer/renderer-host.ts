@@ -26,6 +26,8 @@ import type {
   RendererCameraMode,
   RendererCameraState,
   RendererCapabilityInfo,
+  RendererDevToolsInfo,
+  RendererDevToolsOptions,
   RendererEffectsInfo,
   RendererEffectsOptions,
   RendererMapValidationInfo,
@@ -189,6 +191,10 @@ export class PhaserOfficeRenderer {
     this.scene.setZoneDebugOverlayEnabled(enabled)
   }
 
+  setDevToolsState(options: RendererDevToolsOptions): void {
+    this.scene.setDevToolsState(options)
+  }
+
   setEffectsOptions(options: RendererEffectsOptions): void {
     this.scene.setEffectsOptions(options)
   }
@@ -199,6 +205,10 @@ export class PhaserOfficeRenderer {
 
   getEffectsInfo(): RendererEffectsInfo {
     return this.scene.getEffectsInfo()
+  }
+
+  getDevToolsInfo(): RendererDevToolsInfo {
+    return this.scene.getDevToolsInfo()
   }
 
   getPerformanceInfo(): RendererPerformanceInfo {

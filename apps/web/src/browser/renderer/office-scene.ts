@@ -8,6 +8,7 @@ import { AvatarRenderer } from "./avatar-renderer"
 import { CameraController } from "./camera-controller"
 import { depthInfo, emptyDepthInfo } from "./depth"
 import { DepthDebugOverlay } from "./depth-debug-overlay"
+import { DevToolsOverlay } from "./dev-tools-overlay"
 import { EffectsLayer } from "./effects-layer"
 import { TilemapRenderer } from "./tilemap-renderer"
 import { ObjectRenderer } from "./object-renderer"
@@ -29,6 +30,8 @@ import type {
   RendererCameraMode,
   RendererCameraState,
   RendererDepthInfo,
+  RendererDevToolsInfo,
+  RendererDevToolsOptions,
   RendererEffectsInfo,
   RendererEffectsOptions,
   RendererMapValidationInfo,
@@ -48,6 +51,7 @@ export class OfficeScene extends Phaser.Scene {
   private readonly zoneRenderer: ZoneRenderer
   private readonly effectsLayer: EffectsLayer
   private readonly depthDebugOverlay: DepthDebugOverlay
+  private readonly devToolsOverlay: DevToolsOverlay
   private readonly telemetry = new RendererTelemetry()
   private readonly atlasPromise = loadInternalOfficeAtlas()
   private activeMap?: Phaser.Tilemaps.Tilemap
@@ -56,10 +60,12 @@ export class OfficeScene extends Phaser.Scene {
   private objectDepthInfo: RendererDepthInfo["objects"] = []
   private rendererDepthInfo: RendererDepthInfo
   private mapValidationInfo: RendererMapValidationInfo = emptyMapValidationInfo()
+  private currentFixtureMap?: FixtureMap
   private mapRenderCount = 0
   private lastMapRenderDurationMs = 0
   private lastTileSize = 32
   private lastCullingKey = ""
+  private sceneReady = false
 
   constructor(private readonly onReady: (scene: OfficeScene) => void) {
     super({ key: "OfficeScene" })
@@ -70,12 +76,15 @@ export class OfficeScene extends Phaser.Scene {
     this.zoneRenderer = new ZoneRenderer(this)
     this.effectsLayer = new EffectsLayer(this)
     this.depthDebugOverlay = new DepthDebugOverlay(this)
+    this.devToolsOverlay = new DevToolsOverlay(this)
     this.rendererDepthInfo = emptyDepthInfo(this.depthDebugOverlay.isEnabled())
   }
 
   create(): void {
+    this.sceneReady = true
     this.cameraController.markReady()
     this.zoneRenderer.bindPointerInput()
+    this.syncDevToolOverlays()
     this.events.on(Phaser.Scenes.Events.UPDATE, () => {
       this.updateViewportCulling()
     })
@@ -105,10 +114,12 @@ export class OfficeScene extends Phaser.Scene {
     this.zoneRenderer.clear()
     this.effectsLayer.clear()
     this.depthDebugOverlay.clear()
+    this.devToolsOverlay.clear()
     this.objectRenderer.releaseActiveSprites()
     this.activeMap?.destroy()
     this.activeMap = undefined
     this.lastCullingKey = ""
+    this.currentFixtureMap = fixtureMap
     this.activeMap = this.make.tilemap({
       tileWidth: tileSize,
       tileHeight: tileSize,
@@ -184,6 +195,7 @@ export class OfficeScene extends Phaser.Scene {
     this.objectDepthInfo = [...furnitureDepthInfo, ...wallForegroundDepthInfo]
     this.zoneRenderer.reset(fixtureMap.compiled.zones, tileSize)
     this.updatePlayers(players)
+    this.refreshDevToolsOverlay()
     this.telemetry.recordRender(
       fixtureMap,
       players,
@@ -196,13 +208,10 @@ export class OfficeScene extends Phaser.Scene {
   updatePlayers(players: readonly RenderedPlayer[]): void {
     const followTarget = this.avatarRenderer.updatePlayers(players)
     this.cameraController.follow(followTarget)
-    this.rendererDepthInfo = depthInfo(
-      this.objectDepthInfo,
-      this.avatarRenderer.getDepthInfo(),
-      this.depthDebugOverlay.isEnabled(),
-    )
+    this.refreshDepthInfo()
     this.depthDebugOverlay.render(this.rendererDepthInfo)
     this.updateViewportCulling()
+    this.refreshDevToolsOverlay()
     this.telemetry.recordPlayers(
       players,
       this.cameraController.getViewportState(),
@@ -238,7 +247,18 @@ export class OfficeScene extends Phaser.Scene {
   }
 
   setZoneDebugOverlayEnabled(enabled: boolean): void {
-    this.zoneRenderer.setDebugOverlayEnabled(enabled)
+    this.devToolsOverlay.setState({
+      enabled: this.devToolsOverlay.getInfo().enabled || enabled,
+      overlays: {
+        zones: enabled,
+      },
+    })
+    this.syncDevToolOverlays()
+  }
+
+  setDevToolsState(options: RendererDevToolsOptions): void {
+    this.devToolsOverlay.setState(options)
+    this.syncDevToolOverlays()
   }
 
   setEffectsOptions(options: RendererEffectsOptions): void {
@@ -297,6 +317,10 @@ export class OfficeScene extends Phaser.Scene {
     return this.rendererDepthInfo
   }
 
+  getDevToolsInfo(): RendererDevToolsInfo {
+    return this.devToolsOverlay.getInfo()
+  }
+
   getTelemetrySnapshot(): RendererTelemetrySnapshot | undefined {
     return this.telemetry.getSnapshot()
   }
@@ -331,6 +355,37 @@ export class OfficeScene extends Phaser.Scene {
     if (cullingKey === this.lastCullingKey) return
     this.lastCullingKey = cullingKey
     this.objectRenderer.updateViewportCulling(worldView)
+    this.refreshDevToolsOverlay()
+  }
+
+  private syncDevToolOverlays(): void {
+    if (!this.sceneReady) return
+
+    this.zoneRenderer.setDebugOverlayEnabled(
+      this.devToolsOverlay.isZoneOverlayEnabled(),
+    )
+    this.depthDebugOverlay.setEnabled(
+      this.devToolsOverlay.isDepthOverlayEnabled(),
+    )
+    this.refreshDepthInfo()
+    this.depthDebugOverlay.render(this.rendererDepthInfo)
+    this.refreshDevToolsOverlay()
+  }
+
+  private refreshDepthInfo(): void {
+    this.rendererDepthInfo = depthInfo(
+      this.objectDepthInfo,
+      this.avatarRenderer.getDepthInfo(),
+      this.depthDebugOverlay.isEnabled(),
+    )
+  }
+
+  private refreshDevToolsOverlay(): void {
+    this.devToolsOverlay.render(
+      this.currentFixtureMap,
+      this.rendererDepthInfo,
+      this.cameraController.getCameraState(),
+    )
   }
 }
 

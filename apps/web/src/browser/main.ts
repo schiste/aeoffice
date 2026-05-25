@@ -3,6 +3,8 @@ import {
   type AvatarEmoteId,
   type RenderedPlayer,
   type RendererCameraState,
+  type RendererDevToolOverlayId,
+  type RendererDevToolOverlayState,
   type RendererEffectsOptions,
   type RendererPerformanceInfo,
   type RendererZoomPresetId,
@@ -30,6 +32,17 @@ type DepthFixtureCaseId =
   | "table_player_front"
   | "wall_player_behind"
 type RendererReadiness = "loading" | "ready" | "failed"
+type DevToolFixtureId =
+  | PresetMapId
+  | "generated"
+  | "depth_table_player_behind"
+  | "depth_table_player_front"
+  | "depth_wall_player_behind"
+  | "avatar_fixture"
+  | "zone_fixture"
+  | "stress_20x15"
+  | "stress_50x40"
+  | "stress_100x80"
 type StageOverlayState =
   | "loading"
   | "empty"
@@ -203,6 +216,7 @@ interface AppState {
   mapGeneration: MapGenerationState
   generatedRoom?: GeneratedRoomState
   generatedPreview?: GeneratedMapPreviewState
+  devTools: DevToolsAppState
   lastMediaRoom?: string
   lastChatBody?: string
   lastMovementRejection?: {
@@ -253,6 +267,14 @@ interface GeneratedMapPreviewState {
     readonly errors: readonly string[]
     readonly visualFootprintCount: number
   }
+}
+
+interface DevToolsAppState {
+  readonly gated: boolean
+  enabled: boolean
+  activeFixtureId?: DevToolFixtureId
+  lastAction?: string
+  overlays: RendererDevToolOverlayState
 }
 
 interface DepthFixtureCaseResult {
@@ -344,6 +366,28 @@ const DEFAULT_DISPLAY_NAME = "Browser Ada"
 const DEFAULT_AVATAR_ID: AvatarId = "ember"
 const MOBILE_LAYOUT_QUERY = "(max-width: 760px)"
 const avatarIds: readonly AvatarId[] = ["ember", "cobalt", "moss", "violet"]
+const DEV_TOOL_FIXTURES: readonly DevToolFixtureId[] = [
+  "lobby",
+  "meeting_room",
+  "lounge_cafe",
+  "generated",
+  "depth_table_player_behind",
+  "depth_table_player_front",
+  "depth_wall_player_behind",
+  "avatar_fixture",
+  "zone_fixture",
+  "stress_20x15",
+  "stress_50x40",
+  "stress_100x80",
+]
+const DEV_TOOL_OVERLAY_IDS: readonly RendererDevToolOverlayId[] = [
+  "grid",
+  "collision",
+  "zones",
+  "depth",
+  "spriteBounds",
+  "camera",
+]
 
 const state: AppState = {
   sessionId: undefined,
@@ -395,6 +439,7 @@ const state: AppState = {
   },
   generatedRoom: undefined,
   generatedPreview: undefined,
+  devTools: initialDevToolsState(),
   lastMediaRoom: undefined,
   lastChatBody: undefined,
   lastMovementRejection: undefined,
@@ -481,6 +526,8 @@ const elements = {
 }
 const renderer = new PhaserOfficeRenderer(elements.map)
 const mobileLayoutQuery = window.matchMedia(MOBILE_LAYOUT_QUERY)
+syncRendererDevTools()
+installDevToolsKeyboardShortcuts()
 
 elements.start.addEventListener("click", () => queueAction(() => startDemo()))
 elements.reset.addEventListener("click", () => queueAction(() => resetDemo()))
@@ -584,17 +631,19 @@ window.addEventListener("blur", () => {
 })
 mobileLayoutQuery.addEventListener("change", () => syncResponsiveToolSections())
 
-switchToPresetMap("lobby", { announce: false }).catch((error: unknown) => {
-  setRendererReadiness("failed")
-  setLifecycleStatus(
-    "recovering",
-    "Unable to load office",
-    "The office map could not be prepared. Refresh the page or try again shortly.",
-    technicalErrorDetail(error),
-  )
-  publishToast("The office could not load. Try again shortly.", "error")
-  renderPlayers()
-})
+switchToPresetMap("lobby", { announce: false })
+  .then(() => applyInitialDevFixture())
+  .catch((error: unknown) => {
+    setRendererReadiness("failed")
+    setLifecycleStatus(
+      "recovering",
+      "Unable to load office",
+      "The office map could not be prepared. Refresh the page or try again shortly.",
+      technicalErrorDetail(error),
+    )
+    publishToast("The office could not load. Try again shortly.", "error")
+    renderPlayers()
+  })
 void renderer.advanceTime().then(
   () => setRendererReadiness("ready"),
   (error: unknown) => {
@@ -1324,13 +1373,23 @@ function applyFixtureMap(
 ): void {
   state.fixtureMap = fixtureMap
   state.mapGeneration = mapGeneration
+  if (state.devTools.gated) {
+    state.devTools.activeFixtureId = devFixtureIdForMapGeneration(mapGeneration)
+  }
   state.position = fixtureSpawnPosition(fixtureMap, "default")
   state.companion.position = fixtureSpawnPosition(fixtureMap, "guest")
   seedLocalRenderedPlayer()
+  syncRendererDevTools()
   renderer.renderMap(fixtureMap)
   renderPlayers()
   updateActiveZoneFromPosition()
   renderMapGenerationResult()
+}
+
+function devFixtureIdForMapGeneration(
+  mapGeneration: MapGenerationState,
+): DevToolFixtureId {
+  return mapGeneration.mapId === "generated" ? "generated" : mapGeneration.mapId
 }
 
 function fixtureMapFromCompiledMap(
@@ -3216,6 +3275,234 @@ function queueAction(action: () => Promise<void>): Promise<void> {
   return state.pendingAction
 }
 
+function initialDevToolsState(): DevToolsAppState {
+  const gated = devToolsGateEnabled()
+  const params = currentSearchParams()
+  const overlays = DEV_TOOL_OVERLAY_IDS.reduce(
+    (result, overlayId) => ({
+      ...result,
+      [overlayId]: gated && params.get(devToolQueryParam(overlayId)) === "1",
+    }),
+    {} as RendererDevToolOverlayState,
+  )
+
+  return {
+    gated,
+    enabled: gated && params.get("devtools") !== "0",
+    activeFixtureId: "lobby",
+    lastAction: gated ? "Developer tools enabled" : undefined,
+    overlays,
+  }
+}
+
+function syncRendererDevTools(): void {
+  renderer.setDevToolsState({
+    gated: state.devTools.gated,
+    enabled: state.devTools.enabled,
+    overlays: state.devTools.overlays,
+    fixtureSelector: {
+      enabled: state.devTools.gated,
+      activeFixtureId: state.devTools.activeFixtureId,
+      availableFixtureIds: DEV_TOOL_FIXTURES,
+    },
+  })
+}
+
+function installDevToolsKeyboardShortcuts(): void {
+  document.addEventListener(
+    "keydown",
+    (event) => {
+      if (!state.devTools.gated || !event.altKey || !event.shiftKey) return
+
+      const key = event.key.toLowerCase()
+      let handled = true
+
+      switch (key) {
+        case "t":
+          state.devTools.enabled = !state.devTools.enabled
+          state.devTools.lastAction = state.devTools.enabled
+            ? "Enabled renderer developer tools"
+            : "Disabled renderer developer tools"
+          syncRendererDevTools()
+          break
+        case "g":
+          toggleDevToolOverlay("grid")
+          break
+        case "c":
+          toggleDevToolOverlay("collision")
+          break
+        case "z":
+          toggleDevToolOverlay("zones")
+          break
+        case "d":
+          toggleDevToolOverlay("depth")
+          break
+        case "b":
+          toggleDevToolOverlay("spriteBounds")
+          break
+        case "r":
+          toggleDevToolOverlay("camera")
+          break
+        case "f":
+          queueAction(() => selectRelativeDevFixture(1))
+          break
+        case "v":
+          queueAction(() => selectRelativeDevFixture(-1))
+          break
+        default:
+          handled = false
+      }
+
+      if (!handled) return
+      event.preventDefault()
+      event.stopImmediatePropagation()
+    },
+    { capture: true },
+  )
+}
+
+function toggleDevToolOverlay(overlayId: RendererDevToolOverlayId): void {
+  state.devTools.enabled = true
+  state.devTools.overlays = {
+    ...state.devTools.overlays,
+    [overlayId]: !state.devTools.overlays[overlayId],
+  }
+  state.devTools.lastAction = `${state.devTools.overlays[overlayId] ? "Enabled" : "Disabled"} ${overlayId} overlay`
+  syncRendererDevTools()
+}
+
+async function applyInitialDevFixture(): Promise<void> {
+  syncRendererDevTools()
+  if (!state.devTools.gated) return
+
+  const fixtureId = devToolFixtureFromParam(currentSearchParams().get("devFixture"))
+  if (!fixtureId || fixtureId === "lobby") return
+  await selectDevFixture(fixtureId)
+}
+
+async function selectRelativeDevFixture(offset: number): Promise<void> {
+  const activeFixtureId = state.devTools.activeFixtureId ?? "lobby"
+  const activeIndex = DEV_TOOL_FIXTURES.indexOf(activeFixtureId)
+  const nextIndex =
+    (Math.max(0, activeIndex) + offset + DEV_TOOL_FIXTURES.length) %
+    DEV_TOOL_FIXTURES.length
+
+  await selectDevFixture(DEV_TOOL_FIXTURES[nextIndex])
+}
+
+async function selectDevFixture(fixtureId: DevToolFixtureId): Promise<void> {
+  if (!state.devTools.gated) return
+
+  state.devTools.enabled = true
+  state.devTools.activeFixtureId = fixtureId
+  state.devTools.lastAction = `Selected fixture ${fixtureId}`
+  syncRendererDevTools()
+
+  switch (fixtureId) {
+    case "lobby":
+    case "meeting_room":
+    case "lounge_cafe":
+      await switchToPresetMap(fixtureId, { announce: false })
+      break
+    case "generated":
+      await switchToGeneratedDevFixture()
+      break
+    case "depth_table_player_behind":
+      await renderDepthFixtureCaseForSmoke("table_player_behind")
+      break
+    case "depth_table_player_front":
+      await renderDepthFixtureCaseForSmoke("table_player_front")
+      break
+    case "depth_wall_player_behind":
+      await renderDepthFixtureCaseForSmoke("wall_player_behind")
+      break
+    case "avatar_fixture":
+      await renderAvatarFixtureCaseForSmoke()
+      break
+    case "zone_fixture":
+      await renderZoneFixtureCaseForSmoke()
+      break
+    case "stress_20x15":
+      await renderLargeStaticMapForSmoke({ width: 20, height: 15 })
+      break
+    case "stress_50x40":
+      await renderLargeStaticMapForSmoke({ width: 50, height: 40 })
+      break
+    case "stress_100x80":
+      await renderLargeStaticMapForSmoke({ width: 100, height: 80 })
+      break
+  }
+
+  state.devTools.activeFixtureId = fixtureId
+  syncRendererDevTools()
+  await renderer.advanceTime()
+}
+
+async function switchToGeneratedDevFixture(): Promise<void> {
+  if (!state.generatedRoom) {
+    const generated = compileDeterministicPromptMap(DEFAULT_MAP_PROMPT)
+    const fixtureMap = fixtureMapFromCompiledMap(generated)
+    const preview = generatedPreviewForFixtureMap(fixtureMap, "preflight")
+    const mapGeneration = {
+      source: "generated" as const,
+      mapId: "generated" as const,
+      label: "Generated room",
+      prompt: DEFAULT_MAP_PROMPT,
+      keywords: generated.keywords,
+      validation: generated.validation,
+      preview,
+    }
+    state.generatedPreview = preview
+    state.generatedRoom = {
+      fixtureMap,
+      mapGeneration,
+    }
+  }
+
+  await switchToFixtureMap(
+    state.generatedRoom.fixtureMap,
+    state.generatedRoom.mapGeneration,
+  )
+}
+
+function devToolsGateEnabled(): boolean {
+  if (!localAutomationHost()) return false
+
+  const params = currentSearchParams()
+  return (
+    params.get("devtools") === "1" ||
+    window.localStorage.getItem("aedventure.devtools") === "1"
+  )
+}
+
+function currentSearchParams(): URLSearchParams {
+  return new URLSearchParams(window.location.search)
+}
+
+function devToolQueryParam(overlayId: RendererDevToolOverlayId): string {
+  switch (overlayId) {
+    case "grid":
+      return "devGrid"
+    case "collision":
+      return "devCollision"
+    case "zones":
+      return "devZones"
+    case "depth":
+      return "devDepth"
+    case "spriteBounds":
+      return "devSpriteBounds"
+    case "camera":
+      return "devCamera"
+  }
+}
+
+function devToolFixtureFromParam(value: string | null): DevToolFixtureId | undefined {
+  if (!value) return undefined
+  return DEV_TOOL_FIXTURES.includes(value as DevToolFixtureId)
+    ? (value as DevToolFixtureId)
+    : undefined
+}
+
 function directionForKey(key: string): Direction | undefined {
   switch (key) {
     case "ArrowUp":
@@ -3352,6 +3639,17 @@ function renderDemoToText(): string {
       })),
     },
     renderer: renderer.getCapabilityInfo(),
+    devTools: {
+      gated: state.devTools.gated,
+      enabled: state.devTools.enabled,
+      activeFixtureId: state.devTools.activeFixtureId,
+      availableFixtureIds: DEV_TOOL_FIXTURES,
+      lastAction: state.devTools.lastAction,
+      overlays: state.devTools.overlays,
+      renderer: renderer.getDevToolsInfo(),
+      primaryUiControlsExposed: document.querySelectorAll("[data-devtools-control]")
+        .length,
+    },
     effects: renderer.getEffectsInfo(),
     mapValidation: renderer.getMapValidationInfo(),
     performance: renderer.getPerformanceInfo(),
@@ -3438,6 +3736,14 @@ declare global {
   interface Window {
     render_game_to_text: () => string
     advanceTime: (ms?: number) => Promise<void>
+    __aedventureRendererDevTools?: {
+      setOverlay: (
+        overlayId: RendererDevToolOverlayId,
+        enabled: boolean,
+      ) => Promise<void>
+      selectFixture: (fixtureId: DevToolFixtureId) => Promise<void>
+      state: () => unknown
+    }
     __aedventureRendererTest?: {
       renderLargeStaticMap: (dimensions?: {
         readonly width?: number
@@ -3470,6 +3776,31 @@ window.render_game_to_text = renderDemoToText
 window.advanceTime = async () => {
   await state.pendingAction
   await renderer.advanceTime()
+}
+
+if (localAutomationHost()) {
+  window.__aedventureRendererDevTools = {
+    setOverlay: async (overlayId, enabled) => {
+      if (!state.devTools.gated || !DEV_TOOL_OVERLAY_IDS.includes(overlayId)) {
+        return
+      }
+      state.devTools.enabled = true
+      state.devTools.overlays = {
+        ...state.devTools.overlays,
+        [overlayId]: enabled,
+      }
+      state.devTools.lastAction = `${enabled ? "Enabled" : "Disabled"} ${overlayId} overlay`
+      syncRendererDevTools()
+      await renderer.advanceTime()
+    },
+    selectFixture: async (fixtureId) => {
+      if (!state.devTools.gated || !DEV_TOOL_FIXTURES.includes(fixtureId)) {
+        return
+      }
+      await selectDevFixture(fixtureId)
+    },
+    state: () => JSON.parse(renderDemoToText()).devTools,
+  }
 }
 
 if (localAutomationHost()) {

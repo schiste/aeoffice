@@ -49,11 +49,13 @@ async function main() {
       frameCadence: [],
       screenshots: [],
       depthCases: [],
+      devTools: [],
       mapSwitchLeak: undefined,
     }
 
     await verifyRendererRuntime(browser, url, report)
     await verifyResponsiveScreenshots(browser, url, report)
+    await verifyDevTools(browser, url, report)
 
     writeFileSync(
       join(ARTIFACT_DIR, "renderer-qa-report.json"),
@@ -207,6 +209,96 @@ async function verifyResponsiveScreenshots(browser, url, report) {
   }
 }
 
+async function verifyDevTools(browser, url, report) {
+  const page = await newQaPage(browser, { width: 1280, height: 900 })
+
+  try {
+    await page.goto(
+      `${url}/app?devtools=1&devGrid=1&devCollision=1&devZones=1&devDepth=1&devSpriteBounds=1&devCamera=1&devFixture=zone_fixture`,
+      { waitUntil: "domcontentloaded" },
+    )
+    const initial = await waitForTextState(
+      page,
+      (state) =>
+        state.devTools?.gated === true &&
+        state.devTools?.enabled === true &&
+        state.devTools?.activeFixtureId === "zone_fixture" &&
+        state.map?.label === "Zone fixture" &&
+        state.devTools.renderer?.overlays?.grid === true &&
+        state.devTools.renderer?.overlays?.collision === true &&
+        state.devTools.renderer?.overlays?.zones === true &&
+        state.devTools.renderer?.overlays?.depth === true &&
+        state.devTools.renderer?.overlays?.spriteBounds === true &&
+        state.devTools.renderer?.overlays?.camera === true,
+      9000,
+    )
+
+    assert.equal(initial.devTools.primaryUiControlsExposed, 0)
+    assert.equal(initial.zones.debugOverlayEnabled, true)
+    assert.equal(initial.renderer.depth.debugOverlayEnabled, true)
+    assert.ok(initial.devTools.renderer.overlayObjectCounts.gridLineCount > 0)
+    assert.ok(initial.devTools.renderer.overlayObjectCounts.blockedTileCount > 0)
+    assert.ok(initial.devTools.renderer.overlayObjectCounts.spriteBoundsCount > 0)
+    assert.equal(initial.devTools.renderer.cameraReadout.mode, initial.camera.mode)
+    assert.ok(
+      initial.devTools.renderer.fixtureSelector.availableFixtureIds.includes(
+        "stress_100x80",
+      ),
+    )
+    assert.deepEqual(
+      await page.locator("[data-devtools-control]").count(),
+      0,
+      "Expected no product-facing developer controls.",
+    )
+    report.devTools.push({
+      label: "query-param-gated",
+      activeFixtureId: initial.devTools.activeFixtureId,
+      overlays: initial.devTools.overlays,
+      overlayObjectCounts: initial.devTools.renderer.overlayObjectCounts,
+    })
+    report.screenshots.push(await captureCanvas(page, "devtools-zone-canvas.png"))
+
+    await page.keyboard.press("Alt+Shift+C")
+    const collisionOff = await waitForTextState(
+      page,
+      (state) =>
+        state.devTools?.overlays?.collision === false &&
+        state.devTools.renderer?.overlays?.collision === false,
+    )
+    assert.equal(collisionOff.devTools.enabled, true)
+    report.devTools.push({
+      label: "keyboard-collision-toggle",
+      activeFixtureId: collisionOff.devTools.activeFixtureId,
+      overlays: collisionOff.devTools.overlays,
+    })
+
+    await page.keyboard.press("Alt+Shift+F")
+    const nextFixture = await waitForTextState(
+      page,
+      (state) =>
+        state.devTools?.activeFixtureId === "stress_20x15" &&
+        state.map?.label === "Renderer stress map" &&
+        state.map?.width === 20 &&
+        state.map?.height === 15,
+      9000,
+    )
+    assert.equal(nextFixture.devTools.renderer.fixtureSelector.activeFixtureId, "stress_20x15")
+    report.devTools.push({
+      label: "keyboard-fixture-next",
+      activeFixtureId: nextFixture.devTools.activeFixtureId,
+      map: {
+        label: nextFixture.map.label,
+        width: nextFixture.map.width,
+        height: nextFixture.map.height,
+      },
+    })
+    report.screenshots.push(await captureCanvas(page, "devtools-stress-canvas.png"))
+  } finally {
+    assertNoConsoleErrors(page, "developer renderer tools")
+    await page.close()
+  }
+}
+
 async function newQaPage(browser, viewport) {
   const page = await browser.newPage({ viewport })
   const consoleErrors = []
@@ -217,7 +309,7 @@ async function newQaPage(browser, viewport) {
     }
   })
   page.on("pageerror", (error) => {
-    consoleErrors.push(error.message)
+    consoleErrors.push(error.stack || error.message)
   })
   page.rendererQaConsoleErrors = consoleErrors
 
@@ -225,10 +317,14 @@ async function newQaPage(browser, viewport) {
 }
 
 function assertNoConsoleErrors(page, label) {
-  assert.deepEqual(
-    page.rendererQaConsoleErrors,
-    [],
-    `${label}: browser console errors`,
+  assert.equal(
+    page.rendererQaConsoleErrors.length,
+    0,
+    `${label}: browser console errors\n${JSON.stringify(
+      page.rendererQaConsoleErrors,
+      null,
+      2,
+    )}`,
   )
 }
 

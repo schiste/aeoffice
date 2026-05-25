@@ -499,3 +499,26 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   `npm run check`, `node --check scripts/renderer-qa.test.cjs`, and
   `git diff --check`. Representative renderer QA screenshots were visually
   inspected from `/var/folders/f2/krjzd4c15nn491pm37zrkp1h0000gn/T/aedventure-renderer-qa`.
+- Phase 13 developer tooling is implemented. Renderer dev tools are gated to
+  local developer/automation sessions through `?devtools=1` or local storage,
+  with query-param defaults for grid, collision, zone, depth, sprite-bounds,
+  camera readout, and initial fixture selection.
+- Added a Phaser dev overlay for grid lines, collision tiles, sprite/player
+  bounds, and camera readout. Zone and depth overlays now route through the
+  same devtools state, while the primary product UI remains unchanged and
+  exposes no debug controls.
+- Added dev fixture selection through keyboard/API only: presets, generated
+  room, depth fixtures, avatar fixture, zone fixture, and 20x15/50x40/100x80
+  stress fixtures. `render_game_to_text.devTools` reports gate state, overlay
+  state, shortcut help, fixture selector state, overlay object counts, and the
+  product-control exposure count for agents.
+- Renderer QA now opens a query-param-gated devtools session, validates every
+  overlay state, asserts zero product-facing debug controls, captures devtools
+  screenshots, verifies `Alt+Shift+C` toggles collision, and verifies
+  `Alt+Shift+F` cycles to the next fixture.
+- Verification passed: `npm --workspace @aedventure/web run build`,
+  `npm run qa:renderer`, `npm run smoke:frontend`, `npm run qa:responsive`,
+  `npm run check`, `node --check scripts/renderer-qa.test.cjs`,
+  `node --check scripts/frontend-smoke.test.cjs`, and `git diff --check`.
+  Representative devtools screenshots were visually inspected from
+  `/var/folders/f2/krjzd4c15nn491pm37zrkp1h0000gn/T/aedventure-renderer-qa`.

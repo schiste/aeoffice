@@ -15,6 +15,7 @@ export interface FixtureMap {
     readonly width: number
     readonly height: number
     readonly tileSize: number
+    readonly blockedTiles?: readonly Vector2[]
     readonly layers: {
       readonly floor: TileLayer
       readonly walls: TileLayer
@@ -45,6 +46,51 @@ export interface RendererMapValidationInfo {
   readonly visualFootprintCount: number
   readonly collisionLayerPresent: boolean
   readonly renderFingerprint: string
+}
+
+export type RendererDevToolOverlayId =
+  | "grid"
+  | "collision"
+  | "zones"
+  | "depth"
+  | "spriteBounds"
+  | "camera"
+
+export type RendererDevToolOverlayState = Record<RendererDevToolOverlayId, boolean>
+
+export interface RendererDevToolsFixtureSelectorInfo {
+  readonly enabled: boolean
+  readonly activeFixtureId?: string
+  readonly availableFixtureIds: readonly string[]
+}
+
+export interface RendererDevToolsOptions {
+  readonly gated?: boolean
+  readonly enabled?: boolean
+  readonly overlays?: Partial<RendererDevToolOverlayState>
+  readonly fixtureSelector?: RendererDevToolsFixtureSelectorInfo
+}
+
+export interface RendererDevToolsInfo {
+  readonly source: "renderer_dev_tools"
+  readonly gated: boolean
+  readonly enabled: boolean
+  readonly overlays: RendererDevToolOverlayState
+  readonly fixtureSelector: RendererDevToolsFixtureSelectorInfo
+  readonly overlayObjectCounts: {
+    readonly gridLineCount: number
+    readonly blockedTileCount: number
+    readonly spriteBoundsCount: number
+  }
+  readonly cameraReadout?: {
+    readonly mode: RendererCameraMode
+    readonly zoomPreset: RendererZoomPresetId
+    readonly effectiveZoom: number
+    readonly scrollX: number
+    readonly scrollY: number
+    readonly worldView: RendererCameraWorldView
+  }
+  readonly keyboardShortcuts: readonly string[]
 }
 
 export interface TileLayer {
