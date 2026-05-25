@@ -71,6 +71,7 @@ export function emptyAssetPipelineInfo(): RendererAssetPipelineInfo {
     renderedTokenCount: 0,
     fallbackTokenCount: 0,
     fallbackTokenIds: [],
+    tilesetReused: false,
   }
 }
 
@@ -78,6 +79,10 @@ export function assetPipelineInfoFromRender(
   atlas: RuntimeAssetAtlas | undefined,
   renderedTokenCount: number,
   fallbackTokenIds: ReadonlySet<string>,
+  options: {
+    readonly tilesetSignature?: string
+    readonly tilesetReused?: boolean
+  } = {},
 ): RendererAssetPipelineInfo {
   return {
     atlasId: atlas?.manifest.atlasId,
@@ -92,6 +97,8 @@ export function assetPipelineInfoFromRender(
     fallbackTokenIds: [...fallbackTokenIds].sort(),
     exportScale: atlas?.manifest.image.exportScale,
     retinaStrategy: atlas?.manifest.image.retinaStrategy,
+    tilesetSignature: options.tilesetSignature,
+    tilesetReused: options.tilesetReused ?? false,
   }
 }
 

@@ -28,6 +28,7 @@ import type {
   RendererCapabilityInfo,
   RendererEffectsInfo,
   RendererEffectsOptions,
+  RendererPerformanceInfo,
   RendererViewportState,
   RendererZoneInteractionState,
   RendererZonePresentationInfo,
@@ -35,8 +36,10 @@ import type {
 } from "./types"
 
 export class PhaserOfficeRenderer {
+  private static nextGameInstanceId = 1
   private readonly scene: OfficeScene
   private readonly game: Phaser.Game
+  private readonly gameInstanceId = PhaserOfficeRenderer.nextGameInstanceId
   private readonly ready: Promise<OfficeScene>
   private readonly resizeObserver: ResizeObserver
   private readonly capabilityReporter: RendererCapabilityReporter
@@ -52,6 +55,7 @@ export class PhaserOfficeRenderer {
   private renderTask: Promise<void> = Promise.resolve()
 
   constructor(private readonly parent: HTMLElement) {
+    PhaserOfficeRenderer.nextGameInstanceId += 1
     parent.classList.add("phaser-world-host")
     this.scene = new OfficeScene((scene) => {
       this.resolveReady(scene)
@@ -195,6 +199,10 @@ export class PhaserOfficeRenderer {
     return this.scene.getEffectsInfo()
   }
 
+  getPerformanceInfo(): RendererPerformanceInfo {
+    return this.scene.getPerformanceInfo(this.gameInstanceId)
+  }
+
   projectWorldToViewport(point: { readonly x: number; readonly y: number }): {
     readonly x: number
     readonly y: number
@@ -209,6 +217,7 @@ export class PhaserOfficeRenderer {
       this.scene.getAssetPipelineInfo(),
       this.scene.getDepthInfo(),
       this.scene.getEffectsInfo(),
+      this.getPerformanceInfo(),
     )
   }
 

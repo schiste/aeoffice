@@ -4,6 +4,7 @@ import {
   type RenderedPlayer,
   type RendererCameraState,
   type RendererEffectsOptions,
+  type RendererPerformanceInfo,
   type RendererZoomPresetId,
 } from "./phaser-office-renderer"
 import {
@@ -245,6 +246,22 @@ interface AvatarFixtureResult {
 interface ZoneFixtureResult {
   readonly zoneIds: readonly string[]
   readonly zoneTypes: readonly string[]
+}
+
+interface BigMapBenchmarkSample {
+  readonly pass: number
+  readonly size: "20x15" | "50x40" | "100x80"
+  readonly performance: RendererPerformanceInfo
+  readonly staticTileCount: number
+  readonly objectCount: number
+  readonly mapRenderDurationMs: number
+}
+
+interface BigMapBenchmarkResult {
+  readonly samples: readonly BigMapBenchmarkSample[]
+  readonly gameInstanceIds: readonly number[]
+  readonly repeatedLargeMapDisplayObjectDelta: number
+  readonly repeatedLargeMapTextureDelta: number
 }
 
 type MediaTokenResponse =
@@ -1215,8 +1232,8 @@ function fixtureMapFromCompiledMap(
 async function renderLargeStaticMapForSmoke(
   dimensions: { readonly width?: number; readonly height?: number } = {},
 ): Promise<void> {
-  const width = Math.min(128, Math.max(32, Math.round(dimensions.width ?? 96)))
-  const height = Math.min(128, Math.max(32, Math.round(dimensions.height ?? 72)))
+  const width = Math.min(128, Math.max(12, Math.round(dimensions.width ?? 96)))
+  const height = Math.min(128, Math.max(10, Math.round(dimensions.height ?? 72)))
   const fixtureMap = largeStaticFixtureMap(width, height)
 
   await configureDevWorldGeometry(fixtureMap)
@@ -1236,6 +1253,53 @@ async function renderLargeStaticMapForSmoke(
       zoneIds: fixtureMap.compiled.zones.map((zone) => zone.id),
     },
   })
+}
+
+async function runBigMapBenchmarkForSmoke(): Promise<BigMapBenchmarkResult> {
+  const benchmarkMaps = [
+    { size: "20x15", width: 20, height: 15 },
+    { size: "50x40", width: 50, height: 40 },
+    { size: "100x80", width: 100, height: 80 },
+  ] as const
+  const samples: BigMapBenchmarkSample[] = []
+
+  for (let pass = 1; pass <= 2; pass += 1) {
+    for (const benchmarkMap of benchmarkMaps) {
+      await renderLargeStaticMapForSmoke(benchmarkMap)
+      await renderer.advanceTime()
+      const performance = renderer.getPerformanceInfo()
+      samples.push({
+        pass,
+        size: benchmarkMap.size,
+        performance,
+        staticTileCount: renderer.getCapabilityInfo().tilemap.staticTileCount,
+        objectCount: renderer.getCapabilityInfo().depth.objectCount,
+        mapRenderDurationMs: performance.runtime.lastMapRenderDurationMs,
+      })
+    }
+  }
+
+  const firstLargeMap = samples.find(
+    (sample) => sample.pass === 1 && sample.size === "100x80",
+  )
+  const secondLargeMap = samples.find(
+    (sample) => sample.pass === 2 && sample.size === "100x80",
+  )
+
+  return {
+    samples,
+    gameInstanceIds: [
+      ...new Set(
+        samples.map((sample) => sample.performance.lifecycle.gameInstanceId),
+      ),
+    ],
+    repeatedLargeMapDisplayObjectDelta:
+      (secondLargeMap?.performance.runtime.displayObjectCount ?? 0) -
+      (firstLargeMap?.performance.runtime.displayObjectCount ?? 0),
+    repeatedLargeMapTextureDelta:
+      (secondLargeMap?.performance.runtime.textureCount ?? 0) -
+      (firstLargeMap?.performance.runtime.textureCount ?? 0),
+  }
 }
 
 async function renderDepthFixtureCaseForSmoke(
@@ -1663,10 +1727,16 @@ function largeStaticFixtureMap(width: number, height: number): FixtureMap {
   const floorToken = visualTokenById("floor.wood_parquet")
   const wallToken = visualTokenById("wall.wood.straight")
   const cornerToken = visualTokenById("wall.wood.corner")
+  const plantToken = visualTokenById("item.plant_potted")
+  const chairToken = visualTokenById("item.office_chair")
   const floor = gridOf(width, height, floorToken.provisionalGid)
   const walls = gridOf(width, height, 0)
   const objects = gridOf(width, height, 0)
   const blockedTiles: Vector2[] = []
+  const spawnTiles = new Set([
+    `${Math.floor(width / 2)},${Math.floor(height / 2)}`,
+    `${Math.floor(width / 2) + 2},${Math.floor(height / 2)}`,
+  ])
 
   for (let y = 0; y < height; y += 1) {
     for (let x = 0; x < width; x += 1) {
@@ -1676,6 +1746,16 @@ function largeStaticFixtureMap(width: number, height: number): FixtureMap {
       const corner =
         (x === 0 || x === width - 1) && (y === 0 || y === height - 1)
       walls[y][x] = corner ? cornerToken.provisionalGid : wallToken.provisionalGid
+      blockedTiles.push({ x, y })
+    }
+  }
+
+  for (let y = 3; y < height - 3; y += 6) {
+    for (let x = 3; x < width - 3; x += 8) {
+      if (spawnTiles.has(`${x},${y}`)) continue
+
+      const token = (x + y) % 2 === 0 ? plantToken : chairToken
+      objects[y][x] = token.provisionalGid
       blockedTiles.push({ x, y })
     }
   }
@@ -1720,7 +1800,7 @@ function largeStaticFixtureMap(width: number, height: number): FixtureMap {
       },
     ],
     catalog: {
-      tokens: [floorToken, wallToken, cornerToken],
+      tokens: [floorToken, wallToken, cornerToken, plantToken, chairToken],
     },
   }
 }
@@ -3082,6 +3162,7 @@ function renderDemoToText(): string {
     },
     renderer: renderer.getCapabilityInfo(),
     effects: renderer.getEffectsInfo(),
+    performance: renderer.getPerformanceInfo(),
     avatars: renderer.getAvatarInfo(),
     zones: renderer.getZoneInfo(),
     camera: renderer.getCameraState(),
@@ -3160,6 +3241,7 @@ declare global {
         readonly width?: number
         readonly height?: number
       }) => Promise<void>
+      runBigMapBenchmark: () => Promise<BigMapBenchmarkResult>
       renderDepthFixtureCase: (
         caseId: DepthFixtureCaseId,
       ) => Promise<DepthFixtureCaseResult>
@@ -3190,6 +3272,7 @@ window.advanceTime = async () => {
 if (localAutomationHost()) {
   window.__aedventureRendererTest = {
     renderLargeStaticMap: renderLargeStaticMapForSmoke,
+    runBigMapBenchmark: runBigMapBenchmarkForSmoke,
     renderDepthFixtureCase: renderDepthFixtureCaseForSmoke,
     renderAvatarFixtureCase: renderAvatarFixtureCaseForSmoke,
     moveAvatarFixturePlayer: moveAvatarFixturePlayerForSmoke,

@@ -381,6 +381,10 @@ function assertRenderStateContract(state) {
   assert.equal(typeof state.renderer?.actualRenderer, "string")
   assert.equal(typeof state.renderer?.webgl?.available, "boolean")
   assert.equal(typeof state.renderer?.rounding?.vertexRoundMode, "string")
+  assert.equal(state.performance?.source, "renderer_runtime")
+  assert.equal(typeof state.performance?.target?.targetFps, "number")
+  assert.equal(typeof state.performance?.lifecycle?.gameInstanceId, "number")
+  assert.equal(typeof state.performance?.runtime?.textureCount, "number")
   assert.ok(
     Array.isArray(state.renderer?.tilemap?.staticLayers),
     "Expected renderer.tilemap.staticLayers in render_game_to_text.",
@@ -469,6 +473,8 @@ function assertRendererCapabilities(state) {
   assert.equal(state.renderer.rounding.vertexRoundMode, "safeAuto")
   assert.equal(state.renderer.tilemap.staticGpuLayerCount, 2)
   assert.equal(state.renderer.tilemap.staticCpuLayerCount, 0)
+  assert.equal(state.renderer.tilemap.staticLayerBatching, "phaser_tilemap_gpu_layers")
+  assert.equal(state.renderer.tilemap.staticLayerBatchCount, 2)
   assert.equal(state.renderer.tilemap.objectLayerMode, "sprites")
   assert.equal(state.renderer.tilemap.zoneLayerMode, "graphics")
   assert.equal(state.renderer.tilemap.avatarLayerMode, "display_objects")
@@ -486,6 +492,8 @@ function assertRendererCapabilities(state) {
   )
   assert.equal(state.renderer.effects.capability.webglAvailable, true)
   assert.equal(state.renderer.effects.capability.contextLost, false)
+  assertRendererPerformance(state.renderer.performance)
+  assertRendererPerformance(state.performance)
   assert.equal(state.renderer.assets.atlasId, "atlas.internal.office.polished_v1")
   assert.equal(state.renderer.assets.primarySource, "internal_atlas")
   assert.equal(state.renderer.assets.atlasLoaded, true)
@@ -527,6 +535,52 @@ function assertRendererCapabilities(state) {
     state.camera.effectiveZoom >= 0.75,
     `Expected usable camera zoom, got ${state.camera.effectiveZoom}.`,
   )
+}
+
+function assertRendererPerformance(performance) {
+  assert.equal(performance.source, "renderer_runtime")
+  assert.equal(performance.target.targetFps, 60)
+  assert.equal(performance.target.minimumAcceptableFps, 45)
+  assert.equal(performance.target.targetFrameBudgetMs, 16.67)
+  assert.equal(performance.target.minimumFrameBudgetMs, 22.22)
+  assert.equal(performance.target.smokeAverageBudgetMs, 50)
+  assert.equal(performance.target.smokeP95BudgetMs, 90)
+  assert.equal(performance.target.smokeMaxBudgetMs, 250)
+  assert.deepEqual(performance.target.benchmarkMaps, [
+    "20x15",
+    "50x40",
+    "100x80",
+  ])
+  assert.equal(
+    performance.target.documentedAt,
+    "docs/renderer-performance-budget.md",
+  )
+  assert.equal(
+    performance.strategy.tileLayerBatching,
+    "phaser_tilemap_gpu_layers",
+  )
+  assert.equal(performance.strategy.roomChunking, "logical_32x32_tile_chunks")
+  assert.equal(performance.strategy.tileLayerCulling, "camera_gpu_layer")
+  assert.equal(performance.strategy.objectCulling, "camera_worldview_margin")
+  assert.equal(performance.strategy.objectPooling, "pooled_phaser_images")
+  assert.equal(
+    performance.strategy.textureReuse,
+    "signature_reused_tileset_and_object_textures",
+  )
+  assert.equal(performance.strategy.gameReuse, "single_phaser_game_instance")
+  assert.ok(performance.chunking.chunkSizeTiles >= 16)
+  assert.ok(performance.chunking.totalChunks >= 1)
+  assert.ok(performance.chunking.visibleChunks >= 1)
+  assert.ok(performance.chunking.visibleChunkRatio > 0)
+  assert.equal(typeof performance.culling.cullMarginPx, "number")
+  assert.equal(typeof performance.pooling.activeSpriteCount, "number")
+  assert.equal(typeof performance.pooling.pooledSpriteCount, "number")
+  assert.equal(typeof performance.lifecycle.mapRenderCount, "number")
+  assert.equal(typeof performance.lifecycle.mapSwitchCount, "number")
+  assert.equal(performance.lifecycle.phaserGameReused, true)
+  assert.equal(typeof performance.runtime.lastMapRenderDurationMs, "number")
+  assert.equal(typeof performance.runtime.displayObjectCount, "number")
+  assert.equal(typeof performance.runtime.textureCount, "number")
 }
 
 async function assertCameraExcellence(page) {
@@ -847,28 +901,76 @@ async function assertWebGLContextRecovery(page) {
 }
 
 async function assertLargeGpuMapSmoke(page) {
-  await page.evaluate(async () => {
-    if (!window.__aedventureRendererTest?.renderLargeStaticMap) {
-      throw new Error("Missing renderer test API.")
+  const benchmark = await page.evaluate(async () => {
+    if (!window.__aedventureRendererTest?.runBigMapBenchmark) {
+      throw new Error("Missing renderer benchmark test API.")
     }
 
-    await window.__aedventureRendererTest.renderLargeStaticMap({
-      width: 128,
-      height: 96,
-    })
+    return window.__aedventureRendererTest.runBigMapBenchmark()
   })
+
+  assert.deepEqual(benchmark.gameInstanceIds, [benchmark.gameInstanceIds[0]])
+  assert.equal(benchmark.gameInstanceIds.length, 1)
+  assert.deepEqual(
+    benchmark.samples.map((sample) => `${sample.pass}:${sample.size}`),
+    [
+      "1:20x15",
+      "1:50x40",
+      "1:100x80",
+      "2:20x15",
+      "2:50x40",
+      "2:100x80",
+    ],
+  )
+  benchmark.samples.forEach((sample) => {
+    assertRendererPerformance(sample.performance)
+    assert.ok(
+      sample.mapRenderDurationMs >= 0,
+      `Expected map render duration for ${sample.size}.`,
+    )
+    assert.ok(
+      sample.staticTileCount >= 20 * 15,
+      `Expected static tiles in ${sample.size}, got ${sample.staticTileCount}.`,
+    )
+    assert.ok(
+      sample.objectCount > 0,
+      `Expected object sprite load in ${sample.size} benchmark.`,
+    )
+  })
+
+  assert.ok(
+    benchmark.repeatedLargeMapDisplayObjectDelta <= 2,
+    `Expected repeated large-map display objects to stay bounded, got delta ${benchmark.repeatedLargeMapDisplayObjectDelta}.`,
+  )
+  assert.ok(
+    benchmark.repeatedLargeMapTextureDelta <= 0,
+    `Expected repeated large-map texture count not to grow, got delta ${benchmark.repeatedLargeMapTextureDelta}.`,
+  )
 
   const large = await waitForTextState(
     page,
     (state) =>
       state.map?.label === "Renderer stress map" &&
-      state.map.width === 128 &&
-      state.map.height === 96 &&
+      state.map.width === 100 &&
+      state.map.height === 80 &&
       state.renderer.tilemap.staticGpuLayerCount === 2 &&
-      state.renderer.tilemap.staticTileCount > 12000,
+      state.renderer.tilemap.staticTileCount >= 8000 &&
+      state.renderer.performance.pooling.activeSpriteCount > 0 &&
+      state.renderer.performance.pooling.culledSpriteCount > 0,
     9000,
   )
   assertRendererCapabilities(large)
+  assert.equal(large.renderer.performance.lifecycle.phaserGameReused, true)
+  assert.equal(large.renderer.performance.chunking.totalChunks, 12)
+  assert.ok(large.renderer.performance.chunking.visibleChunks < 12)
+  assert.ok(
+    large.renderer.performance.pooling.reusedTextureCount > 0,
+    "Expected object texture reuse during benchmark map switches.",
+  )
+  assert.ok(
+    large.renderer.performance.pooling.reusedSpriteCount > 0,
+    "Expected pooled object sprite reuse during benchmark map switches.",
+  )
   await assertNonBlankMapScreenshot(page)
 
   const cadence = await measureFrameCadence(page)

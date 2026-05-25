@@ -15,6 +15,7 @@ import {
   RendererTelemetry,
   type RendererTelemetrySnapshot,
 } from "./renderer-telemetry"
+import { rendererPerformanceInfo } from "./performance-info"
 import { createMultiTileVariantGids } from "./semantic-tiles"
 import { TILESET_KEY, TILESET_NAME } from "./constants"
 import { ZoneRenderer } from "./zone-renderer"
@@ -29,6 +30,7 @@ import type {
   RendererDepthInfo,
   RendererEffectsInfo,
   RendererEffectsOptions,
+  RendererPerformanceInfo,
   RendererTilemapInfo,
   RendererViewportState,
   RendererZoneInteractionState,
@@ -51,6 +53,10 @@ export class OfficeScene extends Phaser.Scene {
   private assetPipelineInfo: RendererAssetPipelineInfo = emptyAssetPipelineInfo()
   private objectDepthInfo: RendererDepthInfo["objects"] = []
   private rendererDepthInfo: RendererDepthInfo
+  private mapRenderCount = 0
+  private lastMapRenderDurationMs = 0
+  private lastTileSize = 32
+  private lastCullingKey = ""
 
   constructor(private readonly onReady: (scene: OfficeScene) => void) {
     super({ key: "OfficeScene" })
@@ -67,6 +73,9 @@ export class OfficeScene extends Phaser.Scene {
   create(): void {
     this.cameraController.markReady()
     this.zoneRenderer.bindPointerInput()
+    this.events.on(Phaser.Scenes.Events.UPDATE, () => {
+      this.updateViewportCulling()
+    })
     this.onReady(this)
   }
 
@@ -74,19 +83,22 @@ export class OfficeScene extends Phaser.Scene {
     fixtureMap: FixtureMap,
     players: readonly RenderedPlayer[],
   ): Promise<void> {
+    const renderStartedAt = performance.now()
     const atlas = await this.atlasPromise
     const tileSize = fixtureMap.compiled.tileSize
     const widthInPixels = fixtureMap.compiled.width * tileSize
     const heightInPixels = fixtureMap.compiled.height * tileSize
+    this.lastTileSize = tileSize
 
     this.avatarRenderer.clear()
     this.cameraController.clearFollow()
     this.zoneRenderer.clear()
     this.effectsLayer.clear()
     this.depthDebugOverlay.clear()
-    this.children.removeAll(true)
-    this.depthDebugOverlay.releaseDisplayObjects()
-    this.objectRenderer.clearObjectTextures()
+    this.objectRenderer.releaseActiveSprites()
+    this.activeMap?.destroy()
+    this.activeMap = undefined
+    this.lastCullingKey = ""
     this.activeMap = this.make.tilemap({
       tileWidth: tileSize,
       tileHeight: tileSize,
@@ -167,6 +179,8 @@ export class OfficeScene extends Phaser.Scene {
       players,
       this.cameraController.getViewportState(),
     )
+    this.mapRenderCount += 1
+    this.lastMapRenderDurationMs = performance.now() - renderStartedAt
   }
 
   updatePlayers(players: readonly RenderedPlayer[]): void {
@@ -178,6 +192,7 @@ export class OfficeScene extends Phaser.Scene {
       this.depthDebugOverlay.isEnabled(),
     )
     this.depthDebugOverlay.render(this.rendererDepthInfo)
+    this.updateViewportCulling()
     this.telemetry.recordPlayers(
       players,
       this.cameraController.getViewportState(),
@@ -186,18 +201,22 @@ export class OfficeScene extends Phaser.Scene {
 
   resizeViewport(width: number, height: number): void {
     this.cameraController.resizeViewport(width, height)
+    this.updateViewportCulling()
   }
 
   setZoomFactor(zoomFactor: number): void {
     this.cameraController.setZoomFactor(zoomFactor)
+    this.updateViewportCulling()
   }
 
   setZoomPreset(zoomPreset: RendererZoomPresetId): void {
     this.cameraController.setZoomPreset(zoomPreset)
+    this.updateViewportCulling()
   }
 
   setCameraMode(mode: RendererCameraMode): void {
     this.cameraController.setCameraMode(mode)
+    this.updateViewportCulling()
   }
 
   setActiveZones(zoneIds: readonly string[]): void {
@@ -266,6 +285,34 @@ export class OfficeScene extends Phaser.Scene {
   getTelemetrySnapshot(): RendererTelemetrySnapshot | undefined {
     return this.telemetry.getSnapshot()
   }
+
+  getPerformanceInfo(gameInstanceId: number): RendererPerformanceInfo {
+    return rendererPerformanceInfo({
+      gameInstanceId,
+      mapRenderCount: this.mapRenderCount,
+      mapSwitchCount: Math.max(0, this.mapRenderCount - 1),
+      lastMapRenderDurationMs: this.lastMapRenderDurationMs,
+      displayObjectCount: this.children.list.length,
+      textureCount: Object.keys(this.textures.list).length,
+      camera: this.cameraController.getCameraState(),
+      tileSize: this.lastTileSize,
+      objectPool: this.objectRenderer.getPoolInfo(),
+    })
+  }
+
+  private updateViewportCulling(): void {
+    const worldView = this.cameraController.getCameraState().worldView
+    const cullingKey = [
+      Math.round(worldView.x),
+      Math.round(worldView.y),
+      Math.round(worldView.width),
+      Math.round(worldView.height),
+    ].join(":")
+
+    if (cullingKey === this.lastCullingKey) return
+    this.lastCullingKey = cullingKey
+    this.objectRenderer.updateViewportCulling(worldView)
+  }
 }
 
 function tilemapInfoFromLayers(
@@ -281,6 +328,8 @@ function tilemapInfoFromLayers(
       (total, layer) => total + layer.populatedTileCount,
       0,
     ),
+    staticLayerBatching: "phaser_tilemap_gpu_layers",
+    staticLayerBatchCount: staticLayers.length,
     objectLayerMode: "sprites",
     zoneLayerMode: "graphics",
     avatarLayerMode: "display_objects",

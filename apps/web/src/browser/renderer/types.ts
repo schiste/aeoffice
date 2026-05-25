@@ -268,6 +268,8 @@ export interface RendererTilemapInfo {
   readonly staticGpuLayerCount: number
   readonly staticCpuLayerCount: number
   readonly staticTileCount: number
+  readonly staticLayerBatching: "phaser_tilemap_gpu_layers"
+  readonly staticLayerBatchCount: number
   readonly objectLayerMode: "sprites"
   readonly zoneLayerMode: "graphics"
   readonly avatarLayerMode: "display_objects"
@@ -323,6 +325,20 @@ export interface RendererAssetPipelineInfo {
   readonly fallbackTokenIds: readonly string[]
   readonly exportScale?: number
   readonly retinaStrategy?: string
+  readonly tilesetSignature?: string
+  readonly tilesetReused: boolean
+}
+
+export interface RendererObjectPoolInfo {
+  readonly activeSpriteCount: number
+  readonly visibleSpriteCount: number
+  readonly culledSpriteCount: number
+  readonly pooledSpriteCount: number
+  readonly createdSpriteCount: number
+  readonly reusedSpriteCount: number
+  readonly cachedTextureCount: number
+  readonly createdTextureCount: number
+  readonly reusedTextureCount: number
 }
 
 export interface RendererAvatarAnimationInfo {
@@ -394,6 +410,7 @@ export interface RendererCapabilityInfo {
   readonly depth: RendererDepthInfo
   readonly tilemap: RendererTilemapInfo
   readonly effects: RendererEffectsInfo
+  readonly performance: RendererPerformanceInfo
   readonly webgl: {
     readonly available: boolean
     readonly contextLost: boolean
@@ -406,5 +423,52 @@ export interface RendererCapabilityInfo {
     readonly drawingBufferWidth?: number
     readonly drawingBufferHeight?: number
     readonly supportedExtensionCount?: number
+  }
+}
+
+export interface RendererPerformanceInfo {
+  readonly source: "renderer_runtime"
+  readonly target: {
+    readonly targetFps: 60
+    readonly minimumAcceptableFps: 45
+    readonly targetFrameBudgetMs: 16.67
+    readonly minimumFrameBudgetMs: 22.22
+    readonly smokeAverageBudgetMs: 50
+    readonly smokeP95BudgetMs: 90
+    readonly smokeMaxBudgetMs: 250
+    readonly benchmarkMaps: readonly ["20x15", "50x40", "100x80"]
+    readonly documentedAt: "docs/renderer-performance-budget.md"
+  }
+  readonly strategy: {
+    readonly tileLayerBatching: "phaser_tilemap_gpu_layers"
+    readonly roomChunking: "logical_32x32_tile_chunks"
+    readonly tileLayerCulling: "camera_gpu_layer"
+    readonly objectCulling: "camera_worldview_margin"
+    readonly objectPooling: "pooled_phaser_images"
+    readonly textureReuse: "signature_reused_tileset_and_object_textures"
+    readonly gameReuse: "single_phaser_game_instance"
+  }
+  readonly chunking: {
+    readonly chunkSizeTiles: number
+    readonly totalChunks: number
+    readonly visibleChunks: number
+    readonly visibleChunkRatio: number
+  }
+  readonly culling: {
+    readonly cullMarginPx: number
+    readonly visibleObjectSpriteCount: number
+    readonly culledObjectSpriteCount: number
+  }
+  readonly pooling: RendererObjectPoolInfo
+  readonly lifecycle: {
+    readonly gameInstanceId: number
+    readonly mapRenderCount: number
+    readonly mapSwitchCount: number
+    readonly phaserGameReused: boolean
+  }
+  readonly runtime: {
+    readonly lastMapRenderDurationMs: number
+    readonly displayObjectCount: number
+    readonly textureCount: number
   }
 }

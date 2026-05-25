@@ -16,6 +16,9 @@ import type {
 } from "./types"
 
 export class TilemapRenderer {
+  private lastTilesetSignature?: string
+  private lastAssetInfo?: RendererAssetPipelineInfo
+
   constructor(private readonly scene: Phaser.Scene) {}
 
   installSemanticTileset(
@@ -23,6 +26,24 @@ export class TilemapRenderer {
     multiTileVariantGids: MultiTileVariantGids,
     atlas: RuntimeAssetAtlas | undefined,
   ): RendererAssetPipelineInfo {
+    const tilesetSignature = semanticTilesetSignature(
+      fixtureMap,
+      multiTileVariantGids,
+      atlas,
+    )
+
+    if (
+      this.lastTilesetSignature === tilesetSignature &&
+      this.lastAssetInfo &&
+      this.scene.textures.exists(TILESET_KEY)
+    ) {
+      this.lastAssetInfo = {
+        ...this.lastAssetInfo,
+        tilesetReused: true,
+      }
+      return this.lastAssetInfo
+    }
+
     if (this.scene.textures.exists(TILESET_KEY)) {
       this.scene.textures.remove(TILESET_KEY)
     }
@@ -93,11 +114,17 @@ export class TilemapRenderer {
     })
 
     this.scene.textures.addCanvas(TILESET_KEY, canvas)
-    return assetPipelineInfoFromRender(
+    this.lastTilesetSignature = tilesetSignature
+    this.lastAssetInfo = assetPipelineInfoFromRender(
       atlas,
       fixtureMap.catalog.tokens.length,
       fallbackTokenIds,
+      {
+        tilesetSignature,
+        tilesetReused: false,
+      },
     )
+    return this.lastAssetInfo
   }
 
   paintStaticTileLayer(
@@ -210,6 +237,32 @@ export class TilemapRenderer {
 
     return gpuLayer
   }
+}
+
+function semanticTilesetSignature(
+  fixtureMap: FixtureMap,
+  multiTileVariantGids: MultiTileVariantGids,
+  atlas: RuntimeAssetAtlas | undefined,
+): string {
+  const tokenSignature = fixtureMap.catalog.tokens
+    .map((token) =>
+      [
+        token.id,
+        token.provisionalGid,
+        token.widthTiles,
+        token.heightTiles,
+        token.asset?.frameId ?? "",
+      ].join(":"),
+    )
+    .join("|")
+  const variantSignature = multiTileVariantGids.allGids.join(",")
+
+  return [
+    atlas?.manifest.atlasId ?? "procedural",
+    fixtureMap.compiled.tileSize,
+    tokenSignature,
+    variantSignature,
+  ].join("::")
 }
 
 function isTilemapGpuLayer(

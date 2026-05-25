@@ -435,3 +435,28 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   low-capability disable, night lighting re-enable, nonblank screenshots, and
   frame cadence thresholds. Representative desktop and narrow-mobile QA
   screenshots were visually inspected.
+- Phase 10 big-map performance is implemented. The renderer now reports a
+  documented performance budget, target FPS, benchmark sizes, chunking/culling
+  strategy, pooling state, map render count, map-switch count, texture count,
+  display-object count, and a stable Phaser game instance ID through
+  `render_game_to_text`.
+- Map switches no longer rely on broad `children.removeAll(true)`. Tilemap
+  layers are destroyed through the active Phaser tilemap, object sprites are
+  released into a pool, and the single Phaser game instance remains alive across
+  benchmark map switches.
+- Static tile layers keep the Phaser 4 WebGL GPU-layer batching path. Object
+  sprites now use viewport culling with a fixed margin, object textures are
+  reused by semantic/atlas signature, and semantic tilesets are reused when the
+  catalog signature is unchanged.
+- Added `docs/renderer-performance-budget.md` with the target FPS budget,
+  benchmark map sizes, runtime strategy, and map-switch leak gate.
+- The frontend smoke now benchmarks 20x15, 50x40, and 100x80 maps over two
+  passes, checks frame cadence, verifies object culling/pooling/texture reuse,
+  verifies the Phaser game instance is reused, and asserts repeated 100x80 map
+  switches do not grow texture/display-object counts.
+- Verification passed: `npm --workspace @aedventure/web run build`,
+  `npm run smoke:frontend`, `npm run qa:responsive`, `npm run check`, and
+  `git diff --check`. Representative desktop and narrow-mobile QA screenshots
+  were visually inspected. The generic develop-web-game skill client still
+  cannot run because its script cannot resolve its own `playwright` package,
+  while the repo-owned Playwright smoke uses the local dependency successfully.

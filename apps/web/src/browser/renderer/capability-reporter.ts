@@ -9,6 +9,7 @@ import type {
   RendererCapabilityInfo,
   RendererDepthInfo,
   RendererEffectsInfo,
+  RendererPerformanceInfo,
   RendererTilemapInfo,
 } from "./types"
 
@@ -35,6 +36,7 @@ export class RendererCapabilityReporter {
     assets: RendererAssetPipelineInfo,
     depth: RendererDepthInfo,
     effects: RendererEffectsInfo,
+    performance: RendererPerformanceInfo,
   ): RendererCapabilityInfo {
     const renderer = this.game.renderer
     const canvas = this.game.canvas
@@ -72,6 +74,7 @@ export class RendererCapabilityReporter {
       depth,
       tilemap,
       effects,
+      performance,
       webgl: {
         available: webgl,
         contextLost: webgl ? renderer.contextLost : false,
