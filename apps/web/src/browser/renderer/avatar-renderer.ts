@@ -25,6 +25,7 @@ import type {
   AvatarAnimationAction,
   AvatarCosmeticSlot,
   AvatarEmoteId,
+  AvatarVisualFacing,
   Direction,
   RenderedPlayer,
   RendererAvatarInfo,
@@ -43,6 +44,174 @@ const LABEL_TEXT_RESOLUTION = 4
 const LABEL_TEXTURE_FILTER = "linear" as const
 const LABEL_SCREEN_SCALE_MIN = 0.72
 const LABEL_SCREEN_SCALE_MAX = 1.08
+const POSE_BLEND_DURATION_MS = 96
+const TURN_BLEND_DURATION_MS = 138
+
+interface AvatarPoseState {
+  facingRotation: number
+  facingX: number
+  facingY: number
+  facingAlpha: number
+  headX: number
+  headY: number
+  headScaleX: number
+  hairX: number
+  hairY: number
+  hairScaleX: number
+  torsoRotation: number
+  leftFootX: number
+  leftFootY: number
+  rightFootX: number
+  rightFootY: number
+  labelY: number
+}
+
+const VISUAL_FACING_POSES: Record<AvatarVisualFacing, AvatarPoseState> = {
+  up: {
+    facingRotation: 0,
+    facingX: 0,
+    facingY: -15,
+    facingAlpha: 0.18,
+    headX: 0,
+    headY: -10,
+    headScaleX: 0.96,
+    hairX: 0,
+    hairY: -12,
+    hairScaleX: 0.98,
+    torsoRotation: 0,
+    leftFootX: -5,
+    leftFootY: 12,
+    rightFootX: 5,
+    rightFootY: 12,
+    labelY: -32,
+  },
+  upRight: {
+    facingRotation: -Math.PI / 4,
+    facingX: 4,
+    facingY: -13,
+    facingAlpha: 0.48,
+    headX: 2,
+    headY: -10,
+    headScaleX: 0.98,
+    hairX: 2,
+    hairY: -13,
+    hairScaleX: 0.96,
+    torsoRotation: -0.035,
+    leftFootX: -5,
+    leftFootY: 12,
+    rightFootX: 4,
+    rightFootY: 11,
+    labelY: -32,
+  },
+  right: {
+    facingRotation: -Math.PI / 2,
+    facingX: 5,
+    facingY: -10,
+    facingAlpha: 0.86,
+    headX: 3,
+    headY: -10,
+    headScaleX: 0.94,
+    hairX: 3,
+    hairY: -14,
+    hairScaleX: 0.92,
+    torsoRotation: -0.055,
+    leftFootX: -4,
+    leftFootY: 12,
+    rightFootX: 5,
+    rightFootY: 12,
+    labelY: -32,
+  },
+  downRight: {
+    facingRotation: -3 * Math.PI / 4,
+    facingX: 4,
+    facingY: -7,
+    facingAlpha: 0.86,
+    headX: 2,
+    headY: -10,
+    headScaleX: 1,
+    hairX: 2,
+    hairY: -14,
+    hairScaleX: 0.97,
+    torsoRotation: -0.035,
+    leftFootX: -5,
+    leftFootY: 12,
+    rightFootX: 5,
+    rightFootY: 13,
+    labelY: -33,
+  },
+  down: {
+    facingRotation: Math.PI,
+    facingX: 0,
+    facingY: -5,
+    facingAlpha: 0.86,
+    headX: 0,
+    headY: -10,
+    headScaleX: 1,
+    hairX: 0,
+    hairY: -14,
+    hairScaleX: 1,
+    torsoRotation: 0,
+    leftFootX: -5,
+    leftFootY: 12,
+    rightFootX: 5,
+    rightFootY: 12,
+    labelY: -33,
+  },
+  downLeft: {
+    facingRotation: 3 * Math.PI / 4,
+    facingX: -4,
+    facingY: -7,
+    facingAlpha: 0.86,
+    headX: -2,
+    headY: -10,
+    headScaleX: 1,
+    hairX: -2,
+    hairY: -14,
+    hairScaleX: 0.97,
+    torsoRotation: 0.035,
+    leftFootX: -5,
+    leftFootY: 13,
+    rightFootX: 5,
+    rightFootY: 12,
+    labelY: -33,
+  },
+  left: {
+    facingRotation: Math.PI / 2,
+    facingX: -5,
+    facingY: -10,
+    facingAlpha: 0.86,
+    headX: -3,
+    headY: -10,
+    headScaleX: 0.94,
+    hairX: -3,
+    hairY: -14,
+    hairScaleX: 0.92,
+    torsoRotation: 0.055,
+    leftFootX: -5,
+    leftFootY: 12,
+    rightFootX: 4,
+    rightFootY: 12,
+    labelY: -32,
+  },
+  upLeft: {
+    facingRotation: Math.PI / 4,
+    facingX: -4,
+    facingY: -13,
+    facingAlpha: 0.48,
+    headX: -2,
+    headY: -10,
+    headScaleX: 0.98,
+    hairX: -2,
+    hairY: -13,
+    hairScaleX: 0.96,
+    torsoRotation: 0.035,
+    leftFootX: -4,
+    leftFootY: 11,
+    rightFootX: 5,
+    rightFootY: 12,
+    labelY: -32,
+  },
+}
 
 export class AvatarRenderer {
   private readonly avatars = new Map<string, AvatarView>()
@@ -177,6 +346,7 @@ class AvatarView {
   readonly focusTarget: Phaser.GameObjects.Container
   readonly cameraTarget: Phaser.GameObjects.Zone
   private readonly visualRoot: Phaser.GameObjects.Container
+  private readonly bodyRoot: Phaser.GameObjects.Container
   private readonly shadow: Phaser.GameObjects.Ellipse
   private readonly impactRing: Phaser.GameObjects.Ellipse
   private readonly leftFoot: Phaser.GameObjects.Ellipse
@@ -196,6 +366,8 @@ class AvatarView {
   private footTween?: Phaser.Tweens.Tween
   private walkTweenAction?: AvatarAnimationAction
   private positionTween?: Phaser.Tweens.Tween
+  private poseTween?: Phaser.Tweens.Tween
+  private turnTween?: Phaser.Tweens.Tween
   private rejectionTween?: Phaser.Tweens.Tween
   private impactTween?: Phaser.Tweens.Tween
   private emoteTween?: Phaser.Tweens.Tween
@@ -205,6 +377,8 @@ class AvatarView {
   private avatarId: string
   private appearance: AvatarAppearanceMetadata
   private animation: AvatarAnimationDefinition
+  private visualFacing: AvatarVisualFacing
+  private poseState: AvatarPoseState
   private interpolationProfile: AvatarInterpolationProfile
   private currentEmoteId?: AvatarEmoteId
   private cosmetics: Partial<Record<AvatarCosmeticSlot, string>> = {}
@@ -244,15 +418,19 @@ class AvatarView {
     this.lastPosition = player.position
     this.lastDirection = player.direction
     this.lastMovementMode = player.movementMode ?? "walk"
+    this.visualFacing = visualFacingForDirection(player.direction)
+    this.poseState = renderedPoseFor(this.animation, this.visualFacing)
     this.cosmetics = player.cosmetics ?? {}
     this.focusTarget = scene.add.container(player.position.x, player.position.y)
     this.cameraTarget = scene.add.zone(player.position.x, player.position.y, 2, 2)
     this.visualRoot = scene.add.container(0, 0)
+    this.bodyRoot = scene.add.container(0, 0)
     const entryAnimation = player.entryAnimation ?? "fade"
     this.focusTarget.setAlpha(entryAnimation === "fade" ? 0 : 1)
     this.focusTarget.setName(`avatar:${player.playerId}`)
     this.focusTarget.setVertexRoundMode("off")
     this.visualRoot.setVertexRoundMode("off")
+    this.bodyRoot.setVertexRoundMode("off")
     this.cameraTarget.setName(`camera-anchor:${player.playerId}`)
 
     const palette = this.appearance.palette
@@ -300,7 +478,7 @@ class AvatarView {
     this.emoteText.setVisible(false)
 
     this.focusTarget.add(this.visualRoot)
-    this.visualRoot.add([
+    this.bodyRoot.add([
       this.shadow,
       this.impactRing,
       this.leftFoot,
@@ -309,6 +487,9 @@ class AvatarView {
       this.head,
       this.hair,
       this.facing,
+    ])
+    this.visualRoot.add([
+      this.bodyRoot,
       this.labelShadow,
       this.labelBack,
       this.labelTail,
@@ -317,7 +498,7 @@ class AvatarView {
       this.emoteText,
     ])
     this.applyAppearance(this.appearance)
-    this.applyAnimationPose(this.animation)
+    this.applyAnimationPose(this.animation, this.visualFacing)
     this.applyCameraAwareLabelScale()
     this.startIdleTween(this.animation, player.position)
     if (entryAnimation === "fade") {
@@ -332,17 +513,30 @@ class AvatarView {
   }
 
   update(player: RenderedPlayer): void {
+    const previousAnimation = this.animation
+    const previousVisualFacing = this.visualFacing
+    const movementDelta = {
+      x: player.position.x - this.lastPosition.x,
+      y: player.position.y - this.lastPosition.y,
+    }
     const moved =
-      player.position.x !== this.lastPosition.x ||
-      player.position.y !== this.lastPosition.y
+      Math.hypot(movementDelta.x, movementDelta.y) > 0.01 ||
+      (this.positionTween?.isPlaying() ?? false)
     const nextAvatarId = resolveAvatarId(player.avatarId ?? fallbackAvatarId(player))
     const nextAppearance = avatarAppearance(nextAvatarId)
     const directionChanged = player.direction !== this.lastDirection
     const movementMode = player.movementMode ?? "walk"
     const movementModeChanged = movementMode !== this.lastMovementMode
-    const nextAction: AvatarAnimationAction = moved || directionChanged
+    const nextAction: AvatarAnimationAction = moved
       ? movementMode
-      : "idle"
+      : directionChanged
+        ? "turn"
+        : "idle"
+    const nextVisualFacing = moved && Math.hypot(movementDelta.x, movementDelta.y) > 0.01
+      ? visualFacingForVector(movementDelta)
+      : directionChanged
+        ? visualFacingForDirection(player.direction)
+        : previousVisualFacing
     const nextAnimation = avatarAnimationDefinition(
       nextAvatarId,
       player.direction,
@@ -352,18 +546,39 @@ class AvatarView {
       player.local !== this.playerLocal ||
       player.name !== this.label.text ||
       nextAvatarId !== this.avatarId
+    const avatarChanged = nextAvatarId !== this.avatarId
+    const poseChanged =
+      previousAnimation.key !== nextAnimation.key ||
+      previousVisualFacing !== nextVisualFacing ||
+      avatarChanged
 
     this.playerLocal = player.local
     this.avatarId = nextAvatarId
     this.appearance = nextAppearance
     this.animation = nextAnimation
+    this.visualFacing = nextVisualFacing
     this.interpolationProfile = avatarInterpolationProfile(player.local)
     this.cosmetics = player.cosmetics ?? {}
     this.label.setText(player.name)
     this.applySmoothTextTexture(this.label)
     this.resizeLabel()
     this.applyAppearance(nextAppearance)
-    this.applyAnimationPose(nextAnimation)
+    if (poseChanged) {
+      if (avatarChanged) {
+        this.applyAnimationPose(nextAnimation, nextVisualFacing)
+      } else {
+        this.blendToAnimationPose(
+          nextAnimation,
+          nextVisualFacing,
+          poseBlendDurationMs(
+            previousAnimation,
+            nextAnimation,
+            previousVisualFacing,
+            nextVisualFacing,
+          ),
+        )
+      }
+    }
     this.applyCameraAwareLabelScale()
     this.focusTarget.setDepth(avatarDepth(this.focusTarget.y))
 
@@ -376,7 +591,9 @@ class AvatarView {
       this.startWalkTween(nextAnimation)
     } else if (directionChanged || identityChanged || movementModeChanged) {
       this.cameraTarget.setPosition(player.position.x, player.position.y)
-      if (nextAction === "idle") {
+      if (nextAction === "turn") {
+        this.startTurnTween(nextAnimation)
+      } else if (nextAction === "idle") {
         this.startIdleTween(nextAnimation, player.position)
       } else {
         this.startWalkTween(nextAnimation)
@@ -465,7 +682,7 @@ class AvatarView {
 
     return {
       x: this.focusTarget.x - width / 2,
-      y: this.focusTarget.y + this.visualRoot.y + this.animation.pose.labelY - 10,
+      y: this.focusTarget.y + this.visualRoot.y + this.poseState.labelY - 10,
       width,
       height: 20 * labelScale,
     }
@@ -487,7 +704,9 @@ class AvatarView {
         key: this.animation.key,
         action: this.animation.action,
         direction: this.animation.direction,
+        visualFacing: this.visualFacing,
         durationMs: this.animation.durationMs,
+        poseBlendActive: this.poseTween?.isPlaying() ?? false,
       },
       interpolationProfile: this.interpolationProfile.id,
       interpolationActive: this.positionTween?.isPlaying() ?? false,
@@ -515,6 +734,8 @@ class AvatarView {
     this.walkTween?.stop()
     this.footTween?.stop()
     this.positionTween?.stop()
+    this.poseTween?.stop()
+    this.turnTween?.stop()
     this.rejectionTween?.stop()
     this.impactTween?.stop()
     this.emoteTween?.stop()
@@ -625,15 +846,65 @@ class AvatarView {
     this.emoteBack.setStrokeStyle(1, palette.accent, 0.72)
   }
 
-  private applyAnimationPose(animation: AvatarAnimationDefinition): void {
-    const pose = animation.pose
+  private applyAnimationPose(
+    animation: AvatarAnimationDefinition,
+    visualFacing: AvatarVisualFacing,
+  ): void {
+    this.poseTween?.stop()
+    this.poseState = renderedPoseFor(animation, visualFacing)
+    this.applyPoseState()
+  }
+
+  private blendToAnimationPose(
+    animation: AvatarAnimationDefinition,
+    visualFacing: AvatarVisualFacing,
+    durationMs: number,
+  ): void {
+    const targetPose = renderedPoseFor(animation, visualFacing)
+
+    targetPose.facingRotation = nearestEquivalentAngle(
+      this.poseState.facingRotation,
+      targetPose.facingRotation,
+    )
+    targetPose.torsoRotation = nearestEquivalentAngle(
+      this.poseState.torsoRotation,
+      targetPose.torsoRotation,
+    )
+
+    if (durationMs <= 0) {
+      this.poseTween?.stop()
+      this.poseState = targetPose
+      this.applyPoseState()
+      return
+    }
+
+    this.poseTween?.stop()
+    this.poseTween = this.scene.tweens.add({
+      targets: this.poseState,
+      ...targetPose,
+      duration: durationMs,
+      ease: "Sine.easeOut",
+      onUpdate: () => this.applyPoseState(),
+      onComplete: () => {
+        this.poseState = targetPose
+        this.applyPoseState()
+      },
+    })
+  }
+
+  private applyPoseState(): void {
+    const pose = this.poseState
 
     this.facing.setRotation(pose.facingRotation)
     this.facing.setPosition(pose.facingX, pose.facingY)
     this.facing.setAlpha(pose.facingAlpha)
+    this.torso.setRotation(pose.torsoRotation)
+    this.head.setPosition(pose.headX, pose.headY)
+    this.head.setScale(pose.headScaleX, 1)
     this.hair.setPosition(pose.hairX, pose.hairY)
-    this.leftFoot.setPosition(pose.leftFootX, 12)
-    this.rightFoot.setPosition(pose.rightFootX, 12)
+    this.hair.setScale(pose.hairScaleX, 1)
+    this.leftFoot.setPosition(pose.leftFootX, pose.leftFootY)
+    this.rightFoot.setPosition(pose.rightFootX, pose.rightFootY)
     this.label.setPosition(0, pose.labelY)
     this.labelShadow.setPosition(1, pose.labelY + 2)
     this.labelBack.setPosition(0, pose.labelY)
@@ -656,14 +927,15 @@ class AvatarView {
 
     this.walkTween?.stop()
     this.footTween?.stop()
+    this.turnTween?.stop()
     this.leftFoot.setScale(1, 1)
     this.rightFoot.setScale(1, 1)
-    this.visualRoot.setScale(1, 1)
-    this.visualRoot.x = 0
-    this.visualRoot.y = 0
+    this.bodyRoot.setPosition(0, 0)
+    this.bodyRoot.setScale(1, 1)
+    this.bodyRoot.setAngle(0)
     this.cameraTarget.setPosition(anchorPosition.x, anchorPosition.y)
     this.idleTween = this.scene.tweens.add({
-      targets: this.visualRoot,
+      targets: this.bodyRoot,
       y: -1.5,
       scaleY: animation.bodyScaleY,
       duration: animation.durationMs,
@@ -684,13 +956,16 @@ class AvatarView {
     }
 
     this.idleTween?.stop()
+    this.turnTween?.stop()
     this.walkTween?.stop()
     this.footTween?.stop()
     this.walkTweenAction = animation.action
     this.visualRoot.setPosition(0, 0)
     this.visualRoot.setScale(1, 1)
+    this.bodyRoot.setPosition(0, 0)
+    this.bodyRoot.setAngle(0)
     this.walkTween = this.scene.tweens.add({
-      targets: this.visualRoot,
+      targets: this.bodyRoot,
       scaleX: animation.bodyScaleX,
       scaleY: animation.bodyScaleY,
       duration: animation.durationMs,
@@ -705,7 +980,7 @@ class AvatarView {
         )
 
         this.animation = idleAnimation
-        this.applyAnimationPose(idleAnimation)
+        this.blendToAnimationPose(idleAnimation, this.visualFacing, 70)
         this.startIdleTween(idleAnimation, this.lastPosition)
       },
     })
@@ -717,6 +992,42 @@ class AvatarView {
       yoyo: true,
       repeat: animation.repeat,
       ease: "Sine.easeInOut",
+    })
+  }
+
+  private startTurnTween(animation: AvatarAnimationDefinition): void {
+    this.idleTween?.stop()
+    this.walkTween?.stop()
+    this.footTween?.stop()
+    this.turnTween?.stop()
+    this.walkTweenAction = animation.action
+    this.visualRoot.setPosition(0, 0)
+    this.visualRoot.setScale(1, 1)
+    this.leftFoot.setScale(1, 1)
+    this.rightFoot.setScale(1, 1)
+
+    this.turnTween = this.scene.tweens.add({
+      targets: this.bodyRoot,
+      angle: turnAngleForFacing(this.visualFacing),
+      scaleX: animation.bodyScaleX,
+      scaleY: animation.bodyScaleY,
+      duration: animation.durationMs,
+      yoyo: true,
+      repeat: 0,
+      ease: "Sine.easeInOut",
+      onComplete: () => {
+        const idleAnimation = avatarAnimationDefinition(
+          this.avatarId,
+          this.lastDirection,
+          "idle",
+        )
+
+        this.animation = idleAnimation
+        this.walkTweenAction = undefined
+        this.bodyRoot.setAngle(0)
+        this.blendToAnimationPose(idleAnimation, this.visualFacing, 70)
+        this.startIdleTween(idleAnimation, this.lastPosition)
+      },
     })
   }
 
@@ -759,5 +1070,98 @@ function facingNudgeX(direction: Direction): number {
 function facingNudgeY(direction: Direction): number {
   if (direction === "up") return -4
   if (direction === "down") return 4
+  return 0
+}
+
+function renderedPoseFor(
+  animation: AvatarAnimationDefinition,
+  visualFacing: AvatarVisualFacing,
+): AvatarPoseState {
+  const base = VISUAL_FACING_POSES[visualFacing]
+  const stride =
+    animation.action === "run" ? 1.35 : animation.action === "walk" ? 0.72 : 0
+  const turnCompression = animation.action === "turn" ? 0.65 : 1
+  const sideBias = visualFacing.includes("Right")
+    ? 1
+    : visualFacing.includes("Left")
+      ? -1
+      : 0
+
+  return {
+    ...base,
+    facingAlpha:
+      animation.action === "turn"
+        ? Math.min(0.92, base.facingAlpha + 0.16)
+        : base.facingAlpha,
+    headX: base.headX + sideBias * stride * 0.2,
+    hairX: base.hairX + sideBias * stride * 0.22,
+    torsoRotation: base.torsoRotation * turnCompression,
+    leftFootX: base.leftFootX - sideBias * stride * 0.35,
+    rightFootX: base.rightFootX + sideBias * stride * 0.35,
+    leftFootY: base.leftFootY + (animation.action === "run" ? 0.8 : 0),
+    rightFootY: base.rightFootY - (animation.action === "run" ? 0.8 : 0),
+  }
+}
+
+function visualFacingForDirection(direction: Direction): AvatarVisualFacing {
+  return direction
+}
+
+function visualFacingForVector(vector: Vector2): AvatarVisualFacing {
+  const angle = Math.atan2(vector.y, vector.x)
+  const octant = Math.round(angle / (Math.PI / 4))
+
+  switch ((octant + 8) % 8) {
+    case 0:
+      return "right"
+    case 1:
+      return "downRight"
+    case 2:
+      return "down"
+    case 3:
+      return "downLeft"
+    case 4:
+      return "left"
+    case 5:
+      return "upLeft"
+    case 6:
+      return "up"
+    default:
+      return "upRight"
+  }
+}
+
+function poseBlendDurationMs(
+  previousAnimation: AvatarAnimationDefinition,
+  nextAnimation: AvatarAnimationDefinition,
+  previousFacing: AvatarVisualFacing,
+  nextFacing: AvatarVisualFacing,
+): number {
+  if (
+    previousAnimation.key === nextAnimation.key &&
+    previousFacing === nextFacing
+  ) {
+    return 0
+  }
+
+  if (nextAnimation.action === "turn") return TURN_BLEND_DURATION_MS
+  if (previousAnimation.action !== nextAnimation.action) return POSE_BLEND_DURATION_MS
+
+  return 84
+}
+
+function nearestEquivalentAngle(current: number, target: number): number {
+  const fullTurn = Math.PI * 2
+  let resolved = target
+
+  while (resolved - current > Math.PI) resolved -= fullTurn
+  while (resolved - current < -Math.PI) resolved += fullTurn
+
+  return resolved
+}
+
+function turnAngleForFacing(visualFacing: AvatarVisualFacing): number {
+  if (visualFacing.includes("Right")) return -2.5
+  if (visualFacing.includes("Left")) return 2.5
   return 0
 }

@@ -708,3 +708,20 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   `git diff --check`. Renderer and mobile responsive screenshots were visually
   inspected. The standalone develop-web-game client still fails before
   navigation because it cannot resolve its own `playwright` package.
+- Avatar animation blending now separates authoritative 4-way direction from
+  renderer-only 8-way visual facing. Motion deltas choose diagonal presentation
+  states such as `downRight`, while server/world protocol can stay unchanged.
+- The avatar registry now includes a renderer-only `turn` action for stationary
+  direction changes. Pose details blend through a short tween, so hair, head,
+  facing marker, feet, and body lean rotate/fade instead of snapping the whole
+  avatar to a fresh pose.
+- The avatar body is now isolated in its own Phaser container below the label
+  layer. Walk/run/turn body pulses affect the character silhouette without
+  scaling the crisp name label texture.
+- Verification passed after the animation-blending pass: `npm --workspace
+  @aedventure/web run build`, `node --check scripts/frontend-smoke.test.cjs`,
+  `npm run smoke:frontend`, `npm run qa:renderer`,
+  `npm run qa:responsive`, `npm run check`, and `git diff --check`. Desktop
+  and mobile QA screenshots were visually inspected. The standalone
+  develop-web-game client still fails before navigation because it cannot
+  resolve its own `playwright` package.

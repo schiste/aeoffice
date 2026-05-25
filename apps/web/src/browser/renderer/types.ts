@@ -251,7 +251,17 @@ export interface RenderedPlayer {
   readonly rejected?: boolean
 }
 
-export type AvatarAnimationAction = "idle" | "walk" | "run"
+export type AvatarAnimationAction = "idle" | "walk" | "run" | "turn"
+
+export type AvatarVisualFacing =
+  | "up"
+  | "upRight"
+  | "right"
+  | "downRight"
+  | "down"
+  | "downLeft"
+  | "left"
+  | "upLeft"
 
 export type AvatarEmoteId = "wave" | "raise_hand" | "focus"
 
@@ -414,7 +424,9 @@ export interface RendererAvatarAnimationInfo {
   readonly key: string
   readonly action: AvatarAnimationAction
   readonly direction: Direction
+  readonly visualFacing: AvatarVisualFacing
   readonly durationMs: number
+  readonly poseBlendActive: boolean
 }
 
 export interface RendererAvatarPlayerInfo {

@@ -264,7 +264,7 @@ export function fallbackAvatarId(player: RenderedPlayer): string {
 
 function buildAnimationRegistry(): Map<string, AvatarAnimationDefinition> {
   const registry = new Map<string, AvatarAnimationDefinition>()
-  const actions: readonly AvatarAnimationAction[] = ["idle", "walk", "run"]
+  const actions: readonly AvatarAnimationAction[] = ["idle", "walk", "run", "turn"]
   const directions: readonly Direction[] = ["up", "down", "left", "right"]
 
   AVATAR_IDS.forEach((avatarId) => {
@@ -276,11 +276,39 @@ function buildAnimationRegistry(): Map<string, AvatarAnimationDefinition> {
           action,
           direction,
           durationMs: animationDurationMs(action),
-          repeat: action === "idle" ? -1 : 2,
-          bodyScaleX: action === "idle" ? 1 : action === "run" ? 1.07 : 1.045,
-          bodyScaleY: action === "idle" ? 1.025 : action === "run" ? 0.93 : 0.955,
-          footScaleX: action === "idle" ? 1 : action === "run" ? 1.28 : 1.18,
-          footScaleY: action === "idle" ? 1 : action === "run" ? 0.74 : 0.82,
+          repeat: action === "idle" ? -1 : action === "turn" ? 0 : 2,
+          bodyScaleX:
+            action === "idle"
+              ? 1
+              : action === "run"
+                ? 1.07
+                : action === "turn"
+                  ? 1.025
+                  : 1.045,
+          bodyScaleY:
+            action === "idle"
+              ? 1.025
+              : action === "run"
+                ? 0.93
+                : action === "turn"
+                  ? 0.985
+                  : 0.955,
+          footScaleX:
+            action === "idle"
+              ? 1
+              : action === "run"
+                ? 1.28
+                : action === "turn"
+                  ? 1.08
+                  : 1.18,
+          footScaleY:
+            action === "idle"
+              ? 1
+              : action === "run"
+                ? 0.74
+                : action === "turn"
+                  ? 0.92
+                  : 0.82,
           pose: DIRECTION_POSES[direction],
         })
       })
@@ -293,6 +321,7 @@ function buildAnimationRegistry(): Map<string, AvatarAnimationDefinition> {
 function animationDurationMs(action: AvatarAnimationAction): number {
   if (action === "run") return 82
   if (action === "walk") return 105
+  if (action === "turn") return 145
   return 1100
 }
 

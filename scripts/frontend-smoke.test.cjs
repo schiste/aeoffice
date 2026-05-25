@@ -1519,7 +1519,7 @@ async function assertAvatarSystemSmoke(page) {
     "moss",
     "violet",
   ])
-  assert.equal(avatarState.avatars.animationCount, 48)
+  assert.equal(avatarState.avatars.animationCount, 64)
   assert.deepEqual(avatarState.avatars.interpolationProfiles, ["local", "remote"])
   assert.deepEqual(avatarState.avatars.emoteIds, ["wave", "raise_hand", "focus"])
   assert.deepEqual(fixture.avatarIds, ["ember", "cobalt", "moss", "violet"])
@@ -1552,6 +1552,20 @@ async function assertAvatarSystemSmoke(page) {
     })
     assert.equal(player.animation.action, "idle")
     assert.match(player.animation.key, new RegExp(`^${avatarId}_idle_`))
+    assert.ok(
+      [
+        "up",
+        "upRight",
+        "right",
+        "downRight",
+        "down",
+        "downLeft",
+        "left",
+        "upLeft",
+      ].includes(player.animation.visualFacing),
+      `Expected 8-way visual facing state, got ${JSON.stringify(player.animation)}.`,
+    )
+    assert.equal(typeof player.animation.poseBlendActive, "boolean")
     assert.ok(
       player.labelBounds.width * avatarState.camera.effectiveZoom >= 48,
       `Expected readable screen-space label width, got ${player.labelBounds.width} at zoom ${avatarState.camera.effectiveZoom}.`,
@@ -1605,6 +1619,7 @@ async function assertAvatarSystemSmoke(page) {
       movingRemote.currentPosition.y !== movingRemote.targetPosition.y,
     `Expected remote avatar to be between grid cells while smoothing, got ${JSON.stringify(movingRemote)}.`,
   )
+  assert.equal(movingRemote.animation.visualFacing, "downRight")
 
   await waitForTextState(
     page,
