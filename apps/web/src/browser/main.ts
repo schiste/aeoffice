@@ -288,6 +288,7 @@ interface AppState {
 interface MovementInputState {
   readonly pressedDirections: Direction[]
   readonly pressedControls: MovementControlIntent[]
+  readonly joystick: MovementJoystickState
   pendingIntent?: MovementIntent
   timerId?: number
   inFlight: boolean
@@ -314,7 +315,19 @@ interface MovementControlIntent {
   readonly id: number
   readonly vector: MovementVector
   readonly direction: Direction
+  readonly source: "dpad"
   readonly button?: HTMLButtonElement
+}
+
+interface MovementJoystickState {
+  active: boolean
+  pointerId?: number
+  vector: MovementVector
+  direction?: Direction
+  magnitude: number
+  knob: Vector2
+  radiusPx: number
+  deadzonePx: number
 }
 
 interface ChatRecord {
@@ -461,6 +474,9 @@ const DEFAULT_MAP_PROMPT =
 const DEFAULT_DISPLAY_NAME = "Browser Ada"
 const DEFAULT_AVATAR_ID: AvatarId = "ember"
 const MOBILE_LAYOUT_QUERY = "(max-width: 760px)"
+const JOYSTICK_DEADZONE_RATIO = 0.18
+const JOYSTICK_DEFAULT_RADIUS_PX = 54
+const JOYSTICK_MIN_MAGNITUDE = 0.08
 const avatarIds: readonly AvatarId[] = ["ember", "cobalt", "moss", "violet"]
 const DEV_TOOL_FIXTURES: readonly DevToolFixtureId[] = [
   "lobby",
@@ -547,6 +563,16 @@ const state: AppState = {
 const movementInput: MovementInputState = {
   pressedDirections: [],
   pressedControls: [],
+  joystick: {
+    active: false,
+    pointerId: undefined,
+    vector: { x: 0, y: 0 },
+    direction: undefined,
+    magnitude: 0,
+    knob: { x: 0, y: 0 },
+    radiusPx: JOYSTICK_DEFAULT_RADIUS_PX,
+    deadzonePx: JOYSTICK_DEFAULT_RADIUS_PX * JOYSTICK_DEADZONE_RATIO,
+  },
   pendingIntent: undefined,
   timerId: undefined,
   inFlight: false,
@@ -629,6 +655,9 @@ const elements = {
   zoomReset: mustQuery<HTMLButtonElement>("#zoom-reset"),
   zoomIn: mustQuery<HTMLButtonElement>("#zoom-in"),
   runToggle: mustQuery<HTMLButtonElement>("#run-toggle"),
+  joystick: mustQuery<HTMLElement>("#analog-joystick"),
+  joystickKnob: mustQuery<HTMLElement>("#joystick-knob"),
+  joystickStatus: mustQuery<HTMLElement>("#joystick-status"),
   movementDebugLog: mustQuery<HTMLOListElement>("#movement-debug-log"),
   movementDebugCopy: mustQuery<HTMLButtonElement>("#movement-debug-copy"),
   movementFeelPanel: mustQuery<HTMLDetailsElement>("#movement-feel-panel"),
@@ -701,6 +730,7 @@ elements.runToggle.addEventListener("click", () => {
 document
   .querySelectorAll<HTMLButtonElement>("[data-move-x][data-move-y][data-facing]")
   .forEach((button) => installMovementControlButton(button))
+installAnalogJoystick()
 elements.movementDebugCopy.addEventListener("click", () => {
   void copyMovementDebugLog()
 })
@@ -1386,6 +1416,128 @@ function installMovementControlButton(button: HTMLButtonElement): void {
   })
 }
 
+function installAnalogJoystick(): void {
+  elements.joystick.addEventListener("pointerdown", (event) => {
+    if (!state.joined) return
+
+    event.preventDefault()
+    elements.joystick.setPointerCapture(event.pointerId)
+    movementInput.joystick.pointerId = event.pointerId
+    updateJoystickFromPointer(event, "down")
+  })
+  elements.joystick.addEventListener("pointermove", (event) => {
+    if (movementInput.joystick.pointerId !== event.pointerId) return
+
+    event.preventDefault()
+    updateJoystickFromPointer(event, "move")
+  })
+  elements.joystick.addEventListener("pointerup", (event) => {
+    if (movementInput.joystick.pointerId !== event.pointerId) return
+
+    event.preventDefault()
+    releaseJoystick("up", event.pointerId)
+  })
+  elements.joystick.addEventListener("pointercancel", (event) => {
+    if (movementInput.joystick.pointerId !== event.pointerId) return
+
+    releaseJoystick("cancel", event.pointerId)
+  })
+  elements.joystick.addEventListener("lostpointercapture", (event) => {
+    if (movementInput.joystick.pointerId !== event.pointerId) return
+
+    releaseJoystick("lost", event.pointerId)
+  })
+  renderJoystickControl()
+}
+
+function updateJoystickFromPointer(
+  event: PointerEvent,
+  phase: "down" | "move",
+): void {
+  const surface = elements.joystick.querySelector<HTMLElement>(".joystick-surface")
+  if (!surface) return
+
+  const rect = surface.getBoundingClientRect()
+  const radiusPx = Math.max(24, Math.min(rect.width, rect.height) / 2)
+  const deadzonePx = radiusPx * JOYSTICK_DEADZONE_RATIO
+  const center = {
+    x: rect.left + rect.width / 2,
+    y: rect.top + rect.height / 2,
+  }
+  const offset = {
+    x: event.clientX - center.x,
+    y: event.clientY - center.y,
+  }
+  const rawDistance = Math.hypot(offset.x, offset.y)
+  const distance = Math.min(rawDistance, radiusPx)
+  const magnitude = rawDistance <= deadzonePx ? 0 : distance / radiusPx
+  const scale = rawDistance > 0 ? distance / rawDistance : 0
+  const knob = {
+    x: offset.x * scale,
+    y: offset.y * scale,
+  }
+  const vector =
+    magnitude <= JOYSTICK_MIN_MAGNITUDE
+      ? { x: 0, y: 0 }
+      : {
+          x: Number((knob.x / radiusPx).toFixed(3)),
+          y: Number((knob.y / radiusPx).toFixed(3)),
+        }
+  const direction =
+    vector.x === 0 && vector.y === 0
+      ? movementInput.joystick.direction
+      : directionForMovementVector(vector)
+
+  movementInput.joystick.active = magnitude > JOYSTICK_MIN_MAGNITUDE
+  movementInput.joystick.vector = vector
+  movementInput.joystick.direction = direction
+  movementInput.joystick.magnitude = Number(magnitude.toFixed(3))
+  movementInput.joystick.knob = knob
+  movementInput.joystick.radiusPx = radiusPx
+  movementInput.joystick.deadzonePx = deadzonePx
+  renderJoystickControl()
+  logMovementDebug(
+    `joystick-${phase}`,
+    `id=${event.pointerId} vector=${formatMovementVector(vector)} magnitude=${formatMovementNumber(magnitude)} facing=${direction ?? "-"}`,
+  )
+
+  if (hasHeldMovementInput()) {
+    startHeldMovement()
+    requestMoveFromHeldInput()
+  } else {
+    stopHeldMovementTimer()
+  }
+}
+
+function releaseJoystick(reason: "up" | "cancel" | "lost" | "reset", id?: number): void {
+  const previousVector = movementInput.joystick.vector
+  movementInput.joystick.active = false
+  movementInput.joystick.pointerId = undefined
+  movementInput.joystick.vector = { x: 0, y: 0 }
+  movementInput.joystick.magnitude = 0
+  movementInput.joystick.knob = { x: 0, y: 0 }
+  renderJoystickControl()
+  logMovementDebug(
+    "joystick-release",
+    `reason=${reason} id=${id ?? "-"} previous=${formatMovementVector(previousVector)}`,
+  )
+
+  if (!hasHeldMovementInput()) {
+    stopHeldMovementTimer()
+  }
+}
+
+function renderJoystickControl(): void {
+  const joystick = movementInput.joystick
+
+  elements.joystick.dataset.active = joystick.active ? "true" : "false"
+  elements.joystickKnob.style.setProperty("--joystick-x", `${joystick.knob.x}px`)
+  elements.joystickKnob.style.setProperty("--joystick-y", `${joystick.knob.y}px`)
+  elements.joystickStatus.textContent = joystick.active
+    ? `${Math.round(joystick.magnitude * 100)}% ${joystick.direction ?? "move"}`
+    : "Drag to move"
+}
+
 function movementIntentForControlButton(
   button: HTMLButtonElement,
 ): Omit<MovementControlIntent, "id" | "button"> | undefined {
@@ -1405,6 +1557,7 @@ function movementIntentForControlButton(
   return {
     vector,
     direction,
+    source: "dpad",
   }
 }
 
@@ -1473,6 +1626,7 @@ function stopHeldMovement(): void {
     }
   })
   movementInput.pressedControls.length = 0
+  releaseJoystick("reset")
   stopHeldMovementTimer()
   renderMovementModeControl()
 }
@@ -1487,7 +1641,8 @@ function stopHeldMovementTimer(): void {
 function hasHeldMovementInput(): boolean {
   return (
     movementInput.pressedDirections.length > 0 ||
-    movementInput.pressedControls.length > 0
+    movementInput.pressedControls.length > 0 ||
+    activeJoystickIntent() !== undefined
   )
 }
 
@@ -1610,6 +1765,7 @@ function activeHeldMovementIntent():
     }
   | undefined {
   const pressed = new Set(movementInput.pressedDirections)
+  const joystickIntent = activeJoystickIntent()
   const controlVector = movementInput.pressedControls.reduce(
     (result, intent) => ({
       x: clampMovementComponent(result.x + intent.vector.x),
@@ -1620,11 +1776,13 @@ function activeHeldMovementIntent():
   const vector = {
     x: clampMovementComponent(
       controlVector.x +
+        (joystickIntent?.vector.x ?? 0) +
         (pressed.has("right") ? 1 : 0) +
         (pressed.has("left") ? -1 : 0),
     ),
     y: clampMovementComponent(
       controlVector.y +
+        (joystickIntent?.vector.y ?? 0) +
         (pressed.has("down") ? 1 : 0) +
         (pressed.has("up") ? -1 : 0),
     ),
@@ -1637,6 +1795,7 @@ function activeHeldMovementIntent():
       vector: movementVectorForDirection(direction),
     })),
     ...movementInput.pressedControls,
+    ...(joystickIntent ? [joystickIntent] : []),
   ]
 
   return {
@@ -1657,9 +1816,30 @@ function requestMoveFromHeldInput(): void {
   }
   logMovementDebug(
     "intent",
-    `vector=${formatMovementVector(intent.vector)} facing=${intent.direction} mode=${intent.movementMode} keys=${movementInput.pressedDirections.join("+") || "-"} pads=${movementInput.pressedControls.length}`,
+    `vector=${formatMovementVector(intent.vector)} facing=${intent.direction} mode=${intent.movementMode} keys=${movementInput.pressedDirections.join("+") || "-"} pads=${movementInput.pressedControls.length} joystick=${movementInput.joystick.active ? formatMovementVector(movementInput.joystick.vector) : "-"}`,
   )
   requestMove(intent.vector, intent.direction, intent.movementMode)
+}
+
+function activeJoystickIntent():
+  | {
+      readonly vector: MovementVector
+      readonly direction: Direction
+      readonly source: "joystick"
+    }
+  | undefined {
+  const joystick = movementInput.joystick
+
+  if (!joystick.active || joystick.magnitude <= JOYSTICK_MIN_MAGNITUDE) {
+    return undefined
+  }
+  if (joystick.vector.x === 0 && joystick.vector.y === 0) return undefined
+
+  return {
+    vector: joystick.vector,
+    direction: joystick.direction ?? directionForMovementVector(joystick.vector),
+    source: "joystick",
+  }
 }
 
 function vectorIncludesIntent(
@@ -1680,10 +1860,10 @@ function vectorComponentIncludesIntent(
   return intentValue === 0 || Math.sign(value) === Math.sign(intentValue)
 }
 
-function clampMovementComponent(value: number): -1 | 0 | 1 {
-  if (value < 0) return -1
-  if (value > 0) return 1
-  return 0
+function clampMovementComponent(value: number): number {
+  if (value < -1) return -1
+  if (value > 1) return 1
+  return Number(value.toFixed(3))
 }
 
 function requestMove(
@@ -4696,6 +4876,26 @@ function movementFeelTextState() {
   }
 }
 
+function joystickTextState() {
+  const joystick = movementInput.joystick
+
+  return {
+    available: true,
+    primary: true,
+    active: joystick.active,
+    pointerId: joystick.pointerId,
+    vector: roundedVector(joystick.vector),
+    direction: joystick.direction,
+    magnitude: joystick.magnitude,
+    knob: roundedVector(joystick.knob),
+    radiusPx: Number(joystick.radiusPx.toFixed(1)),
+    deadzonePx: Number(joystick.deadzonePx.toFixed(1)),
+    deadzoneRatio: JOYSTICK_DEADZONE_RATIO,
+    minMagnitude: JOYSTICK_MIN_MAGNITUDE,
+    dpadFallback: true,
+  }
+}
+
 function roundedVector(position: Vector2): Vector2 {
   return {
     x: Number(position.x.toFixed(3)),
@@ -4789,6 +4989,7 @@ function renderDemoToText(): string {
       realtime: worldRealtime.snapshot(),
       motion: clientMotionTextState(),
       feel: movementFeelTextState(),
+      joystick: joystickTextState(),
       prediction: movementPredictionTextState(),
       debugLog: movementDebugRecords.map(movementDebugLine),
     },

@@ -133,12 +133,13 @@ export function createClientMovementPrediction(
   const playerSize = input.playerSize ?? CLIENT_PREDICTION_PLAYER_SIZE
   const speedPxPerSecond =
     movementSpeedPxPerSecond(input.movementMode ?? "walk", input)
+  const intensity = movementVectorIntensity(input.vector)
   const deltaMs = movementPredictionDeltaMs(
     input.lastSentAtMs,
     input.nowMs,
     input.deltaMs,
   )
-  const distance = (speedPxPerSecond * deltaMs) / 1000
+  const distance = (speedPxPerSecond * deltaMs * intensity) / 1000
   const result = simulateMovement({
     current: input.from,
     vector: input.vector,
@@ -221,6 +222,10 @@ function movementSpeedPxPerSecond(
   }
 
   return input.speedPxPerSecond ?? CLIENT_WALK_SPEED_PX_PER_SECOND
+}
+
+function movementVectorIntensity(vector: MovementVector): number {
+  return Math.min(1, Math.hypot(vector.x, vector.y))
 }
 
 export function movementPredictionCorrectionPx(

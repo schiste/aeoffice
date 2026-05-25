@@ -760,3 +760,26 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   `npm run smoke:frontend`, `npm run qa:renderer`, and
   `npm run qa:responsive`. Desktop and mobile QA screenshots were visually
   inspected. `npm run check` and `git diff --check` also passed.
+- Mobile controls now use an analog virtual joystick as the primary touch
+  movement input. The joystick emits fractional vectors and analog stick
+  magnitude into the same
+  server-authoritative movement, prediction, WebSocket/fallback, and
+  reconciliation path as keyboard and D-pad input; the 8-way D-pad remains as a
+  secondary fallback.
+- `render_game_to_text.movement.joystick` now exposes primary/fallback state,
+  active pointer, vector, magnitude, knob position, radius, and deadzone
+  telemetry. The movement trace records joystick down/move/release events so
+  real-device touch issues can be debugged without guessing.
+- Mobile collaboration layout now gives an opened tool full width and removes
+  internal tray scrolling for expanded controls, so the joystick and D-pad do
+  not squeeze into narrow columns or overlap text.
+- Verification passed after the joystick slice: `npm --workspace
+  @aedventure/map-engine run build`, `node packages/map-engine/test/movement.test.js`,
+  `npm --workspace @aedventure/web run build`,
+  `node --check scripts/frontend-smoke.test.cjs`, `npm run smoke:frontend`,
+  `npm run qa:responsive`, `npm run qa:renderer`, `npm run check`, and
+  `git diff --check`. A focused mobile screenshot of the expanded Move panel
+  was visually inspected at
+  `/private/tmp/aedventure-mobile-joystick.png`. The standalone
+  develop-web-game client still fails before navigation because it cannot
+  resolve its own `playwright` package.

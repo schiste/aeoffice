@@ -332,7 +332,23 @@
                   Run
                 </button>
               </div>
-              <div class="controls" aria-label="Movement controls">
+              <div
+                id="analog-joystick"
+                class="analog-joystick"
+                data-active="false"
+                role="application"
+                aria-label="Analog movement joystick"
+              >
+                <div class="joystick-copy">
+                  <span>Analog move</span>
+                  <strong id="joystick-status">Drag to move</strong>
+                </div>
+                <div class="joystick-surface" aria-hidden="true">
+                  <div class="joystick-ring"></div>
+                  <div id="joystick-knob" class="joystick-knob"></div>
+                </div>
+              </div>
+              <div class="controls controls-dpad" aria-label="Button movement fallback">
                 <button data-move-x="-1" data-move-y="-1" data-facing="left" type="button" aria-label="Move up-left">↖</button>
                 <button data-move-x="0" data-move-y="-1" data-facing="up" type="button" aria-label="Move up">↑</button>
                 <button data-move-x="1" data-move-y="-1" data-facing="right" type="button" aria-label="Move up-right">↗</button>

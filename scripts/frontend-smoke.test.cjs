@@ -354,6 +354,49 @@ async function main() {
     assert.equal(await page.locator("#run-toggle").getAttribute("aria-pressed"), "true")
     await page.locator("#run-toggle").click()
 
+    const beforeJoystickMove = await renderGameToText(page)
+    assertJoystickContract(beforeJoystickMove)
+    const joystickSurface = page.locator(".joystick-surface")
+    await joystickSurface.scrollIntoViewIfNeeded()
+    const joystickBox = await joystickSurface.boundingBox()
+    assert.ok(joystickBox, "Expected joystick surface to be measurable.")
+    await page.mouse.move(
+      joystickBox.x + joystickBox.width / 2,
+      joystickBox.y + joystickBox.height / 2,
+    )
+    await page.mouse.down()
+    await page.mouse.move(
+      joystickBox.x + joystickBox.width * 0.86,
+      joystickBox.y + joystickBox.height * 0.38,
+    )
+    const joystickMoved = await waitForTextState(
+      page,
+      (state) =>
+        state.movement.joystick.active === true &&
+        state.movement.joystick.primary === true &&
+        state.movement.joystick.vector.x > 0.55 &&
+        state.movement.joystick.vector.y < -0.1 &&
+        state.movement.motion.targetSpeedPxPerSecond > 40 &&
+        state.movement.motion.targetSpeedPxPerSecond < 88 &&
+        state.movement.prediction.totalPredicted >
+          beforeJoystickMove.movement.prediction.totalPredicted,
+    )
+    assert.equal(joystickMoved.movement.joystick.dpadFallback, true)
+    assert.equal(joystickMoved.movement.joystick.direction, "right")
+    assert.equal(
+      joystickMoved.movement.debugLog.some((entry) =>
+        entry.includes("joystick-move"),
+      ),
+      true,
+      `Expected joystick movement in debug log, got ${JSON.stringify(joystickMoved.movement.debugLog)}.`,
+    )
+    await page.mouse.up()
+    await waitForTextState(
+      page,
+      (state) => state.movement.joystick.active === false,
+      3000,
+    )
+
     await page.locator("#chat-body").fill(SMOKE_MESSAGE)
     await assertChatFormUsable(page)
     await page.locator("#chat-form").evaluate((form) => {
@@ -609,6 +652,7 @@ function assertRenderStateContract(state) {
   assert.equal(typeof state.movement?.motion?.speedPxPerSecond, "number")
   assert.equal(typeof state.movement?.motion?.correctionPx, "number")
   assertMovementFeelContract(state)
+  assertJoystickContract(state)
   assert.equal(typeof state.movement?.realtime?.status, "string")
   assert.equal(typeof state.movement?.realtime?.sentCount, "number")
   assert.equal(typeof state.movement?.realtime?.receivedCount, "number")
@@ -806,6 +850,24 @@ function assertMovementFeelContract(state) {
       (control) => control.key === "turnResponseTimeConstantMs",
     ),
     "Expected turn response to be explicitly tunable.",
+  )
+}
+
+function assertJoystickContract(state) {
+  assert.equal(state.movement?.joystick?.available, true)
+  assert.equal(state.movement?.joystick?.primary, true)
+  assert.equal(state.movement?.joystick?.dpadFallback, true)
+  assert.equal(typeof state.movement?.joystick?.active, "boolean")
+  assert.equal(typeof state.movement?.joystick?.vector?.x, "number")
+  assert.equal(typeof state.movement?.joystick?.vector?.y, "number")
+  assert.equal(typeof state.movement?.joystick?.magnitude, "number")
+  assert.ok(
+    state.movement.joystick.radiusPx >= 24,
+    `Expected joystick radius telemetry, got ${JSON.stringify(state.movement.joystick)}.`,
+  )
+  assert.ok(
+    state.movement.joystick.deadzonePx > 0,
+    `Expected joystick deadzone telemetry, got ${JSON.stringify(state.movement.joystick)}.`,
   )
 }
 
@@ -1166,6 +1228,15 @@ async function assertMobileCollapsedControls(browser, url) {
     await expectVisible(
       mobilePage.locator("details.compact-tool summary"),
       "Expected collapsed Move control handle on mobile.",
+    )
+    await mobilePage.locator("details.compact-tool summary").click()
+    await expectVisible(
+      mobilePage.locator("#analog-joystick"),
+      "Expected analog joystick to be the primary mobile movement control.",
+    )
+    await expectVisible(
+      mobilePage.locator(".controls-dpad"),
+      "Expected D-pad fallback to remain available below the joystick.",
     )
     assert.equal(await mobilePage.locator("#join-meeting").isVisible(), false)
     assert.equal(await mobilePage.locator("#chat-form").isVisible(), false)

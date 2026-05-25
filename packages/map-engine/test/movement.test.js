@@ -99,6 +99,21 @@ assert.equal(Math.round(diagonal.position.x), 43)
 assert.equal(Math.round(diagonal.position.y), 43)
 assert.equal(diagonal.direction, "down")
 
+const analogHalfTilt = simulateMovement({
+  current: { x: 32, y: 32 },
+  vector: { x: 0.5, y: 0 },
+  seq: 51,
+  map: { ...map, blockedTiles: [] },
+  playerSize,
+  speedPxPerSecond: 64,
+  deltaMs: 250,
+})
+
+assert.equal(analogHalfTilt.accepted, true)
+assert.equal(Math.round(analogHalfTilt.position.x), 40)
+assert.equal(Math.round(analogHalfTilt.position.y), 32)
+assert.deepEqual(analogHalfTilt.requestedVector, { x: 1, y: 0 })
+
 const diagonalSlide = simulateMovement({
   current: { x: 48, y: 16 },
   vector: { x: 1, y: 1 },

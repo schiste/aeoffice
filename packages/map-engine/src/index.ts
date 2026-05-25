@@ -77,8 +77,9 @@ export function simulateMovement(
   input: MovementSimulationInput,
 ): MovementSimulationResult {
   const normalizedVector = normalizeMovementVector(input.vector)
+  const intensity = movementVectorIntensity(input.vector)
   const deltaMs = Math.max(0, Math.min(input.deltaMs, MAX_SIMULATION_STEP_MS))
-  const distance = (input.speedPxPerSecond * deltaMs) / 1000
+  const distance = (input.speedPxPerSecond * deltaMs * intensity) / 1000
   const attemptedPosition = moveByVector(
     input.current,
     normalizedVector,
@@ -408,6 +409,10 @@ function normalizeMovementVector(vector: MovementVector): MovementVector {
     x: vector.x / length,
     y: vector.y / length,
   }
+}
+
+function movementVectorIntensity(vector: MovementVector): number {
+  return Math.min(1, Math.hypot(vector.x, vector.y))
 }
 
 function firstMissingZonePermission(

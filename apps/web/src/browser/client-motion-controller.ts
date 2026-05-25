@@ -61,6 +61,7 @@ export class ClientMotionController {
   private movementMode: MovementMode = "walk"
   private lastFrameAtMs?: number
   private lastFrameDeltaMs = 0
+  private currentTargetSpeedPxPerSecond = 0
   private inputActive = false
   private initialized = false
   private feel: MovementFeelTuning = DEFAULT_MOVEMENT_FEEL
@@ -85,6 +86,7 @@ export class ClientMotionController {
     this.movementMode = "walk"
     this.lastFrameAtMs = undefined
     this.lastFrameDeltaMs = 0
+    this.currentTargetSpeedPxPerSecond = 0
     this.inputActive = false
     this.initialized = true
   }
@@ -132,9 +134,11 @@ export class ClientMotionController {
     const intent = input.intent
     const deltaMs = this.frameDeltaMs(input.nowMs, Boolean(intent))
     const targetVector = intent ? normalizeVector(intent.vector) : { x: 0, y: 0 }
+    const targetIntensity = intent ? movementVectorIntensity(intent.vector) : 0
     const targetSpeedPxPerSecond = intent
-      ? movementSpeedPxPerSecond(intent.movementMode, this.feel)
+      ? movementSpeedPxPerSecond(intent.movementMode, this.feel) * targetIntensity
       : 0
+    this.currentTargetSpeedPxPerSecond = targetSpeedPxPerSecond
     const targetVelocity = {
       x: targetVector.x * targetSpeedPxPerSecond,
       y: targetVector.y * targetSpeedPxPerSecond,
@@ -195,9 +199,7 @@ export class ClientMotionController {
       position: this.position,
       velocity: this.velocity,
       speedPxPerSecond: Number(speedPxPerSecond.toFixed(2)),
-      targetSpeedPxPerSecond: this.inputActive
-        ? movementSpeedPxPerSecond(this.movementMode, this.feel)
-        : 0,
+      targetSpeedPxPerSecond: Number(this.currentTargetSpeedPxPerSecond.toFixed(2)),
       direction: this.direction,
       movementMode: this.movementMode,
       lastFrameDeltaMs: Number(this.lastFrameDeltaMs.toFixed(2)),
@@ -340,6 +342,10 @@ function normalizeVector(vector: MovementVector): MovementVector {
     x: vector.x / length,
     y: vector.y / length,
   }
+}
+
+function movementVectorIntensity(vector: MovementVector): number {
+  return Math.min(1, magnitude(vector))
 }
 
 function smoothingFactor(deltaMs: number, timeConstantMs: number): number {
