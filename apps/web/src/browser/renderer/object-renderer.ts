@@ -5,8 +5,8 @@ import {
   type RuntimeAssetAtlas,
 } from "./asset-atlas"
 import { OBJECT_TEXTURE_PREFIX, RENDERER_VERTEX_ROUND_MODE } from "./constants"
-import { furnitureDepth } from "./depth"
-import type { FixtureToken, TileLayer } from "./types"
+import { depthObjectInfo, objectDepth } from "./depth"
+import type { FixtureToken, RendererDepthObjectInfo, TileLayer } from "./types"
 
 export class ObjectRenderer {
   private readonly objectTextureKeys = new Set<string>()
@@ -19,8 +19,14 @@ export class ObjectRenderer {
     tokensByGid: ReadonlyMap<number, FixtureToken>,
     tileSize: number,
     atlas: RuntimeAssetAtlas | undefined,
-  ): void {
-    const objectTextureKeys = this.createObjectTextures(tokens, tileSize, atlas)
+  ): readonly RendererDepthObjectInfo[] {
+    const objectTextureKeys = this.createTokenTextures(
+      tokens,
+      tileSize,
+      atlas,
+      (token) => token.kind === "item",
+    )
+    const depthObjects: RendererDepthObjectInfo[] = []
 
     layer.gids.forEach((row, y) => {
       row.forEach((gid, x) => {
@@ -36,15 +42,67 @@ export class ObjectRenderer {
         const height = token.heightTiles * tileSize
         const centerX = x * tileSize + width / 2
         const centerY = y * tileSize + height / 2
-        const bottomY = (y + token.heightTiles) * tileSize
         const sprite = this.scene.add.image(centerX, centerY, textureKey)
-        sprite.setName(`furniture:${token.id}:${x},${y}`)
+        const id = `furniture:${token.id}:${x},${y}`
+        const depth = objectDepth(x, y, tileSize, token)
+
+        sprite.setName(id)
         sprite.setOrigin(0.5, 0.5)
         sprite.setVertexRoundMode(RENDERER_VERTEX_ROUND_MODE)
-        sprite.setDepth(furnitureDepth(bottomY, token))
-        sprite.setData("bottomY", bottomY)
+        sprite.setDepth(depth)
+        sprite.setData("depth", depth)
+        sprite.setData("zAnchor", token.asset?.zAnchor)
+        depthObjects.push(depthObjectInfo(id, token, "object", x, y, tileSize))
       })
     })
+
+    return depthObjects
+  }
+
+  paintWallForegroundSprites(
+    layer: TileLayer,
+    tokens: readonly FixtureToken[],
+    tokensByGid: ReadonlyMap<number, FixtureToken>,
+    tileSize: number,
+    atlas: RuntimeAssetAtlas | undefined,
+  ): readonly RendererDepthObjectInfo[] {
+    const textureKeys = this.createTokenTextures(
+      tokens,
+      tileSize,
+      atlas,
+      (token) => token.kind === "wall" && token.asset?.occlusion.mode === "foreground",
+    )
+    const depthObjects: RendererDepthObjectInfo[] = []
+
+    layer.gids.forEach((row, y) => {
+      row.forEach((gid, x) => {
+        if (gid <= 0) return
+
+        const token = tokensByGid.get(gid)
+        if (!token || token.asset?.occlusion.mode !== "foreground") return
+
+        const textureKey = textureKeys.get(gid)
+        if (!textureKey) return
+
+        const width = token.widthTiles * tileSize
+        const height = token.heightTiles * tileSize
+        const centerX = x * tileSize + width / 2
+        const centerY = y * tileSize + height / 2
+        const id = `wall-foreground:${token.id}:${x},${y}`
+        const depth = objectDepth(x, y, tileSize, token)
+        const sprite = this.scene.add.image(centerX, centerY, textureKey)
+
+        sprite.setName(id)
+        sprite.setOrigin(0.5, 0.5)
+        sprite.setVertexRoundMode(RENDERER_VERTEX_ROUND_MODE)
+        sprite.setDepth(depth)
+        sprite.setData("depth", depth)
+        sprite.setData("zAnchor", token.asset.zAnchor)
+        depthObjects.push(depthObjectInfo(id, token, "wall_foreground", x, y, tileSize))
+      })
+    })
+
+    return depthObjects
   }
 
   clearObjectTextures(): void {
@@ -56,16 +114,17 @@ export class ObjectRenderer {
     this.objectTextureKeys.clear()
   }
 
-  private createObjectTextures(
+  private createTokenTextures(
     tokens: readonly FixtureToken[],
     tileSize: number,
     atlas: RuntimeAssetAtlas | undefined,
+    shouldCreateTexture: (token: FixtureToken) => boolean,
   ): ReadonlyMap<number, string> {
     const textureKeysByGid = new Map<number, string>()
     const fallbackTokenIds = new Set<string>()
 
     tokens.forEach((token) => {
-      if (token.kind !== "item") return
+      if (!shouldCreateTexture(token)) return
 
       const textureKey = `${OBJECT_TEXTURE_PREFIX}-${token.provisionalGid}`
       if (this.scene.textures.exists(textureKey)) {

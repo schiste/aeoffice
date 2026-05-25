@@ -9,6 +9,8 @@ export type VisualTokenKind = "floor" | "wall" | "item" | "avatar"
 
 export type RenderLayer = "floor" | "wall" | "object" | "avatar"
 
+export type VisualAssetOcclusionMode = "none" | "y_sort" | "foreground"
+
 export interface VisualAssetSource {
   readonly id: string
   readonly status: AssetApprovalStatus
@@ -62,6 +64,13 @@ export interface VisualAssetFrameMetadata {
   readonly collisionFootprint: VisualAssetFootprint
   readonly visualFootprint: VisualAssetFootprint
   readonly zAnchor: VisualAssetPoint
+  readonly occlusion: VisualAssetOcclusionMetadata
+}
+
+export interface VisualAssetOcclusionMetadata {
+  readonly mode: VisualAssetOcclusionMode
+  readonly splitAtY?: number
+  readonly foregroundFootprint?: VisualAssetFootprint
 }
 
 export interface VisualTokenDefinition {
@@ -242,9 +251,16 @@ function internalAtlasFrame(
   widthTiles: number,
   heightTiles: number,
   collidable: boolean,
+  occlusionMode: VisualAssetOcclusionMode = "none",
 ): VisualAssetFrameMetadata {
   const width = widthTiles * 32
   const height = heightTiles * 32
+  const foregroundFootprint = {
+    x: 0,
+    y: 0,
+    width,
+    height,
+  }
 
   return {
     atlasId: INTERNAL_POLISHED_ATLAS_ID,
@@ -281,6 +297,16 @@ function internalAtlasFrame(
       x: width / 2,
       y: height,
     },
+    occlusion:
+      occlusionMode === "foreground"
+        ? {
+            mode: occlusionMode,
+            splitAtY: 0,
+            foregroundFootprint,
+          }
+        : {
+            mode: occlusionMode,
+          },
   }
 }
 
@@ -383,7 +409,7 @@ export const starterVisualAssetCatalog: VisualAssetCatalog = {
       widthTiles: 1,
       heightTiles: 1,
       collidable: true,
-      asset: internalAtlasFrame("wall.wood.straight", 1, 1, true),
+      asset: internalAtlasFrame("wall.wood.straight", 1, 1, true, "foreground"),
       tags: ["cozy_wood", "wall"],
     },
     {
@@ -396,7 +422,7 @@ export const starterVisualAssetCatalog: VisualAssetCatalog = {
       widthTiles: 1,
       heightTiles: 1,
       collidable: true,
-      asset: internalAtlasFrame("wall.wood.corner", 1, 1, true),
+      asset: internalAtlasFrame("wall.wood.corner", 1, 1, true, "foreground"),
       tags: ["cozy_wood", "wall", "corner"],
     },
     {
@@ -409,7 +435,7 @@ export const starterVisualAssetCatalog: VisualAssetCatalog = {
       widthTiles: 1,
       heightTiles: 1,
       collidable: true,
-      asset: internalAtlasFrame("wall.glass.straight", 1, 1, true),
+      asset: internalAtlasFrame("wall.glass.straight", 1, 1, true, "foreground"),
       tags: ["modern_light", "wall", "glass"],
     },
     {
@@ -422,7 +448,7 @@ export const starterVisualAssetCatalog: VisualAssetCatalog = {
       widthTiles: 1,
       heightTiles: 1,
       collidable: true,
-      asset: internalAtlasFrame("wall.glass.corner", 1, 1, true),
+      asset: internalAtlasFrame("wall.glass.corner", 1, 1, true, "foreground"),
       tags: ["modern_light", "wall", "glass", "corner"],
     },
     {
@@ -435,7 +461,7 @@ export const starterVisualAssetCatalog: VisualAssetCatalog = {
       widthTiles: 1,
       heightTiles: 1,
       collidable: true,
-      asset: internalAtlasFrame("wall.neutral.straight", 1, 1, true),
+      asset: internalAtlasFrame("wall.neutral.straight", 1, 1, true, "foreground"),
       tags: ["neutral_office", "wall", "neutral"],
     },
     {
@@ -448,7 +474,7 @@ export const starterVisualAssetCatalog: VisualAssetCatalog = {
       widthTiles: 1,
       heightTiles: 1,
       collidable: true,
-      asset: internalAtlasFrame("wall.neutral.corner", 1, 1, true),
+      asset: internalAtlasFrame("wall.neutral.corner", 1, 1, true, "foreground"),
       tags: ["neutral_office", "wall", "neutral", "corner"],
     },
     {
@@ -461,7 +487,7 @@ export const starterVisualAssetCatalog: VisualAssetCatalog = {
       widthTiles: 3,
       heightTiles: 2,
       collidable: true,
-      asset: internalAtlasFrame("item.large_conference_table", 3, 2, true),
+      asset: internalAtlasFrame("item.large_conference_table", 3, 2, true, "y_sort"),
       tags: ["meeting", "table", "office"],
     },
     {
@@ -474,7 +500,7 @@ export const starterVisualAssetCatalog: VisualAssetCatalog = {
       widthTiles: 2,
       heightTiles: 2,
       collidable: true,
-      asset: internalAtlasFrame("item.small_round_table", 2, 2, true),
+      asset: internalAtlasFrame("item.small_round_table", 2, 2, true, "y_sort"),
       tags: ["meeting", "table", "coffee", "office"],
     },
     {
@@ -487,7 +513,7 @@ export const starterVisualAssetCatalog: VisualAssetCatalog = {
       widthTiles: 1,
       heightTiles: 1,
       collidable: true,
-      asset: internalAtlasFrame("item.office_chair", 1, 1, true),
+      asset: internalAtlasFrame("item.office_chair", 1, 1, true, "y_sort"),
       tags: ["meeting", "chair", "office"],
     },
     {
@@ -500,7 +526,7 @@ export const starterVisualAssetCatalog: VisualAssetCatalog = {
       widthTiles: 1,
       heightTiles: 1,
       collidable: true,
-      asset: internalAtlasFrame("item.coffee_machine", 1, 1, true),
+      asset: internalAtlasFrame("item.coffee_machine", 1, 1, true, "y_sort"),
       tags: ["kitchen", "coffee", "office"],
     },
     {
@@ -513,7 +539,7 @@ export const starterVisualAssetCatalog: VisualAssetCatalog = {
       widthTiles: 1,
       heightTiles: 1,
       collidable: true,
-      asset: internalAtlasFrame("item.plant_potted", 1, 1, true),
+      asset: internalAtlasFrame("item.plant_potted", 1, 1, true, "y_sort"),
       tags: ["decor", "plant", "office"],
     },
     {
@@ -526,7 +552,7 @@ export const starterVisualAssetCatalog: VisualAssetCatalog = {
       widthTiles: 2,
       heightTiles: 1,
       collidable: true,
-      asset: internalAtlasFrame("item.coffee_bar", 2, 1, true),
+      asset: internalAtlasFrame("item.coffee_bar", 2, 1, true, "y_sort"),
       tags: ["kitchen", "coffee", "bar", "office"],
     },
     {
@@ -539,7 +565,7 @@ export const starterVisualAssetCatalog: VisualAssetCatalog = {
       widthTiles: 1,
       heightTiles: 1,
       collidable: false,
-      asset: internalAtlasFrame("item.door_single", 1, 1, false),
+      asset: internalAtlasFrame("item.door_single", 1, 1, false, "y_sort"),
       tags: ["door", "entry", "office"],
       notes:
         "Non-collidable door token. Server collision still depends on wall openings in the compiled map.",
@@ -554,7 +580,7 @@ export const starterVisualAssetCatalog: VisualAssetCatalog = {
       widthTiles: 2,
       heightTiles: 1,
       collidable: true,
-      asset: internalAtlasFrame("item.lounge_couch", 2, 1, true),
+      asset: internalAtlasFrame("item.lounge_couch", 2, 1, true, "y_sort"),
       tags: ["lounge", "couch", "sofa", "office"],
     },
     {
@@ -759,12 +785,54 @@ export function validateVisualAssetCatalog(
         errors.push(`Token ${token.id} atlas visual footprint must be positive`)
       }
 
+      if (!pointWithinAsset(token.asset.zAnchor, token.asset.size)) {
+        errors.push(`Token ${token.id} z-anchor is outside asset bounds`)
+      }
+
+      if (!footprintWithinAsset(token.asset.visualFootprint, token.asset.size)) {
+        errors.push(`Token ${token.id} visual footprint is outside asset bounds`)
+      }
+
+      if (
+        token.asset.collisionFootprint.width > 0 &&
+        !footprintWithinAsset(token.asset.collisionFootprint, token.asset.size)
+      ) {
+        errors.push(`Token ${token.id} collision footprint is outside asset bounds`)
+      }
+
       if (
         token.collidable &&
         (token.asset.collisionFootprint.width <= 0 ||
           token.asset.collisionFootprint.height <= 0)
       ) {
         errors.push(`Token ${token.id} collidable asset needs a collision footprint`)
+      }
+
+      if (
+        !token.collidable &&
+        (token.asset.collisionFootprint.width > 0 ||
+          token.asset.collisionFootprint.height > 0)
+      ) {
+        errors.push(
+          `Token ${token.id} non-collidable asset must not define a collision footprint`,
+        )
+      }
+
+      if (
+        token.asset.occlusion.mode === "foreground" &&
+        !token.asset.occlusion.foregroundFootprint
+      ) {
+        errors.push(`Token ${token.id} foreground occlusion needs a footprint`)
+      }
+
+      if (
+        token.asset.occlusion.foregroundFootprint &&
+        !footprintWithinAsset(
+          token.asset.occlusion.foregroundFootprint,
+          token.asset.size,
+        )
+      ) {
+        errors.push(`Token ${token.id} foreground footprint is outside asset bounds`)
       }
     }
   }
@@ -793,6 +861,27 @@ export function validateVisualAssetCatalog(
   }
 
   return errors
+}
+
+function pointWithinAsset(
+  point: VisualAssetPoint,
+  size: VisualAssetSize,
+): boolean {
+  return point.x >= 0 && point.y >= 0 && point.x <= size.width && point.y <= size.height
+}
+
+function footprintWithinAsset(
+  footprint: VisualAssetFootprint,
+  size: VisualAssetSize,
+): boolean {
+  return (
+    footprint.x >= 0 &&
+    footprint.y >= 0 &&
+    footprint.width >= 0 &&
+    footprint.height >= 0 &&
+    footprint.x + footprint.width <= size.width &&
+    footprint.y + footprint.height <= size.height
+  )
 }
 
 export function assertNoUnapprovedBundledAssets(

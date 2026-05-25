@@ -109,6 +109,16 @@ export class CameraController {
     return this.scene.cameras.main.roundPixels
   }
 
+  projectWorldToViewport(point: Vector2): Vector2 {
+    const camera = this.scene.cameras.main
+    const worldView = camera.worldView
+
+    return {
+      x: Math.round((point.x - worldView.x) * camera.zoom),
+      y: Math.round((point.y - worldView.y) * camera.zoom),
+    }
+  }
+
   private applyCameraZoom(): void {
     this.effectiveZoom = this.computeEffectiveZoom()
 

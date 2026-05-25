@@ -7,7 +7,12 @@ import {
 } from "./constants"
 import { avatarDepth } from "./depth"
 import { clamp } from "./math"
-import type { Direction, RenderedPlayer, Vector2 } from "./types"
+import type {
+  Direction,
+  RenderedPlayer,
+  RendererDepthPlayerInfo,
+  Vector2,
+} from "./types"
 
 const AVATAR_STYLES: Record<
   string,
@@ -63,12 +68,14 @@ export interface AvatarFollowTarget {
 
 export class AvatarRenderer {
   private readonly avatars = new Map<string, AvatarView>()
+  private depthPlayers: readonly RendererDepthPlayerInfo[] = []
 
   constructor(private readonly scene: Phaser.Scene) {}
 
   clear(): void {
     this.avatars.forEach((avatar) => avatar.destroy())
     this.avatars.clear()
+    this.depthPlayers = []
   }
 
   updatePlayers(players: readonly RenderedPlayer[]): AvatarFollowTarget | undefined {
@@ -98,7 +105,36 @@ export class AvatarRenderer {
       }
     })
 
+    this.depthPlayers = players.map((player) =>
+      rendererDepthPlayerInfo(player, this.avatars.get(player.playerId)),
+    )
+
     return localAvatar
+  }
+
+  getDepthInfo(): readonly RendererDepthPlayerInfo[] {
+    return this.depthPlayers
+  }
+}
+
+function rendererDepthPlayerInfo(
+  player: RenderedPlayer,
+  avatar: AvatarView | undefined,
+): RendererDepthPlayerInfo {
+  const labelWidth = avatar?.labelWidth ?? Math.max(44, player.name.length * 7 + 14)
+
+  return {
+    playerId: player.playerId,
+    name: player.name,
+    local: player.local,
+    depth: avatarDepth(player.position.y),
+    zAnchor: player.position,
+    labelBounds: {
+      x: player.position.x - labelWidth / 2,
+      y: player.position.y - 40,
+      width: labelWidth,
+      height: 24,
+    },
   }
 }
 
@@ -125,6 +161,10 @@ class AvatarView {
   private lastDirection: Direction
   private avatarId: string
   private local: boolean
+
+  get labelWidth(): number {
+    return this.label.width + 14
+  }
 
   constructor(
     private readonly scene: Phaser.Scene,

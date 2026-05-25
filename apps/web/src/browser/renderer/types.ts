@@ -106,6 +106,42 @@ export interface RendererTilemapInfo {
   readonly labelLayerMode: "display_objects"
 }
 
+export interface RendererDepthPlacementBounds {
+  readonly x: number
+  readonly y: number
+  readonly width: number
+  readonly height: number
+}
+
+export interface RendererDepthObjectInfo {
+  readonly id: string
+  readonly tokenId: string
+  readonly kind: FixtureToken["kind"]
+  readonly layer: "object" | "wall_foreground"
+  readonly depth: number
+  readonly zAnchor: Vector2
+  readonly bounds: RendererDepthPlacementBounds
+  readonly occlusionMode: "none" | "y_sort" | "foreground"
+}
+
+export interface RendererDepthPlayerInfo {
+  readonly playerId: string
+  readonly name: string
+  readonly local: boolean
+  readonly depth: number
+  readonly zAnchor: Vector2
+  readonly labelBounds: RendererDepthPlacementBounds
+}
+
+export interface RendererDepthInfo {
+  readonly debugOverlayEnabled: boolean
+  readonly objectCount: number
+  readonly foregroundObjectCount: number
+  readonly playerCount: number
+  readonly objects: readonly RendererDepthObjectInfo[]
+  readonly players: readonly RendererDepthPlayerInfo[]
+}
+
 export interface RendererAssetPipelineInfo {
   readonly atlasId?: string
   readonly manifestPath: string
@@ -149,6 +185,7 @@ export interface RendererCapabilityInfo {
     readonly vertexRoundMode: "safeAuto"
   }
   readonly assets: RendererAssetPipelineInfo
+  readonly depth: RendererDepthInfo
   readonly tilemap: RendererTilemapInfo
   readonly webgl: {
     readonly available: boolean

@@ -52,6 +52,9 @@
       "zAnchor": {
         "x": 16,
         "y": 32
+      },
+      "occlusion": {
+        "mode": "none"
       }
     },
     {
@@ -86,6 +89,9 @@
       "zAnchor": {
         "x": 16,
         "y": 32
+      },
+      "occlusion": {
+        "mode": "none"
       }
     },
     {
@@ -120,6 +126,9 @@
       "zAnchor": {
         "x": 16,
         "y": 32
+      },
+      "occlusion": {
+        "mode": "none"
       }
     },
     {
@@ -154,6 +163,16 @@
       "zAnchor": {
         "x": 16,
         "y": 32
+      },
+      "occlusion": {
+        "mode": "foreground",
+        "splitAtY": 0,
+        "foregroundFootprint": {
+          "x": 0,
+          "y": 0,
+          "width": 32,
+          "height": 32
+        }
       }
     },
     {
@@ -188,6 +207,16 @@
       "zAnchor": {
         "x": 16,
         "y": 32
+      },
+      "occlusion": {
+        "mode": "foreground",
+        "splitAtY": 0,
+        "foregroundFootprint": {
+          "x": 0,
+          "y": 0,
+          "width": 32,
+          "height": 32
+        }
       }
     },
     {
@@ -222,6 +251,16 @@
       "zAnchor": {
         "x": 16,
         "y": 32
+      },
+      "occlusion": {
+        "mode": "foreground",
+        "splitAtY": 0,
+        "foregroundFootprint": {
+          "x": 0,
+          "y": 0,
+          "width": 32,
+          "height": 32
+        }
       }
     },
     {
@@ -256,6 +295,16 @@
       "zAnchor": {
         "x": 16,
         "y": 32
+      },
+      "occlusion": {
+        "mode": "foreground",
+        "splitAtY": 0,
+        "foregroundFootprint": {
+          "x": 0,
+          "y": 0,
+          "width": 32,
+          "height": 32
+        }
       }
     },
     {
@@ -290,6 +339,16 @@
       "zAnchor": {
         "x": 16,
         "y": 32
+      },
+      "occlusion": {
+        "mode": "foreground",
+        "splitAtY": 0,
+        "foregroundFootprint": {
+          "x": 0,
+          "y": 0,
+          "width": 32,
+          "height": 32
+        }
       }
     },
     {
@@ -324,6 +383,16 @@
       "zAnchor": {
         "x": 16,
         "y": 32
+      },
+      "occlusion": {
+        "mode": "foreground",
+        "splitAtY": 0,
+        "foregroundFootprint": {
+          "x": 0,
+          "y": 0,
+          "width": 32,
+          "height": 32
+        }
       }
     },
     {
@@ -358,6 +427,9 @@
       "zAnchor": {
         "x": 48,
         "y": 64
+      },
+      "occlusion": {
+        "mode": "y_sort"
       }
     },
     {
@@ -392,6 +464,9 @@
       "zAnchor": {
         "x": 32,
         "y": 64
+      },
+      "occlusion": {
+        "mode": "y_sort"
       }
     },
     {
@@ -426,6 +501,9 @@
       "zAnchor": {
         "x": 16,
         "y": 32
+      },
+      "occlusion": {
+        "mode": "y_sort"
       }
     },
     {
@@ -460,6 +538,9 @@
       "zAnchor": {
         "x": 16,
         "y": 32
+      },
+      "occlusion": {
+        "mode": "y_sort"
       }
     },
     {
@@ -494,6 +575,9 @@
       "zAnchor": {
         "x": 16,
         "y": 32
+      },
+      "occlusion": {
+        "mode": "y_sort"
       }
     },
     {
@@ -528,6 +612,9 @@
       "zAnchor": {
         "x": 32,
         "y": 32
+      },
+      "occlusion": {
+        "mode": "y_sort"
       }
     },
     {
@@ -562,6 +649,9 @@
       "zAnchor": {
         "x": 16,
         "y": 32
+      },
+      "occlusion": {
+        "mode": "y_sort"
       }
     },
     {
@@ -596,6 +686,9 @@
       "zAnchor": {
         "x": 32,
         "y": 32
+      },
+      "occlusion": {
+        "mode": "y_sort"
       }
     },
     {
@@ -630,6 +723,9 @@
       "zAnchor": {
         "x": 16,
         "y": 32
+      },
+      "occlusion": {
+        "mode": "none"
       }
     },
     {
@@ -664,6 +760,9 @@
       "zAnchor": {
         "x": 16,
         "y": 32
+      },
+      "occlusion": {
+        "mode": "none"
       }
     },
     {
@@ -698,6 +797,9 @@
       "zAnchor": {
         "x": 16,
         "y": 32
+      },
+      "occlusion": {
+        "mode": "none"
       }
     },
     {
@@ -732,6 +834,9 @@
       "zAnchor": {
         "x": 16,
         "y": 32
+      },
+      "occlusion": {
+        "mode": "none"
       }
     },
     {
@@ -766,6 +871,9 @@
       "zAnchor": {
         "x": 16,
         "y": 32
+      },
+      "occlusion": {
+        "mode": "none"
       }
     }
   ],

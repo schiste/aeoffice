@@ -120,11 +120,19 @@ export class PhaserOfficeRenderer {
     return this.scene.getViewportState()
   }
 
+  projectWorldToViewport(point: { readonly x: number; readonly y: number }): {
+    readonly x: number
+    readonly y: number
+  } {
+    return this.scene.projectWorldToViewport(point)
+  }
+
   getCapabilityInfo(): RendererCapabilityInfo {
     return this.capabilityReporter.getInfo(
       this.scene.getCameraRoundPixels(),
       this.scene.getTilemapInfo(),
       this.scene.getAssetPipelineInfo(),
+      this.scene.getDepthInfo(),
     )
   }
 

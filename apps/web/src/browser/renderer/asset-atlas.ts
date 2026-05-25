@@ -36,6 +36,16 @@ export interface InternalOfficeAtlasFrame {
     readonly height: number
     readonly exportScale: number
   }
+  readonly occlusion?: {
+    readonly mode: "none" | "y_sort" | "foreground"
+    readonly splitAtY?: number
+    readonly foregroundFootprint?: {
+      readonly x: number
+      readonly y: number
+      readonly width: number
+      readonly height: number
+    }
+  }
 }
 
 export interface RuntimeAssetAtlas {

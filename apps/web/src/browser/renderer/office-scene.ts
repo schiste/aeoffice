@@ -6,6 +6,8 @@ import {
 } from "./asset-atlas"
 import { AvatarRenderer } from "./avatar-renderer"
 import { CameraController } from "./camera-controller"
+import { depthInfo, emptyDepthInfo } from "./depth"
+import { DepthDebugOverlay } from "./depth-debug-overlay"
 import { TilemapRenderer } from "./tilemap-renderer"
 import { ObjectRenderer } from "./object-renderer"
 import {
@@ -19,6 +21,7 @@ import type {
   FixtureMap,
   RenderedPlayer,
   RendererAssetPipelineInfo,
+  RendererDepthInfo,
   RendererTilemapInfo,
   RendererViewportState,
 } from "./types"
@@ -29,11 +32,14 @@ export class OfficeScene extends Phaser.Scene {
   private readonly tilemapRenderer: TilemapRenderer
   private readonly objectRenderer: ObjectRenderer
   private readonly zoneRenderer: ZoneRenderer
+  private readonly depthDebugOverlay: DepthDebugOverlay
   private readonly telemetry = new RendererTelemetry()
   private readonly atlasPromise = loadInternalOfficeAtlas()
   private activeMap?: Phaser.Tilemaps.Tilemap
   private tilemapInfo: RendererTilemapInfo = emptyTilemapInfo()
   private assetPipelineInfo: RendererAssetPipelineInfo = emptyAssetPipelineInfo()
+  private objectDepthInfo: RendererDepthInfo["objects"] = []
+  private rendererDepthInfo: RendererDepthInfo
 
   constructor(private readonly onReady: (scene: OfficeScene) => void) {
     super({ key: "OfficeScene" })
@@ -42,6 +48,8 @@ export class OfficeScene extends Phaser.Scene {
     this.tilemapRenderer = new TilemapRenderer(this)
     this.objectRenderer = new ObjectRenderer(this)
     this.zoneRenderer = new ZoneRenderer(this)
+    this.depthDebugOverlay = new DepthDebugOverlay(this)
+    this.rendererDepthInfo = emptyDepthInfo(this.depthDebugOverlay.isEnabled())
   }
 
   create(): void {
@@ -62,7 +70,9 @@ export class OfficeScene extends Phaser.Scene {
     this.avatarRenderer.clear()
     this.cameraController.clearFollow()
     this.zoneRenderer.clear()
+    this.depthDebugOverlay.clear()
     this.children.removeAll(true)
+    this.depthDebugOverlay.releaseDisplayObjects()
     this.objectRenderer.clearObjectTextures()
     this.activeMap = this.make.tilemap({
       tileWidth: tileSize,
@@ -118,13 +128,21 @@ export class OfficeScene extends Phaser.Scene {
       10,
     )
     this.tilemapInfo = tilemapInfoFromLayers([floorLayerInfo, wallLayerInfo])
-    this.objectRenderer.paintObjectSprites(
+    const furnitureDepthInfo = this.objectRenderer.paintObjectSprites(
       fixtureMap.compiled.layers.objects,
       fixtureMap.catalog.tokens,
       tokensByGid,
       tileSize,
       atlas,
     )
+    const wallForegroundDepthInfo = this.objectRenderer.paintWallForegroundSprites(
+      fixtureMap.compiled.layers.walls,
+      fixtureMap.catalog.tokens,
+      tokensByGid,
+      tileSize,
+      atlas,
+    )
+    this.objectDepthInfo = [...furnitureDepthInfo, ...wallForegroundDepthInfo]
     this.zoneRenderer.reset(fixtureMap.compiled.zones, tileSize)
     this.updatePlayers(players)
     this.telemetry.recordRender(
@@ -137,6 +155,12 @@ export class OfficeScene extends Phaser.Scene {
   updatePlayers(players: readonly RenderedPlayer[]): void {
     const followTarget = this.avatarRenderer.updatePlayers(players)
     this.cameraController.follow(followTarget)
+    this.rendererDepthInfo = depthInfo(
+      this.objectDepthInfo,
+      this.avatarRenderer.getDepthInfo(),
+      this.depthDebugOverlay.isEnabled(),
+    )
+    this.depthDebugOverlay.render(this.rendererDepthInfo)
     this.telemetry.recordPlayers(
       players,
       this.cameraController.getViewportState(),
@@ -159,6 +183,13 @@ export class OfficeScene extends Phaser.Scene {
     return this.cameraController.getViewportState()
   }
 
+  projectWorldToViewport(point: { readonly x: number; readonly y: number }): {
+    readonly x: number
+    readonly y: number
+  } {
+    return this.cameraController.projectWorldToViewport(point)
+  }
+
   getCameraRoundPixels(): boolean {
     return this.cameraController.getCameraRoundPixels()
   }
@@ -169,6 +200,10 @@ export class OfficeScene extends Phaser.Scene {
 
   getAssetPipelineInfo(): RendererAssetPipelineInfo {
     return this.assetPipelineInfo
+  }
+
+  getDepthInfo(): RendererDepthInfo {
+    return this.rendererDepthInfo
   }
 
   getTelemetrySnapshot(): RendererTelemetrySnapshot | undefined {

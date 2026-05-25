@@ -93,6 +93,7 @@ for (const token of starterVisualAssetCatalog.tokens) {
   assert.deepEqual(frame.collisionFootprint, token.asset.collisionFootprint)
   assert.deepEqual(frame.visualFootprint, token.asset.visualFootprint)
   assert.deepEqual(frame.zAnchor, token.asset.zAnchor)
+  assert.deepEqual(frame.occlusion, token.asset.occlusion)
   assert.equal(frame.width, token.asset.size.width * token.asset.size.exportScale)
   assert.equal(frame.height, token.asset.size.height * token.asset.size.exportScale)
 }

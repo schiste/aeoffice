@@ -23,20 +23,20 @@ const FRAMES = [
   frame("floor.wood_parquet", "floor", 1, 1, false),
   frame("floor.polished_concrete", "floor", 1, 1, false),
   frame("floor.soft_carpet", "floor", 1, 1, false),
-  frame("wall.wood.straight", "wall", 1, 1, true),
-  frame("wall.wood.corner", "wall", 1, 1, true),
-  frame("wall.glass.straight", "wall", 1, 1, true),
-  frame("wall.glass.corner", "wall", 1, 1, true),
-  frame("wall.neutral.straight", "wall", 1, 1, true),
-  frame("wall.neutral.corner", "wall", 1, 1, true),
-  frame("item.large_conference_table", "item", 3, 2, true),
-  frame("item.small_round_table", "item", 2, 2, true),
-  frame("item.office_chair", "item", 1, 1, true),
-  frame("item.coffee_machine", "item", 1, 1, true),
-  frame("item.plant_potted", "item", 1, 1, true),
-  frame("item.coffee_bar", "item", 2, 1, true),
-  frame("item.door_single", "item", 1, 1, false),
-  frame("item.lounge_couch", "item", 2, 1, true),
+  frame("wall.wood.straight", "wall", 1, 1, true, "foreground"),
+  frame("wall.wood.corner", "wall", 1, 1, true, "foreground"),
+  frame("wall.glass.straight", "wall", 1, 1, true, "foreground"),
+  frame("wall.glass.corner", "wall", 1, 1, true, "foreground"),
+  frame("wall.neutral.straight", "wall", 1, 1, true, "foreground"),
+  frame("wall.neutral.corner", "wall", 1, 1, true, "foreground"),
+  frame("item.large_conference_table", "item", 3, 2, true, "y_sort"),
+  frame("item.small_round_table", "item", 2, 2, true, "y_sort"),
+  frame("item.office_chair", "item", 1, 1, true, "y_sort"),
+  frame("item.coffee_machine", "item", 1, 1, true, "y_sort"),
+  frame("item.plant_potted", "item", 1, 1, true, "y_sort"),
+  frame("item.coffee_bar", "item", 2, 1, true, "y_sort"),
+  frame("item.door_single", "item", 1, 1, false, "y_sort"),
+  frame("item.lounge_couch", "item", 2, 1, true, "y_sort"),
   frame("avatar.local_placeholder", "avatar", 1, 1, false),
   frame("avatar.ember", "avatar", 1, 1, false),
   frame("avatar.cobalt", "avatar", 1, 1, false),
@@ -88,13 +88,14 @@ function buildAtlas() {
   }
 }
 
-function frame(id, kind, widthTiles, heightTiles, collidable) {
+function frame(id, kind, widthTiles, heightTiles, collidable, occlusionMode = "none") {
   return {
     id,
     kind,
     widthTiles,
     heightTiles,
     collidable,
+    occlusionMode,
   }
 }
 
@@ -214,6 +215,19 @@ function frameMetadata(layoutFrame) {
     zAnchor: {
       x: width / 2,
       y: height,
+    },
+    occlusion: {
+      mode: layoutFrame.occlusionMode,
+      splitAtY: layoutFrame.occlusionMode === "foreground" ? 0 : undefined,
+      foregroundFootprint:
+        layoutFrame.occlusionMode === "foreground"
+          ? {
+              x: 0,
+              y: 0,
+              width,
+              height,
+            }
+          : undefined,
     },
   }
 }

@@ -20,6 +20,10 @@ type StatusState = "idle" | "pending" | "ready" | "blocked"
 type ToastTone = "info" | "success" | "warning" | "error"
 type MapSwitcherId = PresetMapId | "generated"
 type AvatarId = "ember" | "cobalt" | "moss" | "violet"
+type DepthFixtureCaseId =
+  | "table_player_behind"
+  | "table_player_front"
+  | "wall_player_behind"
 type RendererReadiness = "loading" | "ready" | "failed"
 type StageOverlayState =
   | "loading"
@@ -218,6 +222,15 @@ interface MapGenerationState {
 interface GeneratedRoomState {
   readonly fixtureMap: FixtureMap
   readonly mapGeneration: MapGenerationState
+}
+
+interface DepthFixtureCaseResult {
+  readonly id: DepthFixtureCaseId
+  readonly expectedLayerAtSample: "avatar" | "object"
+  readonly sample: Vector2
+  readonly sampleViewport: Vector2
+  readonly playerPosition: Vector2
+  readonly occluderTokenId: string
 }
 
 type MediaTokenResponse =
@@ -1190,6 +1203,140 @@ async function renderLargeStaticMapForSmoke(
       zoneIds: fixtureMap.compiled.zones.map((zone) => zone.id),
     },
   })
+}
+
+async function renderDepthFixtureCaseForSmoke(
+  caseId: DepthFixtureCaseId,
+): Promise<DepthFixtureCaseResult> {
+  const depthCase = depthFixtureCase(caseId)
+
+  state.profile.avatarId = "cobalt"
+  state.profile.displayName = "Depth Ada"
+  await configureDevWorldGeometry(depthCase.fixtureMap)
+  applyFixtureMap(depthCase.fixtureMap, {
+    source: "generated",
+    mapId: "generated",
+    label: `Depth case: ${caseId}`,
+    prompt: `Renderer depth smoke ${caseId}`,
+    keywords: ["renderer", "depth", caseId],
+    validation: {
+      valid: true,
+      errors: [],
+      blockedTileCount: depthCase.fixtureMap.compiled.blockedTiles.length,
+      spawnCount: depthCase.fixtureMap.spawnPoints.length,
+      zoneCount: 0,
+      spawnIds: depthCase.fixtureMap.spawnPoints.map((spawn) => spawn.id),
+      zoneIds: [],
+    },
+  })
+  state.joined = true
+  state.position = depthCase.playerPosition
+  state.direction = "down"
+  state.players.clear()
+  seedLocalRenderedPlayer()
+  renderPlayers()
+  await renderer.advanceTime()
+
+  return {
+    id: caseId,
+    expectedLayerAtSample: depthCase.expectedLayerAtSample,
+    sample: depthCase.sample,
+    sampleViewport: renderer.projectWorldToViewport(depthCase.sample),
+    playerPosition: depthCase.playerPosition,
+    occluderTokenId: depthCase.occluderTokenId,
+  }
+}
+
+function depthFixtureCase(caseId: DepthFixtureCaseId): {
+  readonly fixtureMap: FixtureMap
+  readonly expectedLayerAtSample: "avatar" | "object"
+  readonly sample: Vector2
+  readonly playerPosition: Vector2
+  readonly occluderTokenId: string
+} {
+  const tableCase = caseId.startsWith("table")
+  const playerPosition =
+    caseId === "table_player_front"
+      ? { x: 144, y: 162 }
+      : { x: 144, y: 148 }
+  const sample =
+    caseId === "table_player_front"
+      ? { x: 144, y: 158 }
+      : { x: 144, y: 150 }
+  const occluderTokenId = tableCase
+    ? "item.large_conference_table"
+    : "wall.wood.straight"
+
+  return {
+    fixtureMap: depthFixtureMap({
+      table: tableCase,
+      playerPosition,
+      occluderTokenId,
+    }),
+    expectedLayerAtSample: caseId === "table_player_front" ? "avatar" : "object",
+    sample,
+    playerPosition,
+    occluderTokenId,
+  }
+}
+
+function depthFixtureMap(options: {
+  readonly table: boolean
+  readonly playerPosition: Vector2
+  readonly occluderTokenId: string
+}): FixtureMap {
+  const width = 10
+  const height = 8
+  const tileSize = starterVisualAssetCatalog.tileSize
+  const floorToken = visualTokenById("floor.wood_parquet")
+  const occluderToken = visualTokenById(options.occluderTokenId)
+  const floor = gridOf(width, height, floorToken.provisionalGid)
+  const walls = gridOf(width, height, 0)
+  const objects = gridOf(width, height, 0)
+  const blockedTiles: Vector2[] = []
+
+  if (options.table) {
+    objects[3][3] = occluderToken.provisionalGid
+    for (let y = 3; y < 5; y += 1) {
+      for (let x = 3; x < 6; x += 1) {
+        blockedTiles.push({ x, y })
+      }
+    }
+  } else {
+    walls[4][4] = occluderToken.provisionalGid
+    blockedTiles.push({ x: 4, y: 4 })
+  }
+
+  return {
+    definition: {
+      style: "cozy_wood",
+    },
+    compiled: {
+      width,
+      height,
+      tileSize,
+      blockedTiles,
+      layers: {
+        floor: { gids: floor },
+        walls: { gids: walls },
+        objects: { gids: objects },
+      },
+      zones: [],
+    },
+    spawnPoints: [
+      {
+        id: "default",
+        position: options.playerPosition,
+      },
+      {
+        id: "guest",
+        position: { x: options.playerPosition.x + 48, y: options.playerPosition.y },
+      },
+    ],
+    catalog: {
+      tokens: [floorToken, occluderToken],
+    },
+  }
 }
 
 function largeStaticFixtureMap(width: number, height: number): FixtureMap {
@@ -2646,6 +2793,9 @@ declare global {
         readonly width?: number
         readonly height?: number
       }) => Promise<void>
+      renderDepthFixtureCase: (
+        caseId: DepthFixtureCaseId,
+      ) => Promise<DepthFixtureCaseResult>
     }
   }
 }
@@ -2659,6 +2809,7 @@ window.advanceTime = async () => {
 if (localAutomationHost()) {
   window.__aedventureRendererTest = {
     renderLargeStaticMap: renderLargeStaticMapForSmoke,
+    renderDepthFixtureCase: renderDepthFixtureCaseForSmoke,
   }
 }
 

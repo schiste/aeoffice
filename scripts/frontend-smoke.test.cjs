@@ -299,6 +299,7 @@ async function main() {
     assertRendererCapabilities(recovered)
     await assertWebGLContextRecovery(page)
     await assertLargeGpuMapSmoke(page)
+    await assertDepthSortingSmoke(page)
 
     assert.deepEqual(consoleErrors, [])
   } finally {
@@ -367,6 +368,15 @@ function assertRenderStateContract(state) {
   )
   assert.equal(typeof state.renderer?.assets?.atlasLoaded, "boolean")
   assert.equal(typeof state.renderer?.assets?.primarySource, "string")
+  assert.equal(typeof state.renderer?.depth?.debugOverlayEnabled, "boolean")
+  assert.ok(
+    Array.isArray(state.renderer?.depth?.objects),
+    "Expected renderer.depth.objects in render_game_to_text.",
+  )
+  assert.ok(
+    Array.isArray(state.renderer?.depth?.players),
+    "Expected renderer.depth.players in render_game_to_text.",
+  )
 }
 
 function assertRendererCapabilities(state) {
@@ -396,6 +406,9 @@ function assertRendererCapabilities(state) {
   assert.equal(state.renderer.assets.manifestLoaded, true)
   assert.equal(state.renderer.assets.exportScale, 2)
   assert.equal(state.renderer.assets.fallbackTokenCount, 0)
+  assert.equal(state.renderer.depth.debugOverlayEnabled, false)
+  assert.equal(typeof state.renderer.depth.objectCount, "number")
+  assert.equal(typeof state.renderer.depth.playerCount, "number")
   assert.deepEqual(
     state.renderer.tilemap.staticLayers.map((layer) => [
       layer.name,
@@ -710,6 +723,151 @@ async function assertLargeGpuMapSmoke(page) {
   assert.ok(
     cadence.maxMs < 250,
     `Expected large GPU map max frame cadence below collapse threshold, got ${cadence.maxMs}ms.`,
+  )
+}
+
+async function assertDepthSortingSmoke(page) {
+  const cases = [
+    "table_player_behind",
+    "table_player_front",
+    "wall_player_behind",
+  ]
+
+  for (const caseId of cases) {
+    const depthCase = await page.evaluate(async (id) => {
+      if (!window.__aedventureRendererTest?.renderDepthFixtureCase) {
+        throw new Error("Missing renderer depth test API.")
+      }
+
+      return window.__aedventureRendererTest.renderDepthFixtureCase(id)
+    }, caseId)
+    await page.evaluate(() => window.advanceTime())
+
+    const state = await waitForTextState(
+      page,
+      (state) =>
+        state.map?.label === `Depth case: ${caseId}` &&
+        state.renderer.depth.playerCount === 1 &&
+        state.renderer.depth.objectCount >= 1,
+      9000,
+    )
+
+    assertRendererCapabilities(state)
+    assertDepthOrdering(state, depthCase)
+    await assertDepthScreenshotCase(page, state, depthCase)
+  }
+}
+
+function assertDepthOrdering(state, depthCase) {
+  const player = state.renderer.depth.players.find((player) => player.local)
+  const object = state.renderer.depth.objects.find(
+    (object) => object.tokenId === depthCase.occluderTokenId,
+  )
+
+  assert.ok(player, `Expected local player depth info for ${depthCase.id}.`)
+  assert.ok(object, `Expected occluder depth info for ${depthCase.id}.`)
+  assert.equal(
+    object.occlusionMode,
+    depthCase.occluderTokenId.startsWith("wall.") ? "foreground" : "y_sort",
+  )
+
+  if (depthCase.expectedLayerAtSample === "object") {
+    assert.ok(
+      player.depth < object.depth,
+      `Expected ${depthCase.id} player depth ${player.depth} behind object depth ${object.depth}.`,
+    )
+  } else {
+    assert.ok(
+      player.depth > object.depth,
+      `Expected ${depthCase.id} player depth ${player.depth} in front of object depth ${object.depth}.`,
+    )
+  }
+}
+
+async function assertDepthScreenshotCase(page, state, depthCase) {
+  const screenshot = await page.locator("#map canvas").screenshot()
+  const image = PNG.sync.read(screenshot)
+  const point = clampCanvasPoint(depthCase.sampleViewport, image)
+  const stats = pixelStats(image, point.x, point.y, 12)
+
+  if (depthCase.expectedLayerAtSample === "avatar") {
+    assert.ok(
+      stats.avatarPixels >= 12,
+      `Expected avatar-colored pixels for ${depthCase.id} near ${JSON.stringify(
+        point,
+      )}, got ${JSON.stringify(stats)}.`,
+    )
+    return
+  }
+
+  assert.ok(
+    stats.warmObjectPixels >= 12 && stats.warmObjectPixels > stats.avatarPixels,
+    `Expected object-colored pixels for ${depthCase.id} near ${JSON.stringify(
+      point,
+    )}, got ${JSON.stringify(stats)}.`,
+  )
+}
+
+function clampCanvasPoint(point, image) {
+  return {
+    x: Math.max(0, Math.min(image.width - 1, Math.round(point.x))),
+    y: Math.max(0, Math.min(image.height - 1, Math.round(point.y))),
+  }
+}
+
+function pixelStats(image, centerX, centerY, radius) {
+  let avatarPixels = 0
+  let warmObjectPixels = 0
+  let opaquePixels = 0
+
+  for (let y = centerY - radius; y <= centerY + radius; y += 1) {
+    for (let x = centerX - radius; x <= centerX + radius; x += 1) {
+      if (x < 0 || y < 0 || x >= image.width || y >= image.height) continue
+
+      const offset = (image.width * y + x) << 2
+      const color = {
+        red: image.data[offset],
+        green: image.data[offset + 1],
+        blue: image.data[offset + 2],
+        alpha: image.data[offset + 3],
+      }
+
+      if (color.alpha > 180) {
+        opaquePixels += 1
+      }
+      if (isCobaltAvatarPixel(color)) {
+        avatarPixels += 1
+      }
+      if (isWarmObjectPixel(color)) {
+        warmObjectPixels += 1
+      }
+    }
+  }
+
+  return {
+    avatarPixels,
+    warmObjectPixels,
+    opaquePixels,
+  }
+}
+
+function isCobaltAvatarPixel(color) {
+  return (
+    color.alpha > 180 &&
+    color.blue > 105 &&
+    color.blue - color.red > 40 &&
+    color.blue >= color.green + 8
+  )
+}
+
+function isWarmObjectPixel(color) {
+  return (
+    color.alpha > 180 &&
+    color.red > 80 &&
+    color.green > 45 &&
+    color.red >= color.blue + 25 &&
+    color.green >= color.blue - 8 &&
+    !isCobaltAvatarPixel(color)
   )
 }
 

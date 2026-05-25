@@ -7,6 +7,7 @@ import {
 import type {
   RendererAssetPipelineInfo,
   RendererCapabilityInfo,
+  RendererDepthInfo,
   RendererTilemapInfo,
 } from "./types"
 
@@ -31,6 +32,7 @@ export class RendererCapabilityReporter {
     cameraRoundPixels: boolean,
     tilemap: RendererTilemapInfo,
     assets: RendererAssetPipelineInfo,
+    depth: RendererDepthInfo,
   ): RendererCapabilityInfo {
     const renderer = this.game.renderer
     const canvas = this.game.canvas
@@ -65,6 +67,7 @@ export class RendererCapabilityReporter {
         cameraRoundPixels,
       },
       assets,
+      depth,
       tilemap,
       webgl: {
         available: webgl,

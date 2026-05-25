@@ -77,7 +77,17 @@ for (const tokenId of stableTargetTokenIds) {
   assert.equal(token.asset.visualFootprint.width, token.widthTiles * 32)
   assert.equal(token.asset.visualFootprint.height, token.heightTiles * 32)
   assert.equal(token.asset.zAnchor.y, token.heightTiles * 32)
+  assert.ok(["none", "y_sort", "foreground"].includes(token.asset.occlusion.mode))
 }
+assert.equal(tokensById.get("wall.wood.straight").asset.occlusion.mode, "foreground")
+assert.equal(
+  tokensById.get("wall.wood.straight").asset.occlusion.foregroundFootprint.height,
+  32,
+)
+assert.equal(
+  tokensById.get("item.large_conference_table").asset.occlusion.mode,
+  "y_sort",
+)
 assert.equal(
   sourcesById.get("internal.generated.office.polished_v1").filePath,
   "apps/web/public/assets/internal-office-atlas.manifest.json",
