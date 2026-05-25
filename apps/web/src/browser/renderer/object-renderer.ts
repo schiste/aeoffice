@@ -1,8 +1,11 @@
 import Phaser from "phaser"
 
+import {
+  drawTokenFrameWithFallback,
+  type RuntimeAssetAtlas,
+} from "./asset-atlas"
 import { OBJECT_TEXTURE_PREFIX, RENDERER_VERTEX_ROUND_MODE } from "./constants"
 import { furnitureDepth } from "./depth"
-import { drawSemanticTile } from "./semantic-tiles"
 import type { FixtureToken, TileLayer } from "./types"
 
 export class ObjectRenderer {
@@ -15,8 +18,9 @@ export class ObjectRenderer {
     tokens: readonly FixtureToken[],
     tokensByGid: ReadonlyMap<number, FixtureToken>,
     tileSize: number,
+    atlas: RuntimeAssetAtlas | undefined,
   ): void {
-    const objectTextureKeys = this.createObjectTextures(tokens, tileSize)
+    const objectTextureKeys = this.createObjectTextures(tokens, tileSize, atlas)
 
     layer.gids.forEach((row, y) => {
       row.forEach((gid, x) => {
@@ -55,8 +59,10 @@ export class ObjectRenderer {
   private createObjectTextures(
     tokens: readonly FixtureToken[],
     tileSize: number,
+    atlas: RuntimeAssetAtlas | undefined,
   ): ReadonlyMap<number, string> {
     const textureKeysByGid = new Map<number, string>()
+    const fallbackTokenIds = new Set<string>()
 
     tokens.forEach((token) => {
       if (token.kind !== "item") return
@@ -79,8 +85,9 @@ export class ObjectRenderer {
 
       for (let offsetY = 0; offsetY < token.heightTiles; offsetY += 1) {
         for (let offsetX = 0; offsetX < token.widthTiles; offsetX += 1) {
-          drawSemanticTile(
+          drawTokenFrameWithFallback(
             context,
+            atlas,
             token,
             offsetX * tileSize,
             offsetY * tileSize,
@@ -91,6 +98,7 @@ export class ObjectRenderer {
               widthTiles: token.widthTiles,
               heightTiles: token.heightTiles,
             },
+            fallbackTokenIds,
           )
         }
       }

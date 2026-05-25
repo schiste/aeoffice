@@ -31,6 +31,37 @@ export interface TilesetDefinition {
   readonly columns?: number
   readonly margin?: number
   readonly spacing?: number
+  readonly atlasImagePath?: string
+  readonly manifestPath?: string
+  readonly exportScale?: number
+}
+
+export interface VisualAssetSize {
+  readonly width: number
+  readonly height: number
+  readonly exportScale: number
+}
+
+export interface VisualAssetPoint {
+  readonly x: number
+  readonly y: number
+}
+
+export interface VisualAssetFootprint {
+  readonly x: number
+  readonly y: number
+  readonly width: number
+  readonly height: number
+}
+
+export interface VisualAssetFrameMetadata {
+  readonly atlasId: string
+  readonly frameId: string
+  readonly size: VisualAssetSize
+  readonly anchor: VisualAssetPoint
+  readonly collisionFootprint: VisualAssetFootprint
+  readonly visualFootprint: VisualAssetFootprint
+  readonly zAnchor: VisualAssetPoint
 }
 
 export interface VisualTokenDefinition {
@@ -43,6 +74,7 @@ export interface VisualTokenDefinition {
   readonly widthTiles: number
   readonly heightTiles: number
   readonly collidable: boolean
+  readonly asset?: VisualAssetFrameMetadata
   readonly tags: readonly string[]
   readonly notes?: string
 }
@@ -185,10 +217,16 @@ const LEGACY_SKYOFFICE_SOURCE = {
 
 const INTERNAL_POLISHED_SOURCE_ID = "internal.generated.office.polished_v1"
 const INTERNAL_POLISHED_TILESET_ID = "tileset.internal.polished.office"
+const INTERNAL_POLISHED_ATLAS_ID = "atlas.internal.office.polished_v1"
+const INTERNAL_POLISHED_ATLAS_IMAGE_PATH =
+  "apps/web/public/assets/internal-office-atlas@2x.png"
+const INTERNAL_POLISHED_ATLAS_MANIFEST_PATH =
+  "apps/web/public/assets/internal-office-atlas.manifest.json"
+const INTERNAL_POLISHED_ATLAS_EXPORT_SCALE = 2
 
 const INTERNAL_POLISHED_SOURCE = {
   status: "target_approved" as const,
-  filePath: "apps/web/src/browser/phaser-office-renderer.ts",
+  filePath: INTERNAL_POLISHED_ATLAS_MANIFEST_PATH,
   sourceUrl: "internal://aedventure/generated-office-polished/v1",
   author: "Aedventure project",
   license: "CC0-1.0",
@@ -196,7 +234,54 @@ const INTERNAL_POLISHED_SOURCE = {
   commercialUseAllowed: "yes" as const,
   bundledInTargetApp: true,
   notes:
-    "Project-owned polished office visuals generated at runtime from semantic token metadata. Safe to bundle until final art is approved.",
+    "Project-owned internal office visuals generated from deterministic vector instructions. No third-party image inputs are bundled.",
+}
+
+function internalAtlasFrame(
+  frameId: string,
+  widthTiles: number,
+  heightTiles: number,
+  collidable: boolean,
+): VisualAssetFrameMetadata {
+  const width = widthTiles * 32
+  const height = heightTiles * 32
+
+  return {
+    atlasId: INTERNAL_POLISHED_ATLAS_ID,
+    frameId,
+    size: {
+      width,
+      height,
+      exportScale: INTERNAL_POLISHED_ATLAS_EXPORT_SCALE,
+    },
+    anchor: {
+      x: width / 2,
+      y: height / 2,
+    },
+    collisionFootprint: collidable
+      ? {
+          x: 0,
+          y: 0,
+          width,
+          height,
+        }
+      : {
+          x: 0,
+          y: 0,
+          width: 0,
+          height: 0,
+        },
+    visualFootprint: {
+      x: 0,
+      y: 0,
+      width,
+      height,
+    },
+    zAnchor: {
+      x: width / 2,
+      y: height,
+    },
+  }
 }
 
 export const starterVisualAssetCatalog: VisualAssetCatalog = {
@@ -231,6 +316,9 @@ export const starterVisualAssetCatalog: VisualAssetCatalog = {
       tileWidth: 32,
       tileHeight: 32,
       columns: 32,
+      atlasImagePath: INTERNAL_POLISHED_ATLAS_IMAGE_PATH,
+      manifestPath: INTERNAL_POLISHED_ATLAS_MANIFEST_PATH,
+      exportScale: INTERNAL_POLISHED_ATLAS_EXPORT_SCALE,
     },
     {
       id: "tileset.modern_office.reference",
@@ -256,6 +344,7 @@ export const starterVisualAssetCatalog: VisualAssetCatalog = {
       widthTiles: 1,
       heightTiles: 1,
       collidable: false,
+      asset: internalAtlasFrame("floor.wood_parquet", 1, 1, false),
       tags: ["cozy_wood", "office", "floor"],
     },
     {
@@ -268,6 +357,7 @@ export const starterVisualAssetCatalog: VisualAssetCatalog = {
       widthTiles: 1,
       heightTiles: 1,
       collidable: false,
+      asset: internalAtlasFrame("floor.polished_concrete", 1, 1, false),
       tags: ["modern_light", "office", "floor"],
     },
     {
@@ -280,6 +370,7 @@ export const starterVisualAssetCatalog: VisualAssetCatalog = {
       widthTiles: 1,
       heightTiles: 1,
       collidable: false,
+      asset: internalAtlasFrame("floor.soft_carpet", 1, 1, false),
       tags: ["quiet", "office", "floor"],
     },
     {
@@ -292,6 +383,7 @@ export const starterVisualAssetCatalog: VisualAssetCatalog = {
       widthTiles: 1,
       heightTiles: 1,
       collidable: true,
+      asset: internalAtlasFrame("wall.wood.straight", 1, 1, true),
       tags: ["cozy_wood", "wall"],
     },
     {
@@ -304,6 +396,7 @@ export const starterVisualAssetCatalog: VisualAssetCatalog = {
       widthTiles: 1,
       heightTiles: 1,
       collidable: true,
+      asset: internalAtlasFrame("wall.wood.corner", 1, 1, true),
       tags: ["cozy_wood", "wall", "corner"],
     },
     {
@@ -316,6 +409,7 @@ export const starterVisualAssetCatalog: VisualAssetCatalog = {
       widthTiles: 1,
       heightTiles: 1,
       collidable: true,
+      asset: internalAtlasFrame("wall.glass.straight", 1, 1, true),
       tags: ["modern_light", "wall", "glass"],
     },
     {
@@ -328,6 +422,7 @@ export const starterVisualAssetCatalog: VisualAssetCatalog = {
       widthTiles: 1,
       heightTiles: 1,
       collidable: true,
+      asset: internalAtlasFrame("wall.glass.corner", 1, 1, true),
       tags: ["modern_light", "wall", "glass", "corner"],
     },
     {
@@ -340,6 +435,7 @@ export const starterVisualAssetCatalog: VisualAssetCatalog = {
       widthTiles: 1,
       heightTiles: 1,
       collidable: true,
+      asset: internalAtlasFrame("wall.neutral.straight", 1, 1, true),
       tags: ["neutral_office", "wall", "neutral"],
     },
     {
@@ -352,6 +448,7 @@ export const starterVisualAssetCatalog: VisualAssetCatalog = {
       widthTiles: 1,
       heightTiles: 1,
       collidable: true,
+      asset: internalAtlasFrame("wall.neutral.corner", 1, 1, true),
       tags: ["neutral_office", "wall", "neutral", "corner"],
     },
     {
@@ -364,6 +461,7 @@ export const starterVisualAssetCatalog: VisualAssetCatalog = {
       widthTiles: 3,
       heightTiles: 2,
       collidable: true,
+      asset: internalAtlasFrame("item.large_conference_table", 3, 2, true),
       tags: ["meeting", "table", "office"],
     },
     {
@@ -376,6 +474,7 @@ export const starterVisualAssetCatalog: VisualAssetCatalog = {
       widthTiles: 2,
       heightTiles: 2,
       collidable: true,
+      asset: internalAtlasFrame("item.small_round_table", 2, 2, true),
       tags: ["meeting", "table", "coffee", "office"],
     },
     {
@@ -388,6 +487,7 @@ export const starterVisualAssetCatalog: VisualAssetCatalog = {
       widthTiles: 1,
       heightTiles: 1,
       collidable: true,
+      asset: internalAtlasFrame("item.office_chair", 1, 1, true),
       tags: ["meeting", "chair", "office"],
     },
     {
@@ -400,6 +500,7 @@ export const starterVisualAssetCatalog: VisualAssetCatalog = {
       widthTiles: 1,
       heightTiles: 1,
       collidable: true,
+      asset: internalAtlasFrame("item.coffee_machine", 1, 1, true),
       tags: ["kitchen", "coffee", "office"],
     },
     {
@@ -412,6 +513,7 @@ export const starterVisualAssetCatalog: VisualAssetCatalog = {
       widthTiles: 1,
       heightTiles: 1,
       collidable: true,
+      asset: internalAtlasFrame("item.plant_potted", 1, 1, true),
       tags: ["decor", "plant", "office"],
     },
     {
@@ -424,6 +526,7 @@ export const starterVisualAssetCatalog: VisualAssetCatalog = {
       widthTiles: 2,
       heightTiles: 1,
       collidable: true,
+      asset: internalAtlasFrame("item.coffee_bar", 2, 1, true),
       tags: ["kitchen", "coffee", "bar", "office"],
     },
     {
@@ -436,6 +539,7 @@ export const starterVisualAssetCatalog: VisualAssetCatalog = {
       widthTiles: 1,
       heightTiles: 1,
       collidable: false,
+      asset: internalAtlasFrame("item.door_single", 1, 1, false),
       tags: ["door", "entry", "office"],
       notes:
         "Non-collidable door token. Server collision still depends on wall openings in the compiled map.",
@@ -450,6 +554,7 @@ export const starterVisualAssetCatalog: VisualAssetCatalog = {
       widthTiles: 2,
       heightTiles: 1,
       collidable: true,
+      asset: internalAtlasFrame("item.lounge_couch", 2, 1, true),
       tags: ["lounge", "couch", "sofa", "office"],
     },
     {
@@ -462,6 +567,7 @@ export const starterVisualAssetCatalog: VisualAssetCatalog = {
       widthTiles: 1,
       heightTiles: 1,
       collidable: false,
+      asset: internalAtlasFrame("avatar.local_placeholder", 1, 1, false),
       tags: ["avatar", "placeholder"],
     },
     {
@@ -474,6 +580,7 @@ export const starterVisualAssetCatalog: VisualAssetCatalog = {
       widthTiles: 1,
       heightTiles: 1,
       collidable: false,
+      asset: internalAtlasFrame("avatar.ember", 1, 1, false),
       tags: ["avatar", "polished", "ember"],
     },
     {
@@ -486,6 +593,7 @@ export const starterVisualAssetCatalog: VisualAssetCatalog = {
       widthTiles: 1,
       heightTiles: 1,
       collidable: false,
+      asset: internalAtlasFrame("avatar.cobalt", 1, 1, false),
       tags: ["avatar", "polished", "cobalt"],
     },
     {
@@ -498,6 +606,7 @@ export const starterVisualAssetCatalog: VisualAssetCatalog = {
       widthTiles: 1,
       heightTiles: 1,
       collidable: false,
+      asset: internalAtlasFrame("avatar.moss", 1, 1, false),
       tags: ["avatar", "polished", "moss"],
     },
     {
@@ -510,6 +619,7 @@ export const starterVisualAssetCatalog: VisualAssetCatalog = {
       widthTiles: 1,
       heightTiles: 1,
       collidable: false,
+      asset: internalAtlasFrame("avatar.violet", 1, 1, false),
       tags: ["avatar", "polished", "violet"],
     },
     {
@@ -569,6 +679,7 @@ export function validateVisualAssetCatalog(
 ): readonly string[] {
   const errors: string[] = []
   const sourceIds = new Set<string>()
+  const sourcesById = new Map<string, VisualAssetSource>()
   const tilesetIds = new Set<string>()
   const tokenIds = new Set<string>()
   const styleIds = new Set<string>()
@@ -578,6 +689,7 @@ export function validateVisualAssetCatalog(
       errors.push(`Duplicate source id: ${source.id}`)
     }
     sourceIds.add(source.id)
+    sourcesById.set(source.id, source)
 
     if (
       source.bundledInTargetApp &&
@@ -614,6 +726,46 @@ export function validateVisualAssetCatalog(
 
     if (token.tilesetId !== undefined && !tilesetIds.has(token.tilesetId)) {
       errors.push(`Token ${token.id} references unknown tileset ${token.tilesetId}`)
+    }
+
+    const source = sourcesById.get(token.sourceId)
+    if (source?.bundledInTargetApp && !token.asset) {
+      errors.push(`Bundled token ${token.id} is missing atlas frame metadata`)
+    }
+
+    if (token.asset) {
+      if (token.asset.frameId !== token.id) {
+        errors.push(
+          `Token ${token.id} atlas frame id mismatch: ${token.asset.frameId}`,
+        )
+      }
+
+      if (token.asset.size.width !== token.widthTiles * catalog.tileSize) {
+        errors.push(`Token ${token.id} atlas width does not match tile width`)
+      }
+
+      if (token.asset.size.height !== token.heightTiles * catalog.tileSize) {
+        errors.push(`Token ${token.id} atlas height does not match tile height`)
+      }
+
+      if (token.asset.size.exportScale <= 0) {
+        errors.push(`Token ${token.id} atlas export scale must be positive`)
+      }
+
+      if (
+        token.asset.visualFootprint.width <= 0 ||
+        token.asset.visualFootprint.height <= 0
+      ) {
+        errors.push(`Token ${token.id} atlas visual footprint must be positive`)
+      }
+
+      if (
+        token.collidable &&
+        (token.asset.collisionFootprint.width <= 0 ||
+          token.asset.collisionFootprint.height <= 0)
+      ) {
+        errors.push(`Token ${token.id} collidable asset needs a collision footprint`)
+      }
     }
   }
 

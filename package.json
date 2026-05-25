@@ -9,6 +9,8 @@
     "packages/*"
   ],
   "scripts": {
+    "assets:build": "node scripts/build-internal-office-atlas.cjs",
+    "assets:check": "npm --workspace @aedventure/asset-registry run build && node scripts/build-internal-office-atlas.cjs --check && node scripts/verify-internal-assets.cjs",
     "check": "scripts/verify-target-stack.sh",
     "check:target": "scripts/verify-target-stack.sh",
     "check:legacy": "SKIP_INSTALL=1 scripts/verify-skyoffice-baseline.sh",

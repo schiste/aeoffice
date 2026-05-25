@@ -35,6 +35,7 @@ export class PhaserOfficeRenderer {
   private activeZoneIds: readonly string[] = []
   private players: readonly RenderedPlayer[] = DEFAULT_RENDERED_PLAYERS
   private fixtureMap?: FixtureMap
+  private renderTask: Promise<void> = Promise.resolve()
 
   constructor(private readonly parent: HTMLElement) {
     parent.classList.add("phaser-world-host")
@@ -81,22 +82,24 @@ export class PhaserOfficeRenderer {
 
   renderMap(fixtureMap: FixtureMap): void {
     this.fixtureMap = fixtureMap
-    void this.ready.then((scene) => {
-      scene.renderFixtureMap(fixtureMap, this.players)
+    this.renderTask = this.queueRender(async (scene) => {
+      await scene.renderFixtureMap(fixtureMap, this.players)
       scene.setActiveZones(this.activeZoneIds)
     })
   }
 
   updatePlayers(players: readonly RenderedPlayer[]): void {
     this.players = players
-    void this.ready.then((scene) => {
+    void this.renderTask.then(async () => {
+      const scene = await this.ready
       scene.updatePlayers(players)
     })
   }
 
   setActiveZones(zoneIds: readonly string[]): void {
     this.activeZoneIds = [...zoneIds]
-    void this.ready.then((scene) => {
+    void this.renderTask.then(async () => {
+      const scene = await this.ready
       scene.setActiveZones(this.activeZoneIds)
     })
   }
@@ -121,11 +124,13 @@ export class PhaserOfficeRenderer {
     return this.capabilityReporter.getInfo(
       this.scene.getCameraRoundPixels(),
       this.scene.getTilemapInfo(),
+      this.scene.getAssetPipelineInfo(),
     )
   }
 
   async advanceTime(): Promise<void> {
     await this.ready
+    await this.renderTask
   }
 
   destroy(): void {
@@ -150,10 +155,18 @@ export class PhaserOfficeRenderer {
     const fixtureMap = this.fixtureMap
     if (!fixtureMap) return
 
-    void this.ready.then((scene) => {
-      scene.renderFixtureMap(fixtureMap, this.players)
+    this.renderTask = this.queueRender(async (scene) => {
+      await scene.renderFixtureMap(fixtureMap, this.players)
       scene.setActiveZones(this.activeZoneIds)
       scene.setZoomFactor(this.zoomFactor)
+    })
+  }
+
+  private queueRender(render: (scene: OfficeScene) => Promise<void>): Promise<void> {
+    const previousRenderTask = this.renderTask.catch(() => undefined)
+    return previousRenderTask.then(async () => {
+      const scene = await this.ready
+      await render(scene)
     })
   }
 

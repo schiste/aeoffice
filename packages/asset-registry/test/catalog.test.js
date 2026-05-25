@@ -51,12 +51,14 @@ const stableTargetTokenIds = [
   "wall.neutral.straight",
   "wall.neutral.corner",
   "item.large_conference_table",
+  "item.small_round_table",
   "item.office_chair",
   "item.coffee_machine",
   "item.plant_potted",
   "item.coffee_bar",
   "item.door_single",
   "item.lounge_couch",
+  "avatar.local_placeholder",
   "avatar.ember",
   "avatar.cobalt",
   "avatar.moss",
@@ -66,7 +68,26 @@ for (const tokenId of stableTargetTokenIds) {
   const token = tokensById.get(tokenId)
   assert.ok(token, `Missing stable visual token ${tokenId}`)
   assert.equal(token.sourceId, "internal.generated.office.polished_v1")
+  assert.ok(token.asset, `Missing atlas metadata for ${tokenId}`)
+  assert.equal(token.asset.frameId, token.id)
+  assert.equal(token.asset.atlasId, "atlas.internal.office.polished_v1")
+  assert.equal(token.asset.size.width, token.widthTiles * 32)
+  assert.equal(token.asset.size.height, token.heightTiles * 32)
+  assert.equal(token.asset.size.exportScale, 2)
+  assert.equal(token.asset.visualFootprint.width, token.widthTiles * 32)
+  assert.equal(token.asset.visualFootprint.height, token.heightTiles * 32)
+  assert.equal(token.asset.zAnchor.y, token.heightTiles * 32)
 }
+assert.equal(
+  sourcesById.get("internal.generated.office.polished_v1").filePath,
+  "apps/web/public/assets/internal-office-atlas.manifest.json",
+)
+assert.equal(
+  starterVisualAssetCatalog.tilesets.find(
+    (tileset) => tileset.id === "tileset.internal.polished.office",
+  ).atlasImagePath,
+  "apps/web/public/assets/internal-office-atlas@2x.png",
+)
 assert.equal(tokensById.get("wall.neutral.straight").provisionalGid, 49)
 assert.equal(tokensById.get("wall.neutral.corner").provisionalGid, 50)
 assert.equal(tokensById.get("item.plant_potted").provisionalGid, 306)

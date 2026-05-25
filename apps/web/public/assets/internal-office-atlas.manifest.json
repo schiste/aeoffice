@@ -1,0 +1,783 @@
+{
+  "schemaVersion": 1,
+  "atlasId": "atlas.internal.office.polished_v1",
+  "sourceId": "internal.generated.office.polished_v1",
+  "tilesetId": "tileset.internal.polished.office",
+  "source": {
+    "author": "Aedventure project",
+    "license": "CC0-1.0",
+    "redistributionAllowed": "yes",
+    "commercialUseAllowed": "yes",
+    "bundledInTargetApp": true,
+    "externalImageInputs": []
+  },
+  "image": {
+    "path": "/assets/internal-office-atlas@2x.png",
+    "width": 512,
+    "height": 512,
+    "tileSize": 32,
+    "exportScale": 2,
+    "retinaStrategy": "Author frames at 2x, then downsample into 32px logical Phaser textures for crisp high-DPI and stable tile coordinates."
+  },
+  "frames": [
+    {
+      "id": "floor.wood_parquet",
+      "tokenId": "floor.wood_parquet",
+      "kind": "floor",
+      "x": 0,
+      "y": 0,
+      "width": 64,
+      "height": 64,
+      "size": {
+        "width": 32,
+        "height": 32,
+        "exportScale": 2
+      },
+      "anchor": {
+        "x": 16,
+        "y": 16
+      },
+      "collisionFootprint": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "visualFootprint": {
+        "x": 0,
+        "y": 0,
+        "width": 32,
+        "height": 32
+      },
+      "zAnchor": {
+        "x": 16,
+        "y": 32
+      }
+    },
+    {
+      "id": "floor.polished_concrete",
+      "tokenId": "floor.polished_concrete",
+      "kind": "floor",
+      "x": 64,
+      "y": 0,
+      "width": 64,
+      "height": 64,
+      "size": {
+        "width": 32,
+        "height": 32,
+        "exportScale": 2
+      },
+      "anchor": {
+        "x": 16,
+        "y": 16
+      },
+      "collisionFootprint": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "visualFootprint": {
+        "x": 0,
+        "y": 0,
+        "width": 32,
+        "height": 32
+      },
+      "zAnchor": {
+        "x": 16,
+        "y": 32
+      }
+    },
+    {
+      "id": "floor.soft_carpet",
+      "tokenId": "floor.soft_carpet",
+      "kind": "floor",
+      "x": 128,
+      "y": 0,
+      "width": 64,
+      "height": 64,
+      "size": {
+        "width": 32,
+        "height": 32,
+        "exportScale": 2
+      },
+      "anchor": {
+        "x": 16,
+        "y": 16
+      },
+      "collisionFootprint": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "visualFootprint": {
+        "x": 0,
+        "y": 0,
+        "width": 32,
+        "height": 32
+      },
+      "zAnchor": {
+        "x": 16,
+        "y": 32
+      }
+    },
+    {
+      "id": "wall.wood.straight",
+      "tokenId": "wall.wood.straight",
+      "kind": "wall",
+      "x": 192,
+      "y": 0,
+      "width": 64,
+      "height": 64,
+      "size": {
+        "width": 32,
+        "height": 32,
+        "exportScale": 2
+      },
+      "anchor": {
+        "x": 16,
+        "y": 16
+      },
+      "collisionFootprint": {
+        "x": 0,
+        "y": 0,
+        "width": 32,
+        "height": 32
+      },
+      "visualFootprint": {
+        "x": 0,
+        "y": 0,
+        "width": 32,
+        "height": 32
+      },
+      "zAnchor": {
+        "x": 16,
+        "y": 32
+      }
+    },
+    {
+      "id": "wall.wood.corner",
+      "tokenId": "wall.wood.corner",
+      "kind": "wall",
+      "x": 256,
+      "y": 0,
+      "width": 64,
+      "height": 64,
+      "size": {
+        "width": 32,
+        "height": 32,
+        "exportScale": 2
+      },
+      "anchor": {
+        "x": 16,
+        "y": 16
+      },
+      "collisionFootprint": {
+        "x": 0,
+        "y": 0,
+        "width": 32,
+        "height": 32
+      },
+      "visualFootprint": {
+        "x": 0,
+        "y": 0,
+        "width": 32,
+        "height": 32
+      },
+      "zAnchor": {
+        "x": 16,
+        "y": 32
+      }
+    },
+    {
+      "id": "wall.glass.straight",
+      "tokenId": "wall.glass.straight",
+      "kind": "wall",
+      "x": 320,
+      "y": 0,
+      "width": 64,
+      "height": 64,
+      "size": {
+        "width": 32,
+        "height": 32,
+        "exportScale": 2
+      },
+      "anchor": {
+        "x": 16,
+        "y": 16
+      },
+      "collisionFootprint": {
+        "x": 0,
+        "y": 0,
+        "width": 32,
+        "height": 32
+      },
+      "visualFootprint": {
+        "x": 0,
+        "y": 0,
+        "width": 32,
+        "height": 32
+      },
+      "zAnchor": {
+        "x": 16,
+        "y": 32
+      }
+    },
+    {
+      "id": "wall.glass.corner",
+      "tokenId": "wall.glass.corner",
+      "kind": "wall",
+      "x": 384,
+      "y": 0,
+      "width": 64,
+      "height": 64,
+      "size": {
+        "width": 32,
+        "height": 32,
+        "exportScale": 2
+      },
+      "anchor": {
+        "x": 16,
+        "y": 16
+      },
+      "collisionFootprint": {
+        "x": 0,
+        "y": 0,
+        "width": 32,
+        "height": 32
+      },
+      "visualFootprint": {
+        "x": 0,
+        "y": 0,
+        "width": 32,
+        "height": 32
+      },
+      "zAnchor": {
+        "x": 16,
+        "y": 32
+      }
+    },
+    {
+      "id": "wall.neutral.straight",
+      "tokenId": "wall.neutral.straight",
+      "kind": "wall",
+      "x": 448,
+      "y": 0,
+      "width": 64,
+      "height": 64,
+      "size": {
+        "width": 32,
+        "height": 32,
+        "exportScale": 2
+      },
+      "anchor": {
+        "x": 16,
+        "y": 16
+      },
+      "collisionFootprint": {
+        "x": 0,
+        "y": 0,
+        "width": 32,
+        "height": 32
+      },
+      "visualFootprint": {
+        "x": 0,
+        "y": 0,
+        "width": 32,
+        "height": 32
+      },
+      "zAnchor": {
+        "x": 16,
+        "y": 32
+      }
+    },
+    {
+      "id": "wall.neutral.corner",
+      "tokenId": "wall.neutral.corner",
+      "kind": "wall",
+      "x": 0,
+      "y": 64,
+      "width": 64,
+      "height": 64,
+      "size": {
+        "width": 32,
+        "height": 32,
+        "exportScale": 2
+      },
+      "anchor": {
+        "x": 16,
+        "y": 16
+      },
+      "collisionFootprint": {
+        "x": 0,
+        "y": 0,
+        "width": 32,
+        "height": 32
+      },
+      "visualFootprint": {
+        "x": 0,
+        "y": 0,
+        "width": 32,
+        "height": 32
+      },
+      "zAnchor": {
+        "x": 16,
+        "y": 32
+      }
+    },
+    {
+      "id": "item.large_conference_table",
+      "tokenId": "item.large_conference_table",
+      "kind": "item",
+      "x": 64,
+      "y": 64,
+      "width": 192,
+      "height": 128,
+      "size": {
+        "width": 96,
+        "height": 64,
+        "exportScale": 2
+      },
+      "anchor": {
+        "x": 48,
+        "y": 32
+      },
+      "collisionFootprint": {
+        "x": 0,
+        "y": 0,
+        "width": 96,
+        "height": 64
+      },
+      "visualFootprint": {
+        "x": 0,
+        "y": 0,
+        "width": 96,
+        "height": 64
+      },
+      "zAnchor": {
+        "x": 48,
+        "y": 64
+      }
+    },
+    {
+      "id": "item.small_round_table",
+      "tokenId": "item.small_round_table",
+      "kind": "item",
+      "x": 256,
+      "y": 64,
+      "width": 128,
+      "height": 128,
+      "size": {
+        "width": 64,
+        "height": 64,
+        "exportScale": 2
+      },
+      "anchor": {
+        "x": 32,
+        "y": 32
+      },
+      "collisionFootprint": {
+        "x": 0,
+        "y": 0,
+        "width": 64,
+        "height": 64
+      },
+      "visualFootprint": {
+        "x": 0,
+        "y": 0,
+        "width": 64,
+        "height": 64
+      },
+      "zAnchor": {
+        "x": 32,
+        "y": 64
+      }
+    },
+    {
+      "id": "item.office_chair",
+      "tokenId": "item.office_chair",
+      "kind": "item",
+      "x": 384,
+      "y": 64,
+      "width": 64,
+      "height": 64,
+      "size": {
+        "width": 32,
+        "height": 32,
+        "exportScale": 2
+      },
+      "anchor": {
+        "x": 16,
+        "y": 16
+      },
+      "collisionFootprint": {
+        "x": 0,
+        "y": 0,
+        "width": 32,
+        "height": 32
+      },
+      "visualFootprint": {
+        "x": 0,
+        "y": 0,
+        "width": 32,
+        "height": 32
+      },
+      "zAnchor": {
+        "x": 16,
+        "y": 32
+      }
+    },
+    {
+      "id": "item.coffee_machine",
+      "tokenId": "item.coffee_machine",
+      "kind": "item",
+      "x": 448,
+      "y": 64,
+      "width": 64,
+      "height": 64,
+      "size": {
+        "width": 32,
+        "height": 32,
+        "exportScale": 2
+      },
+      "anchor": {
+        "x": 16,
+        "y": 16
+      },
+      "collisionFootprint": {
+        "x": 0,
+        "y": 0,
+        "width": 32,
+        "height": 32
+      },
+      "visualFootprint": {
+        "x": 0,
+        "y": 0,
+        "width": 32,
+        "height": 32
+      },
+      "zAnchor": {
+        "x": 16,
+        "y": 32
+      }
+    },
+    {
+      "id": "item.plant_potted",
+      "tokenId": "item.plant_potted",
+      "kind": "item",
+      "x": 0,
+      "y": 192,
+      "width": 64,
+      "height": 64,
+      "size": {
+        "width": 32,
+        "height": 32,
+        "exportScale": 2
+      },
+      "anchor": {
+        "x": 16,
+        "y": 16
+      },
+      "collisionFootprint": {
+        "x": 0,
+        "y": 0,
+        "width": 32,
+        "height": 32
+      },
+      "visualFootprint": {
+        "x": 0,
+        "y": 0,
+        "width": 32,
+        "height": 32
+      },
+      "zAnchor": {
+        "x": 16,
+        "y": 32
+      }
+    },
+    {
+      "id": "item.coffee_bar",
+      "tokenId": "item.coffee_bar",
+      "kind": "item",
+      "x": 64,
+      "y": 192,
+      "width": 128,
+      "height": 64,
+      "size": {
+        "width": 64,
+        "height": 32,
+        "exportScale": 2
+      },
+      "anchor": {
+        "x": 32,
+        "y": 16
+      },
+      "collisionFootprint": {
+        "x": 0,
+        "y": 0,
+        "width": 64,
+        "height": 32
+      },
+      "visualFootprint": {
+        "x": 0,
+        "y": 0,
+        "width": 64,
+        "height": 32
+      },
+      "zAnchor": {
+        "x": 32,
+        "y": 32
+      }
+    },
+    {
+      "id": "item.door_single",
+      "tokenId": "item.door_single",
+      "kind": "item",
+      "x": 192,
+      "y": 192,
+      "width": 64,
+      "height": 64,
+      "size": {
+        "width": 32,
+        "height": 32,
+        "exportScale": 2
+      },
+      "anchor": {
+        "x": 16,
+        "y": 16
+      },
+      "collisionFootprint": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "visualFootprint": {
+        "x": 0,
+        "y": 0,
+        "width": 32,
+        "height": 32
+      },
+      "zAnchor": {
+        "x": 16,
+        "y": 32
+      }
+    },
+    {
+      "id": "item.lounge_couch",
+      "tokenId": "item.lounge_couch",
+      "kind": "item",
+      "x": 256,
+      "y": 192,
+      "width": 128,
+      "height": 64,
+      "size": {
+        "width": 64,
+        "height": 32,
+        "exportScale": 2
+      },
+      "anchor": {
+        "x": 32,
+        "y": 16
+      },
+      "collisionFootprint": {
+        "x": 0,
+        "y": 0,
+        "width": 64,
+        "height": 32
+      },
+      "visualFootprint": {
+        "x": 0,
+        "y": 0,
+        "width": 64,
+        "height": 32
+      },
+      "zAnchor": {
+        "x": 32,
+        "y": 32
+      }
+    },
+    {
+      "id": "avatar.local_placeholder",
+      "tokenId": "avatar.local_placeholder",
+      "kind": "avatar",
+      "x": 384,
+      "y": 192,
+      "width": 64,
+      "height": 64,
+      "size": {
+        "width": 32,
+        "height": 32,
+        "exportScale": 2
+      },
+      "anchor": {
+        "x": 16,
+        "y": 16
+      },
+      "collisionFootprint": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "visualFootprint": {
+        "x": 0,
+        "y": 0,
+        "width": 32,
+        "height": 32
+      },
+      "zAnchor": {
+        "x": 16,
+        "y": 32
+      }
+    },
+    {
+      "id": "avatar.ember",
+      "tokenId": "avatar.ember",
+      "kind": "avatar",
+      "x": 448,
+      "y": 192,
+      "width": 64,
+      "height": 64,
+      "size": {
+        "width": 32,
+        "height": 32,
+        "exportScale": 2
+      },
+      "anchor": {
+        "x": 16,
+        "y": 16
+      },
+      "collisionFootprint": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "visualFootprint": {
+        "x": 0,
+        "y": 0,
+        "width": 32,
+        "height": 32
+      },
+      "zAnchor": {
+        "x": 16,
+        "y": 32
+      }
+    },
+    {
+      "id": "avatar.cobalt",
+      "tokenId": "avatar.cobalt",
+      "kind": "avatar",
+      "x": 0,
+      "y": 256,
+      "width": 64,
+      "height": 64,
+      "size": {
+        "width": 32,
+        "height": 32,
+        "exportScale": 2
+      },
+      "anchor": {
+        "x": 16,
+        "y": 16
+      },
+      "collisionFootprint": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "visualFootprint": {
+        "x": 0,
+        "y": 0,
+        "width": 32,
+        "height": 32
+      },
+      "zAnchor": {
+        "x": 16,
+        "y": 32
+      }
+    },
+    {
+      "id": "avatar.moss",
+      "tokenId": "avatar.moss",
+      "kind": "avatar",
+      "x": 64,
+      "y": 256,
+      "width": 64,
+      "height": 64,
+      "size": {
+        "width": 32,
+        "height": 32,
+        "exportScale": 2
+      },
+      "anchor": {
+        "x": 16,
+        "y": 16
+      },
+      "collisionFootprint": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "visualFootprint": {
+        "x": 0,
+        "y": 0,
+        "width": 32,
+        "height": 32
+      },
+      "zAnchor": {
+        "x": 16,
+        "y": 32
+      }
+    },
+    {
+      "id": "avatar.violet",
+      "tokenId": "avatar.violet",
+      "kind": "avatar",
+      "x": 128,
+      "y": 256,
+      "width": 64,
+      "height": 64,
+      "size": {
+        "width": 32,
+        "height": 32,
+        "exportScale": 2
+      },
+      "anchor": {
+        "x": 16,
+        "y": 16
+      },
+      "collisionFootprint": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "visualFootprint": {
+        "x": 0,
+        "y": 0,
+        "width": 32,
+        "height": 32
+      },
+      "zAnchor": {
+        "x": 16,
+        "y": 32
+      }
+    }
+  ],
+  "generated": {
+    "tool": "scripts/build-internal-office-atlas.cjs",
+    "deterministic": true,
+    "inputs": [
+      "packages/asset-registry/src/index.ts"
+    ],
+    "notes": "The atlas is generated from project-owned vector instructions in this script. No SkyOffice or LimeZu assets are copied."
+  },
+  "checksums": {
+    "imageSha256": "1a8c0a54427d8cc828e0208bc65470ee4d9513692b0ddc4e7a8c9a1a2ad00978"
+  }
+}

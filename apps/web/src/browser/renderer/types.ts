@@ -1,3 +1,5 @@
+import type { VisualAssetFrameMetadata } from "@aedventure/asset-registry"
+
 export type Direction = "up" | "down" | "left" | "right"
 
 export interface Vector2 {
@@ -35,6 +37,7 @@ export interface FixtureToken {
   readonly provisionalGid: number
   readonly widthTiles: number
   readonly heightTiles: number
+  readonly asset?: VisualAssetFrameMetadata
 }
 
 export interface TileSegment {
@@ -103,6 +106,20 @@ export interface RendererTilemapInfo {
   readonly labelLayerMode: "display_objects"
 }
 
+export interface RendererAssetPipelineInfo {
+  readonly atlasId?: string
+  readonly manifestPath: string
+  readonly imagePath: string
+  readonly primarySource: "internal_atlas" | "procedural_fallback"
+  readonly atlasLoaded: boolean
+  readonly manifestLoaded: boolean
+  readonly renderedTokenCount: number
+  readonly fallbackTokenCount: number
+  readonly fallbackTokenIds: readonly string[]
+  readonly exportScale?: number
+  readonly retinaStrategy?: string
+}
+
 export interface RendererCapabilityInfo {
   readonly requestedRenderer: "webgl"
   readonly actualRenderer: "webgl" | "canvas" | "headless" | "unknown"
@@ -131,6 +148,7 @@ export interface RendererCapabilityInfo {
     readonly cameraFollowRoundsPixels: boolean
     readonly vertexRoundMode: "safeAuto"
   }
+  readonly assets: RendererAssetPipelineInfo
   readonly tilemap: RendererTilemapInfo
   readonly webgl: {
     readonly available: boolean

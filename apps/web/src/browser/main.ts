@@ -12,6 +12,7 @@ import {
   type PresetMapId,
   type PresetMapResult,
   type PromptMapValidation,
+  type VisualAssetFrameMetadata,
 } from "@aedventure/asset-registry"
 
 type Direction = "up" | "down" | "left" | "right"
@@ -81,6 +82,7 @@ interface FixtureToken {
   readonly provisionalGid: number
   readonly widthTiles: number
   readonly heightTiles: number
+  readonly asset?: VisualAssetFrameMetadata
 }
 
 interface FixtureZone {
@@ -1158,7 +1160,8 @@ function fixtureMapFromCompiledMap(
           provisionalGid: token.provisionalGid,
           widthTiles: token.widthTiles,
           heightTiles: token.heightTiles,
-      })),
+          asset: token.asset,
+        })),
     },
   }
 }
@@ -1269,6 +1272,7 @@ function visualTokenById(id: string): FixtureToken {
     provisionalGid: token.provisionalGid,
     widthTiles: token.widthTiles,
     heightTiles: token.heightTiles,
+    asset: token.asset,
   }
 }
 

@@ -365,6 +365,8 @@ function assertRenderStateContract(state) {
     Array.isArray(state.renderer?.tilemap?.staticLayers),
     "Expected renderer.tilemap.staticLayers in render_game_to_text.",
   )
+  assert.equal(typeof state.renderer?.assets?.atlasLoaded, "boolean")
+  assert.equal(typeof state.renderer?.assets?.primarySource, "string")
 }
 
 function assertRendererCapabilities(state) {
@@ -388,6 +390,12 @@ function assertRendererCapabilities(state) {
   assert.equal(state.renderer.tilemap.zoneLayerMode, "graphics")
   assert.equal(state.renderer.tilemap.avatarLayerMode, "display_objects")
   assert.equal(state.renderer.tilemap.labelLayerMode, "display_objects")
+  assert.equal(state.renderer.assets.atlasId, "atlas.internal.office.polished_v1")
+  assert.equal(state.renderer.assets.primarySource, "internal_atlas")
+  assert.equal(state.renderer.assets.atlasLoaded, true)
+  assert.equal(state.renderer.assets.manifestLoaded, true)
+  assert.equal(state.renderer.assets.exportScale, 2)
+  assert.equal(state.renderer.assets.fallbackTokenCount, 0)
   assert.deepEqual(
     state.renderer.tilemap.staticLayers.map((layer) => [
       layer.name,

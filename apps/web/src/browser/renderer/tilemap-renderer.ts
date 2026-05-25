@@ -1,11 +1,16 @@
 import Phaser from "phaser"
 
+import {
+  assetPipelineInfoFromRender,
+  drawTokenFrameWithFallback,
+  type RuntimeAssetAtlas,
+} from "./asset-atlas"
 import { RENDERER_VERTEX_ROUND_MODE, TILESET_KEY } from "./constants"
-import { drawSemanticTile } from "./semantic-tiles"
 import type {
   FixtureMap,
   FixtureToken,
   MultiTileVariantGids,
+  RendererAssetPipelineInfo,
   RendererTilemapLayerInfo,
   TileLayer,
 } from "./types"
@@ -16,7 +21,8 @@ export class TilemapRenderer {
   installSemanticTileset(
     fixtureMap: FixtureMap,
     multiTileVariantGids: MultiTileVariantGids,
-  ): void {
+    atlas: RuntimeAssetAtlas | undefined,
+  ): RendererAssetPipelineInfo {
     if (this.scene.textures.exists(TILESET_KEY)) {
       this.scene.textures.remove(TILESET_KEY)
     }
@@ -38,15 +44,25 @@ export class TilemapRenderer {
       throw new Error("Unable to create semantic tileset canvas.")
     }
 
+    const fallbackTokenIds = new Set<string>()
     fixtureMap.catalog.tokens.forEach((token) => {
       const frameX = (token.provisionalGid % columns) * tileSize
       const frameY = Math.floor(token.provisionalGid / columns) * tileSize
-      drawSemanticTile(context, token, frameX, frameY, tileSize, {
-        offsetX: 0,
-        offsetY: 0,
-        widthTiles: token.widthTiles,
-        heightTiles: token.heightTiles,
-      })
+      drawTokenFrameWithFallback(
+        context,
+        atlas,
+        token,
+        frameX,
+        frameY,
+        tileSize,
+        {
+          offsetX: 0,
+          offsetY: 0,
+          widthTiles: token.widthTiles,
+          heightTiles: token.heightTiles,
+        },
+        fallbackTokenIds,
+      )
 
       const variantGrid = multiTileVariantGids.byRootGid.get(
         token.provisionalGid,
@@ -57,17 +73,31 @@ export class TilemapRenderer {
 
           const variantFrameX = (variantGid % columns) * tileSize
           const variantFrameY = Math.floor(variantGid / columns) * tileSize
-          drawSemanticTile(context, token, variantFrameX, variantFrameY, tileSize, {
-            offsetX,
-            offsetY,
-            widthTiles: token.widthTiles,
-            heightTiles: token.heightTiles,
-          })
+          drawTokenFrameWithFallback(
+            context,
+            atlas,
+            token,
+            variantFrameX,
+            variantFrameY,
+            tileSize,
+            {
+              offsetX,
+              offsetY,
+              widthTiles: token.widthTiles,
+              heightTiles: token.heightTiles,
+            },
+            fallbackTokenIds,
+          )
         })
       })
     })
 
     this.scene.textures.addCanvas(TILESET_KEY, canvas)
+    return assetPipelineInfoFromRender(
+      atlas,
+      fixtureMap.catalog.tokens.length,
+      fallbackTokenIds,
+    )
   }
 
   paintStaticTileLayer(

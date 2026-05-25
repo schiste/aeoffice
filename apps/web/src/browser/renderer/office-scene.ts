@@ -1,5 +1,9 @@
 import Phaser from "phaser"
 
+import {
+  emptyAssetPipelineInfo,
+  loadInternalOfficeAtlas,
+} from "./asset-atlas"
 import { AvatarRenderer } from "./avatar-renderer"
 import { CameraController } from "./camera-controller"
 import { TilemapRenderer } from "./tilemap-renderer"
@@ -14,6 +18,7 @@ import { ZoneRenderer } from "./zone-renderer"
 import type {
   FixtureMap,
   RenderedPlayer,
+  RendererAssetPipelineInfo,
   RendererTilemapInfo,
   RendererViewportState,
 } from "./types"
@@ -25,8 +30,10 @@ export class OfficeScene extends Phaser.Scene {
   private readonly objectRenderer: ObjectRenderer
   private readonly zoneRenderer: ZoneRenderer
   private readonly telemetry = new RendererTelemetry()
+  private readonly atlasPromise = loadInternalOfficeAtlas()
   private activeMap?: Phaser.Tilemaps.Tilemap
   private tilemapInfo: RendererTilemapInfo = emptyTilemapInfo()
+  private assetPipelineInfo: RendererAssetPipelineInfo = emptyAssetPipelineInfo()
 
   constructor(private readonly onReady: (scene: OfficeScene) => void) {
     super({ key: "OfficeScene" })
@@ -43,10 +50,11 @@ export class OfficeScene extends Phaser.Scene {
     this.onReady(this)
   }
 
-  renderFixtureMap(
+  async renderFixtureMap(
     fixtureMap: FixtureMap,
     players: readonly RenderedPlayer[],
-  ): void {
+  ): Promise<void> {
+    const atlas = await this.atlasPromise
     const tileSize = fixtureMap.compiled.tileSize
     const widthInPixels = fixtureMap.compiled.width * tileSize
     const heightInPixels = fixtureMap.compiled.height * tileSize
@@ -68,7 +76,11 @@ export class OfficeScene extends Phaser.Scene {
       fixtureMap.catalog.tokens,
     )
 
-    this.tilemapRenderer.installSemanticTileset(fixtureMap, multiTileVariantGids)
+    this.assetPipelineInfo = this.tilemapRenderer.installSemanticTileset(
+      fixtureMap,
+      multiTileVariantGids,
+      atlas,
+    )
     const tileset = this.activeMap.addTilesetImage(
       TILESET_NAME,
       TILESET_KEY,
@@ -111,6 +123,7 @@ export class OfficeScene extends Phaser.Scene {
       fixtureMap.catalog.tokens,
       tokensByGid,
       tileSize,
+      atlas,
     )
     this.zoneRenderer.reset(fixtureMap.compiled.zones, tileSize)
     this.updatePlayers(players)
@@ -152,6 +165,10 @@ export class OfficeScene extends Phaser.Scene {
 
   getTilemapInfo(): RendererTilemapInfo {
     return this.tilemapInfo
+  }
+
+  getAssetPipelineInfo(): RendererAssetPipelineInfo {
+    return this.assetPipelineInfo
   }
 
   getTelemetrySnapshot(): RendererTelemetrySnapshot | undefined {

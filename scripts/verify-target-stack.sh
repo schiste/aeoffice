@@ -32,6 +32,7 @@ node "$ROOT_DIR/packages/map-engine/test/movement.test.js"
 
 echo "Running asset-registry checks..."
 node "$ROOT_DIR/packages/asset-registry/test/catalog.test.js"
+node "$ROOT_DIR/scripts/verify-internal-assets.cjs"
 
 echo "Running Wikimedia OAuth checks..."
 node "$ROOT_DIR/packages/auth-wikimedia/test/oauth-flow.test.js"

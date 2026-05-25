@@ -4,7 +4,11 @@ import {
   PHASER_RENDERER_CONFIG,
   RENDERER_ROUNDING_DECISIONS,
 } from "./constants"
-import type { RendererCapabilityInfo, RendererTilemapInfo } from "./types"
+import type {
+  RendererAssetPipelineInfo,
+  RendererCapabilityInfo,
+  RendererTilemapInfo,
+} from "./types"
 
 export class RendererCapabilityReporter {
   private contextLossCount = 0
@@ -26,6 +30,7 @@ export class RendererCapabilityReporter {
   getInfo(
     cameraRoundPixels: boolean,
     tilemap: RendererTilemapInfo,
+    assets: RendererAssetPipelineInfo,
   ): RendererCapabilityInfo {
     const renderer = this.game.renderer
     const canvas = this.game.canvas
@@ -59,6 +64,7 @@ export class RendererCapabilityReporter {
         ...RENDERER_ROUNDING_DECISIONS,
         cameraRoundPixels,
       },
+      assets,
       tilemap,
       webgl: {
         available: webgl,
