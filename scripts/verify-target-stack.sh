@@ -69,6 +69,9 @@ npm --workspace @aedventure/web run build:browser
 echo "Running browser frontend smoke..."
 npm run smoke:frontend
 
+echo "Running Phaser renderer QA..."
+npm run qa:renderer
+
 echo "Running development HTTP host checks..."
 node "$ROOT_DIR/scripts/dev-http-host.test.cjs"
 node "$ROOT_DIR/scripts/dev-app-loop.test.cjs"

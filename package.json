@@ -17,6 +17,7 @@
     "build": "tsc -b && npm --workspace @aedventure/web run build:browser",
     "dev:http": "node scripts/dev-http-host.cjs",
     "qa:responsive": "node scripts/responsive-layout-qa.test.cjs",
+    "qa:renderer": "npm --workspace @aedventure/web run build:browser && node scripts/renderer-qa.test.cjs",
     "smoke:frontend": "node scripts/frontend-smoke.test.cjs"
   },
   "devDependencies": {

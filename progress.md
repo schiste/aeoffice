@@ -484,3 +484,18 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   `npm run qa:responsive`, `npm run check`, and `git diff --check`.
   Representative desktop and narrow-mobile QA screenshots were visually
   inspected.
+- Phase 12 observability and QA is implemented. Added `npm run qa:renderer` as
+  a Phaser-specific browser QA gate that builds the browser bundle, starts the
+  local app, captures renderer capability snapshots, samples frame cadence,
+  records texture/display-object counts, validates map-switch leak deltas, and
+  writes a JSON report plus screenshot artifacts.
+- Renderer QA now checks canvas nonblank state and pixel contrast for desktop,
+  mobile, joined lobby, stress map, and depth-order fixtures. It also records
+  whether depth samples come from fixture projection or camera-bounds fallback
+  so screenshot assertions remain meaningful.
+- `npm run check` remains the main gate and now invokes the renderer QA after
+  frontend smoke. Existing responsive QA is unchanged and still passes.
+- Verification passed: `npm run qa:renderer`, `npm run qa:responsive`,
+  `npm run check`, `node --check scripts/renderer-qa.test.cjs`, and
+  `git diff --check`. Representative renderer QA screenshots were visually
+  inspected from `/var/folders/f2/krjzd4c15nn491pm37zrkp1h0000gn/T/aedventure-renderer-qa`.
