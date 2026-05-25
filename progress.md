@@ -99,6 +99,14 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   affordances, active/hovered visual states, action markers, zoom-aware labels,
   kind-specific styling for meeting/private/portal/quiet/lobby zones, debug
   bounds, and zone telemetry in `window.render_game_to_text`.
+- Movement debugging now distinguishes browser-side diagonal intent from
+  server-side application: authoritative movement responses echo requested and
+  applied vectors, collision-slide state, and the browser trace flags legacy or
+  stale direction-only server responses as missing telemetry.
+- The standalone develop-web-game client was retried with the repo
+  `node_modules` on `NODE_PATH`, but the skill script still cannot resolve its
+  own ESM `playwright` import. Repo-native Playwright smoke/renderer/responsive
+  QA continues to cover the browser loop successfully.
 - The frontend smoke now verifies meeting-zone action availability, that meeting
   controls remain locked outside valid meeting state, debug zone bounds, private
   and portal affordances, and renderer zone state. `npm run build`,

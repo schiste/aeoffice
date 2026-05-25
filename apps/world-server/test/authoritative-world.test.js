@@ -9,6 +9,13 @@ const {
 } = require("../dist/index.js")
 const { CHAT_PERMISSIONS } = require("@aedventure/policy")
 
+function roundedVector(vector) {
+  return {
+    x: Number(vector.x.toFixed(3)),
+    y: Number(vector.y.toFixed(3)),
+  }
+}
+
 const world = new AuthoritativeWorld({
   map: {
     width: 128,
@@ -86,6 +93,9 @@ assert.equal(accepted.x, 48)
 assert.equal(accepted.y, 0)
 assert.equal(accepted.seqAck, 1)
 assert.equal(accepted.anim, "adam_walk_right")
+assert.deepEqual(accepted.requestedVector, { x: 1, y: 0 })
+assert.deepEqual(accepted.appliedVector, { x: 1, y: 0 })
+assert.equal(accepted.collisionSlide, false)
 
 const idleWorld = new AuthoritativeWorld({
   map: {
@@ -128,6 +138,9 @@ assert.equal(Math.round(diagonalMove.x), 59)
 assert.equal(Math.round(diagonalMove.y), 21)
 assert.equal(diagonalMove.direction, "right")
 assert.equal(diagonalMove.anim, "adam_walk_right")
+assert.deepEqual(roundedVector(diagonalMove.requestedVector), { x: 0.707, y: -0.707 })
+assert.deepEqual(roundedVector(diagonalMove.appliedVector), { x: 0.707, y: -0.707 })
+assert.equal(diagonalMove.collisionSlide, false)
 
 const towardObstacle = permittedWorld.handleClientMessage(
   "p2",
@@ -149,6 +162,9 @@ assert.equal(blocked.type, "movement_rejected")
 assert.equal(blocked.reason, "collision")
 assert.equal(blocked.x, 48)
 assert.equal(blocked.y, 16)
+assert.deepEqual(blocked.requestedVector, { x: 0, y: 1 })
+assert.deepEqual(blocked.appliedVector, { x: 0, y: 0 })
+assert.equal(blocked.collisionSlide, false)
 
 const invalid = permittedWorld.handleClientMessage(
   "p2",

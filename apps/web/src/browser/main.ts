@@ -155,6 +155,9 @@ type ServerMessage =
       readonly direction: Direction
       readonly seqAck?: number
       readonly serverTime?: number
+      readonly requestedVector?: MovementVector
+      readonly appliedVector?: MovementVector
+      readonly collisionSlide?: boolean
     }
   | {
       readonly type: "chat_delivered"
@@ -169,6 +172,9 @@ type ServerMessage =
       readonly y: number
       readonly seqAck: number
       readonly serverTime?: number
+      readonly requestedVector?: MovementVector
+      readonly appliedVector?: MovementVector
+      readonly collisionSlide?: boolean
     }
   | {
       readonly type: "protocol_error"
@@ -2463,7 +2469,7 @@ function applyServerMessage(message: ServerMessage): void {
       state.lastMovementRejection = undefined
       logMovementDebug(
         "server",
-        `seq=${message.seqAck ?? "-"} pos=${formatMovementVector(position)} facing=${message.direction}`,
+        `seq=${message.seqAck ?? "-"} pos=${formatMovementVector(position)} facing=${message.direction} ${formatServerMovementTelemetry(message)}`,
       )
     }
 
@@ -2629,7 +2635,7 @@ function applyMovementRejection(
     state.direction = direction
     logMovementDebug(
       "rejected",
-      `seq=${message.seqAck ?? "-"} reason=${message.reason} pos=${formatMovementVector(position)}`,
+      `seq=${message.seqAck ?? "-"} reason=${message.reason} pos=${formatMovementVector(position)} ${formatServerMovementTelemetry(message)}`,
     )
   }
 
@@ -3552,6 +3558,24 @@ function movementDebugLine(record: MovementDebugRecord): string {
 
 function formatMovementVector(vector: Vector2 | MovementVector): string {
   return `${formatMovementNumber(vector.x)},${formatMovementNumber(vector.y)}`
+}
+
+function formatServerMovementTelemetry(
+  message: {
+    readonly requestedVector?: MovementVector
+    readonly appliedVector?: MovementVector
+    readonly collisionSlide?: boolean
+  },
+): string {
+  const requested = message.requestedVector
+    ? formatMovementVector(message.requestedVector)
+    : "legacy/missing"
+  const applied = message.appliedVector
+    ? formatMovementVector(message.appliedVector)
+    : "legacy/missing"
+  const slide = message.collisionSlide ?? "legacy/missing"
+
+  return `serverRequested=${requested} serverApplied=${applied} serverSlide=${slide}`
 }
 
 function formatMovementNumber(value: number): string {

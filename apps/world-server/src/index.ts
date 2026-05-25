@@ -7,6 +7,7 @@ import {
   type ChatSendMessage,
   type ClientMessage,
   type Direction,
+  type MovementVector,
   type MovementRejectedMessage,
   type PlayerStateMessage,
   type ProtocolErrorMessage,
@@ -190,9 +191,10 @@ export class AuthoritativeWorld {
       this.config.tickMs,
       Math.max(0, nowMs - previousProcessedAt),
     )
+    const requestedVector = movementVectorForMoveIntent(message)
     const result = simulateMovement({
       current: state.position,
-      vector: movementVectorForMoveIntent(message),
+      vector: requestedVector,
       seq: message.seq,
       map: this.config.map,
       playerSize: this.config.playerSize,
@@ -214,6 +216,7 @@ export class AuthoritativeWorld {
         state.position,
         message.seq,
         nowMs,
+        movementTelemetry(result),
       )
     }
 
@@ -224,7 +227,7 @@ export class AuthoritativeWorld {
       result.leftZoneIds,
     )
 
-    return playerStateMessage(state, message.seq, nowMs)
+    return playerStateMessage(state, message.seq, nowMs, movementTelemetry(result))
   }
 
   private handleChatMessage(
@@ -941,6 +944,7 @@ function playerStateMessage(
   state: PlayerState,
   seqAck: number,
   serverTime: number,
+  telemetry?: MovementTelemetry,
 ): PlayerStateMessage {
   return {
     type: "player_state",
@@ -951,6 +955,7 @@ function playerStateMessage(
     anim: animationForDirection(state.avatarId, state.direction, true),
     seqAck,
     serverTime,
+    ...telemetry,
   }
 }
 
@@ -960,6 +965,7 @@ function movementRejected(
   position: Vector2,
   seqAck: number,
   serverTime: number,
+  telemetry?: MovementTelemetry,
 ): MovementRejectedMessage {
   return {
     type: "movement_rejected",
@@ -969,6 +975,25 @@ function movementRejected(
     y: position.y,
     seqAck,
     serverTime,
+    ...telemetry,
+  }
+}
+
+interface MovementTelemetry {
+  readonly requestedVector: MovementVector
+  readonly appliedVector: MovementVector
+  readonly collisionSlide: boolean
+}
+
+function movementTelemetry(result: {
+  readonly requestedVector: MovementVector
+  readonly appliedVector: MovementVector
+  readonly collisionSlide: boolean
+}): MovementTelemetry {
+  return {
+    requestedVector: result.requestedVector,
+    appliedVector: result.appliedVector,
+    collisionSlide: result.collisionSlide,
   }
 }
 

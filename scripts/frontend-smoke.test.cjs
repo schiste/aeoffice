@@ -268,6 +268,18 @@ async function main() {
       ),
       `Expected movement debug log to include diagonal vector, got ${JSON.stringify(diagonalMoved.movement.debugLog)}.`,
     )
+    assert.ok(
+      diagonalMoved.movement.debugLog.some((entry) =>
+        /serverRequested=0\.707,-0\.707/.test(entry),
+      ),
+      `Expected movement debug log to include server vector telemetry, got ${JSON.stringify(diagonalMoved.movement.debugLog)}.`,
+    )
+    assert.ok(
+      !diagonalMoved.movement.debugLog.some((entry) =>
+        /serverApplied=legacy\/missing/.test(entry),
+      ),
+      `Expected current world server to report applied vectors, got ${JSON.stringify(diagonalMoved.movement.debugLog)}.`,
+    )
     await page.unroute("**/world/message")
     assert.ok(
       diagonalMoved.movement.prediction.totalPredicted >

@@ -42,6 +42,9 @@ export interface PlayerStateMessage {
   readonly anim: string
   readonly seqAck: number
   readonly serverTime: number
+  readonly requestedVector?: MovementVector
+  readonly appliedVector?: MovementVector
+  readonly collisionSlide?: boolean
 }
 
 export type MovementRejectedReason =
@@ -59,6 +62,9 @@ export interface MovementRejectedMessage {
   readonly y: number
   readonly seqAck: number
   readonly serverTime: number
+  readonly requestedVector?: MovementVector
+  readonly appliedVector?: MovementVector
+  readonly collisionSlide?: boolean
 }
 
 export interface ChatSendMessage {
