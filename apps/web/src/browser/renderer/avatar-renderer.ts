@@ -48,6 +48,11 @@ const LABEL_SCREEN_SCALE_MIN = 0.72
 const LABEL_SCREEN_SCALE_MAX = 1.08
 const POSE_BLEND_DURATION_MS = 96
 const TURN_BLEND_DURATION_MS = 138
+const REMOTE_INTERPOLATION_DELAY_MS = 115
+const REMOTE_EXTRAPOLATION_LIMIT_MS = 85
+const REMOTE_SNAPSHOT_HISTORY_LIMIT = 8
+const REMOTE_SNAP_DISTANCE_PX = 192
+const REMOTE_POSITION_EPSILON_PX = 0.35
 
 interface AvatarPoseState {
   facingRotation: number
@@ -66,6 +71,13 @@ interface AvatarPoseState {
   rightFootX: number
   rightFootY: number
   labelY: number
+}
+
+interface RemoteAvatarSnapshot {
+  readonly position: Vector2
+  readonly direction: Direction
+  readonly movementMode: RenderedPlayer["movementMode"]
+  readonly receivedAtMs: number
 }
 
 const VISUAL_FACING_POSES: Record<AvatarVisualFacing, AvatarPoseState> = {
@@ -256,8 +268,8 @@ export class AvatarRenderer {
     })
 
     this.applyLabelLayout()
-    this.depthPlayers = players.map((player) =>
-      rendererDepthPlayerInfo(player, this.avatars.get(player.playerId)),
+    this.depthPlayers = [...this.avatars.values()].map((avatar) =>
+      avatar.depthInfo(),
     )
 
     return localAvatar
@@ -317,34 +329,6 @@ export class AvatarRenderer {
   }
 }
 
-function rendererDepthPlayerInfo(
-  player: RenderedPlayer,
-  avatar: AvatarView | undefined,
-): RendererDepthPlayerInfo {
-  const labelBounds = avatar?.currentLabelBounds() ?? fallbackLabelBounds(player)
-
-  return {
-    playerId: player.playerId,
-    name: player.name,
-    local: player.local,
-    depth: avatarDepth(player.position.y),
-    zAnchor: player.position,
-    labelBounds,
-    labelVisible: avatar?.labelVisible ?? true,
-  }
-}
-
-function fallbackLabelBounds(player: RenderedPlayer): RendererDepthPlacementBounds {
-  const labelWidth = Math.max(44, player.name.length * 7 + 14)
-
-  return {
-    x: player.position.x - labelWidth / 2,
-    y: player.position.y - 42,
-    width: labelWidth,
-    height: 20,
-  }
-}
-
 class AvatarView {
   readonly focusTarget: Phaser.GameObjects.Container
   readonly cameraTarget: Phaser.GameObjects.Zone
@@ -368,12 +352,17 @@ class AvatarView {
   private walkTween?: Phaser.Tweens.Tween
   private footTween?: Phaser.Tweens.Tween
   private walkTweenAction?: AvatarAnimationAction
-  private positionTween?: Phaser.Tweens.Tween
   private poseTween?: Phaser.Tweens.Tween
   private turnTween?: Phaser.Tweens.Tween
   private rejectionTween?: Phaser.Tweens.Tween
   private impactTween?: Phaser.Tweens.Tween
   private emoteTween?: Phaser.Tweens.Tween
+  private remoteSnapshots: RemoteAvatarSnapshot[] = []
+  private remoteVelocity: Vector2 = { x: 0, y: 0 }
+  private remoteRenderTimeMs = 0
+  private remoteLatestSnapshotAgeMs = 0
+  private remoteExtrapolating = false
+  private remoteSnapping = false
   private lastPosition: Vector2
   private lastDirection: Direction
   private lastMovementMode: RenderedPlayer["movementMode"]
@@ -394,7 +383,10 @@ class AvatarView {
   }
 
   get targetPosition(): Vector2 {
-    return this.lastPosition
+    return {
+      x: this.focusTarget.x,
+      y: this.focusTarget.y,
+    }
   }
 
   get labelVisible(): boolean {
@@ -426,6 +418,16 @@ class AvatarView {
     this.cosmetics = player.cosmetics ?? {}
     this.focusTarget = scene.add.container(player.position.x, player.position.y)
     this.cameraTarget = scene.add.zone(player.position.x, player.position.y, 2, 2)
+    if (!player.local) {
+      this.remoteSnapshots = [
+        {
+          position: player.position,
+          direction: player.direction,
+          movementMode: player.movementMode ?? "walk",
+          receivedAtMs: scene.time.now - REMOTE_INTERPOLATION_DELAY_MS,
+        },
+      ]
+    }
     this.visualRoot = scene.add.container(0, 0)
     this.bodyRoot = scene.add.container(0, 0)
     const entryAnimation = player.entryAnimation ?? "fade"
@@ -518,13 +520,17 @@ class AvatarView {
   update(player: RenderedPlayer): void {
     const previousAnimation = this.animation
     const previousVisualFacing = this.visualFacing
-    const movementDelta = {
+    const snapshotDelta = {
       x: player.position.x - this.lastPosition.x,
       y: player.position.y - this.lastPosition.y,
     }
-    const moved =
-      Math.hypot(movementDelta.x, movementDelta.y) > 0.01 ||
-      (this.positionTween?.isPlaying() ?? false)
+    const snapshotMoved =
+      vectorLength(snapshotDelta) > REMOTE_POSITION_EPSILON_PX
+    const remoteInterpolationActive =
+      !player.local && this.remoteInterpolationActive()
+    const moved = player.local
+      ? snapshotMoved
+      : snapshotMoved || remoteInterpolationActive
     const nextAvatarId = resolveAvatarId(player.avatarId ?? fallbackAvatarId(player))
     const nextAppearance = avatarAppearance(nextAvatarId)
     const directionChanged = player.direction !== this.lastDirection
@@ -535,8 +541,11 @@ class AvatarView {
       : directionChanged
         ? "turn"
         : "idle"
-    const nextVisualFacing = moved && Math.hypot(movementDelta.x, movementDelta.y) > 0.01
-      ? visualFacingForVector(movementDelta)
+    const visualFacingVector = snapshotMoved
+      ? snapshotDelta
+      : this.remoteVelocity
+    const nextVisualFacing = moved && vectorLength(visualFacingVector) > 0.01
+      ? visualFacingForVector(visualFacingVector)
       : directionChanged
         ? visualFacingForDirection(player.direction)
         : previousVisualFacing
@@ -562,6 +571,14 @@ class AvatarView {
     this.visualFacing = nextVisualFacing
     this.interpolationProfile = avatarInterpolationProfile(player.local)
     this.cosmetics = player.cosmetics ?? {}
+    if (player.local) {
+      this.remoteSnapshots = []
+      this.remoteVelocity = { x: 0, y: 0 }
+      this.remoteExtrapolating = false
+      this.remoteSnapping = false
+    } else {
+      this.enqueueRemoteSnapshot(player)
+    }
     this.label.setText(player.name)
     this.applySmoothTextTexture(this.label)
     this.resizeLabel()
@@ -589,7 +606,7 @@ class AvatarView {
       if (player.local) {
         this.moveDirectlyTo(player.position)
       } else {
-        this.interpolateTo(player.position, this.interpolationProfile)
+        this.applyRemoteInterpolation(this.scene.time.now)
       }
       this.startWalkTween(nextAnimation)
     } else if (directionChanged || identityChanged || movementModeChanged) {
@@ -619,6 +636,9 @@ class AvatarView {
   }
 
   syncFrame(): void {
+    if (!this.playerLocal) {
+      this.applyRemoteInterpolation(this.scene.time.now)
+    }
     this.applyCameraAwareLabelScale()
     this.focusTarget.setDepth(avatarDepth(this.focusTarget.y))
   }
@@ -712,11 +732,14 @@ class AvatarView {
         poseBlendActive: this.poseTween?.isPlaying() ?? false,
       },
       interpolationProfile: this.interpolationProfile.id,
-      interpolationActive: this.positionTween?.isPlaying() ?? false,
+      interpolationActive: this.remoteInterpolationActive(),
+      remoteInterpolation: this.playerLocal
+        ? undefined
+        : this.remoteInterpolationInfo(),
       movementSmoothing: {
         mode: this.playerLocal
           ? "continuous_local_motion"
-          : "remote_interpolation",
+          : "remote_snapshot_buffer",
         logicalVertexRoundMode: "off",
         visualTransformIsolation: "inner_visual_root",
       },
@@ -736,7 +759,6 @@ class AvatarView {
     this.idleTween?.stop()
     this.walkTween?.stop()
     this.footTween?.stop()
-    this.positionTween?.stop()
     this.poseTween?.stop()
     this.turnTween?.stop()
     this.rejectionTween?.stop()
@@ -747,46 +769,146 @@ class AvatarView {
   }
 
   private moveDirectlyTo(position: Vector2): void {
-    this.positionTween?.stop()
     this.focusTarget.setPosition(position.x, position.y)
     this.cameraTarget.setPosition(position.x, position.y)
     this.focusTarget.setDepth(avatarDepth(this.focusTarget.y))
     this.applyCameraAwareLabelScale()
   }
 
-  private interpolateTo(
-    position: Vector2,
-    profile: AvatarInterpolationProfile,
-  ): void {
-    this.positionTween?.stop()
-    const distance = Phaser.Math.Distance.Between(
-      this.focusTarget.x,
-      this.focusTarget.y,
-      position.x,
-      position.y,
-    )
+  private enqueueRemoteSnapshot(player: RenderedPlayer): void {
+    const nowMs = this.scene.time.now
+    const latest = this.remoteSnapshots.at(-1)
 
-    if (distance <= profile.positionEpsilon) {
-      this.focusTarget.setPosition(position.x, position.y)
-      this.cameraTarget.setPosition(position.x, position.y)
+    if (!latest) {
+      this.remoteSnapshots = [
+        {
+          position: player.position,
+          direction: player.direction,
+          movementMode: player.movementMode ?? "walk",
+          receivedAtMs: nowMs - REMOTE_INTERPOLATION_DELAY_MS,
+        },
+      ]
       return
     }
 
-    this.positionTween = this.scene.tweens.add({
-      targets: [this.focusTarget, this.cameraTarget],
-      x: position.x,
-      y: position.y,
-      duration: clamp(
-        Math.round(distance * profile.msPerPixel),
-        profile.minDurationMs,
-        profile.maxDurationMs,
-      ),
-      ease: profile.easing,
-      onUpdate: () => {
-        this.focusTarget.setDepth(avatarDepth(this.focusTarget.y))
-        this.applyCameraAwareLabelScale()
-      },
+    const moved =
+      distanceBetween(latest.position, player.position) >
+      REMOTE_POSITION_EPSILON_PX
+    const stateChanged =
+      latest.direction !== player.direction ||
+      latest.movementMode !== (player.movementMode ?? "walk")
+
+    if (!moved && !stateChanged) return
+
+    if (
+      distanceBetween(this.focusTarget, player.position) >
+      REMOTE_SNAP_DISTANCE_PX
+    ) {
+      this.remoteSnapping = true
+      this.remoteSnapshots = [
+        {
+          position: player.position,
+          direction: player.direction,
+          movementMode: player.movementMode ?? "walk",
+          receivedAtMs: nowMs - REMOTE_INTERPOLATION_DELAY_MS,
+        },
+      ]
+      this.remoteVelocity = { x: 0, y: 0 }
+      this.focusTarget.setPosition(player.position.x, player.position.y)
+      this.cameraTarget.setPosition(player.position.x, player.position.y)
+      return
+    }
+
+    this.remoteSnapping = false
+    this.remoteSnapshots.push({
+      position: player.position,
+      direction: player.direction,
+      movementMode: player.movementMode ?? "walk",
+      receivedAtMs: nowMs,
     })
+    this.remoteSnapshots.splice(
+      0,
+      Math.max(0, this.remoteSnapshots.length - REMOTE_SNAPSHOT_HISTORY_LIMIT),
+    )
+  }
+
+  private applyRemoteInterpolation(nowMs: number): void {
+    if (this.remoteSnapshots.length === 0) return
+
+    const renderTimeMs = nowMs - REMOTE_INTERPOLATION_DELAY_MS
+    this.remoteRenderTimeMs = Math.round(renderTimeMs)
+    this.remoteLatestSnapshotAgeMs = Math.max(
+      0,
+      Math.round(nowMs - (this.remoteSnapshots.at(-1)?.receivedAtMs ?? nowMs)),
+    )
+
+    while (
+      this.remoteSnapshots.length >= 3 &&
+      this.remoteSnapshots[1].receivedAtMs <= renderTimeMs
+    ) {
+      this.remoteSnapshots.shift()
+    }
+
+    const previous = this.remoteSnapshots[0]
+    const next = this.remoteSnapshots[1]
+    let position = previous.position
+    let velocity = { x: 0, y: 0 }
+    this.remoteExtrapolating = false
+
+    if (next && renderTimeMs <= next.receivedAtMs) {
+      const spanMs = Math.max(1, next.receivedAtMs - previous.receivedAtMs)
+      const t = clamp((renderTimeMs - previous.receivedAtMs) / spanMs, 0, 1)
+      position = {
+        x: Phaser.Math.Linear(previous.position.x, next.position.x, t),
+        y: Phaser.Math.Linear(previous.position.y, next.position.y, t),
+      }
+      velocity = velocityBetween(previous, next)
+    } else if (next) {
+      const overshootMs = Math.max(0, renderTimeMs - next.receivedAtMs)
+      velocity = velocityBetween(previous, next)
+      if (overshootMs <= REMOTE_EXTRAPOLATION_LIMIT_MS) {
+        position = {
+          x: next.position.x + velocity.x * overshootMs / 1000,
+          y: next.position.y + velocity.y * overshootMs / 1000,
+        }
+        this.remoteExtrapolating = overshootMs > 0
+      } else {
+        position = next.position
+        velocity = { x: 0, y: 0 }
+      }
+    } else {
+      position = previous.position
+    }
+
+    this.remoteVelocity = velocity
+    this.focusTarget.setPosition(position.x, position.y)
+    this.cameraTarget.setPosition(position.x, position.y)
+    this.focusTarget.setDepth(avatarDepth(this.focusTarget.y))
+    this.applyCameraAwareLabelScale()
+  }
+
+  private remoteInterpolationActive(): boolean {
+    if (this.playerLocal || this.remoteSnapshots.length < 2) return false
+
+    return (
+      distanceBetween(this.focusTarget, this.lastPosition) >
+        this.interpolationProfile.positionEpsilon ||
+      this.remoteExtrapolating
+    )
+  }
+
+  private remoteInterpolationInfo(): RendererAvatarPlayerInfo["remoteInterpolation"] {
+    return {
+      mode: "snapshot_buffer",
+      interpolationDelayMs: REMOTE_INTERPOLATION_DELAY_MS,
+      extrapolationLimitMs: REMOTE_EXTRAPOLATION_LIMIT_MS,
+      bufferedSnapshotCount: this.remoteSnapshots.length,
+      renderTimeMs: this.remoteRenderTimeMs,
+      latestSnapshotAgeMs: this.remoteLatestSnapshotAgeMs,
+      extrapolating: this.remoteExtrapolating,
+      snapping: this.remoteSnapping,
+      velocity: roundedVector(this.remoteVelocity),
+    }
   }
 
   private showRejected(direction: Direction): void {
@@ -1167,4 +1289,31 @@ function turnAngleForFacing(visualFacing: AvatarVisualFacing): number {
   if (visualFacing.includes("Right")) return -2.5
   if (visualFacing.includes("Left")) return 2.5
   return 0
+}
+
+function velocityBetween(
+  previous: RemoteAvatarSnapshot,
+  next: RemoteAvatarSnapshot,
+): Vector2 {
+  const seconds = Math.max(1, next.receivedAtMs - previous.receivedAtMs) / 1000
+
+  return {
+    x: (next.position.x - previous.position.x) / seconds,
+    y: (next.position.y - previous.position.y) / seconds,
+  }
+}
+
+function distanceBetween(first: Vector2, second: Vector2): number {
+  return Math.hypot(first.x - second.x, first.y - second.y)
+}
+
+function vectorLength(vector: Vector2): number {
+  return Math.hypot(vector.x, vector.y)
+}
+
+function roundedVector(vector: Vector2): Vector2 {
+  return {
+    x: Number(vector.x.toFixed(2)),
+    y: Number(vector.y.toFixed(2)),
+  }
 }

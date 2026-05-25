@@ -1600,10 +1600,22 @@ async function assertAvatarSystemSmoke(page) {
     assert.deepEqual(player.movementSmoothing, {
       mode: player.local
         ? "continuous_local_motion"
-        : "remote_interpolation",
+        : "remote_snapshot_buffer",
       logicalVertexRoundMode: "off",
       visualTransformIsolation: "inner_visual_root",
     })
+    if (player.local) {
+      assert.equal(player.remoteInterpolation, undefined)
+    } else {
+      assert.equal(player.remoteInterpolation.mode, "snapshot_buffer")
+      assert.equal(typeof player.remoteInterpolation.interpolationDelayMs, "number")
+      assert.equal(typeof player.remoteInterpolation.extrapolationLimitMs, "number")
+      assert.equal(typeof player.remoteInterpolation.bufferedSnapshotCount, "number")
+      assert.equal(typeof player.remoteInterpolation.extrapolating, "boolean")
+      assert.equal(typeof player.remoteInterpolation.snapping, "boolean")
+      assert.equal(typeof player.remoteInterpolation.velocity.x, "number")
+      assert.equal(typeof player.remoteInterpolation.velocity.y, "number")
+    }
     assert.equal(player.animation.action, "idle")
     assert.match(player.animation.key, new RegExp(`^${avatarId}_idle_`))
     assert.ok(
@@ -1655,6 +1667,8 @@ async function assertAvatarSystemSmoke(page) {
 
       return (
         remote?.interpolationProfile === "remote" &&
+        remote?.remoteInterpolation?.mode === "snapshot_buffer" &&
+        remote?.remoteInterpolation?.bufferedSnapshotCount >= 2 &&
         remote?.animation.action === "walk" &&
         remote?.interpolationActive === true
       )
@@ -1674,6 +1688,10 @@ async function assertAvatarSystemSmoke(page) {
     `Expected remote avatar to be between grid cells while smoothing, got ${JSON.stringify(movingRemote)}.`,
   )
   assert.equal(movingRemote.animation.visualFacing, "downRight")
+  assert.ok(
+    movingRemote.remoteInterpolation.latestSnapshotAgeMs >= 0,
+    `Expected remote snapshot age telemetry, got ${JSON.stringify(movingRemote.remoteInterpolation)}.`,
+  )
 
   await waitForTextState(
     page,

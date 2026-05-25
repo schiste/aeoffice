@@ -743,3 +743,20 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   inspected. `npm run check` and `git diff --check` also passed. The standalone
   develop-web-game client still fails before navigation because it cannot
   resolve its own `playwright` package.
+- Remote avatar presentation now uses renderer-side snapshot buffering instead
+  of restarting a Phaser position tween for every server update. Remote
+  snapshots render at a small interpolation delay, can extrapolate briefly when
+  a snapshot is late, and fall back to the last authoritative snapshot after
+  the extrapolation cap.
+- `render_game_to_text.avatars.players[].remoteInterpolation` now exposes the
+  remote smoothing contract: buffer size, interpolation delay, extrapolation
+  cap, render time, latest snapshot age, velocity, extrapolating, and snapping.
+  Remote movement smoothing is reported as `remote_snapshot_buffer`.
+- Avatar label/depth layout now uses the current rendered avatar position
+  rather than the latest remote target position, so buffered remote movement
+  keeps labels and y-depth aligned with what is actually on screen.
+- Verification passed after the remote-interpolation pass: `npm --workspace
+  @aedventure/web run build`, `node --check scripts/frontend-smoke.test.cjs`,
+  `npm run smoke:frontend`, `npm run qa:renderer`, and
+  `npm run qa:responsive`. Desktop and mobile QA screenshots were visually
+  inspected. `npm run check` and `git diff --check` also passed.

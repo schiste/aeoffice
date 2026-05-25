@@ -452,6 +452,18 @@ export interface RendererAvatarAnimationInfo {
   readonly poseBlendActive: boolean
 }
 
+export interface RendererRemoteInterpolationInfo {
+  readonly mode: "snapshot_buffer"
+  readonly interpolationDelayMs: number
+  readonly extrapolationLimitMs: number
+  readonly bufferedSnapshotCount: number
+  readonly renderTimeMs: number
+  readonly latestSnapshotAgeMs: number
+  readonly extrapolating: boolean
+  readonly snapping: boolean
+  readonly velocity: Vector2
+}
+
 export interface RendererAvatarPlayerInfo {
   readonly playerId: string
   readonly name: string
@@ -463,11 +475,13 @@ export interface RendererAvatarPlayerInfo {
   readonly animation: RendererAvatarAnimationInfo
   readonly interpolationProfile: "local" | "remote"
   readonly interpolationActive: boolean
+  readonly remoteInterpolation?: RendererRemoteInterpolationInfo
   readonly movementSmoothing: {
     readonly mode:
       | "continuous_local_motion"
       | "client_prediction_reconciliation"
       | "remote_interpolation"
+      | "remote_snapshot_buffer"
     readonly logicalVertexRoundMode: "off"
     readonly visualTransformIsolation: "inner_visual_root"
   }
