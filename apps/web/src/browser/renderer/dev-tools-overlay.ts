@@ -18,6 +18,7 @@ const DEFAULT_OVERLAYS: RendererDevToolOverlayState = {
   collision: false,
   zones: false,
   depth: false,
+  objectFootprints: false,
   spriteBounds: false,
   camera: false,
 }
@@ -34,6 +35,7 @@ const KEYBOARD_SHORTCUTS = [
   "Alt+Shift+C collision",
   "Alt+Shift+Z zones",
   "Alt+Shift+D depth",
+  "Alt+Shift+O object footprints",
   "Alt+Shift+B sprite bounds",
   "Alt+Shift+R camera readout",
   "Alt+Shift+F next fixture",
@@ -55,6 +57,9 @@ export class DevToolsOverlay {
   private overlayObjectCounts = {
     gridLineCount: 0,
     blockedTileCount: 0,
+    zoneBoundsCount: 0,
+    depthAnchorCount: 0,
+    objectFootprintCount: 0,
     spriteBoundsCount: 0,
   }
 
@@ -89,6 +94,9 @@ export class DevToolsOverlay {
     this.overlayObjectCounts = {
       gridLineCount: 0,
       blockedTileCount: 0,
+      zoneBoundsCount: 0,
+      depthAnchorCount: 0,
+      objectFootprintCount: 0,
       spriteBoundsCount: 0,
     }
   }
@@ -132,6 +140,12 @@ export class DevToolsOverlay {
     const counts = {
       gridLineCount: 0,
       blockedTileCount: 0,
+      zoneBoundsCount: this.overlays.zones ? this.fixtureMap.compiled.zones.length : 0,
+      depthAnchorCount:
+        this.overlays.depth && this.depthInfo
+          ? this.depthInfo.objects.length + this.depthInfo.players.length
+          : 0,
+      objectFootprintCount: 0,
       spriteBoundsCount: 0,
     }
 
@@ -140,6 +154,12 @@ export class DevToolsOverlay {
     }
     if (this.overlays.collision) {
       counts.blockedTileCount = this.drawCollision(graphics, this.fixtureMap)
+    }
+    if (this.overlays.objectFootprints && this.depthInfo) {
+      counts.objectFootprintCount = this.drawObjectFootprints(
+        graphics,
+        this.depthInfo,
+      )
     }
     if (this.overlays.spriteBounds && this.depthInfo) {
       counts.spriteBoundsCount = this.drawSpriteBounds(graphics, this.depthInfo)
@@ -226,6 +246,54 @@ export class DevToolsOverlay {
     })
 
     return depthInfo.objects.length + depthInfo.players.length
+  }
+
+  private drawObjectFootprints(
+    graphics: Phaser.GameObjects.Graphics,
+    depthInfo: RendererDepthInfo,
+  ): number {
+    depthInfo.objects.forEach((object) => {
+      graphics.lineStyle(1, 0x0ea5e9, 0.86)
+      graphics.strokeRect(
+        object.bounds.x,
+        object.bounds.y,
+        object.bounds.width,
+        object.bounds.height,
+      )
+
+      if (object.collisionBounds.width > 0 && object.collisionBounds.height > 0) {
+        graphics.fillStyle(0xef4444, 0.12)
+        graphics.fillRect(
+          object.collisionBounds.x,
+          object.collisionBounds.y,
+          object.collisionBounds.width,
+          object.collisionBounds.height,
+        )
+        graphics.lineStyle(1, 0xef4444, 0.82)
+        graphics.strokeRect(
+          object.collisionBounds.x,
+          object.collisionBounds.y,
+          object.collisionBounds.width,
+          object.collisionBounds.height,
+        )
+      }
+
+      graphics.lineStyle(1, 0xf59e0b, 0.9)
+      graphics.lineBetween(
+        object.zAnchor.x - 4,
+        object.zAnchor.y,
+        object.zAnchor.x + 4,
+        object.zAnchor.y,
+      )
+      graphics.lineBetween(
+        object.zAnchor.x,
+        object.zAnchor.y - 4,
+        object.zAnchor.x,
+        object.zAnchor.y + 4,
+      )
+    })
+
+    return depthInfo.objects.length
   }
 
   private drawCameraReadout(camera: RendererCameraState): void {

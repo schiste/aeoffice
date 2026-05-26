@@ -49,6 +49,22 @@ export function objectBounds(
   }
 }
 
+export function objectCollisionBounds(
+  tileX: number,
+  tileY: number,
+  tileSize: number,
+  token: FixtureToken,
+): RendererDepthPlacementBounds {
+  const collisionFootprint = token.asset?.collisionFootprint
+
+  return {
+    x: tileX * tileSize + (collisionFootprint?.x ?? 0),
+    y: tileY * tileSize + (collisionFootprint?.y ?? 0),
+    width: collisionFootprint?.width ?? token.widthTiles * tileSize,
+    height: collisionFootprint?.height ?? token.heightTiles * tileSize,
+  }
+}
+
 export function depthObjectInfo(
   id: string,
   token: FixtureToken,
@@ -65,6 +81,7 @@ export function depthObjectInfo(
     depth: objectDepth(tileX, tileY, tileSize, token),
     zAnchor: objectZAnchor(tileX, tileY, tileSize, token),
     bounds: objectBounds(tileX, tileY, tileSize, token),
+    collisionBounds: objectCollisionBounds(tileX, tileY, tileSize, token),
     occlusionMode: token.asset?.occlusion.mode ?? "none",
   }
 }

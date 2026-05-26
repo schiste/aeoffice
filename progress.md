@@ -928,3 +928,22 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   `git diff --check`. The renderer-zone, desktop, and mobile screenshots were
   visually inspected. The standalone develop-web-game client still fails before
   navigation because it cannot resolve `playwright` from the skill runtime.
+- Developer renderer tooling now has an explicit object-footprint overlay in
+  addition to the existing grid, collision, zone bounds, depth, sprite/label
+  bounds, camera readout, fixture selector, and movement tuning panel. Object
+  footprints draw authored visual footprint, collision footprint, and z-anchor
+  metadata so art/collision/depth bugs can be diagnosed separately.
+- `render_game_to_text.devTools.renderer.overlayObjectCounts` now reports grid
+  lines, blocked tiles, zone bounds, depth anchors, object footprints, and
+  sprite bounds. The overlay can be query-gated with `devObjectFootprints=1`,
+  toggled through `Alt+Shift+O`, and controlled through the local automation
+  devtools API.
+- Verification passed after the developer tooling slice:
+  `node --check scripts/renderer-qa.test.cjs`,
+  `npm --workspace @aedventure/web run build`, `npm run qa:renderer`,
+  `npm run smoke:frontend`, `npm run qa:responsive`, `npm run check`, and
+  `git diff --check`. The devtools-zone, devtools-page, desktop, and mobile
+  screenshots were visually inspected. The required standalone
+  develop-web-game client was attempted against the local dev host but still
+  fails before navigation because it cannot resolve `playwright` from the skill
+  runtime.

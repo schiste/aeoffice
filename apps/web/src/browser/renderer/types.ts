@@ -54,6 +54,7 @@ export type RendererDevToolOverlayId =
   | "collision"
   | "zones"
   | "depth"
+  | "objectFootprints"
   | "spriteBounds"
   | "camera"
 
@@ -81,6 +82,9 @@ export interface RendererDevToolsInfo {
   readonly overlayObjectCounts: {
     readonly gridLineCount: number
     readonly blockedTileCount: number
+    readonly zoneBoundsCount: number
+    readonly depthAnchorCount: number
+    readonly objectFootprintCount: number
     readonly spriteBoundsCount: number
   }
   readonly cameraReadout?: {
@@ -474,6 +478,7 @@ export interface RendererDepthObjectInfo {
   readonly depth: number
   readonly zAnchor: Vector2
   readonly bounds: RendererDepthPlacementBounds
+  readonly collisionBounds: RendererDepthPlacementBounds
   readonly occlusionMode: "none" | "y_sort" | "foreground"
 }
 

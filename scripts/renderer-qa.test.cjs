@@ -214,7 +214,7 @@ async function verifyDevTools(browser, url, report) {
 
   try {
     await page.goto(
-      `${url}/app?devtools=1&devGrid=1&devCollision=1&devZones=1&devDepth=1&devSpriteBounds=1&devCamera=1&devFixture=zone_fixture`,
+      `${url}/app?devtools=1&devGrid=1&devCollision=1&devZones=1&devDepth=1&devObjectFootprints=1&devSpriteBounds=1&devCamera=1&devFixture=zone_fixture`,
       { waitUntil: "domcontentloaded" },
     )
     const initial = await waitForTextState(
@@ -228,6 +228,7 @@ async function verifyDevTools(browser, url, report) {
         state.devTools.renderer?.overlays?.collision === true &&
         state.devTools.renderer?.overlays?.zones === true &&
         state.devTools.renderer?.overlays?.depth === true &&
+        state.devTools.renderer?.overlays?.objectFootprints === true &&
         state.devTools.renderer?.overlays?.spriteBounds === true &&
         state.devTools.renderer?.overlays?.camera === true,
       9000,
@@ -247,6 +248,11 @@ async function verifyDevTools(browser, url, report) {
     assert.equal(initial.renderer.depth.debugOverlayEnabled, true)
     assert.ok(initial.devTools.renderer.overlayObjectCounts.gridLineCount > 0)
     assert.ok(initial.devTools.renderer.overlayObjectCounts.blockedTileCount > 0)
+    assert.ok(initial.devTools.renderer.overlayObjectCounts.zoneBoundsCount > 0)
+    assert.ok(initial.devTools.renderer.overlayObjectCounts.depthAnchorCount > 0)
+    assert.ok(
+      initial.devTools.renderer.overlayObjectCounts.objectFootprintCount > 0,
+    )
     assert.ok(initial.devTools.renderer.overlayObjectCounts.spriteBoundsCount > 0)
     assert.equal(initial.devTools.renderer.cameraReadout.mode, initial.camera.mode)
     assert.ok(

@@ -514,6 +514,7 @@ const DEV_TOOL_OVERLAY_IDS: readonly RendererDevToolOverlayId[] = [
   "collision",
   "zones",
   "depth",
+  "objectFootprints",
   "spriteBounds",
   "camera",
 ]
@@ -5274,6 +5275,9 @@ function installDevToolsKeyboardShortcuts(): void {
         case "d":
           toggleDevToolOverlay("depth")
           break
+        case "o":
+          toggleDevToolOverlay("objectFootprints")
+          break
         case "b":
           toggleDevToolOverlay("spriteBounds")
           break
@@ -5426,6 +5430,8 @@ function devToolQueryParam(overlayId: RendererDevToolOverlayId): string {
       return "devZones"
     case "depth":
       return "devDepth"
+    case "objectFootprints":
+      return "devObjectFootprints"
     case "spriteBounds":
       return "devSpriteBounds"
     case "camera":
@@ -5872,6 +5878,7 @@ function engineArchitectureTextState() {
         "ZoneRenderer",
         "InteractionRenderer",
         "CameraController",
+        "DevToolsOverlay",
       ],
     },
     controllers: {
