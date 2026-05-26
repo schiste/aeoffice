@@ -1302,3 +1302,31 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   develop-web-game client was attempted against `http://127.0.0.1:8787`, but
   still fails before navigation with `ERR_MODULE_NOT_FOUND` because the
   skill-local script cannot resolve `playwright`.
+- Phaser scene management is now split into an explicit `RendererSceneManager`
+  with `RendererLoadingScene` for asset-pack preload/cache warmup and
+  `OfficeScene` for the live office runtime. Future scene boundaries are now
+  named in telemetry for lobby, avatar preview, generated-room preview, map
+  editor, and room transitions without moving product UI/auth/media into Phaser.
+- `render_game_to_text.renderer.scenes` now reports active, registered, and
+  planned scene keys plus preload/world ownership. The engine architecture
+  contract also reports `RendererSceneManager`, so QA and future agents can
+  verify that scene lifecycle stays behind `RendererHost`.
+- Scene-manager implementation sanity checks passed so far:
+  `npm --workspace @aedventure/web run build`,
+  `node --check scripts/frontend-smoke.test.cjs`, and
+  `node --check scripts/renderer-qa.test.cjs`.
+- Verification passed after the scene-manager pass:
+  `npm --workspace @aedventure/web run build`,
+  `node --check scripts/frontend-smoke.test.cjs`,
+  `node --check scripts/renderer-qa.test.cjs`, `npm run smoke:frontend`,
+  `npm run qa:renderer`, `npm run qa:responsive`, `npm run check`, and
+  `git diff --check`. Latest renderer QA and responsive desktop/mobile
+  screenshots were visually inspected; the office canvas remains nonblank,
+  the overview camera still appears on desktop, and mobile stays map-first
+  without the minimap. The renderer QA report now records active
+  `OfficeScene`, registered `RendererLoadingScene`/`OfficeScene`, and planned
+  lobby/avatar-preview/generated-room-preview/map-editor/transition scenes.
+- The standalone develop-web-game client was attempted again against
+  `http://127.0.0.1:8787`, but still fails before navigation with
+  `ERR_MODULE_NOT_FOUND` because the skill-local script cannot resolve the
+  `playwright` package.

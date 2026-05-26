@@ -18,6 +18,7 @@ import {
 } from "./capability-reporter"
 import { clamp } from "./math"
 import { OfficeScene } from "./office-scene"
+import { RendererSceneManager } from "./renderer-scene-manager"
 import type {
   AvatarEmoteId,
   FixtureMap,
@@ -41,6 +42,7 @@ import type {
 
 export class PhaserOfficeRenderer {
   private static nextGameInstanceId = 1
+  private readonly sceneManager: RendererSceneManager
   private readonly scene: OfficeScene
   private readonly game: Phaser.Game
   private readonly gameInstanceId = PhaserOfficeRenderer.nextGameInstanceId
@@ -63,9 +65,10 @@ export class PhaserOfficeRenderer {
   constructor(private readonly parent: HTMLElement) {
     PhaserOfficeRenderer.nextGameInstanceId += 1
     parent.classList.add("phaser-world-host")
-    this.scene = new OfficeScene((scene) => {
+    this.sceneManager = new RendererSceneManager((scene) => {
       this.resolveReady(scene)
     })
+    this.scene = this.sceneManager.officeScene
     this.ready = new Promise((resolve) => {
       this.resolveReady = resolve
     })
@@ -95,7 +98,7 @@ export class PhaserOfficeRenderer {
       scale: {
         mode: Phaser.Scale.NONE,
       },
-      scene: this.scene,
+      scene: this.sceneManager.scenes,
     })
     this.capabilityReporter = new RendererCapabilityReporter(this.game)
     this.installContextRecoveryHandlers()
@@ -260,6 +263,7 @@ export class PhaserOfficeRenderer {
       this.scene.getCameraRoundPixels(),
       this.scene.getTilemapInfo(),
       this.scene.getAssetPipelineInfo(),
+      this.sceneManager.getInfo(this.game),
       this.scene.getDepthInfo(),
       this.scene.getEffectsInfo(),
       this.scene.getMapValidationInfo(),

@@ -20,9 +20,18 @@ export class RendererAssetPackLoader {
   private completedKeys = new Set<string>()
   private failedKeys = new Set<string>()
 
-  constructor(private readonly scene: Phaser.Scene) {}
+  constructor(
+    private readonly scene: Phaser.Scene,
+    private readonly preloadInfoProvider: (() => RendererAssetPackInfo | undefined) = () =>
+      undefined,
+  ) {}
 
   preloadCoreOfficePack(): void {
+    if (this.coreAssetsReady()) {
+      this.info = this.preloadedInfo()
+      return
+    }
+
     this.info = {
       ...emptyAssetPackInfo(),
       progress: {
@@ -36,17 +45,22 @@ export class RendererAssetPackLoader {
   }
 
   getInfo(): RendererAssetPackInfo {
+    const info = this.preloadedInfo()
     const loadedSections = this.coreAssetsReady()
       ? [OFFICE_ASSET_PACK_SECTION]
       : []
 
     return {
-      ...this.info,
+      ...info,
       loadedSections,
       progress: {
-        ...this.info.progress,
-        completedKeys: [...this.completedKeys].sort(),
-        failedKeys: [...this.failedKeys].sort(),
+        ...info.progress,
+        completedKeys: [
+          ...new Set([...info.progress.completedKeys, ...this.completedKeys]),
+        ].sort(),
+        failedKeys: [
+          ...new Set([...info.progress.failedKeys, ...this.failedKeys]),
+        ].sort(),
       },
       cache: {
         jsonKeys: this.scene.cache.json.exists(OFFICE_ATLAS_MANIFEST_CACHE_KEY)
@@ -57,6 +71,13 @@ export class RendererAssetPackLoader {
           : [],
       },
     }
+  }
+
+  coreAssetsReady(): boolean {
+    return (
+      this.scene.cache.json.exists(OFFICE_ATLAS_MANIFEST_CACHE_KEY) &&
+      this.scene.textures.exists(OFFICE_ATLAS_IMAGE_TEXTURE_KEY)
+    )
   }
 
   private bindLoaderEvents(): void {
@@ -138,10 +159,25 @@ export class RendererAssetPackLoader {
     }
   }
 
-  private coreAssetsReady(): boolean {
-    return (
-      this.scene.cache.json.exists(OFFICE_ATLAS_MANIFEST_CACHE_KEY) &&
-      this.scene.textures.exists(OFFICE_ATLAS_IMAGE_TEXTURE_KEY)
-    )
+  private preloadedInfo(): RendererAssetPackInfo {
+    if (this.info.progress.started) return this.info
+
+    const preloadedInfo = this.preloadInfoProvider()
+    if (preloadedInfo) return preloadedInfo
+
+    if (!this.coreAssetsReady()) return this.info
+
+    return {
+      ...this.info,
+      progress: {
+        ...this.info.progress,
+        started: true,
+        complete: true,
+        value: 1,
+        totalFiles: 2,
+        loadedFiles: 2,
+        failedFiles: 0,
+      },
+    }
   }
 }

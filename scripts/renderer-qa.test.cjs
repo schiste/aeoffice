@@ -876,6 +876,24 @@ function assertRendererSnapshot(state) {
   assert.equal(state.renderer.webgl.contextLost, false)
   assert.equal(state.renderer.webgl.recoveryReady, true)
   assert.ok(state.renderer.webgl.maxTextureSize >= 1024)
+  assert.equal(state.renderer.scenes.source, "phaser_scene_manager")
+  assert.equal(state.renderer.scenes.bootSceneKey, "RendererLoadingScene")
+  assert.equal(state.renderer.scenes.worldSceneKey, "OfficeScene")
+  assert.ok(state.renderer.scenes.activeSceneKeys.includes("OfficeScene"))
+  assert.ok(
+    state.renderer.scenes.registeredSceneKeys.includes("RendererLoadingScene"),
+  )
+  assert.ok(state.renderer.scenes.registeredSceneKeys.includes("OfficeScene"))
+  assert.ok(
+    state.renderer.scenes.plannedSceneKeys.includes(
+      "GeneratedRoomPreviewScene",
+    ),
+  )
+  assert.ok(
+    state.renderer.scenes.scenes.some(
+      (scene) => scene.key === "OfficeScene" && scene.status === "active",
+    ),
+  )
   assert.equal(state.renderer.assets.primarySource, "internal_atlas")
   assert.equal(state.renderer.assets.atlasLoaded, true)
   assert.equal(
@@ -1053,6 +1071,11 @@ function snapshotForReport(label, state) {
         particleEmitters: state.renderer.effects.objectCounts.particleEmitters,
         particleAliveBudget:
           state.renderer.effects.objectCounts.particleAliveBudget,
+      },
+      scenes: {
+        activeSceneKeys: state.renderer.scenes.activeSceneKeys,
+        registeredSceneKeys: state.renderer.scenes.registeredSceneKeys,
+        plannedSceneKeys: state.renderer.scenes.plannedSceneKeys,
       },
       cameras: state.camera.secondary,
       mapValidation: state.renderer.mapValidation,

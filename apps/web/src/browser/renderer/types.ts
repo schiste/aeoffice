@@ -772,6 +772,35 @@ export interface RendererAssetPackInfo {
   }
 }
 
+export type RendererSceneStatus = "registered" | "active" | "planned"
+
+export interface RendererSceneDescriptor {
+  readonly key: string
+  readonly role:
+    | "preload"
+    | "world_runtime"
+    | "navigation"
+    | "preview"
+    | "editor"
+    | "transition"
+  readonly status: RendererSceneStatus
+  readonly owns: readonly string[]
+}
+
+export interface RendererSceneManagerInfo {
+  readonly source: "phaser_scene_manager"
+  readonly architecture: "boot_preload_office_runtime"
+  readonly bootSceneKey: "RendererLoadingScene"
+  readonly worldSceneKey: "OfficeScene"
+  readonly preloadOwner: "RendererLoadingScene"
+  readonly transitionOwner: "RendererSceneManager"
+  readonly activeSceneKey?: string
+  readonly activeSceneKeys: readonly string[]
+  readonly registeredSceneKeys: readonly string[]
+  readonly plannedSceneKeys: readonly string[]
+  readonly scenes: readonly RendererSceneDescriptor[]
+}
+
 export interface RendererObjectPoolInfo {
   readonly activeSpriteCount: number
   readonly visibleSpriteCount: number
@@ -942,6 +971,7 @@ export interface RendererCapabilityInfo {
     readonly vertexRoundMode: "safeAuto"
   }
   readonly assets: RendererAssetPipelineInfo
+  readonly scenes: RendererSceneManagerInfo
   readonly depth: RendererDepthInfo
   readonly tilemap: RendererTilemapInfo
   readonly effects: RendererEffectsInfo

@@ -33,6 +33,7 @@ import type {
   AvatarEmoteId,
   RenderedPlayer,
   RendererAvatarInfo,
+  RendererAssetPackInfo,
   RendererAssetPipelineInfo,
   RendererCameraMode,
   RendererCameraState,
@@ -78,7 +79,10 @@ export class OfficeScene extends Phaser.Scene {
   private lastCullingKey = ""
   private sceneReady = false
 
-  constructor(private readonly onReady: (scene: OfficeScene) => void) {
+  constructor(
+    private readonly onReady: (scene: OfficeScene) => void,
+    assetPackInfoProvider?: () => RendererAssetPackInfo | undefined,
+  ) {
     super({ key: "OfficeScene" })
     this.avatarRenderer = new AvatarRenderer(this)
     this.cameraController = new CameraController(this)
@@ -90,12 +94,17 @@ export class OfficeScene extends Phaser.Scene {
     this.staticLayerBaker = new StaticLayerBaker(this)
     this.depthDebugOverlay = new DepthDebugOverlay(this)
     this.devToolsOverlay = new DevToolsOverlay(this)
-    this.assetPackLoader = new RendererAssetPackLoader(this)
+    this.assetPackLoader = new RendererAssetPackLoader(
+      this,
+      assetPackInfoProvider,
+    )
     this.rendererDepthInfo = emptyDepthInfo(this.depthDebugOverlay.isEnabled())
   }
 
   preload(): void {
-    this.assetPackLoader.preloadCoreOfficePack()
+    if (!this.assetPackLoader.coreAssetsReady()) {
+      this.assetPackLoader.preloadCoreOfficePack()
+    }
   }
 
   create(): void {

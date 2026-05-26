@@ -923,7 +923,16 @@ function assertRenderStateContract(state) {
 function assertEngineArchitectureContract(state) {
   assert.equal(state.engine?.source, "browser_engine_runtime")
   assert.equal(state.engine?.renderer?.host, "RendererHost")
+  assert.equal(state.engine?.renderer?.sceneManager, "RendererSceneManager")
   assert.equal(state.engine?.renderer?.scene, "OfficeScene")
+  assert.deepEqual(state.engine?.renderer?.scenes, [
+    "RendererLoadingScene",
+    "OfficeScene",
+  ])
+  assert.ok(
+    state.engine?.renderer?.plannedScenes?.includes("GeneratedRoomPreviewScene"),
+    `Expected planned scene list, got ${JSON.stringify(state.engine?.renderer)}.`,
+  )
   assert.ok(
     state.engine?.renderer?.modules?.includes("TilemapRenderer"),
     `Expected TilemapRenderer module, got ${JSON.stringify(state.engine?.renderer)}.`,
@@ -938,6 +947,7 @@ function assertEngineArchitectureContract(state) {
     state.engine?.boundaries?.phaserIsolatedBehindRendererHost,
     true,
   )
+  assert.equal(state.engine?.boundaries?.sceneLifecycleOwnedByRenderer, true)
   assert.equal(
     state.engine?.boundaries?.inputStateOwnedOutsideDomEvents,
     true,
@@ -945,6 +955,32 @@ function assertEngineArchitectureContract(state) {
   assert.equal(
     state.engine?.boundaries?.realtimeTransportOwnedByWorldSync,
     true,
+  )
+  assert.equal(state.renderer.scenes.source, "phaser_scene_manager")
+  assert.equal(state.renderer.scenes.architecture, "boot_preload_office_runtime")
+  assert.equal(state.renderer.scenes.bootSceneKey, "RendererLoadingScene")
+  assert.equal(state.renderer.scenes.worldSceneKey, "OfficeScene")
+  assert.equal(state.renderer.scenes.preloadOwner, "RendererLoadingScene")
+  assert.ok(state.renderer.scenes.activeSceneKeys.includes("OfficeScene"))
+  assert.ok(
+    state.renderer.scenes.registeredSceneKeys.includes("RendererLoadingScene"),
+  )
+  assert.ok(state.renderer.scenes.registeredSceneKeys.includes("OfficeScene"))
+  assert.ok(
+    state.renderer.scenes.plannedSceneKeys.includes("AvatarPreviewScene"),
+  )
+  assert.ok(state.renderer.scenes.plannedSceneKeys.includes("MapEditorScene"))
+  assert.ok(
+    state.renderer.scenes.scenes.some(
+      (scene) => scene.key === "OfficeScene" && scene.status === "active",
+    ),
+  )
+  assert.ok(
+    state.renderer.scenes.scenes.some(
+      (scene) =>
+        scene.key === "GeneratedRoomPreviewScene" &&
+        scene.status === "planned",
+    ),
   )
 }
 

@@ -11,6 +11,7 @@ import type {
   RendererEffectsInfo,
   RendererMapValidationInfo,
   RendererPerformanceInfo,
+  RendererSceneManagerInfo,
   RendererTilemapInfo,
 } from "./types"
 
@@ -35,6 +36,7 @@ export class RendererCapabilityReporter {
     cameraRoundPixels: boolean,
     tilemap: RendererTilemapInfo,
     assets: RendererAssetPipelineInfo,
+    scenes: RendererSceneManagerInfo,
     depth: RendererDepthInfo,
     effects: RendererEffectsInfo,
     mapValidation: RendererMapValidationInfo,
@@ -73,6 +75,7 @@ export class RendererCapabilityReporter {
         cameraRoundPixels,
       },
       assets,
+      scenes,
       depth,
       tilemap,
       effects,

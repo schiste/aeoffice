@@ -6414,7 +6414,16 @@ function engineArchitectureTextState() {
     source: "browser_engine_runtime",
     renderer: {
       host: "RendererHost",
+      sceneManager: "RendererSceneManager",
       scene: "OfficeScene",
+      scenes: ["RendererLoadingScene", "OfficeScene"],
+      plannedScenes: [
+        "LobbyScene",
+        "AvatarPreviewScene",
+        "GeneratedRoomPreviewScene",
+        "MapEditorScene",
+        "RoomTransitionScene",
+      ],
       modules: [
         "TilemapRenderer",
         "ObjectRenderer",
@@ -6432,6 +6441,7 @@ function engineArchitectureTextState() {
     },
     boundaries: {
       phaserIsolatedBehindRendererHost: true,
+      sceneLifecycleOwnedByRenderer: true,
       inputStateOwnedOutsideDomEvents: true,
       realtimeTransportOwnedByWorldSync: true,
       worldActionsRequireServerPermission: true,
