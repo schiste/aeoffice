@@ -35,13 +35,19 @@ import {
 } from "./client-motion-controller"
 import {
   DEFAULT_MOVEMENT_FEEL,
+  DEFAULT_MOVEMENT_FEEL_PRESET_ID,
   MOVEMENT_FEEL_CONTROLS,
+  MOVEMENT_FEEL_PRESETS,
   clampMovementFeelValue,
   formatMovementFeelValue,
+  isMovementFeelPresetId,
   isMovementFeelTuningKey,
+  movementFeelPresetForId,
+  movementFeelPresetIdForTuning,
   movementCollisionBodySize,
   movementCollisionSlideOptions,
   normalizeMovementFeel,
+  type MovementFeelPresetId,
   type MovementFeelTuning,
   type MovementFeelTuningKey,
 } from "./movement-feel"
@@ -682,6 +688,7 @@ const elements = {
   movementDebugCopy: mustQuery<HTMLButtonElement>("#movement-debug-copy"),
   movementFeelPanel: mustQuery<HTMLDetailsElement>("#movement-feel-panel"),
   movementFeelSummary: mustQuery<HTMLElement>("#movement-feel-summary"),
+  movementFeelPresets: mustQuery<HTMLElement>("#movement-feel-presets"),
   movementFeelControls: mustQuery<HTMLElement>("#movement-feel-controls"),
   movementFeelReset: mustQuery<HTMLButtonElement>("#movement-feel-reset"),
   rendererDevMenu: mustQuery<HTMLElement>("#renderer-dev-menu"),
@@ -1671,9 +1678,21 @@ function installMovementFeelPanel(): void {
   elements.movementFeelPanel.hidden = !state.devTools.gated
   if (!state.devTools.gated) return
 
+  elements.movementFeelPresets.replaceChildren(
+    ...MOVEMENT_FEEL_PRESETS.map(createMovementFeelPresetButton),
+  )
   elements.movementFeelControls.replaceChildren(
     ...MOVEMENT_FEEL_CONTROLS.map(createMovementFeelControl),
   )
+  elements.movementFeelPresets.addEventListener("click", (event) => {
+    const button = event.target instanceof Element
+      ? event.target.closest<HTMLButtonElement>("[data-feel-preset]")
+      : undefined
+    const presetId = button?.dataset.feelPreset
+    if (!presetId || !isMovementFeelPresetId(presetId)) return
+
+    applyMovementFeelPreset(presetId)
+  })
   elements.movementFeelControls.addEventListener("input", (event) => {
     const input = event.target
     if (!(input instanceof HTMLInputElement)) return
@@ -1684,10 +1703,20 @@ function installMovementFeelPanel(): void {
     applyMovementFeelValue(key, Number(input.value))
   })
   elements.movementFeelReset.addEventListener("click", () => {
-    applyMovementFeel(DEFAULT_MOVEMENT_FEEL)
-    logMovementDebug("feel", "reset defaults")
+    applyMovementFeelPreset(DEFAULT_MOVEMENT_FEEL_PRESET_ID)
   })
   applyMovementFeel(state.movementFeel)
+}
+
+function createMovementFeelPresetButton(
+  preset: (typeof MOVEMENT_FEEL_PRESETS)[number],
+): HTMLButtonElement {
+  const button = document.createElement("button")
+  button.type = "button"
+  button.dataset.feelPreset = preset.id
+  button.textContent = preset.label
+  button.title = preset.summary
+  return button
 }
 
 function createMovementFeelControl(control: (typeof MOVEMENT_FEEL_CONTROLS)[number]): HTMLElement {
@@ -1736,6 +1765,12 @@ function applyMovementFeelValue(
   )
 }
 
+function applyMovementFeelPreset(presetId: MovementFeelPresetId): void {
+  const preset = movementFeelPresetForId(presetId)
+  applyMovementFeel(preset.values)
+  logMovementDebug("feel-preset", `${preset.id}: ${preset.summary}`)
+}
+
 function applyMovementFeel(nextFeel: MovementFeelTuning): void {
   state.movementFeel = normalizeMovementFeel(nextFeel)
   inputController.setFeel(state.movementFeel)
@@ -1748,7 +1783,23 @@ function renderMovementFeelPanel(): void {
   elements.movementFeelPanel.hidden = !state.devTools.gated
   if (!state.devTools.gated) return
 
-  elements.movementFeelSummary.textContent = "Client prediction + visual feel"
+  const presetId = movementFeelPresetIdForTuning(state.movementFeel)
+  const activePreset = presetId === "custom"
+    ? undefined
+    : movementFeelPresetForId(presetId)
+  elements.movementFeelSummary.textContent = activePreset
+    ? activePreset.summary
+    : "Custom client prediction + visual feel"
+  MOVEMENT_FEEL_PRESETS.forEach((preset) => {
+    const button = elements.movementFeelPresets.querySelector<HTMLButtonElement>(
+      `[data-feel-preset="${preset.id}"]`,
+    )
+    if (!button) return
+
+    const active = preset.id === presetId
+    button.setAttribute("aria-pressed", String(active))
+    button.dataset.active = String(active)
+  })
   MOVEMENT_FEEL_CONTROLS.forEach((control) => {
     const value = state.movementFeel[control.key]
     const range = elements.movementFeelControls.querySelector<HTMLInputElement>(
@@ -5708,9 +5759,25 @@ function clientMotionTextState() {
 }
 
 function movementFeelTextState() {
+  const activePresetId = movementFeelPresetIdForTuning(state.movementFeel)
+
   return {
     source: "client_runtime_tuning",
     panelVisible: !elements.movementFeelPanel.hidden,
+    activePresetId,
+    activePresetLabel:
+      activePresetId === "custom"
+        ? "Custom"
+        : movementFeelPresetForId(activePresetId).label,
+    presets: MOVEMENT_FEEL_PRESETS.map((preset) => ({
+      id: preset.id,
+      label: preset.label,
+      summary: preset.summary,
+      active: preset.id === activePresetId,
+      values: {
+        ...preset.values,
+      },
+    })),
     controls: MOVEMENT_FEEL_CONTROLS.map((control) => ({
       key: control.key,
       label: control.label,
@@ -5913,6 +5980,10 @@ function renderDemoToText(): string {
       overlays: state.devTools.overlays,
       feelPanel: {
         visible: !elements.movementFeelPanel.hidden,
+        presetCount: elements.movementFeelPresets.querySelectorAll(
+          "[data-feel-preset]",
+        ).length,
+        activePresetId: movementFeelPresetIdForTuning(state.movementFeel),
         controlCount: elements.movementFeelControls.querySelectorAll(
           "[data-feel-control]",
         ).length,
@@ -6063,6 +6134,7 @@ declare global {
     }
     __aedventureMovementFeel?: {
       setValue: (key: MovementFeelTuningKey, value: number) => unknown
+      setPreset: (presetId: MovementFeelPresetId) => unknown
       reset: () => unknown
       state: () => unknown
     }
@@ -6126,6 +6198,12 @@ if (localAutomationHost()) {
 
 if (localAutomationHost()) {
   window.__aedventureMovementFeel = {
+    setPreset: (presetId) => {
+      if (state.devTools.gated && isMovementFeelPresetId(presetId)) {
+        applyMovementFeelPreset(presetId)
+      }
+      return movementFeelTextState()
+    },
     setValue: (key, value) => {
       if (!state.devTools.gated || !isMovementFeelTuningKey(key)) {
         return movementFeelTextState()
@@ -6136,7 +6214,7 @@ if (localAutomationHost()) {
     },
     reset: () => {
       if (state.devTools.gated) {
-        applyMovementFeel(DEFAULT_MOVEMENT_FEEL)
+        applyMovementFeelPreset(DEFAULT_MOVEMENT_FEEL_PRESET_ID)
       }
       return movementFeelTextState()
     },

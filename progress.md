@@ -963,3 +963,20 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   screenshots were visually inspected. The standalone develop-web-game client
   was attempted against the local dev host on port 8108 but still fails before
   navigation because it cannot resolve `playwright` from the skill runtime.
+- Movement feel presets now live beside the tuning controls in
+  `movement-feel.ts`: Default, Snappy, Smooth, Heavy, and Mobile. The dev-only
+  feel panel exposes the presets as quick buttons while preserving direct
+  slider tuning; any manual slider edit reports the active preset as `custom`.
+- `render_game_to_text.movement.feel` now reports active preset id/label,
+  preset metadata, preset values, and existing slider controls. The local
+  `__aedventureMovementFeel` dev API can now apply presets as well as
+  individual values, which keeps browser QA and future agents aligned with the
+  panel.
+- Verification passed after the movement-feel preset slice:
+  `node --check scripts/renderer-qa.test.cjs`,
+  `npm --workspace @aedventure/web run build`, `npm run qa:renderer`,
+  `npm run smoke:frontend`, `npm run qa:responsive`, `npm run check`, and
+  `git diff --check`. The devtools-page, desktop, and mobile screenshots were
+  visually inspected. The standalone develop-web-game client was attempted
+  against the local dev host on port 8108 but still fails before navigation
+  because it cannot resolve `playwright` from the skill runtime.

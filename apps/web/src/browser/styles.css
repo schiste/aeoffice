@@ -808,7 +808,7 @@ h1 {
 }
 
 .renderer-dev-menu-header strong {
-  color: var(--brand-strong);
+  color: var(--accent-strong);
   font-size: 11px;
   font-weight: 850;
 }
@@ -838,7 +838,7 @@ h1 {
   width: 14px;
   height: 14px;
   margin: 0;
-  accent-color: var(--brand);
+  accent-color: var(--accent);
 }
 
 .renderer-dev-overlay-toggle span {
@@ -1410,7 +1410,7 @@ h1 {
 .controls button[data-active="true"] {
   border-color: rgba(38, 116, 99, 0.52);
   background: rgba(38, 116, 99, 0.16);
-  color: var(--brand-strong);
+  color: var(--accent-strong);
 }
 
 .controls-center {
@@ -1506,6 +1506,30 @@ h1 {
   font-size: 11px;
 }
 
+.movement-feel-presets {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  margin-bottom: var(--space-2);
+}
+
+.movement-feel-presets button {
+  min-width: 0;
+  min-height: 32px;
+  padding: 0 var(--space-2);
+  border-color: rgba(34, 45, 42, 0.12);
+  background: rgba(255, 255, 255, 0.58);
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.movement-feel-presets button[data-active="true"] {
+  border-color: rgba(38, 116, 99, 0.5);
+  background: var(--accent);
+  color: white;
+}
+
 .movement-feel-controls {
   display: grid;
   gap: var(--space-2);
@@ -1527,7 +1551,7 @@ h1 {
 }
 
 .movement-feel-control-header output {
-  color: var(--brand-strong);
+  color: var(--accent-strong);
   font-size: 12px;
   font-weight: 850;
 }

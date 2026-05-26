@@ -252,8 +252,15 @@ async function verifyDevTools(browser, url, report) {
       ].sort(),
     )
     assert.equal(initial.devTools.feelPanel.visible, true)
+    assert.equal(initial.devTools.feelPanel.presetCount, 5)
+    assert.equal(initial.devTools.feelPanel.activePresetId, "default")
     assert.equal(initial.devTools.feelPanel.controlCount, 13)
     assert.equal(initial.movement.feel.panelVisible, true)
+    assert.equal(initial.movement.feel.activePresetId, "default")
+    assert.deepEqual(
+      initial.movement.feel.presets.map((preset) => preset.id),
+      ["default", "snappy", "smooth", "heavy", "mobile"],
+    )
     assert.equal(
       initial.movement.feel.values.turnResponseTimeConstantMs,
       18,
@@ -295,10 +302,29 @@ async function verifyDevTools(browser, url, report) {
     })
     report.screenshots.push(await captureCanvas(page, "devtools-zone-canvas.png"))
 
+    await page.locator('[data-feel-preset="smooth"]').click()
+    const smoothFeel = await waitForTextState(
+      page,
+      (state) =>
+        state.movement?.feel?.activePresetId === "smooth" &&
+        state.devTools?.feelPanel?.activePresetId === "smooth" &&
+        state.movement?.feel?.values?.turnResponseTimeConstantMs === 34 &&
+        state.movement?.motion?.feel?.values?.activeCorrectionTimeConstantMs ===
+          260,
+    )
+    assert.equal(smoothFeel.movement.feel.activePresetLabel, "Smooth")
+    assert.ok(
+      smoothFeel.movement.debugLog.some((entry) =>
+        /feel-preset: smooth/.test(entry),
+      ),
+      "Expected movement trace to record smooth preset selection.",
+    )
+
     await page.locator('[data-feel-range="turnResponseTimeConstantMs"]').fill("9")
     const tunedFeel = await waitForTextState(
       page,
       (state) =>
+        state.movement?.feel?.activePresetId === "custom" &&
         state.movement?.feel?.values?.turnResponseTimeConstantMs === 9 &&
         state.movement?.motion?.feel?.values?.turnResponseTimeConstantMs === 9,
     )
@@ -334,8 +360,20 @@ async function verifyDevTools(browser, url, report) {
       )
     })
     assert.equal(bodyTunedFeel.values.collisionBodyRadiusPx, 7)
+    const mobilePreset = await page.evaluate(() => {
+      if (!window.__aedventureMovementFeel?.setPreset) {
+        throw new Error("Missing movement feel preset dev API.")
+      }
+
+      return window.__aedventureMovementFeel.setPreset("mobile")
+    })
+    assert.equal(mobilePreset.activePresetId, "mobile")
+    assert.equal(mobilePreset.values.runSpeedPxPerSecond, 138)
+    assert.equal(mobilePreset.values.analogCurveExponent, 0.75)
     report.devTools.push({
       label: "movement-feel-tuning",
+      presetIds: smoothFeel.movement.feel.presets.map((preset) => preset.id),
+      selectedPresetId: mobilePreset.activePresetId,
       turnResponseTimeConstantMs:
         tunedFeel.movement.feel.values.turnResponseTimeConstantMs,
       collisionSlideSpeedScale: apiTunedFeel.values.collisionSlideSpeedScale,

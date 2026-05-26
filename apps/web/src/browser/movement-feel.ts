@@ -18,6 +18,12 @@ export interface MovementFeelTuning {
 }
 
 export type MovementFeelTuningKey = keyof MovementFeelTuning
+export type MovementFeelPresetId =
+  | "default"
+  | "snappy"
+  | "smooth"
+  | "heavy"
+  | "mobile"
 
 export interface MovementFeelControl {
   readonly key: MovementFeelTuningKey
@@ -27,6 +33,13 @@ export interface MovementFeelControl {
   readonly step: number
   readonly unit: string
   readonly help: string
+}
+
+export interface MovementFeelPreset {
+  readonly id: MovementFeelPresetId
+  readonly label: string
+  readonly summary: string
+  readonly values: MovementFeelTuning
 }
 
 export const MOVEMENT_WALK_SPEED_PX_PER_SECOND = 88
@@ -65,6 +78,98 @@ export const DEFAULT_MOVEMENT_FEEL: MovementFeelTuning = {
   stopVelocityEpsilonPxPerSecond:
     MOVEMENT_STOP_VELOCITY_EPSILON_PX_PER_SECOND,
 }
+
+export const DEFAULT_MOVEMENT_FEEL_PRESET_ID: MovementFeelPresetId = "default"
+
+export const MOVEMENT_FEEL_PRESETS: readonly MovementFeelPreset[] = [
+  {
+    id: "default",
+    label: "Default",
+    summary: "Balanced office movement baseline.",
+    values: DEFAULT_MOVEMENT_FEEL,
+  },
+  {
+    id: "snappy",
+    label: "Snappy",
+    summary: "Fast response for precise keyboard movement.",
+    values: {
+      ...DEFAULT_MOVEMENT_FEEL,
+      walkSpeedPxPerSecond: 98,
+      runSpeedPxPerSecond: 172,
+      accelerationTimeConstantMs: 16,
+      decelerationTimeConstantMs: 18,
+      turnResponseTimeConstantMs: 8,
+      collisionBodyRadiusPx: 7.25,
+      collisionSlideMaxNudgePx: 14,
+      activeCorrectionTimeConstantMs: 140,
+      idleCorrectionTimeConstantMs: 70,
+      softCorrectionThresholdPx: 1,
+      collisionSlideSpeedScale: 0.9,
+    },
+  },
+  {
+    id: "smooth",
+    label: "Smooth",
+    summary: "Gliding feel with softer correction blends.",
+    values: {
+      ...DEFAULT_MOVEMENT_FEEL,
+      walkSpeedPxPerSecond: 86,
+      runSpeedPxPerSecond: 144,
+      accelerationTimeConstantMs: 52,
+      decelerationTimeConstantMs: 46,
+      turnResponseTimeConstantMs: 34,
+      analogCurveExponent: 1.05,
+      collisionSlideMaxNudgePx: 13,
+      activeCorrectionTimeConstantMs: 260,
+      idleCorrectionTimeConstantMs: 150,
+      softCorrectionThresholdPx: 2.5,
+      hardCorrectionThresholdPx: 104,
+      collisionSlideSpeedScale: 0.92,
+    },
+  },
+  {
+    id: "heavy",
+    label: "Heavy",
+    summary: "Weightier movement for slower, deliberate avatars.",
+    values: {
+      ...DEFAULT_MOVEMENT_FEEL,
+      walkSpeedPxPerSecond: 76,
+      runSpeedPxPerSecond: 122,
+      accelerationTimeConstantMs: 82,
+      decelerationTimeConstantMs: 70,
+      turnResponseTimeConstantMs: 58,
+      analogCurveExponent: 1.15,
+      collisionBodyRadiusPx: 8.25,
+      collisionSlideMaxNudgePx: 10,
+      activeCorrectionTimeConstantMs: 300,
+      idleCorrectionTimeConstantMs: 170,
+      softCorrectionThresholdPx: 2,
+      hardCorrectionThresholdPx: 100,
+      collisionSlideSpeedScale: 0.75,
+    },
+  },
+  {
+    id: "mobile",
+    label: "Mobile",
+    summary: "Analog-friendly feel for touch joystick control.",
+    values: {
+      ...DEFAULT_MOVEMENT_FEEL,
+      walkSpeedPxPerSecond: 84,
+      runSpeedPxPerSecond: 138,
+      accelerationTimeConstantMs: 42,
+      decelerationTimeConstantMs: 36,
+      turnResponseTimeConstantMs: 24,
+      analogCurveExponent: 0.75,
+      collisionBodyRadiusPx: 7.75,
+      collisionSlideMaxNudgePx: 15,
+      activeCorrectionTimeConstantMs: 220,
+      idleCorrectionTimeConstantMs: 120,
+      softCorrectionThresholdPx: 2,
+      hardCorrectionThresholdPx: 112,
+      collisionSlideSpeedScale: 0.95,
+    },
+  },
+]
 
 export const MOVEMENT_FEEL_CONTROLS: readonly MovementFeelControl[] = [
   {
@@ -189,11 +294,38 @@ export const MOVEMENT_FEEL_CONTROLS: readonly MovementFeelControl[] = [
 const MOVEMENT_FEEL_CONTROL_MAP = new Map(
   MOVEMENT_FEEL_CONTROLS.map((control) => [control.key, control]),
 )
+const MOVEMENT_FEEL_PRESET_MAP = new Map(
+  MOVEMENT_FEEL_PRESETS.map((preset) => [preset.id, preset]),
+)
 
 export function movementFeelControlForKey(
   key: MovementFeelTuningKey,
 ): MovementFeelControl | undefined {
   return MOVEMENT_FEEL_CONTROL_MAP.get(key)
+}
+
+export function movementFeelPresetForId(
+  id: MovementFeelPresetId,
+): MovementFeelPreset {
+  return MOVEMENT_FEEL_PRESET_MAP.get(id) ?? MOVEMENT_FEEL_PRESETS[0]
+}
+
+export function isMovementFeelPresetId(
+  value: string,
+): value is MovementFeelPresetId {
+  return MOVEMENT_FEEL_PRESET_MAP.has(value as MovementFeelPresetId)
+}
+
+export function movementFeelPresetIdForTuning(
+  feel: MovementFeelTuning,
+): MovementFeelPresetId | "custom" {
+  const normalized = normalizeMovementFeel(feel)
+
+  return (
+    MOVEMENT_FEEL_PRESETS.find((preset) =>
+      movementFeelValuesEqual(normalized, normalizeMovementFeel(preset.values)),
+    )?.id ?? "custom"
+  )
 }
 
 export function isMovementFeelTuningKey(
@@ -293,4 +425,13 @@ function decimalPrecision(value: number): number {
 function roundMovementComponent(value: number): number {
   if (Math.abs(value) < 0.0005) return 0
   return Number(Math.max(-1, Math.min(1, value)).toFixed(3))
+}
+
+function movementFeelValuesEqual(
+  first: MovementFeelTuning,
+  second: MovementFeelTuning,
+): boolean {
+  return (Object.keys(DEFAULT_MOVEMENT_FEEL) as MovementFeelTuningKey[]).every(
+    (key) => first[key] === second[key],
+  )
 }
