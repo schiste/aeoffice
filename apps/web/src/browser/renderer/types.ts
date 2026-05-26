@@ -148,6 +148,14 @@ export type RendererZoneAvailability =
 
 export type RendererZoneAction = "join_meeting" | "enter_private" | "enter_portal"
 
+export type RendererZoneFeedback =
+  | "none"
+  | "meeting_ready"
+  | "private_boundary"
+  | "private_access_available"
+  | "portal_ready"
+  | "joined"
+
 export interface RendererZoneBounds {
   readonly x: number
   readonly y: number
@@ -170,6 +178,7 @@ export interface RendererZoneInfo {
   readonly hovered: boolean
   readonly availability: RendererZoneAvailability
   readonly availableAction?: RendererZoneAction
+  readonly feedback: RendererZoneFeedback
   readonly label: string
   readonly labelVisible: boolean
   readonly labelScale: number
@@ -216,11 +225,32 @@ export interface RendererWorldInteractionCandidate {
   readonly markerVisible: boolean
 }
 
+export type RendererWorldInteractionAffordance =
+  | "none"
+  | "walk_nearby"
+  | "checking_permission"
+  | "press_e_or_tap"
+  | "server_denied"
+
 export interface RendererWorldInteractionInfo {
   readonly source: "server_permitted_world_interactions"
   readonly authority: "server_permitted_actions_only"
   readonly permissionSource: "dev_world_action_policy" | "unavailable"
   readonly state: "idle" | "pending" | "available" | "denied"
+  readonly actionAffordance?: RendererWorldInteractionAffordance
+  readonly hotkeyLabel?: "E"
+  readonly tapLabel?: "Tap"
+  readonly hoveredCandidateId?: string
+  readonly selectedCandidateId?: string
+  readonly presentation?: {
+    readonly markerStyle: "action_marker_cards"
+    readonly selectionMode: "hover_click_marker"
+    readonly privateAreaFeedback:
+      | "none"
+      | "available"
+      | "pending"
+      | "denied"
+  }
   readonly primaryCandidateId?: string
   readonly activeCandidateIds: readonly string[]
   readonly permittedCandidateIds: readonly string[]

@@ -7,6 +7,7 @@ import type {
   RendererZoneAction,
   RendererZoneAvailability,
   RendererZoneBounds,
+  RendererZoneFeedback,
   RendererZoneInfo,
   RendererZoneInteractionState,
   RendererZoneKind,
@@ -155,6 +156,12 @@ export class ZoneRenderer {
       6,
     )
     this.drawCornerTicks(info.bounds, style.color, info.availability)
+    if (info.kind === "private") {
+      this.drawPrivateAreaFeedback(info.bounds, style.color, info.feedback)
+    }
+    if (info.kind === "portal") {
+      this.drawPortalThreshold(info.bounds, style.color, info.availability)
+    }
 
     if (info.active || info.hovered || info.availability === "joined") {
       graphics.lineStyle(9, style.color, info.availability === "joined" ? 0.22 : 0.14)
@@ -206,6 +213,67 @@ export class ZoneRenderer {
     graphics.lineTo(bounds.x + bounds.width, bounds.y + bounds.height)
     graphics.lineTo(bounds.x + bounds.width, bounds.y + bounds.height - tick)
     graphics.strokePath()
+  }
+
+  private drawPrivateAreaFeedback(
+    bounds: RendererZoneBounds,
+    color: number,
+    feedback: RendererZoneFeedback,
+  ): void {
+    const graphics = this.zoneGraphics
+    if (!graphics) return
+
+    const alpha = feedback === "private_access_available" ? 0.22 : 0.11
+    const spacing = 14
+    graphics.lineStyle(1, color, alpha)
+    graphics.beginPath()
+    for (let x = bounds.x - bounds.height; x < bounds.x + bounds.width; x += spacing) {
+      graphics.moveTo(x, bounds.y + bounds.height)
+      graphics.lineTo(x + bounds.height, bounds.y)
+    }
+    graphics.strokePath()
+
+    if (feedback === "private_access_available") {
+      graphics.lineStyle(4, color, 0.18)
+      graphics.strokeRoundedRect(
+        bounds.x + 5,
+        bounds.y + 5,
+        bounds.width - 10,
+        bounds.height - 10,
+        5,
+      )
+    }
+  }
+
+  private drawPortalThreshold(
+    bounds: RendererZoneBounds,
+    color: number,
+    availability: RendererZoneAvailability,
+  ): void {
+    const graphics = this.zoneGraphics
+    if (!graphics) return
+
+    const centerX = bounds.x + bounds.width / 2
+    const centerY = bounds.y + bounds.height / 2
+    const alpha = availability === "available" ? 0.84 : 0.42
+    const width = clamp(bounds.width * 0.52, 18, 44)
+    const height = clamp(bounds.height * 0.62, 18, 44)
+
+    graphics.lineStyle(3, color, alpha)
+    graphics.beginPath()
+    graphics.moveTo(centerX - width / 2, centerY + height / 2)
+    graphics.lineTo(centerX - width / 2, centerY - height / 2)
+    graphics.lineTo(centerX + width / 2, centerY - height / 2)
+    graphics.lineTo(centerX + width / 2, centerY + height / 2)
+    graphics.strokePath()
+    graphics.fillStyle(color, availability === "available" ? 0.16 : 0.08)
+    graphics.fillRoundedRect(
+      centerX - width / 2 + 4,
+      centerY - height / 2 + 4,
+      width - 8,
+      height - 8,
+      4,
+    )
   }
 
   private createZoneLabel(
@@ -342,7 +410,8 @@ export class ZoneRenderer {
       hovered,
       availability,
       availableAction,
-      label: zoneLabel(zone, availability, availableAction),
+      feedback: zoneFeedback(kind, availability, active, availableAction),
+      label: zoneLabel(zone, availability, availableAction, active, kind),
       labelVisible:
         active ||
         hovered ||
@@ -451,12 +520,30 @@ function zoneLabel(
   zone: FixtureZone,
   availability: RendererZoneAvailability,
   availableAction: RendererZoneAction | undefined,
+  active: boolean,
+  kind: RendererZoneKind,
 ): string {
   if (availability === "joined") return "Call joined"
   if (availableAction === "join_meeting") return "Join call"
-  if (availableAction === "enter_private") return "Private area"
-  if (availableAction === "enter_portal") return "Open door"
+  if (availableAction === "enter_private") return "Private access"
+  if (availableAction === "enter_portal") return "Door ready"
+  if (active && kind === "private") return "Private area"
+  if (active && kind === "portal") return "Door"
   return readableZoneLabel(zone)
+}
+
+function zoneFeedback(
+  kind: RendererZoneKind,
+  availability: RendererZoneAvailability,
+  active: boolean,
+  availableAction: RendererZoneAction | undefined,
+): RendererZoneFeedback {
+  if (availability === "joined") return "joined"
+  if (availableAction === "join_meeting") return "meeting_ready"
+  if (availableAction === "enter_private") return "private_access_available"
+  if (availableAction === "enter_portal") return "portal_ready"
+  if (active && kind === "private") return "private_boundary"
+  return "none"
 }
 
 function actionGlyph(action: RendererZoneAction | undefined): string {

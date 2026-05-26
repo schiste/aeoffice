@@ -1086,6 +1086,32 @@ h1 {
   line-height: 1.38;
 }
 
+.world-action-shortcut {
+  width: fit-content;
+  border: 1px solid rgba(47, 125, 83, 0.34);
+  border-radius: 6px;
+  background: rgba(255, 253, 247, 0.86);
+  color: var(--accent);
+  padding: 5px 8px;
+  font-size: 12px;
+  font-weight: 850;
+  line-height: 1;
+}
+
+.world-action-shortcut[data-state="pending"] {
+  border-color: rgba(166, 111, 25, 0.32);
+  color: var(--warning);
+}
+
+.world-action-shortcut[data-state="denied"] {
+  border-color: rgba(111, 125, 120, 0.28);
+  color: var(--ink-muted);
+}
+
+.world-action-shortcut[hidden] {
+  display: none;
+}
+
 .meeting-panel {
   border-bottom: 1px solid var(--line);
   border-radius: var(--radius-md);

@@ -156,6 +156,15 @@ export class PhaserOfficeRenderer {
     })
   }
 
+  setWorldInteractionActivationHandler(
+    handler: ((candidateId: string) => void) | undefined,
+  ): void {
+    void this.renderTask.then(async () => {
+      const scene = await this.ready
+      scene.setWorldInteractionActivationHandler(handler)
+    })
+  }
+
   zoomIn(): RendererViewportState {
     return this.setZoomFactor(this.getCameraState().zoomFactor + ZOOM_STEP)
   }

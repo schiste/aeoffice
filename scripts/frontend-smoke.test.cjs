@@ -851,6 +851,28 @@ function assertRenderStateContract(state) {
     Array.isArray(state.zones?.zones),
     "Expected zones.zones in render_game_to_text.",
   )
+  assert.equal(
+    state.worldInteractions?.authority,
+    "server_permitted_actions_only",
+  )
+  assert.ok(
+    [
+      "none",
+      "walk_nearby",
+      "checking_permission",
+      "press_e_or_tap",
+      "server_denied",
+    ].includes(state.worldInteractions?.actionAffordance),
+    `Expected interaction affordance telemetry, got ${JSON.stringify(state.worldInteractions)}.`,
+  )
+  assert.equal(
+    state.worldInteractions?.presentation?.markerStyle,
+    "action_marker_cards",
+  )
+  assert.equal(
+    state.worldInteractions?.presentation?.selectionMode,
+    "hover_click_marker",
+  )
   assert.equal(state.effects?.source, "renderer_runtime")
   assert.equal(state.effects?.authority, "visual_only")
   assert.equal(typeof state.effects?.enabled, "boolean")
@@ -2088,6 +2110,14 @@ async function assertZonePresentationSmoke(page) {
   assert.equal(meetingZone.markerVisible, true)
   assert.equal(meetingZone.labelVisible, true)
   assert.equal(zoneState.worldInteractions.authority, "server_permitted_actions_only")
+  assert.equal(zoneState.worldInteractions.actionAffordance, "press_e_or_tap")
+  assert.equal(zoneState.worldInteractions.hotkeyLabel, "E")
+  assert.equal(zoneState.worldInteractions.tapLabel, "Tap")
+  assert.deepEqual(zoneState.worldInteractions.presentation, {
+    markerStyle: "action_marker_cards",
+    selectionMode: "hover_click_marker",
+    privateAreaFeedback: "none",
+  })
   assert.equal(
     zoneState.worldInteractions.candidates.find(
       (candidate) => candidate.id === "zone:meeting-zone:join_meeting",
@@ -2141,9 +2171,22 @@ async function assertZonePresentationSmoke(page) {
   assert.equal(privateZone.meeting.panelState, "outside")
   assert.equal(privateZone.meeting.joinDisabled, true)
   assert.equal(
+    privateZone.worldInteractions.presentation.privateAreaFeedback,
+    "available",
+  )
+  assert.equal(privateZone.worldInteractions.actionAffordance, "press_e_or_tap")
+  assert.equal(
     privateZone.zones.zones.find((zone) => zone.id === "private-zone")
       .markerVisible,
     true,
+  )
+  assert.equal(
+    privateZone.zones.zones.find((zone) => zone.id === "private-zone").feedback,
+    "private_access_available",
+  )
+  assert.equal(
+    privateZone.zones.zones.find((zone) => zone.id === "private-zone").label,
+    "Private access",
   )
 
   await page.evaluate(async () => {
@@ -2164,10 +2207,21 @@ async function assertZonePresentationSmoke(page) {
         ?.availableAction === "enter_portal",
   )
   assert.equal(portalZone.meeting.joinDisabled, true)
+  assert.equal(portalZone.worldInteractions.actionAffordance, "press_e_or_tap")
   assert.equal(
     portalZone.zones.zones.find((zone) => zone.id === "portal-door")
       .markerVisible,
     true,
+  )
+  assert.equal(
+    portalZone.zones.zones.find((zone) => zone.id === "portal-door").feedback,
+    "portal_ready",
+  )
+  assert.ok(
+    portalZone.worldInteractions.candidates.some(
+      (candidate) => candidate.markerVisible && candidate.action === "open_door",
+    ),
+    "Expected a tappable door/object marker when portal area is active.",
   )
 }
 

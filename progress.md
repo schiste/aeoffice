@@ -1010,3 +1010,32 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   rebuilt stack. The required standalone develop-web-game client was attempted
   against `http://127.0.0.1:8108/app`, but it still fails before navigation
   because the skill runtime cannot resolve `playwright`.
+- World interaction presentation now has polished server-permitted affordances:
+  active candidates expose `actionAffordance`, `hotkeyLabel`, `tapLabel`,
+  selected/hovered candidate ids, and marker presentation telemetry through
+  `render_game_to_text.worldInteractions`.
+- The Phaser interaction renderer now draws zoom-aware action marker cards with
+  an `E` keycap, tap-ready prompt chip, hover/click selection, and an activation
+  callback that re-checks the current candidate in app state before running the
+  action. Overlapping portal-door markers collapse visually to the primary
+  server-approved action so the canvas does not stack duplicate labels.
+- Door/portal and private zone feedback is richer in the zone renderer:
+  portal thresholds draw doorway geometry, private areas get subtle hatch
+  feedback, and zone telemetry now reports `feedback` values such as
+  `private_access_available` and `portal_ready`.
+- The product panel now has a compact `E / Tap` action affordance, the `E`
+  hotkey triggers the current server-approved primary action, and marker taps
+  use the same action path. Frontend smoke now verifies affordance telemetry,
+  private feedback, portal feedback, and marker visibility.
+- Verification passed after the world interaction polish slice:
+  `npm --workspace @aedventure/web run build`,
+  `node --check scripts/frontend-smoke.test.cjs`, `git diff --check`,
+  `npm run smoke:frontend`, `npm run qa:renderer`, `npm run qa:responsive`,
+  and `npm run check`. Responsive and renderer screenshots were visually
+  inspected, plus a targeted Playwright screenshot of the active portal marker
+  was captured at `/private/tmp/aedventure-interaction-marker.png`. A targeted
+  browser check also verified that pressing `E` on an approved portal action
+  produces the expected "Portal Door opened" toast. The required
+  standalone develop-web-game client was attempted again against
+  `http://127.0.0.1:8108/app`, but still fails before navigation because the
+  skill runtime cannot resolve `playwright`.

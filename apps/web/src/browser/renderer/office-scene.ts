@@ -256,6 +256,12 @@ export class OfficeScene extends Phaser.Scene {
     this.interactionRenderer.render(info)
   }
 
+  setWorldInteractionActivationHandler(
+    handler: ((candidateId: string) => void) | undefined,
+  ): void {
+    this.interactionRenderer.setActivationHandler(handler)
+  }
+
   setZoneDebugOverlayEnabled(enabled: boolean): void {
     this.devToolsOverlay.setState({
       enabled: this.devToolsOverlay.getInfo().enabled || enabled,

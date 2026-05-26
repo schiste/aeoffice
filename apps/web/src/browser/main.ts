@@ -673,6 +673,7 @@ const elements = {
   worldActionPanel: mustQuery<HTMLElement>("#world-action-panel"),
   worldActionStatus: mustQuery<HTMLElement>("#world-action-status"),
   worldActionHint: mustQuery<HTMLElement>("#world-action-hint"),
+  worldActionShortcut: mustQuery<HTMLElement>("#world-action-shortcut"),
   worldActionPrimary: mustQuery<HTMLButtonElement>("#world-action-primary"),
   mediaPanel: mustQuery<HTMLElement>("#media-panel"),
   mediaPanelStatus: mustQuery<HTMLElement>("#media-panel-status"),
@@ -714,6 +715,9 @@ const elements = {
   ],
 }
 const renderer = new PhaserOfficeRenderer(elements.map)
+renderer.setWorldInteractionActivationHandler((candidateId) => {
+  queueAction(() => runWorldActionByCandidateId(candidateId))
+})
 const mobileLayoutQuery = window.matchMedia(MOBILE_LAYOUT_QUERY)
 syncRendererDevTools()
 installDevToolsKeyboardShortcuts()
@@ -813,6 +817,19 @@ elements.zoomPreset.addEventListener("change", () => {
 })
 document.addEventListener("keydown", (event) => {
   if (eventTargetConsumesMovementKeys(event.target)) return
+
+  if (event.key === "e" || event.key === "E") {
+    if (
+      !event.repeat &&
+      state.worldInteractionInfo.state === "available" &&
+      primaryWorldActionCandidate()?.serverPermitted
+    ) {
+      event.preventDefault()
+      logMovementDebug("interact", "pressed E for primary world action")
+      queueAction(() => runPrimaryWorldAction())
+    }
+    return
+  }
 
   if (event.key === "Shift") {
     if (!inputController.snapshot().shiftRunning) {
@@ -3945,6 +3962,7 @@ function syncWorldInteractionLayer(): void {
             ...candidate,
             permission: state.joined ? "pending" : "denied",
             permissionReason: state.joined ? undefined : "not_joined",
+            markerVisible: state.joined,
           }
         : candidate,
     ),
@@ -4000,7 +4018,7 @@ async function resolveWorldInteractionPermissions(
         permissionReason: allowed
           ? undefined
           : deniedReasons.get(candidate.id) ?? "server_denied",
-        markerVisible: candidate.kind === "object" && allowed,
+        markerVisible: allowed,
       }
     })
 
@@ -4270,13 +4288,17 @@ function worldActionPermitted(
 
 function renderWorldActionPanel(): void {
   const info = state.worldInteractionInfo
-  const primary = info.primaryCandidateId
-    ? info.candidates.find((candidate) => candidate.id === info.primaryCandidateId)
-    : undefined
+  const primary = primaryWorldActionCandidate()
 
   elements.worldActionPanel.dataset.state = info.state
+  elements.worldActionPanel.dataset.action = primary?.action ?? "none"
   elements.worldActionStatus.textContent = worldActionStatusLabel(info, primary)
   elements.worldActionHint.textContent = worldActionHintLabel(info, primary)
+  elements.worldActionShortcut.hidden = !primary
+  elements.worldActionShortcut.dataset.state = primary?.serverPermitted
+    ? "available"
+    : info.state
+  elements.worldActionShortcut.textContent = worldActionShortcutLabel(info, primary)
   elements.worldActionPrimary.disabled =
     !primary || !primary.serverPermitted || info.state !== "available"
   elements.worldActionPrimary.textContent = primary
@@ -4285,34 +4307,52 @@ function renderWorldActionPanel(): void {
 }
 
 async function runPrimaryWorldAction(): Promise<void> {
-  const info = state.worldInteractionInfo
-  const primary = info.primaryCandidateId
-    ? info.candidates.find((candidate) => candidate.id === info.primaryCandidateId)
-    : undefined
+  await runWorldAction(primaryWorldActionCandidate())
+}
 
-  if (!primary || !primary.serverPermitted) {
+async function runWorldActionByCandidateId(candidateId: string): Promise<void> {
+  const info = state.worldInteractionInfo
+  const candidate = info.candidates.find(
+    (candidate) => candidate.id === candidateId,
+  )
+
+  await runWorldAction(candidate)
+}
+
+async function runWorldAction(
+  candidate: RendererWorldInteractionCandidate | undefined,
+): Promise<void> {
+  if (!candidate || !candidate.serverPermitted) {
     publishToast("No server-approved world action is available here.", "warning")
     return
   }
 
-  switch (primary.action) {
+  switch (candidate.action) {
     case "join_meeting":
       await joinMeeting()
       return
     case "enter_private":
-      recordEvent(`Entered ${primary.label}`)
-      publishToast(`Access granted: ${primary.label}`, "success")
+      recordEvent(`Entered ${candidate.label}`)
+      publishToast(`Access granted: ${candidate.label}`, "success")
       return
     case "enter_portal":
     case "open_door":
-      recordEvent(`Used ${primary.label}`)
-      publishToast(`${primary.label} opened`, "success")
+      recordEvent(`Used ${candidate.label}`)
+      publishToast(`${candidate.label} opened`, "success")
       return
     case "use_object":
-      recordEvent(`Used ${primary.label}`)
-      publishToast(`${primary.label} ready`, "info")
+      recordEvent(`Used ${candidate.label}`)
+      publishToast(`${candidate.label} ready`, "info")
       return
   }
+}
+
+function primaryWorldActionCandidate(): RendererWorldInteractionCandidate | undefined {
+  const info = state.worldInteractionInfo
+
+  return info.primaryCandidateId
+    ? info.candidates.find((candidate) => candidate.id === info.primaryCandidateId)
+    : undefined
 }
 
 function worldActionStatusLabel(
@@ -4336,7 +4376,13 @@ function worldActionHintLabel(
     return "The local world server is deciding whether this action is allowed."
   }
   if (primary.serverPermitted) {
-    return "This action is visible because the server permitted it for your current position."
+    if (primary.action === "enter_private") {
+      return "Private area access is granted here. Press E or tap the marker to continue."
+    }
+    if (primary.action === "enter_portal" || primary.action === "open_door") {
+      return "Door access is ready. Press E or tap the marker to use it."
+    }
+    return "Press E or tap the marker to use the server-approved action."
   }
   if (primary.permissionReason === "not_joined") {
     return "Enter the office before using world actions."
@@ -4345,6 +4391,16 @@ function worldActionHintLabel(
     return "World permissions are unavailable. Rejoin when the server is ready."
   }
   return "The server did not permit this action from your current state."
+}
+
+function worldActionShortcutLabel(
+  info: RendererWorldInteractionInfo,
+  primary: RendererWorldInteractionCandidate | undefined,
+): string {
+  if (!primary) return ""
+  if (info.state === "pending") return "Checking access"
+  if (!primary.serverPermitted) return "Server locked"
+  return "E / Tap"
 }
 
 function worldActionButtonLabel(
