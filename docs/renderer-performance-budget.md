@@ -50,3 +50,25 @@ Map switching should not steadily increase:
 
 The frontend smoke compares repeated 100x80 benchmark passes to catch texture
 or display-object growth.
+
+## Automated Proof Contract
+
+`render_game_to_text.performance.proofs` and
+`renderer-qa-report.json.mapSwitchLeak.proof` expose machine-readable evidence
+for the big-map gate:
+
+- `benchmarkMapsCovered`: the 20x15, 50x40, and 100x80 fixtures all rendered.
+- `tileBatching`: floor and wall layers used GPU tile layers with no CPU static
+  layer fallback.
+- `viewportCulling`: object sprites were accounted for and large maps produced
+  culled offscreen objects.
+- `objectPooling`: repeated map switches reused object sprites and did not
+  allocate new sprites for the second 100x80 pass.
+- `textureReuse`: semantic tilesets/object textures were reused by signature and
+  the second 100x80 pass did not allocate new object textures.
+- `noMapSwitchLeaks`: repeated 100x80 passes did not increase display object or
+  texture counts.
+
+The renderer QA artifact also records per-size sample counts, render duration,
+display object count, texture count, visible/culled object counts, and culling
+ratio so regressions are diagnosable without opening the app manually.

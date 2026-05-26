@@ -663,4 +663,37 @@ export interface RendererPerformanceInfo {
     readonly displayObjectCount: number
     readonly textureCount: number
   }
+  readonly proofs: RendererPerformanceProofInfo
+}
+
+export interface RendererPerformanceProofInfo {
+  readonly mapSize: `${number}x${number}`
+  readonly tileBatching: {
+    readonly compatible: boolean
+    readonly staticGpuLayerCount: number
+    readonly staticCpuLayerCount: number
+    readonly staticLayerBatchCount: number
+    readonly staticTileCount: number
+  }
+  readonly viewportCulling: {
+    readonly active: boolean
+    readonly activeObjectSpriteCount: number
+    readonly visibleObjectSpriteCount: number
+    readonly culledObjectSpriteCount: number
+    readonly culledRatio: number
+  }
+  readonly objectPooling: {
+    readonly active: boolean
+    readonly createdSpriteCount: number
+    readonly reusedSpriteCount: number
+    readonly pooledSpriteCount: number
+    readonly reuseObserved: boolean
+  }
+  readonly textureReuse: {
+    readonly tilesetReused: boolean
+    readonly cachedTextureCount: number
+    readonly createdTextureCount: number
+    readonly reusedTextureCount: number
+    readonly reuseObserved: boolean
+  }
 }

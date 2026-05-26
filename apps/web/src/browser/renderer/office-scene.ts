@@ -337,6 +337,8 @@ export class OfficeScene extends Phaser.Scene {
       camera: this.cameraController.getCameraState(),
       tileSize: this.lastTileSize,
       objectPool: this.objectRenderer.getPoolInfo(),
+      tilemap: this.tilemapInfo,
+      assets: this.assetPipelineInfo,
     })
   }
 

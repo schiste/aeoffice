@@ -884,3 +884,26 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   visually inspected. The standalone develop-web-game client still fails
   before navigation because it cannot resolve `playwright` from the skill
   runtime.
+- Big map performance proof telemetry is now explicit. `render_game_to_text`
+  exposes `performance.proofs` for map size, GPU tile batching, viewport
+  culling, object pooling, and texture reuse. The benchmark API now returns a
+  `proof` object covering benchmark map coverage, batching, culling, pooling,
+  texture reuse, and repeated-map leak checks.
+- Renderer QA now proves the 20x15, 50x40, and 100x80 benchmark sequence across
+  two passes. The latest artifact showed one Phaser game instance, zero
+  repeated 100x80 display-object delta, zero texture delta, zero created-sprite
+  delta, zero created-texture delta, GPU batching true, culling true, pooling
+  true, texture reuse true, and no map-switch leaks. The 100x80 sample rendered
+  8,356 static tiles, 512 depth objects, and culled 482 of 512 object sprites.
+- `docs/renderer-performance-budget.md` now documents the automated proof
+  contract so future renderer work knows exactly which invariants preserve SaaS
+  tenant-space readiness.
+- Verification passed after the big-map performance proof slice:
+  `npm --workspace @aedventure/web run build`,
+  `node --check scripts/frontend-smoke.test.cjs`,
+  `node --check scripts/renderer-qa.test.cjs`, `npm run smoke:frontend`,
+  `npm run qa:renderer`, `npm run qa:responsive`, `npm run check`, and
+  `git diff --check`. Renderer stress-map, desktop, and mobile screenshots were
+  visually inspected. The standalone develop-web-game client still fails
+  before navigation because it cannot resolve `playwright` from the skill
+  runtime.

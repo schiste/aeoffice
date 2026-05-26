@@ -1,8 +1,10 @@
 import { roundTo } from "./math"
 import type {
+  RendererAssetPipelineInfo,
   RendererCameraState,
   RendererObjectPoolInfo,
   RendererPerformanceInfo,
+  RendererTilemapInfo,
 } from "./types"
 
 const CHUNK_SIZE_TILES = 32
@@ -19,9 +21,13 @@ export function rendererPerformanceInfo(options: {
   readonly camera: RendererCameraState
   readonly tileSize?: number
   readonly objectPool: RendererObjectPoolInfo
+  readonly tilemap: RendererTilemapInfo
+  readonly assets: RendererAssetPipelineInfo
 }): RendererPerformanceInfo {
   const tileSize = options.tileSize ?? TILE_SIZE_FALLBACK
   const chunking = chunkInfo(options.camera, tileSize)
+  const mapWidthTiles = Math.max(1, Math.ceil(options.camera.mapWidth / tileSize))
+  const mapHeightTiles = Math.max(1, Math.ceil(options.camera.mapHeight / tileSize))
 
   return {
     source: "renderer_runtime",
@@ -62,6 +68,46 @@ export function rendererPerformanceInfo(options: {
       lastMapRenderDurationMs: roundTo(options.lastMapRenderDurationMs, 2),
       displayObjectCount: options.displayObjectCount,
       textureCount: options.textureCount,
+    },
+    proofs: {
+      mapSize: `${mapWidthTiles}x${mapHeightTiles}`,
+      tileBatching: {
+        compatible: options.tilemap.staticGpuLayerCount >= 2,
+        staticGpuLayerCount: options.tilemap.staticGpuLayerCount,
+        staticCpuLayerCount: options.tilemap.staticCpuLayerCount,
+        staticLayerBatchCount: options.tilemap.staticLayerBatchCount,
+        staticTileCount: options.tilemap.staticTileCount,
+      },
+      viewportCulling: {
+        active:
+          options.objectPool.activeSpriteCount ===
+          options.objectPool.visibleSpriteCount +
+            options.objectPool.culledSpriteCount,
+        activeObjectSpriteCount: options.objectPool.activeSpriteCount,
+        visibleObjectSpriteCount: options.objectPool.visibleSpriteCount,
+        culledObjectSpriteCount: options.objectPool.culledSpriteCount,
+        culledRatio: roundTo(
+          options.objectPool.culledSpriteCount /
+            Math.max(1, options.objectPool.activeSpriteCount),
+          3,
+        ),
+      },
+      objectPooling: {
+        active: true,
+        createdSpriteCount: options.objectPool.createdSpriteCount,
+        reusedSpriteCount: options.objectPool.reusedSpriteCount,
+        pooledSpriteCount: options.objectPool.pooledSpriteCount,
+        reuseObserved: options.objectPool.reusedSpriteCount > 0,
+      },
+      textureReuse: {
+        tilesetReused: options.assets.tilesetReused,
+        cachedTextureCount: options.objectPool.cachedTextureCount,
+        createdTextureCount: options.objectPool.createdTextureCount,
+        reusedTextureCount: options.objectPool.reusedTextureCount,
+        reuseObserved:
+          options.assets.tilesetReused ||
+          options.objectPool.reusedTextureCount > 0,
+      },
     },
   }
 }

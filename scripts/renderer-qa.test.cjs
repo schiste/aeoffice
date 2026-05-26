@@ -420,6 +420,25 @@ async function runMapSwitchLeakCheck(page) {
     benchmark.repeatedLargeMapTextureDelta <= 0,
     `Expected repeated large-map texture count not to grow, got ${benchmark.repeatedLargeMapTextureDelta}.`,
   )
+  assert.equal(
+    benchmark.repeatedLargeMapCreatedSpriteDelta,
+    0,
+    "Expected repeated large-map switch not to allocate more object sprites.",
+  )
+  assert.equal(
+    benchmark.repeatedLargeMapCreatedTextureDelta,
+    0,
+    "Expected repeated large-map switch not to allocate more object textures.",
+  )
+  assert.deepEqual(benchmark.proof, {
+    passed: true,
+    benchmarkMapsCovered: true,
+    tileBatching: true,
+    viewportCulling: true,
+    objectPooling: true,
+    textureReuse: true,
+    noMapSwitchLeaks: true,
+  })
 
   benchmark.samples.forEach((sample) => {
     assertRendererPerformance(sample.performance)
@@ -427,6 +446,12 @@ async function runMapSwitchLeakCheck(page) {
     assert.ok(sample.objectCount > 0)
     assert.ok(sample.mapRenderDurationMs >= 0)
     assert.equal(sample.performance.lifecycle.phaserGameReused, true)
+    assert.equal(sample.proof.tileBatching, true)
+    assert.equal(sample.proof.viewportCullingAccounted, true)
+    assert.equal(sample.proof.viewportCullingActive, true)
+    assert.equal(sample.proof.objectPoolingActive, true)
+    assert.equal(sample.proof.objectPoolReuseObserved, true)
+    assert.equal(sample.proof.textureReuseObserved, true)
   })
 
   return {
@@ -435,6 +460,11 @@ async function runMapSwitchLeakCheck(page) {
     repeatedLargeMapDisplayObjectDelta:
       benchmark.repeatedLargeMapDisplayObjectDelta,
     repeatedLargeMapTextureDelta: benchmark.repeatedLargeMapTextureDelta,
+    repeatedLargeMapCreatedSpriteDelta:
+      benchmark.repeatedLargeMapCreatedSpriteDelta,
+    repeatedLargeMapCreatedTextureDelta:
+      benchmark.repeatedLargeMapCreatedTextureDelta,
+    proof: benchmark.proof,
     samples: benchmark.samples.map((sample) => ({
       pass: sample.pass,
       size: sample.size,
@@ -443,6 +473,15 @@ async function runMapSwitchLeakCheck(page) {
       mapRenderDurationMs: sample.mapRenderDurationMs,
       displayObjectCount: sample.performance.runtime.displayObjectCount,
       textureCount: sample.performance.runtime.textureCount,
+      tileBatching: sample.proof.tileBatching,
+      viewportCulling: {
+        visible:
+          sample.performance.proofs.viewportCulling.visibleObjectSpriteCount,
+        culled: sample.performance.proofs.viewportCulling.culledObjectSpriteCount,
+        ratio: sample.performance.proofs.viewportCulling.culledRatio,
+      },
+      objectPooling: sample.proof.objectPoolReuseObserved,
+      textureReuse: sample.proof.textureReuseObserved,
     })),
   }
 }
@@ -503,6 +542,12 @@ function assertRendererPerformance(performance) {
   assert.equal(typeof performance.pooling.activeSpriteCount, "number")
   assert.equal(typeof performance.pooling.visibleSpriteCount, "number")
   assert.equal(typeof performance.pooling.culledSpriteCount, "number")
+  assert.match(performance.proofs.mapSize, /^\d+x\d+$/)
+  assert.equal(typeof performance.proofs.tileBatching.compatible, "boolean")
+  assert.equal(typeof performance.proofs.viewportCulling.active, "boolean")
+  assert.equal(typeof performance.proofs.viewportCulling.culledRatio, "number")
+  assert.equal(typeof performance.proofs.objectPooling.reuseObserved, "boolean")
+  assert.equal(typeof performance.proofs.textureReuse.reuseObserved, "boolean")
 }
 
 function snapshotForReport(label, state) {

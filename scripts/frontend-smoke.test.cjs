@@ -1117,6 +1117,12 @@ function assertRendererPerformance(performance) {
   assert.equal(typeof performance.runtime.lastMapRenderDurationMs, "number")
   assert.equal(typeof performance.runtime.displayObjectCount, "number")
   assert.equal(typeof performance.runtime.textureCount, "number")
+  assert.match(performance.proofs.mapSize, /^\d+x\d+$/)
+  assert.equal(typeof performance.proofs.tileBatching.compatible, "boolean")
+  assert.equal(typeof performance.proofs.viewportCulling.active, "boolean")
+  assert.equal(typeof performance.proofs.viewportCulling.culledRatio, "number")
+  assert.equal(typeof performance.proofs.objectPooling.reuseObserved, "boolean")
+  assert.equal(typeof performance.proofs.textureReuse.reuseObserved, "boolean")
 }
 
 async function assertCameraExcellence(page) {
@@ -1503,8 +1509,25 @@ async function assertLargeGpuMapSmoke(page) {
       "2:100x80",
     ],
   )
+  assert.deepEqual(benchmark.proof, {
+    passed: true,
+    benchmarkMapsCovered: true,
+    tileBatching: true,
+    viewportCulling: true,
+    objectPooling: true,
+    textureReuse: true,
+    noMapSwitchLeaks: true,
+  })
   benchmark.samples.forEach((sample) => {
     assertRendererPerformance(sample.performance)
+    assert.deepEqual(sample.proof, {
+      tileBatching: true,
+      viewportCullingAccounted: true,
+      viewportCullingActive: true,
+      objectPoolingActive: true,
+      objectPoolReuseObserved: true,
+      textureReuseObserved: true,
+    })
     assert.ok(
       sample.mapRenderDurationMs >= 0,
       `Expected map render duration for ${sample.size}.`,
@@ -1527,6 +1550,8 @@ async function assertLargeGpuMapSmoke(page) {
     benchmark.repeatedLargeMapTextureDelta <= 0,
     `Expected repeated large-map texture count not to grow, got delta ${benchmark.repeatedLargeMapTextureDelta}.`,
   )
+  assert.equal(benchmark.repeatedLargeMapCreatedSpriteDelta, 0)
+  assert.equal(benchmark.repeatedLargeMapCreatedTextureDelta, 0)
 
   const large = await waitForTextState(
     page,
@@ -1537,7 +1562,9 @@ async function assertLargeGpuMapSmoke(page) {
       state.renderer.tilemap.staticGpuLayerCount === 2 &&
       state.renderer.tilemap.staticTileCount >= 8000 &&
       state.renderer.performance.pooling.activeSpriteCount > 0 &&
-      state.renderer.performance.pooling.culledSpriteCount > 0,
+      state.renderer.performance.pooling.culledSpriteCount > 0 &&
+      state.renderer.performance.proofs.tileBatching.compatible === true &&
+      state.renderer.performance.proofs.viewportCulling.culledRatio > 0,
     9000,
   )
   assertRendererCapabilities(large)

@@ -401,6 +401,7 @@ interface BigMapBenchmarkSample {
   readonly staticTileCount: number
   readonly objectCount: number
   readonly mapRenderDurationMs: number
+  readonly proof: BigMapBenchmarkSampleProof
 }
 
 interface BigMapBenchmarkResult {
@@ -408,6 +409,28 @@ interface BigMapBenchmarkResult {
   readonly gameInstanceIds: readonly number[]
   readonly repeatedLargeMapDisplayObjectDelta: number
   readonly repeatedLargeMapTextureDelta: number
+  readonly repeatedLargeMapCreatedSpriteDelta: number
+  readonly repeatedLargeMapCreatedTextureDelta: number
+  readonly proof: BigMapBenchmarkProof
+}
+
+interface BigMapBenchmarkSampleProof {
+  readonly tileBatching: boolean
+  readonly viewportCullingAccounted: boolean
+  readonly viewportCullingActive: boolean
+  readonly objectPoolingActive: boolean
+  readonly objectPoolReuseObserved: boolean
+  readonly textureReuseObserved: boolean
+}
+
+interface BigMapBenchmarkProof {
+  readonly passed: boolean
+  readonly benchmarkMapsCovered: boolean
+  readonly tileBatching: boolean
+  readonly viewportCulling: boolean
+  readonly objectPooling: boolean
+  readonly textureReuse: boolean
+  readonly noMapSwitchLeaks: boolean
 }
 
 interface InvalidMapAttemptResult {
@@ -2267,6 +2290,7 @@ async function runBigMapBenchmarkForSmoke(): Promise<BigMapBenchmarkResult> {
         staticTileCount: renderer.getCapabilityInfo().tilemap.staticTileCount,
         objectCount: renderer.getCapabilityInfo().depth.objectCount,
         mapRenderDurationMs: performance.runtime.lastMapRenderDurationMs,
+        proof: bigMapBenchmarkSampleProof(benchmarkMap.size, performance),
       })
     }
   }
@@ -2291,6 +2315,95 @@ async function runBigMapBenchmarkForSmoke(): Promise<BigMapBenchmarkResult> {
     repeatedLargeMapTextureDelta:
       (secondLargeMap?.performance.runtime.textureCount ?? 0) -
       (firstLargeMap?.performance.runtime.textureCount ?? 0),
+    repeatedLargeMapCreatedSpriteDelta:
+      (secondLargeMap?.performance.pooling.createdSpriteCount ?? 0) -
+      (firstLargeMap?.performance.pooling.createdSpriteCount ?? 0),
+    repeatedLargeMapCreatedTextureDelta:
+      (secondLargeMap?.performance.pooling.createdTextureCount ?? 0) -
+      (firstLargeMap?.performance.pooling.createdTextureCount ?? 0),
+    proof: bigMapBenchmarkProof(samples, firstLargeMap, secondLargeMap),
+  }
+}
+
+function bigMapBenchmarkSampleProof(
+  size: BigMapBenchmarkSample["size"],
+  performance: RendererPerformanceInfo,
+): BigMapBenchmarkSampleProof {
+  const largeMap = size === "50x40" || size === "100x80"
+
+  return {
+    tileBatching:
+      performance.proofs.tileBatching.compatible &&
+      performance.proofs.tileBatching.staticGpuLayerCount === 2 &&
+      performance.proofs.tileBatching.staticCpuLayerCount === 0,
+    viewportCullingAccounted: performance.proofs.viewportCulling.active,
+    viewportCullingActive:
+      !largeMap || performance.proofs.viewportCulling.culledObjectSpriteCount > 0,
+    objectPoolingActive:
+      performance.proofs.objectPooling.active &&
+      performance.proofs.objectPooling.createdSpriteCount > 0,
+    objectPoolReuseObserved:
+      performance.lifecycle.mapRenderCount <= 1 ||
+      performance.proofs.objectPooling.reuseObserved,
+    textureReuseObserved:
+      performance.lifecycle.mapRenderCount <= 1 ||
+      performance.proofs.textureReuse.reuseObserved,
+  }
+}
+
+function bigMapBenchmarkProof(
+  samples: readonly BigMapBenchmarkSample[],
+  firstLargeMap: BigMapBenchmarkSample | undefined,
+  secondLargeMap: BigMapBenchmarkSample | undefined,
+): BigMapBenchmarkProof {
+  const benchmarkMapsCovered =
+    new Set(samples.map((sample) => sample.size)).size === 3 &&
+    samples.length === 6
+  const repeatedLargeMapDisplayObjectDelta =
+    (secondLargeMap?.performance.runtime.displayObjectCount ?? 0) -
+    (firstLargeMap?.performance.runtime.displayObjectCount ?? 0)
+  const repeatedLargeMapTextureDelta =
+    (secondLargeMap?.performance.runtime.textureCount ?? 0) -
+    (firstLargeMap?.performance.runtime.textureCount ?? 0)
+  const repeatedLargeMapCreatedSpriteDelta =
+    (secondLargeMap?.performance.pooling.createdSpriteCount ?? 0) -
+    (firstLargeMap?.performance.pooling.createdSpriteCount ?? 0)
+  const repeatedLargeMapCreatedTextureDelta =
+    (secondLargeMap?.performance.pooling.createdTextureCount ?? 0) -
+    (firstLargeMap?.performance.pooling.createdTextureCount ?? 0)
+  const tileBatching = samples.every((sample) => sample.proof.tileBatching)
+  const viewportCulling = samples.every(
+    (sample) =>
+      sample.proof.viewportCullingAccounted &&
+      sample.proof.viewportCullingActive,
+  )
+  const objectPooling =
+    samples.every((sample) => sample.proof.objectPoolingActive) &&
+    (secondLargeMap?.proof.objectPoolReuseObserved ?? false) &&
+    repeatedLargeMapCreatedSpriteDelta === 0
+  const textureReuse =
+    samples.every((sample) => sample.proof.textureReuseObserved) &&
+    repeatedLargeMapCreatedTextureDelta === 0
+  const noMapSwitchLeaks =
+    repeatedLargeMapDisplayObjectDelta <= 2 &&
+    repeatedLargeMapTextureDelta <= 0 &&
+    repeatedLargeMapCreatedSpriteDelta === 0 &&
+    repeatedLargeMapCreatedTextureDelta === 0
+
+  return {
+    passed:
+      benchmarkMapsCovered &&
+      tileBatching &&
+      viewportCulling &&
+      objectPooling &&
+      textureReuse &&
+      noMapSwitchLeaks,
+    benchmarkMapsCovered,
+    tileBatching,
+    viewportCulling,
+    objectPooling,
+    textureReuse,
+    noMapSwitchLeaks,
   }
 }
 
