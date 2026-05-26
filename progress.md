@@ -783,3 +783,26 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   `/private/tmp/aedventure-mobile-joystick.png`. The standalone
   develop-web-game client still fails before navigation because it cannot
   resolve its own `playwright` package.
+- Copyleft asset onboarding started. Downloaded and checked in LPC/OpenGameArt
+  source material for `[LPC] Floors`, `[LPC] Walls`, `[LPC] Wooden Furniture`,
+  and `[LPC] Upholstery`; the tempting `[LPC Revised] The Office` archive was
+  rejected because its bundled credits identify the actual files as OGA-BY
+  rather than copyleft.
+- The internal office atlas generator now derives floors, walls, table
+  surfaces, round tables, chair details, and couch shapes from those LPC source
+  sheets while preserving existing semantic IDs, GIDs, collision metadata, and
+  Phaser atlas paths.
+- The generated atlas manifest now records every external image input with
+  source URL, author, copyleft license choice, attribution text, credit-file
+  path when available, and SHA-256 checksums so the asset pipeline remains
+  reproducible and auditable.
+- Verification passed for the copyleft asset pass:
+  `npm --workspace @aedventure/asset-registry run build`,
+  `node packages/asset-registry/test/catalog.test.js`,
+  `node scripts/build-internal-office-atlas.cjs --check`,
+  `node scripts/verify-internal-assets.cjs`,
+  `npm --workspace @aedventure/web run build`, `npm run smoke:frontend`,
+  `npm run qa:renderer`, `npm run qa:responsive`, `npm run check`, and
+  `git diff --check`. Desktop and mobile renderer screenshots were visually
+  inspected. The standalone develop-web-game client still fails before
+  navigation because it cannot resolve `playwright` from the skill runtime.

@@ -18,6 +18,58 @@ const TILESET_ID = "tileset.internal.polished.office"
 const LOGICAL_TILE_SIZE = 32
 const EXPORT_SCALE = 2
 const ATLAS_WIDTH = 512
+const SOURCE_LICENSE = "LicenseRef-LPC-Copyleft-Mixed"
+
+const SOURCE_IMAGE_INPUTS = [
+  {
+    id: "lpc.floors.floors_png",
+    filePath: "assets/copyleft/lpc/extracted/floors/floors.png",
+    sourceUrl: "https://opengameart.org/content/lpc-floors",
+    author:
+      "bluecarrot16, Lanea Zimmerman (Sharm), William Thompson, Hyptosis, SpiderDave, Cougarmint, Stephen Challener, Bonsaiheldin, Tyler Olsen, Jetrel, jestan, The Open Surge team, Gaurav Munjal, Reemax, Silveira Neto, bleutailfly, Casper Nilsson, NaRNeRZz, Buch, keith karnage, Arthur Carvalho, Guilherme Vieira, Chris Hamons",
+    license: "CC-BY-SA-4.0",
+    attributionText:
+      '"[LPC] Floors" by bluecarrot16 and contributors. CC-BY-SA 4.0. See assets/copyleft/lpc/extracted/floors/CREDITS-floors.txt.',
+    creditsPath: "assets/copyleft/lpc/extracted/floors/CREDITS-floors.txt",
+  },
+  {
+    id: "lpc.walls.walls_png",
+    filePath: "assets/copyleft/lpc/extracted/walls/walls.png",
+    sourceUrl: "https://opengameart.org/content/lpc-walls",
+    author:
+      "bluecarrot16, Lanea Zimmerman (Sharm), Daniel Armstrong, William Thompson, Hyptosis, Zabin, Daniel Cook, Guido Bos, SpiderDave, Cougarmint, Stephen Challener, Matthew Nash, Wolthera van Hövell tot Westerflier, Reemax, bleutailfly, NaRNeRZz, Sir Spummington, Casper Nilsson, KnoblePersona",
+    license: "CC-BY-SA-3.0",
+    attributionText:
+      '"[LPC] Walls" by bluecarrot16 and contributors. CC-BY-SA 3.0. See assets/copyleft/lpc/extracted/walls/CREDITS-walls.txt.',
+    creditsPath: "assets/copyleft/lpc/extracted/walls/CREDITS-walls.txt",
+  },
+  {
+    id: "lpc.wooden_furniture.dark_wood_png",
+    filePath: "assets/copyleft/lpc/source/dark-wood.png",
+    sourceUrl: "https://opengameart.org/content/lpc-wooden-furniture",
+    author:
+      "bluecarrot16, Baŝto, Lanea Zimmerman (Sharm), William Thompson, Tuomo Untinen (Reemax), Janna/Lilius/Jannax",
+    license: "CC-BY-SA-4.0",
+    attributionText:
+      '"LPC Wooden Furniture" by bluecarrot16, Baŝto, Lanea Zimmerman (Sharm), William Thompson, Tuomo Untinen (Reemax), Janna/Lilius/Jannax. See assets/copyleft/lpc/extracted/furniture/CREDITS-furniture.txt.',
+    creditsPath: "assets/copyleft/lpc/extracted/furniture/CREDITS-furniture.txt",
+  },
+  {
+    id: "lpc.upholstery.upholstery_png",
+    filePath: "assets/copyleft/lpc/source/upholstery.png",
+    sourceUrl: "https://opengameart.org/content/lpc-upholstery",
+    author: "bluecarrot16, Lanea Zimmerman (Sharm)",
+    license: "CC-BY-SA-4.0",
+    attributionText:
+      '"[LPC] Upholstery" by bluecarrot16, Lanea Zimmerman (Sharm). Used under CC-BY-SA 4.0. Link back to https://opengameart.org/content/lpc-upholstery and https://opengameart.org/content/lpc-interior-castle-tiles.',
+    creditsPath: undefined,
+  },
+]
+
+const SOURCE_IMAGE_INPUTS_BY_ID = new Map(
+  SOURCE_IMAGE_INPUTS.map((input) => [input.id, input]),
+)
+const sourcePngCache = new Map()
 
 const FRAMES = [
   frame("floor.wood_parquet", "floor", 1, 1, false),
@@ -140,12 +192,14 @@ function manifestFor(layout, imageSha256) {
     sourceId: SOURCE_ID,
     tilesetId: TILESET_ID,
     source: {
-      author: "Aedventure project",
-      license: "CC0-1.0",
+      author: "LPC/OpenGameArt contributors and Aedventure project",
+      license: SOURCE_LICENSE,
       redistributionAllowed: "yes",
       commercialUseAllowed: "yes",
       bundledInTargetApp: true,
-      externalImageInputs: [],
+      attributionText:
+        "Generated atlas derived from bundled LPC copyleft source sheets. See externalImageInputs and assets/ASSET_MANIFEST.md.",
+      externalImageInputs: sourceImageInputsForManifest(),
     },
     image: {
       path: "/assets/internal-office-atlas@2x.png",
@@ -169,9 +223,14 @@ function manifestFor(layout, imageSha256) {
     generated: {
       tool: "scripts/build-internal-office-atlas.cjs",
       deterministic: true,
-      inputs: ["packages/asset-registry/src/index.ts"],
+      inputs: [
+        "packages/asset-registry/src/index.ts",
+        ...SOURCE_IMAGE_INPUTS.flatMap((input) =>
+          input.creditsPath ? [input.filePath, input.creditsPath] : [input.filePath],
+        ),
+      ],
       notes:
-        "The atlas is generated from project-owned vector instructions in this script. No SkyOffice or LimeZu assets are copied.",
+        "The atlas is generated from license-clean LPC copyleft image inputs plus project-owned vector overlays. No SkyOffice or LimeZu assets are copied.",
     },
     checksums: {
       imageSha256,
@@ -232,6 +291,27 @@ function frameMetadata(layoutFrame) {
   }
 }
 
+function sourceImageInputsForManifest() {
+  return SOURCE_IMAGE_INPUTS.map((input) => {
+    const fileBuffer = fs.readFileSync(path.join(ROOT_DIR, input.filePath))
+    const creditsSha256 = input.creditsPath
+      ? sha256(fs.readFileSync(path.join(ROOT_DIR, input.creditsPath)))
+      : undefined
+
+    return {
+      id: input.id,
+      filePath: input.filePath,
+      sourceUrl: input.sourceUrl,
+      author: input.author,
+      license: input.license,
+      attributionText: input.attributionText,
+      creditsPath: input.creditsPath,
+      sha256: sha256(fileBuffer),
+      creditsSha256,
+    }
+  })
+}
+
 function drawFrame(png, layoutFrame) {
   if (layoutFrame.kind === "floor") {
     drawFloor(png, layoutFrame)
@@ -253,44 +333,74 @@ function drawFrame(png, layoutFrame) {
 
 function drawFloor(png, frameLayout) {
   if (frameLayout.id.includes("wood")) {
-    verticalGradient(png, frameLayout, 0, 0, 32, 32, "#d8b175", "#bf9056")
-    rect(png, frameLayout, 0, 7, 32, 2, "#6a4023", 0.13)
-    rect(png, frameLayout, 0, 23, 32, 2, "#6a4023", 0.13)
-    for (let row = 0; row < 4; row += 1) {
-      const top = row * 8
-      rect(png, frameLayout, 0, top, 32, 1, "#55341c", 0.28)
-      rect(png, frameLayout, row % 2 === 0 ? 14 : 24, top, 1, 8, "#55341c", 0.28)
-    }
-    rect(png, frameLayout, 2, 2, 28, 3, "#ffeec4", 0.18)
+    copySourceRegion(
+      png,
+      frameLayout,
+      "lpc.floors.floors_png",
+      192,
+      1184,
+      32,
+      32,
+      0,
+      0,
+      32,
+      32,
+    )
+    rect(png, frameLayout, 1, 1, 30, 2, "#ffeec4", 0.13)
     return
   }
 
   if (frameLayout.id.includes("concrete")) {
-    verticalGradient(png, frameLayout, 0, 0, 32, 32, "#d9dfdc", "#bfcac8")
-    strokeRect(png, frameLayout, 0, 0, 32, 32, "#617071", 0.28)
-    rect(png, frameLayout, 3, 3, 6, 1, "#ffffff", 0.22)
-    rect(png, frameLayout, 20, 13, 5, 1, "#ffffff", 0.22)
-    rect(png, frameLayout, 11, 8, 2, 2, "#4d5b5b", 0.16)
-    rect(png, frameLayout, 25, 24, 2, 2, "#4d5b5b", 0.16)
+    copySourceRegion(
+      png,
+      frameLayout,
+      "lpc.floors.floors_png",
+      0,
+      1120,
+      32,
+      32,
+      0,
+      0,
+      32,
+      32,
+    )
+    rect(png, frameLayout, 0, 0, 32, 32, "#ffffff", 0.08)
     return
   }
 
-  verticalGradient(png, frameLayout, 0, 0, 32, 32, "#9fbcae", "#86a595")
-  for (let offset = 0; offset <= 32; offset += 8) {
-    rect(png, frameLayout, offset, 0, 1, 32, "#315541", 0.2)
-    rect(png, frameLayout, 0, offset, 32, 1, "#315541", 0.2)
-  }
-  rect(png, frameLayout, 0, 0, 32, 16, "#ffffff", 0.08)
+  copySourceRegion(
+    png,
+    frameLayout,
+    "lpc.floors.floors_png",
+    416,
+    416,
+    32,
+    32,
+    0,
+    0,
+    32,
+    32,
+  )
+  rect(png, frameLayout, 0, 0, 32, 16, "#ffffff", 0.07)
 }
 
 function drawWall(png, frameLayout) {
   const corner = frameLayout.id.includes("corner")
 
   if (frameLayout.id.includes("glass")) {
-    verticalGradient(png, frameLayout, 0, 0, 32, 32, "#b8dce1", "#73aeb8")
-    rect(png, frameLayout, 3, 3, 26, 17, "#e8faff", 0.52)
-    rect(png, frameLayout, 0, 23, 32, 9, "#306570", 0.34)
-    strokeRect(png, frameLayout, 1, 1, 30, 30, "#487f88", 1)
+    copySourceRegion(
+      png,
+      frameLayout,
+      "lpc.walls.walls_png",
+      160,
+      1504,
+      32,
+      32,
+      0,
+      0,
+      32,
+      32,
+    )
     diagonalGlassShine(png, frameLayout)
     wallBaseLip(png, frameLayout, "#376f77")
     if (corner) wallCornerPost(png, frameLayout, "#376f77", "#c8edf0")
@@ -298,20 +408,37 @@ function drawWall(png, frameLayout) {
   }
 
   if (frameLayout.id.includes("neutral")) {
-    verticalGradient(png, frameLayout, 0, 0, 32, 32, "#e6dfd2", "#c2b7a5")
-    rect(png, frameLayout, 2, 2, 28, 14, "#ece7dc", 1)
-    rect(png, frameLayout, 0, 24, 32, 8, "#b6aa97", 1)
-    strokeRect(png, frameLayout, 0, 0, 32, 32, "#62584a", 0.35)
+    copySourceRegion(
+      png,
+      frameLayout,
+      "lpc.walls.walls_png",
+      0,
+      1696,
+      32,
+      32,
+      0,
+      0,
+      32,
+      32,
+    )
     wallBaseLip(png, frameLayout, "#9f927e")
     if (corner) wallCornerPost(png, frameLayout, "#9f927e", "#f4efe6")
     return
   }
 
-  verticalGradient(png, frameLayout, 0, 0, 32, 32, "#b98654", "#725031")
-  rect(png, frameLayout, 2, 2, 28, 12, "#b98756", 1)
-  rect(png, frameLayout, 0, 23, 32, 9, "#6e4b31", 1)
-  rect(png, frameLayout, 10, 2, 1, 21, "#3f2616", 0.34)
-  rect(png, frameLayout, 21, 2, 1, 21, "#3f2616", 0.34)
+  copySourceRegion(
+    png,
+    frameLayout,
+    "lpc.walls.walls_png",
+    192,
+    1248,
+    32,
+    32,
+    0,
+    0,
+    32,
+    32,
+  )
   wallBaseLip(png, frameLayout, "#5f3f27")
   if (corner) wallCornerPost(png, frameLayout, "#5f3f27", "#c79461")
 }
@@ -320,7 +447,20 @@ function drawItem(png, frameLayout) {
   if (frameLayout.id.includes("large_conference_table")) {
     shadow(png, frameLayout, 48, 55, 80, 10)
     rect(png, frameLayout, 8, 12, 80, 42, "#6d5c3a", 1)
-    rect(png, frameLayout, 12, 15, 72, 32, "#9d8757", 1)
+    copySourceRegion(
+      png,
+      frameLayout,
+      "lpc.floors.floors_png",
+      192,
+      1184,
+      32,
+      32,
+      12,
+      15,
+      72,
+      32,
+      0.92,
+    )
     rect(png, frameLayout, 17, 18, 62, 4, "#fff5d2", 0.3)
     rect(png, frameLayout, 32, 17, 1, 30, "#4a3923", 0.28)
     rect(png, frameLayout, 64, 17, 1, 30, "#4a3923", 0.28)
@@ -331,16 +471,39 @@ function drawItem(png, frameLayout) {
 
   if (frameLayout.id.includes("round_table")) {
     shadow(png, frameLayout, 32, 39, 42, 10)
-    ellipse(png, frameLayout, 32, 32, 23, 23, "#74563d", 1)
-    ellipse(png, frameLayout, 32, 30, 19, 19, "#b78755", 1)
-    rect(png, frameLayout, 22, 21, 20, 4, "#ffeec4", 0.3)
+    copySourceRegion(
+      png,
+      frameLayout,
+      "lpc.wooden_furniture.dark_wood_png",
+      216,
+      216,
+      72,
+      72,
+      0,
+      1,
+      64,
+      62,
+    )
     return
   }
 
   if (frameLayout.id.includes("coffee_bar")) {
     shadow(png, frameLayout, 32, 26, 52, 6)
     rect(png, frameLayout, 4, 9, 56, 15, "#6b4b34", 1)
-    rect(png, frameLayout, 7, 10, 50, 4, "#d8c4a2", 1)
+    copySourceRegion(
+      png,
+      frameLayout,
+      "lpc.wooden_furniture.dark_wood_png",
+      0,
+      224,
+      112,
+      24,
+      7,
+      10,
+      50,
+      4,
+      0.9,
+    )
     rect(png, frameLayout, 10, 15, 12, 6, "#2f4d49", 1)
     rect(png, frameLayout, 45, 15, 6, 6, "#f9f6ef", 1)
     rect(png, frameLayout, 36, 16, 5, 4, "#efc86d", 1)
@@ -350,12 +513,19 @@ function drawItem(png, frameLayout) {
 
   if (frameLayout.id.includes("couch")) {
     shadow(png, frameLayout, 32, 25, 56, 6)
-    rect(png, frameLayout, 3, 10, 58, 13, "#6b806d", 1)
-    rect(png, frameLayout, 7, 18, 50, 6, "#49604f", 1)
-    rect(png, frameLayout, 10, 13, 11, 6, "#d9b77c", 1)
-    rect(png, frameLayout, 25, 13, 16, 6, "#5e7664", 1)
-    rect(png, frameLayout, 7, 24, 4, 4, "#34483b", 1)
-    rect(png, frameLayout, 53, 24, 4, 4, "#34483b", 1)
+    copySourceRegion(
+      png,
+      frameLayout,
+      "lpc.upholstery.upholstery_png",
+      192,
+      160,
+      72,
+      24,
+      0,
+      7,
+      64,
+      20,
+    )
     return
   }
 
@@ -390,7 +560,20 @@ function drawItem(png, frameLayout) {
   if (frameLayout.id.includes("chair")) {
     shadow(png, frameLayout, 16, 24, 18, 5)
     rect(png, frameLayout, 8, 8, 16, 9, "#5b6f6d", 1)
-    rect(png, frameLayout, 10, 16, 12, 7, "#344947", 1)
+    copySourceRegion(
+      png,
+      frameLayout,
+      "lpc.wooden_furniture.dark_wood_png",
+      280,
+      236,
+      24,
+      46,
+      7,
+      8,
+      18,
+      18,
+      0.68,
+    )
     rect(png, frameLayout, 10, 23, 3, 4, "#2c3837", 1)
     rect(png, frameLayout, 19, 23, 3, 4, "#2c3837", 1)
     return
@@ -477,6 +660,80 @@ function diagonalGlassShine(png, frameLayout) {
 
 function shadow(png, frameLayout, cx, cy, width, height) {
   ellipse(png, frameLayout, cx, cy, width / 2, height / 2, "#20201d", 0.18)
+}
+
+function copySourceRegion(
+  png,
+  frameLayout,
+  sourceInputId,
+  sourceX,
+  sourceY,
+  sourceWidth,
+  sourceHeight,
+  destinationX,
+  destinationY,
+  destinationWidth,
+  destinationHeight,
+  alpha = 1,
+) {
+  const sourcePng = loadSourcePng(sourceInputId)
+  const destinationPixelX = frameLayout.x + Math.round(destinationX * EXPORT_SCALE)
+  const destinationPixelY = frameLayout.y + Math.round(destinationY * EXPORT_SCALE)
+  const destinationPixelWidth = Math.round(destinationWidth * EXPORT_SCALE)
+  const destinationPixelHeight = Math.round(destinationHeight * EXPORT_SCALE)
+
+  for (let y = 0; y < destinationPixelHeight; y += 1) {
+    for (let x = 0; x < destinationPixelWidth; x += 1) {
+      const sampleX =
+        sourceX + Math.min(sourceWidth - 1, Math.floor((x / destinationPixelWidth) * sourceWidth))
+      const sampleY =
+        sourceY +
+        Math.min(sourceHeight - 1, Math.floor((y / destinationPixelHeight) * sourceHeight))
+      const sample = sampleSourcePixel(sourcePng, sampleX, sampleY)
+
+      if (!sample || sample.a <= 0 || isTransparentMagenta(sample)) continue
+
+      blendPixel(
+        png,
+        destinationPixelX + x,
+        destinationPixelY + y,
+        sample,
+        (sample.a / 255) * alpha,
+      )
+    }
+  }
+}
+
+function loadSourcePng(sourceInputId) {
+  const cached = sourcePngCache.get(sourceInputId)
+  if (cached) return cached
+
+  const input = SOURCE_IMAGE_INPUTS_BY_ID.get(sourceInputId)
+  if (!input) {
+    throw new Error(`Unknown source image input ${sourceInputId}`)
+  }
+
+  const sourcePng = PNG.sync.read(fs.readFileSync(path.join(ROOT_DIR, input.filePath)))
+  sourcePngCache.set(sourceInputId, sourcePng)
+  return sourcePng
+}
+
+function sampleSourcePixel(sourcePng, x, y) {
+  if (x < 0 || y < 0 || x >= sourcePng.width || y >= sourcePng.height) {
+    return undefined
+  }
+
+  const offset = (sourcePng.width * y + x) << 2
+  return {
+    r: sourcePng.data[offset],
+    g: sourcePng.data[offset + 1],
+    b: sourcePng.data[offset + 2],
+    a: sourcePng.data[offset + 3],
+  }
+}
+
+function isTransparentMagenta(color) {
+  return color.r === 255 && color.g === 0 && color.b === 255
 }
 
 function verticalGradient(png, frameLayout, x, y, width, height, top, bottom) {
@@ -663,6 +920,8 @@ module.exports = {
   LOGICAL_TILE_SIZE,
   MANIFEST_PATH,
   SOURCE_ID,
+  SOURCE_IMAGE_INPUTS,
+  SOURCE_LICENSE,
   TILESET_ID,
   buildAtlas,
 }

@@ -8,6 +8,8 @@ const {
   IMAGE_PATH,
   MANIFEST_PATH,
   SOURCE_ID,
+  SOURCE_IMAGE_INPUTS,
+  SOURCE_LICENSE,
   TILESET_ID,
 } = require("./build-internal-office-atlas.cjs")
 const {
@@ -24,11 +26,26 @@ const manifest = JSON.parse(fs.readFileSync(MANIFEST_PATH, "utf8"))
 const image = fs.readFileSync(IMAGE_PATH)
 const imageSha256 = crypto.createHash("sha256").update(image).digest("hex")
 assert.equal(manifest.checksums.imageSha256, imageSha256)
-assert.equal(manifest.source.license, "CC0-1.0")
+assert.equal(manifest.source.license, SOURCE_LICENSE)
 assert.equal(manifest.source.redistributionAllowed, "yes")
 assert.equal(manifest.source.commercialUseAllowed, "yes")
 assert.equal(manifest.source.bundledInTargetApp, true)
-assert.deepEqual(manifest.source.externalImageInputs, [])
+assert.equal(
+  manifest.source.externalImageInputs.length,
+  SOURCE_IMAGE_INPUTS.length,
+)
+assert.ok(
+  manifest.source.externalImageInputs.every((input) =>
+    /CC-BY-SA|GPL/.test(input.license),
+  ),
+  "Every bundled external input must have a copyleft license path.",
+)
+assert.ok(
+  manifest.source.externalImageInputs.every(
+    (input) => !/OGA-BY|CC-BY-[0-9]/.test(input.license),
+  ),
+  "Bundled external inputs must not use permissive-only OGA-BY/CC-BY licenses.",
+)
 
 const sourcesById = new Map(
   starterVisualAssetCatalog.sources.map((source) => [source.id, source]),
@@ -46,7 +63,8 @@ const manifestFramesByTokenId = new Map(
 const internalSource = sourcesById.get(SOURCE_ID)
 assert.ok(internalSource)
 assert.equal(internalSource.status, "target_approved")
-assert.equal(internalSource.license, "CC0-1.0")
+assert.equal(internalSource.license, SOURCE_LICENSE)
+assert.match(internalSource.attributionText, /LPC copyleft source sheets/)
 assert.equal(internalSource.redistributionAllowed, "yes")
 assert.equal(internalSource.commercialUseAllowed, "yes")
 assert.equal(internalSource.bundledInTargetApp, true)
@@ -105,6 +123,32 @@ for (const frame of manifest.frames) {
     token.sourceId,
     SOURCE_ID,
     `Manifest frame ${frame.tokenId} must map to the internal source.`,
+  )
+}
+
+for (const input of manifest.source.externalImageInputs) {
+  const sourceFilePath = path.join(ROOT_DIR, input.filePath)
+  assert.ok(fs.existsSync(sourceFilePath), `Missing source asset ${input.filePath}`)
+  assert.equal(
+    crypto.createHash("sha256").update(fs.readFileSync(sourceFilePath)).digest("hex"),
+    input.sha256,
+    `Source asset checksum mismatch for ${input.filePath}`,
+  )
+
+  if (!input.creditsPath) continue
+
+  const creditsFilePath = path.join(ROOT_DIR, input.creditsPath)
+  assert.ok(
+    fs.existsSync(creditsFilePath),
+    `Missing source credits ${input.creditsPath}`,
+  )
+  assert.equal(
+    crypto
+      .createHash("sha256")
+      .update(fs.readFileSync(creditsFilePath))
+      .digest("hex"),
+    input.creditsSha256,
+    `Credits checksum mismatch for ${input.creditsPath}`,
   )
 }
 

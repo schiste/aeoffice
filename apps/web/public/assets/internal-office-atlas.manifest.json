@@ -4,12 +4,56 @@
   "sourceId": "internal.generated.office.polished_v1",
   "tilesetId": "tileset.internal.polished.office",
   "source": {
-    "author": "Aedventure project",
-    "license": "CC0-1.0",
+    "author": "LPC/OpenGameArt contributors and Aedventure project",
+    "license": "LicenseRef-LPC-Copyleft-Mixed",
     "redistributionAllowed": "yes",
     "commercialUseAllowed": "yes",
     "bundledInTargetApp": true,
-    "externalImageInputs": []
+    "attributionText": "Generated atlas derived from bundled LPC copyleft source sheets. See externalImageInputs and assets/ASSET_MANIFEST.md.",
+    "externalImageInputs": [
+      {
+        "id": "lpc.floors.floors_png",
+        "filePath": "assets/copyleft/lpc/extracted/floors/floors.png",
+        "sourceUrl": "https://opengameart.org/content/lpc-floors",
+        "author": "bluecarrot16, Lanea Zimmerman (Sharm), William Thompson, Hyptosis, SpiderDave, Cougarmint, Stephen Challener, Bonsaiheldin, Tyler Olsen, Jetrel, jestan, The Open Surge team, Gaurav Munjal, Reemax, Silveira Neto, bleutailfly, Casper Nilsson, NaRNeRZz, Buch, keith karnage, Arthur Carvalho, Guilherme Vieira, Chris Hamons",
+        "license": "CC-BY-SA-4.0",
+        "attributionText": "\"[LPC] Floors\" by bluecarrot16 and contributors. CC-BY-SA 4.0. See assets/copyleft/lpc/extracted/floors/CREDITS-floors.txt.",
+        "creditsPath": "assets/copyleft/lpc/extracted/floors/CREDITS-floors.txt",
+        "sha256": "02c0a5bdf0c881148a9f65f4c82b63c9bb0ddca2c1546470aac897118e9cc030",
+        "creditsSha256": "841d1d918be5e6ec7904c8de08d44cd563974705cc688ea947139efabf3ad5b1"
+      },
+      {
+        "id": "lpc.walls.walls_png",
+        "filePath": "assets/copyleft/lpc/extracted/walls/walls.png",
+        "sourceUrl": "https://opengameart.org/content/lpc-walls",
+        "author": "bluecarrot16, Lanea Zimmerman (Sharm), Daniel Armstrong, William Thompson, Hyptosis, Zabin, Daniel Cook, Guido Bos, SpiderDave, Cougarmint, Stephen Challener, Matthew Nash, Wolthera van Hövell tot Westerflier, Reemax, bleutailfly, NaRNeRZz, Sir Spummington, Casper Nilsson, KnoblePersona",
+        "license": "CC-BY-SA-3.0",
+        "attributionText": "\"[LPC] Walls\" by bluecarrot16 and contributors. CC-BY-SA 3.0. See assets/copyleft/lpc/extracted/walls/CREDITS-walls.txt.",
+        "creditsPath": "assets/copyleft/lpc/extracted/walls/CREDITS-walls.txt",
+        "sha256": "6b55f7b5be42da1614cbf0983e62ce1a0b2010171a0bd5b99dbd0e44803678b8",
+        "creditsSha256": "29566fa6f4240c9e5d261c9a79b0b23a28d59110760a2c62f03ce0df99bd7380"
+      },
+      {
+        "id": "lpc.wooden_furniture.dark_wood_png",
+        "filePath": "assets/copyleft/lpc/source/dark-wood.png",
+        "sourceUrl": "https://opengameart.org/content/lpc-wooden-furniture",
+        "author": "bluecarrot16, Baŝto, Lanea Zimmerman (Sharm), William Thompson, Tuomo Untinen (Reemax), Janna/Lilius/Jannax",
+        "license": "CC-BY-SA-4.0",
+        "attributionText": "\"LPC Wooden Furniture\" by bluecarrot16, Baŝto, Lanea Zimmerman (Sharm), William Thompson, Tuomo Untinen (Reemax), Janna/Lilius/Jannax. See assets/copyleft/lpc/extracted/furniture/CREDITS-furniture.txt.",
+        "creditsPath": "assets/copyleft/lpc/extracted/furniture/CREDITS-furniture.txt",
+        "sha256": "04c47b995e6c768ef83f26333869de7c5e486cfb951179acd856a39f8115e113",
+        "creditsSha256": "4ac333f4da37b17a97a9f233429416eed86ad8e4218b559f361977ea80e11a82"
+      },
+      {
+        "id": "lpc.upholstery.upholstery_png",
+        "filePath": "assets/copyleft/lpc/source/upholstery.png",
+        "sourceUrl": "https://opengameart.org/content/lpc-upholstery",
+        "author": "bluecarrot16, Lanea Zimmerman (Sharm)",
+        "license": "CC-BY-SA-4.0",
+        "attributionText": "\"[LPC] Upholstery\" by bluecarrot16, Lanea Zimmerman (Sharm). Used under CC-BY-SA 4.0. Link back to https://opengameart.org/content/lpc-upholstery and https://opengameart.org/content/lpc-interior-castle-tiles.",
+        "sha256": "1e6b8e0cd0ed3e9f7a33ce11ee9bc355eea6759871c28ca9134eb23fadfd8c79"
+      }
+    ]
   },
   "image": {
     "path": "/assets/internal-office-atlas@2x.png",
@@ -881,11 +925,18 @@
     "tool": "scripts/build-internal-office-atlas.cjs",
     "deterministic": true,
     "inputs": [
-      "packages/asset-registry/src/index.ts"
+      "packages/asset-registry/src/index.ts",
+      "assets/copyleft/lpc/extracted/floors/floors.png",
+      "assets/copyleft/lpc/extracted/floors/CREDITS-floors.txt",
+      "assets/copyleft/lpc/extracted/walls/walls.png",
+      "assets/copyleft/lpc/extracted/walls/CREDITS-walls.txt",
+      "assets/copyleft/lpc/source/dark-wood.png",
+      "assets/copyleft/lpc/extracted/furniture/CREDITS-furniture.txt",
+      "assets/copyleft/lpc/source/upholstery.png"
     ],
-    "notes": "The atlas is generated from project-owned vector instructions in this script. No SkyOffice or LimeZu assets are copied."
+    "notes": "The atlas is generated from license-clean LPC copyleft image inputs plus project-owned vector overlays. No SkyOffice or LimeZu assets are copied."
   },
   "checksums": {
-    "imageSha256": "1a8c0a54427d8cc828e0208bc65470ee4d9513692b0ddc4e7a8c9a1a2ad00978"
+    "imageSha256": "56d11670d869193c71d3536ea044d1387ea728ef94f3a920583112ea30903b61"
   }
 }

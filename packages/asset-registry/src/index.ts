@@ -267,14 +267,16 @@ const INTERNAL_POLISHED_ATLAS_EXPORT_SCALE = 2
 const INTERNAL_POLISHED_SOURCE = {
   status: "target_approved" as const,
   filePath: INTERNAL_POLISHED_ATLAS_MANIFEST_PATH,
-  sourceUrl: "internal://aedventure/generated-office-polished/v1",
-  author: "Aedventure project",
-  license: "CC0-1.0",
+  sourceUrl: "internal://aedventure/copyleft-lpc-office-polished/v1",
+  author: "LPC/OpenGameArt contributors and Aedventure project",
+  license: "LicenseRef-LPC-Copyleft-Mixed",
+  attributionText:
+    "Generated atlas derived from bundled LPC copyleft source sheets. See apps/web/public/assets/internal-office-atlas.manifest.json and assets/ASSET_MANIFEST.md.",
   redistributionAllowed: "yes" as const,
   commercialUseAllowed: "yes" as const,
   bundledInTargetApp: true,
   notes:
-    "Project-owned internal office visuals generated from deterministic vector instructions. No third-party image inputs are bundled.",
+    "Deterministic office atlas generated from LPC/OpenGameArt copyleft source sheets plus project-owned overlays. No SkyOffice or LimeZu assets are bundled.",
 }
 
 function internalAtlasFrame(

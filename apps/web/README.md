@@ -17,8 +17,8 @@ Phaser 4 canvas renderer:
 - Build the browser demo with Vite and TypeScript.
 - Render the local fixture map through Phaser tile layers from the shared visual
   asset registry contract.
-- Generate the internal CC0 polished office tileset and avatar shapes from
-  semantic asset token IDs until final production art is onboarded.
+- Generate the copyleft LPC-derived polished office atlas from semantic asset
+  token IDs while preserving the stable renderer/catalog contract.
 - Join a local user plus demo companion for movement, chat, and media-token
   validation.
 - Request a world token from the API.

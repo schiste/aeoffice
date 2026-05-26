@@ -2048,10 +2048,10 @@ function isCobaltAvatarPixel(color) {
 function isWarmObjectPixel(color) {
   return (
     color.alpha > 180 &&
-    color.red > 80 &&
-    color.green > 45 &&
-    color.red >= color.blue + 25 &&
-    color.green >= color.blue - 8 &&
+    color.red > 55 &&
+    color.green > 25 &&
+    color.red >= color.blue + 20 &&
+    color.green >= color.blue - 12 &&
     !isCobaltAvatarPixel(color)
   )
 }
