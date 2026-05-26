@@ -903,6 +903,10 @@ function assertRenderStateContract(state) {
     "Expected effects.applied.webglFilters in render_game_to_text.",
   )
   assert.ok(
+    Array.isArray(state.effects?.applied?.customWebglPipelines),
+    "Expected effects.applied.customWebglPipelines in render_game_to_text.",
+  )
+  assert.ok(
     Array.isArray(state.effects?.applied?.ambientEffects),
     "Expected effects.applied.ambientEffects in render_game_to_text.",
   )
@@ -1096,11 +1100,31 @@ function assertRendererCapabilities(state) {
   assert.equal(state.renderer.effects.applied.selectionOutlines, "zone_renderer")
   assert.equal(state.renderer.effects.applied.hoverOutlines, "zone_renderer")
   assert.ok(
+    state.renderer.effects.applied.customWebglPipelines.includes(
+      "ShaderQuad:aedventure_room_lighting",
+    ),
+    "Expected custom room lighting ShaderQuad pipeline.",
+  )
+  assert.equal(
+    state.renderer.effects.applied.shaderPass,
+    "custom_room_lighting_shader",
+  )
+  assert.equal(
+    state.renderer.effects.applied.floorLighting,
+    "shader_floor_light_gradient",
+  )
+  assert.equal(state.renderer.effects.applied.zoneGlow, "custom_zone_glow_shader")
+  assert.equal(
+    state.renderer.effects.applied.softShadows,
+    "shader_vignette_soft_shadow",
+  )
+  assert.ok(
     state.renderer.effects.applied.ambientEffects.includes("ambient_tint"),
     "Expected deterministic ambient tint effect.",
   )
   assert.equal(state.renderer.effects.capability.webglAvailable, true)
   assert.equal(state.renderer.effects.capability.contextLost, false)
+  assert.equal(state.renderer.effects.capability.shadersAvailable, true)
   assert.equal(state.renderer.mapValidation.valid, true)
   assert.equal(state.renderer.mapValidation.mutationSafe, true)
   assert.equal(typeof state.renderer.mapValidation.collisionLayerPresent, "boolean")
@@ -1776,6 +1800,25 @@ async function assertEffectsLayerSmoke(page) {
   assert.equal(baseline.effects.animationMode, "static")
   assert.equal(baseline.effects.applied.lightPass, "static_room_lights")
   assert.equal(baseline.effects.applied.shadowPass, "static_corner_shadows")
+  assert.ok(
+    baseline.effects.applied.customWebglPipelines.includes(
+      "ShaderQuad:aedventure_room_lighting",
+    ),
+    "Expected premium WebGL room-lighting shader pipeline.",
+  )
+  assert.equal(
+    baseline.effects.applied.shaderPass,
+    "custom_room_lighting_shader",
+  )
+  assert.equal(
+    baseline.effects.applied.floorLighting,
+    "shader_floor_light_gradient",
+  )
+  assert.equal(baseline.effects.applied.zoneGlow, "custom_zone_glow_shader")
+  assert.equal(
+    baseline.effects.applied.softShadows,
+    "shader_vignette_soft_shadow",
+  )
   assert.equal(baseline.effects.applied.selectionOutlines, "zone_renderer")
   assert.equal(baseline.effects.applied.hoverOutlines, "zone_renderer")
   assert.equal(baseline.effects.applied.tenantLighting, "day")
@@ -1790,6 +1833,12 @@ async function assertEffectsLayerSmoke(page) {
   assert.ok(
     baseline.effects.objectCounts.shadowShapes >= 1,
     "Expected static shadow pass geometry.",
+  )
+  assert.equal(baseline.effects.objectCounts.shaderPasses, 1)
+  assert.equal(baseline.effects.objectCounts.shaderObjects, 1)
+  assert.ok(
+    baseline.effects.objectCounts.shaderZoneUniforms >= 1,
+    "Expected zone uniforms to feed shader zone glow.",
   )
   if (baseline.effects.capability.filtersAvailable) {
     assert.ok(
@@ -1829,7 +1878,9 @@ async function assertEffectsLayerSmoke(page) {
       state.effects.capability.lowCapability === true,
   )
   assert.equal(lowCapability.effects.objectCounts.ambientShapes, 0)
+  assert.equal(lowCapability.effects.objectCounts.shaderPasses, 0)
   assert.deepEqual(lowCapability.effects.applied.webglFilters, [])
+  assert.deepEqual(lowCapability.effects.applied.customWebglPipelines, [])
   await assertNonBlankMapScreenshot(page)
 
   await page.evaluate(async () => {

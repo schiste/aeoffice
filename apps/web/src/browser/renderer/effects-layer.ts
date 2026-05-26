@@ -11,6 +11,13 @@ import type {
   RendererResolvedEffectsQuality,
   RendererTenantLightingMode,
 } from "./types"
+import {
+  ROOM_LIGHTING_SHADER_PASS,
+  WebglEffectsPass,
+  disabledShaderAppliedInfo,
+  emptyWebglEffectsCounts,
+  type WebglEffectsCounts,
+} from "./webgl-effects"
 
 interface MapRenderBounds {
   readonly width: number
@@ -22,6 +29,7 @@ interface EffectsCapability {
   readonly contextLost: boolean
   readonly lowCapability: boolean
   readonly filtersAvailable: boolean
+  readonly shadersAvailable: boolean
   readonly maxTextureSize?: number
 }
 
@@ -29,6 +37,9 @@ interface EffectsObjectCounts {
   ambientShapes: number
   lightShapes: number
   shadowShapes: number
+  shaderPasses: number
+  shaderObjects: number
+  shaderZoneUniforms: number
 }
 
 const MIN_EFFECTS_TEXTURE_SIZE = 1024
@@ -39,6 +50,7 @@ export class EffectsLayer {
   private tenantLighting: RendererTenantLightingMode = "day"
   private lowCapabilityOverride = false
   private graphics?: Phaser.GameObjects.Graphics
+  private readonly webglEffectsPass: WebglEffectsPass
   private filterControllers: Phaser.Filters.Controller[] = []
   private lastFixtureMap?: FixtureMap
   private lastBounds?: MapRenderBounds
@@ -50,7 +62,9 @@ export class EffectsLayer {
     disabledReason: "not_webgl",
   })
 
-  constructor(private readonly scene: Phaser.Scene) {}
+  constructor(private readonly scene: Phaser.Scene) {
+    this.webglEffectsPass = new WebglEffectsPass(scene)
+  }
 
   renderFixtureMap(
     fixtureMap: FixtureMap,
@@ -79,6 +93,7 @@ export class EffectsLayer {
 
   clear(): void {
     this.destroyGraphics()
+    this.webglEffectsPass.clear()
     this.destroyFilters()
   }
 
@@ -106,7 +121,21 @@ export class EffectsLayer {
 
     const quality = this.resolvedQuality()
     const appliedFilters = this.applyCameraFilters(quality)
-    const counts = this.drawStaticRoomPass(fixtureMap, bounds, quality)
+    const shaderCounts = capability.shadersAvailable
+      ? this.webglEffectsPass.render({
+          fixtureMap,
+          bounds,
+          quality,
+          tenantLighting: this.tenantLighting,
+        })
+      : emptyWebglEffectsCounts()
+    const counts = this.drawStaticRoomPass(
+      fixtureMap,
+      bounds,
+      quality,
+      shaderCounts,
+    )
+    const shaderActive = shaderCounts.shaderPasses > 0
     this.info = {
       source: "renderer_runtime",
       authority: "visual_only",
@@ -122,9 +151,18 @@ export class EffectsLayer {
       capability,
       applied: {
         webglFilters: appliedFilters,
-        ambientEffects: ["ambient_tint", "tenant_lighting_tint"],
+        customWebglPipelines: this.webglEffectsPass.pipelineNames(),
+        ambientEffects: [
+          "ambient_tint",
+          "tenant_lighting_tint",
+          ...(shaderActive ? ["shader_floor_lighting"] : []),
+        ],
         lightPass: quality === "premium" ? "static_room_lights" : "none",
         shadowPass: quality === "premium" ? "static_corner_shadows" : "none",
+        shaderPass: shaderActive ? ROOM_LIGHTING_SHADER_PASS : "none",
+        floorLighting: shaderActive ? "shader_floor_light_gradient" : "none",
+        zoneGlow: shaderActive ? "custom_zone_glow_shader" : "none",
+        softShadows: shaderActive ? "shader_vignette_soft_shadow" : "none",
         selectionOutlines: "zone_renderer",
         hoverOutlines: "zone_renderer",
         tenantLighting: this.tenantLighting,
@@ -151,8 +189,13 @@ export class EffectsLayer {
       contextLost,
       lowCapability,
       filtersAvailable: this.cameraFiltersAvailable(),
+      shadersAvailable: this.shaderGameObjectAvailable(webglAvailable),
       maxTextureSize,
     }
+  }
+
+  private shaderGameObjectAvailable(webglAvailable: boolean): boolean {
+    return webglAvailable && typeof this.scene.add.shader === "function"
   }
 
   private cameraFiltersAvailable(): boolean {
@@ -197,10 +240,10 @@ export class EffectsLayer {
       colorMatrix.active = true
       colorMatrix.colorMatrix.reset()
       colorMatrix.colorMatrix.brightness(
-        this.tenantLighting === "night" ? 0.92 : 1.02,
+        this.tenantLighting === "night" ? 0.92 : 1,
       )
       colorMatrix.colorMatrix.saturate(
-        this.tenantLighting === "tenant_theme" ? 1.08 : 1.02,
+        this.tenantLighting === "tenant_theme" ? 1.06 : 1,
         true,
       )
       this.filterControllers.push(colorMatrix)
@@ -215,11 +258,15 @@ export class EffectsLayer {
     fixtureMap: FixtureMap,
     bounds: MapRenderBounds,
     quality: RendererResolvedEffectsQuality,
+    shaderCounts: WebglEffectsCounts = emptyWebglEffectsCounts(),
   ): EffectsObjectCounts {
     const counts: EffectsObjectCounts = {
       ambientShapes: 0,
       lightShapes: 0,
       shadowShapes: 0,
+      shaderPasses: shaderCounts.shaderPasses,
+      shaderObjects: shaderCounts.shaderObjects,
+      shaderZoneUniforms: shaderCounts.shaderZoneUniforms,
     }
     const palette = effectsPalette(fixtureMap.definition.style, this.tenantLighting)
     const graphics = this.scene.add.graphics()
@@ -247,7 +294,7 @@ export class EffectsLayer {
   ): void {
     const roomLightWidth = Math.min(bounds.width * 0.58, 520)
     const roomLightHeight = Math.min(bounds.height * 0.48, 360)
-    graphics.fillStyle(color, this.tenantLighting === "night" ? 0.075 : 0.045)
+    graphics.fillStyle(color, this.tenantLighting === "night" ? 0.06 : 0.016)
     graphics.fillEllipse(
       bounds.width / 2,
       bounds.height / 2,
@@ -270,7 +317,7 @@ export class EffectsLayer {
         (zone.yEnd - zone.yStart) * fixtureMap.compiled.tileSize * 1.2,
       )
 
-      graphics.fillStyle(color, 0.035)
+      graphics.fillStyle(color, this.tenantLighting === "night" ? 0.024 : 0.009)
       graphics.fillEllipse(centerX, centerY, width, height)
       counts.lightShapes += 1
     })
@@ -284,7 +331,7 @@ export class EffectsLayer {
     const horizontal = Math.min(96, bounds.width * 0.12)
     const vertical = Math.min(96, bounds.height * 0.12)
 
-    graphics.fillStyle(0x17201d, this.tenantLighting === "night" ? 0.09 : 0.045)
+    graphics.fillStyle(0x17201d, this.tenantLighting === "night" ? 0.09 : 0.055)
     graphics.fillRect(0, 0, bounds.width, vertical)
     graphics.fillRect(0, bounds.height - vertical, bounds.width, vertical)
     graphics.fillRect(0, 0, horizontal, bounds.height)
@@ -325,7 +372,7 @@ function effectsPalette(
   if (tenantLighting === "tenant_theme") {
     return {
       ambientColor: 0x2d7c83,
-      ambientAlpha: 0.045,
+      ambientAlpha: 0.026,
       lightColor: 0xcff7ef,
     }
   }
@@ -333,7 +380,7 @@ function effectsPalette(
   if (style.includes("wood") || style.includes("cozy")) {
     return {
       ambientColor: 0xffd9a6,
-      ambientAlpha: 0.035,
+      ambientAlpha: 0.022,
       lightColor: 0xfff1c8,
     }
   }
@@ -341,14 +388,14 @@ function effectsPalette(
   if (style.includes("glass")) {
     return {
       ambientColor: 0xd8eef5,
-      ambientAlpha: 0.04,
+      ambientAlpha: 0.022,
       lightColor: 0xf2fbff,
     }
   }
 
   return {
     ambientColor: 0xe6edf0,
-    ambientAlpha: 0.035,
+    ambientAlpha: 0.018,
     lightColor: 0xffffff,
   }
 }
@@ -376,6 +423,7 @@ function disabledEffectsInfo(options: {
     capability: options.capability,
     applied: {
       webglFilters: [],
+      ...disabledShaderAppliedInfo(),
       ambientEffects: [],
       lightPass: "none",
       shadowPass: "none",
@@ -387,6 +435,7 @@ function disabledEffectsInfo(options: {
       ambientShapes: 0,
       lightShapes: 0,
       shadowShapes: 0,
+      ...emptyWebglEffectsCounts(),
     },
   }
 }
@@ -397,5 +446,6 @@ function emptyCapability(): EffectsCapability {
     contextLost: false,
     lowCapability: true,
     filtersAvailable: false,
+    shadersAvailable: false,
   }
 }

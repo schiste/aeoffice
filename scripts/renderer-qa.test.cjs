@@ -909,6 +909,20 @@ function assertRendererSnapshot(state) {
   assert.equal(state.renderer.tilemap.staticLayerBake.sourceLayerCount, 2)
   assert.equal(state.renderer.tilemap.staticLayerBake.bakedLayerCount, 1)
   assert.ok(state.renderer.tilemap.staticLayerBake.displayObjectReduction >= 1)
+  assert.ok(
+    state.renderer.effects.applied.customWebglPipelines.includes(
+      "ShaderQuad:aedventure_room_lighting",
+    ),
+    "Expected custom WebGL room-lighting shader pipeline.",
+  )
+  assert.equal(
+    state.renderer.effects.applied.shaderPass,
+    "custom_room_lighting_shader",
+  )
+  assert.equal(state.renderer.effects.applied.zoneGlow, "custom_zone_glow_shader")
+  assert.equal(state.renderer.effects.objectCounts.shaderPasses, 1)
+  assert.equal(state.renderer.effects.objectCounts.shaderObjects, 1)
+  assert.equal(state.renderer.effects.capability.shadersAvailable, true)
   assert.equal(state.renderer.mapValidation.valid, true)
   assert.equal(state.renderer.mapValidation.mutationSafe, true)
   assert.equal(state.renderer.performance.runtime.textureCount > 0, true)
@@ -999,6 +1013,12 @@ function snapshotForReport(label, state) {
         textureCount: state.renderer.performance.runtime.textureCount,
         mapRenderCount: state.renderer.performance.lifecycle.mapRenderCount,
         mapSwitchCount: state.renderer.performance.lifecycle.mapSwitchCount,
+      },
+      effects: {
+        customWebglPipelines:
+          state.renderer.effects.applied.customWebglPipelines,
+        shaderPass: state.renderer.effects.applied.shaderPass,
+        shaderPasses: state.renderer.effects.objectCounts.shaderPasses,
       },
       mapValidation: state.renderer.mapValidation,
     },

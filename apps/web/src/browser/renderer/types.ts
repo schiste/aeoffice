@@ -293,21 +293,30 @@ export interface RendererEffectsInfo {
     readonly contextLost: boolean
     readonly lowCapability: boolean
     readonly filtersAvailable: boolean
+    readonly shadersAvailable: boolean
     readonly maxTextureSize?: number
   }
   readonly applied: {
     readonly webglFilters: readonly string[]
+    readonly customWebglPipelines: readonly string[]
     readonly ambientEffects: readonly string[]
     readonly lightPass: "none" | "static_room_lights"
     readonly shadowPass: "none" | "static_corner_shadows"
-    readonly selectionOutlines: "zone_renderer"
-    readonly hoverOutlines: "zone_renderer"
+    readonly shaderPass: "none" | "custom_room_lighting_shader"
+    readonly floorLighting: "none" | "shader_floor_light_gradient"
+    readonly zoneGlow: "none" | "custom_zone_glow_shader"
+    readonly softShadows: "none" | "shader_vignette_soft_shadow"
+    readonly selectionOutlines: "zone_renderer" | "custom_shader_ready"
+    readonly hoverOutlines: "zone_renderer" | "custom_shader_ready"
     readonly tenantLighting: RendererTenantLightingMode
   }
   readonly objectCounts: {
     readonly ambientShapes: number
     readonly lightShapes: number
     readonly shadowShapes: number
+    readonly shaderPasses: number
+    readonly shaderObjects: number
+    readonly shaderZoneUniforms: number
   }
 }
 

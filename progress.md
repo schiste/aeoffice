@@ -1224,3 +1224,31 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   develop-web-game client was attempted against `http://127.0.0.1:8108/app`,
   but still fails before navigation because the skill runtime cannot resolve
   `playwright`.
+- Custom WebGL room effects are now wired into the Phaser effects layer through
+  a dedicated shader object/pass. Premium effects report
+  `customWebglPipelines: ["ShaderQuad:aedventure_room_lighting"]`,
+  `shaderPass: "custom_room_lighting_shader"`, floor lighting, zone glow, soft
+  shadows, shader object counts, and `capability.shadersAvailable` through
+  `render_game_to_text.renderer.effects`.
+- The shader is intentionally visual-only: it consumes compiled map bounds and
+  up to four zone rectangles as uniforms, but it does not affect collision,
+  movement, permissions, or zone authority. If shader game objects are not
+  available, the effects layer skips the custom shader pass and keeps the
+  static ambient graphics path alive.
+- The first shader tuning pass was too bright and washed the lobby toward
+  white/cyan. A visual comparison against effects-off and low-quality effects
+  led to reduced camera brightness, lower ambient/light alpha, more restrained
+  shader alpha, a neutral default palette, and edge-focused zone glow. The
+  latest desktop renderer screenshot keeps material contrast while preserving a
+  subtle premium lighting layer.
+- Frontend smoke and renderer QA now assert the custom WebGL effects contract,
+  including active shader pipeline metadata, shader pass names, zone glow, soft
+  shadows, shader object counts, and low-capability shutdown.
+- Verification passed after the custom WebGL effects pass:
+  `npm --workspace @aedventure/web run build`, `npm run smoke:frontend`,
+  `npm run qa:renderer`, `npm run qa:responsive`, `npm run check`, and
+  `git diff --check`. Latest renderer desktop/stress screenshots and mobile
+  responsive screenshots were visually inspected. The standalone
+  develop-web-game client was attempted against `http://127.0.0.1:8787`, but
+  still fails before navigation with `ERR_MODULE_NOT_FOUND` because the
+  skill-local script cannot resolve `playwright`.
