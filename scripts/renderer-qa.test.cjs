@@ -19,6 +19,16 @@ const DEPTH_CASES = [
   "table_player_front",
   "wall_player_behind",
 ]
+const AVATAR_VISUAL_FACINGS = [
+  "up",
+  "upRight",
+  "right",
+  "downRight",
+  "down",
+  "downLeft",
+  "left",
+  "upLeft",
+]
 
 async function main() {
   mkdirSync(ARTIFACT_DIR, { recursive: true })
@@ -51,6 +61,9 @@ async function main() {
       depthCases: [],
       devTools: [],
       mapSwitchLeak: undefined,
+      avatarFacingChecks: [],
+      avatarFrameProgression: undefined,
+      avatarTextureLeak: undefined,
     }
 
     await verifyRendererRuntime(browser, url, report)
@@ -196,8 +209,23 @@ async function verifyRendererRuntime(browser, url, report) {
     report.rendererSnapshots.push(
       snapshotForReport("avatar-preview-gallery", galleryState),
     )
-    report.screenshots.push(
-      await captureCanvas(page, "avatar-preview-gallery-canvas.png"),
+    const galleryScreenshot = await captureCanvasWithBuffer(
+      page,
+      "avatar-preview-gallery-canvas.png",
+    )
+    report.screenshots.push(galleryScreenshot.screenshot)
+    report.avatarFacingChecks = assertAvatarFacingScreenshot(
+      galleryScreenshot.buffer,
+      galleryState,
+    )
+    const progressedGalleryState = await waitForProgressedAvatarGallery(page)
+    report.avatarFrameProgression = assertAvatarFrameProgression(
+      galleryState,
+      progressedGalleryState,
+    )
+    report.avatarTextureLeak = await runAvatarTextureLeakCheck(
+      page,
+      progressedGalleryState,
     )
   } finally {
     assertNoConsoleErrors(page, "desktop renderer runtime")
@@ -602,6 +630,231 @@ async function runMapSwitchLeakCheck(page) {
   }
 }
 
+async function waitForProgressedAvatarGallery(page) {
+  await page.waitForTimeout(850)
+
+  return waitForTextState(
+    page,
+    (state) => {
+      const runSample = avatarPreviewPlayer(
+        state,
+        "ember",
+        "run",
+        "downRight",
+      )
+      const walkSample = avatarPreviewPlayer(
+        state,
+        "cobalt",
+        "walk",
+        "upRight",
+      )
+      const idleSample = avatarPreviewPlayer(
+        state,
+        "moss",
+        "idle",
+        "downLeft",
+      )
+
+      return state.map?.label === "Avatar preview gallery" &&
+        runSample?.animation.frameProgression.rawFrameIndex >= 2 &&
+        walkSample?.animation.frameProgression.rawFrameIndex >= 2 &&
+        idleSample?.animation.frameProgression.rawFrameIndex >= 1
+    },
+    9000,
+  )
+}
+
+function assertAvatarFrameProgression(beforeState, afterState) {
+  const samples = [
+    ["ember", "run", "downRight"],
+    ["cobalt", "walk", "upRight"],
+    ["moss", "idle", "downLeft"],
+  ].map(([avatarId, action, visualFacing]) => {
+    const before = avatarPreviewPlayer(beforeState, avatarId, action, visualFacing)
+    const after = avatarPreviewPlayer(afterState, avatarId, action, visualFacing)
+
+    assert.ok(
+      before,
+      `Missing initial avatar frame sample ${avatarId}/${action}/${visualFacing}.`,
+    )
+    assert.ok(
+      after,
+      `Missing progressed avatar frame sample ${avatarId}/${action}/${visualFacing}.`,
+    )
+
+    const beforeProgression = before.animation.frameProgression
+    const afterProgression = after.animation.frameProgression
+
+    assert.equal(beforeProgression.source, "phaser_scene_time")
+    assert.equal(afterProgression.source, "phaser_scene_time")
+    assert.equal(afterProgression.frameCount, after.animation.sprite.frameCount)
+    assert.equal(afterProgression.loop, after.animation.sprite.loop)
+    assert.ok(
+      afterProgression.elapsedMs > beforeProgression.elapsedMs,
+      `Expected elapsed frame time to advance for ${after.playerId}.`,
+    )
+    assert.ok(
+      afterProgression.rawFrameIndex > beforeProgression.rawFrameIndex,
+      `Expected raw frame index to advance for ${after.playerId}.`,
+    )
+    assert.ok(
+      afterProgression.currentFrameIndex >= 0 &&
+        afterProgression.currentFrameIndex < afterProgression.frameCount,
+      `Expected bounded current frame index for ${after.playerId}.`,
+    )
+    assert.ok(
+      after.animation.frameKey.endsWith(
+        `/${String(afterProgression.currentFrameIndex).padStart(2, "0")}`,
+      ),
+      `Expected frame key to match progression telemetry for ${after.playerId}.`,
+    )
+
+    return {
+      playerId: after.playerId,
+      action,
+      visualFacing,
+      before: compactFrameProgression(beforeProgression),
+      after: compactFrameProgression(afterProgression),
+      frameKey: after.animation.frameKey,
+      textureKey: after.animation.textureKey,
+    }
+  })
+
+  return {
+    source: "avatar_animation_frame_progression",
+    sampleCount: samples.length,
+    samples,
+  }
+}
+
+async function runAvatarTextureLeakCheck(page, galleryState) {
+  const firstFullGallery = await waitForFullAvatarFrameCache(page)
+  const firstTextureCount =
+    firstFullGallery.renderer.performance.runtime.textureCount
+  const firstAvatarTextureCount = uniqueAvatarTextureCount(firstFullGallery)
+
+  await page.evaluate(async () => {
+    if (!window.__aedventureRendererTest?.renderLargeStaticMap) {
+      throw new Error("Missing large static map test API.")
+    }
+
+    await window.__aedventureRendererTest.renderLargeStaticMap({
+      width: 20,
+      height: 15,
+    })
+  })
+  const mapState = await waitForTextState(
+    page,
+    (state) =>
+      state.map?.label === "Renderer stress map" &&
+      state.map.width === 20 &&
+      state.map.height === 15 &&
+      rendererReadyForQa(state),
+    9000,
+  )
+
+  await page.evaluate(async () => {
+    if (!window.__aedventureRendererTest?.renderAvatarPreviewGallery) {
+      throw new Error("Missing avatar preview gallery API.")
+    }
+
+    await window.__aedventureRendererTest.renderAvatarPreviewGallery()
+  })
+  const secondFullGallery = await waitForFullAvatarFrameCache(page)
+
+  await page.evaluate(async () => {
+    await window.__aedventureRendererTest.renderAvatarPreviewGallery()
+  })
+  const thirdFullGallery = await waitForFullAvatarFrameCache(page)
+
+  const secondTextureCount =
+    secondFullGallery.renderer.performance.runtime.textureCount
+  const thirdTextureCount =
+    thirdFullGallery.renderer.performance.runtime.textureCount
+  const expectedVisibleAvatarTextureCount = 128
+
+  assert.equal(
+    uniqueAvatarTextureCount(galleryState),
+    expectedVisibleAvatarTextureCount,
+    "Expected avatar gallery to expose one visible texture per preview avatar.",
+  )
+  assert.equal(
+    firstAvatarTextureCount,
+    expectedVisibleAvatarTextureCount,
+    "Expected fully-cycled gallery to keep one current texture per preview avatar.",
+  )
+  assert.equal(
+    uniqueAvatarTextureCount(secondFullGallery),
+    expectedVisibleAvatarTextureCount,
+    "Expected avatar texture keys to remain bounded after map switch.",
+  )
+  assert.equal(
+    uniqueAvatarTextureCount(thirdFullGallery),
+    expectedVisibleAvatarTextureCount,
+    "Expected avatar texture keys to remain bounded after avatar switch.",
+  )
+  assert.ok(
+    secondTextureCount <= firstTextureCount + 4,
+    `Expected map -> avatar switch texture count to stay bounded, got ${firstTextureCount} -> ${secondTextureCount}.`,
+  )
+  assert.ok(
+    thirdTextureCount <= secondTextureCount,
+    `Expected repeated avatar gallery texture count not to grow, got ${secondTextureCount} -> ${thirdTextureCount}.`,
+  )
+
+  return {
+    source: "avatar_texture_switch_leak_check",
+    fullyCycledGalleryTextureCount: firstTextureCount,
+    intermediateMapTextureCount:
+      mapState.renderer.performance.runtime.textureCount,
+    secondGalleryTextureCount: secondTextureCount,
+    thirdGalleryTextureCount: thirdTextureCount,
+    mapToAvatarTextureDelta: secondTextureCount - firstTextureCount,
+    repeatedAvatarTextureDelta: thirdTextureCount - secondTextureCount,
+    visibleAvatarTextureCount: expectedVisibleAvatarTextureCount,
+    firstAvatarTextureCount,
+    secondAvatarTextureCount: uniqueAvatarTextureCount(secondFullGallery),
+    thirdAvatarTextureCount: uniqueAvatarTextureCount(thirdFullGallery),
+  }
+}
+
+async function waitForFullAvatarFrameCache(page) {
+  await page.waitForTimeout(2300)
+
+  return waitForTextState(
+    page,
+    (state) =>
+      state.map?.label === "Avatar preview gallery" &&
+      state.avatars.players.length === 128 &&
+      rendererReadyForQa(state),
+    9000,
+  )
+}
+
+function uniqueAvatarTextureCount(state) {
+  return new Set(
+    state.avatars.players.map((player) => player.animation.textureKey),
+  ).size
+}
+
+function avatarPreviewPlayer(state, avatarId, action, visualFacing) {
+  return state.avatars?.players?.find(
+    (player) =>
+      player.playerId ===
+      `avatar-preview-${avatarId}-${action}-${visualFacing}`,
+  )
+}
+
+function compactFrameProgression(progression) {
+  return {
+    elapsedMs: progression.elapsedMs,
+    rawFrameIndex: progression.rawFrameIndex,
+    currentFrameIndex: progression.currentFrameIndex,
+    frameCount: progression.frameCount,
+    normalizedCycleProgress: progression.normalizedCycleProgress,
+  }
+}
+
 function assertRendererSnapshot(state) {
   assert.equal(state.renderer.requestedRenderer, "webgl")
   assert.equal(state.renderer.actualRenderer, "webgl")
@@ -716,6 +969,12 @@ function snapshotForReport(label, state) {
 }
 
 async function captureCanvas(page, filename) {
+  const { screenshot } = await captureCanvasWithBuffer(page, filename)
+
+  return screenshot
+}
+
+async function captureCanvasWithBuffer(page, filename) {
   const path = join(ARTIFACT_DIR, filename)
   const buffer = await page.locator("#map canvas").screenshot({ path })
   const stats = analyzeCanvasImage(buffer)
@@ -734,9 +993,149 @@ async function captureCanvas(page, filename) {
   )
 
   return {
-    label: filename.replace(/\.png$/, ""),
-    path,
-    stats,
+    buffer,
+    screenshot: {
+      label: filename.replace(/\.png$/, ""),
+      path,
+      stats,
+    },
+  }
+}
+
+function assertAvatarFacingScreenshot(buffer, state) {
+  const image = PNG.sync.read(buffer)
+  const checks = AVATAR_VISUAL_FACINGS.map((visualFacing) => {
+    const player = avatarPreviewPlayer(state, "ember", "idle", visualFacing)
+    assert.ok(player, `Missing avatar preview player for ${visualFacing}.`)
+
+    const point = projectWorldToImagePoint(state, player.currentPosition, image)
+    const crop = cropImage(
+      image,
+      Math.round(point.x - 13),
+      Math.round(point.y - 24),
+      26,
+      30,
+    )
+    const cropPath = join(
+      ARTIFACT_DIR,
+      `avatar-facing-${visualFacing}-crop.png`,
+    )
+    writeFileSync(cropPath, PNG.sync.write(crop))
+
+    const stats = avatarCropStats(crop)
+    assert.ok(
+      stats.avatarLikePixelCount >= 70,
+      `Expected visible avatar pixels for ${visualFacing}, got ${JSON.stringify(stats)}.`,
+    )
+    assert.ok(
+      stats.sampledUniqueColors >= 4,
+      `Expected varied avatar crop colors for ${visualFacing}, got ${JSON.stringify(stats)}.`,
+    )
+    assert.ok(
+      stats.luminanceRange >= 18,
+      `Expected readable avatar crop contrast for ${visualFacing}, got ${JSON.stringify(stats)}.`,
+    )
+
+    return {
+      visualFacing,
+      playerId: player.playerId,
+      point,
+      cropPath,
+      stats,
+    }
+  })
+  const uniqueFingerprints = new Set(checks.map((check) => check.stats.fingerprint))
+
+  assert.ok(
+    uniqueFingerprints.size >= 6,
+    `Expected 8-way facing crops to produce distinct silhouettes, got ${uniqueFingerprints.size}.`,
+  )
+
+  return checks
+}
+
+function projectWorldToImagePoint(state, position, image) {
+  const canvasWidth = state.renderer.canvas.width || image.width
+  const canvasHeight = state.renderer.canvas.height || image.height
+  const scaleX = image.width / canvasWidth
+  const scaleY = image.height / canvasHeight
+
+  return {
+    x: Math.round(
+      (position.x - state.camera.worldView.x) * state.camera.effectiveZoom *
+        scaleX,
+    ),
+    y: Math.round(
+      (position.y - state.camera.worldView.y) * state.camera.effectiveZoom *
+        scaleY,
+    ),
+  }
+}
+
+function cropImage(image, x, y, width, height) {
+  const crop = new PNG({ width, height })
+
+  for (let cropY = 0; cropY < height; cropY += 1) {
+    for (let cropX = 0; cropX < width; cropX += 1) {
+      const sourceX = Math.min(image.width - 1, Math.max(0, x + cropX))
+      const sourceY = Math.min(image.height - 1, Math.max(0, y + cropY))
+      const sourceOffset = (image.width * sourceY + sourceX) << 2
+      const targetOffset = (width * cropY + cropX) << 2
+
+      crop.data[targetOffset] = image.data[sourceOffset]
+      crop.data[targetOffset + 1] = image.data[sourceOffset + 1]
+      crop.data[targetOffset + 2] = image.data[sourceOffset + 2]
+      crop.data[targetOffset + 3] = image.data[sourceOffset + 3]
+    }
+  }
+
+  return crop
+}
+
+function avatarCropStats(image) {
+  const background = {
+    red: image.data[0],
+    green: image.data[1],
+    blue: image.data[2],
+  }
+  let avatarLikePixelCount = 0
+  let minLuminance = 255
+  let maxLuminance = 0
+  const sampledColors = new Set()
+
+  for (let y = 0; y < image.height; y += 1) {
+    for (let x = 0; x < image.width; x += 1) {
+      const offset = (image.width * y + x) << 2
+      const red = image.data[offset]
+      const green = image.data[offset + 1]
+      const blue = image.data[offset + 2]
+      const distance = Math.hypot(
+        red - background.red,
+        green - background.green,
+        blue - background.blue,
+      )
+
+      if (distance < 35) continue
+
+      const luminance = 0.2126 * red + 0.7152 * green + 0.0722 * blue
+      avatarLikePixelCount += 1
+      minLuminance = Math.min(minLuminance, luminance)
+      maxLuminance = Math.max(maxLuminance, luminance)
+      sampledColors.add(
+        `${Math.round(red / 16)}:${Math.round(green / 16)}:${Math.round(
+          blue / 16,
+        )}`,
+      )
+    }
+  }
+
+  return {
+    width: image.width,
+    height: image.height,
+    avatarLikePixelCount,
+    sampledUniqueColors: sampledColors.size,
+    luminanceRange: roundTo(maxLuminance - minLuminance, 2),
+    fingerprint: [...sampledColors].sort().join("|"),
   }
 }
 

@@ -2054,6 +2054,25 @@ async function assertAvatarSystemSmoke(page) {
     assert.equal(typeof player.animation.transition.restartedSpriteClock, "boolean")
     assert.equal(typeof player.animation.transition.turnHoldActive, "boolean")
     assert.equal(typeof player.animation.frameIndex, "number")
+    assert.equal(player.animation.frameProgression.source, "phaser_scene_time")
+    assert.equal(
+      player.animation.frameProgression.currentFrameIndex,
+      player.animation.frameIndex,
+    )
+    assert.equal(
+      player.animation.frameProgression.frameCount,
+      player.animation.sprite.frameCount,
+    )
+    assert.equal(
+      player.animation.frameProgression.loop,
+      player.animation.sprite.loop,
+    )
+    assert.equal(typeof player.animation.frameProgression.elapsedMs, "number")
+    assert.equal(typeof player.animation.frameProgression.rawFrameIndex, "number")
+    assert.equal(
+      typeof player.animation.frameProgression.normalizedCycleProgress,
+      "number",
+    )
     assert.equal(player.animation.frameSource, "runtime_generated_fallback")
     assert.ok(
       player.animation.frameKey.startsWith(player.animation.sprite.framePrefix),

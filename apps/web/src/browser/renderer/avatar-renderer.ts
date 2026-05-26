@@ -407,6 +407,10 @@ class AvatarView {
   private spriteTextureFrame: string | undefined
   private spriteFrameSource: RendererAvatarFrameSource =
     "runtime_generated_fallback"
+  private spriteElapsedMs = 0
+  private spriteRawFrameIndex = 0
+  private spriteCycleDurationMs = 1
+  private spriteNormalizedCycleProgress = 0
   private turnHoldUntilMs = 0
   private transitionFrom: AvatarAnimationAction = "idle"
   private transitionTo: AvatarAnimationAction = "idle"
@@ -865,6 +869,18 @@ class AvatarView {
         textureKey: this.spriteTextureKey,
         textureFrame: this.spriteTextureFrame,
         frameSource: this.spriteFrameSource,
+        frameProgression: {
+          source: "phaser_scene_time",
+          elapsedMs: Math.round(this.spriteElapsedMs),
+          rawFrameIndex: this.spriteRawFrameIndex,
+          currentFrameIndex: this.spriteFrameIndex,
+          frameCount: this.animation.sprite.frameCount,
+          cycleDurationMs: this.spriteCycleDurationMs,
+          normalizedCycleProgress: Number(
+            this.spriteNormalizedCycleProgress.toFixed(3),
+          ),
+          loop: this.animation.sprite.loop,
+        },
         frameRate: this.animation.sprite.frameRate,
         frameDurationMs: this.animation.sprite.frameDurationMs,
         loop: this.animation.sprite.loop,
@@ -1261,6 +1277,7 @@ class AvatarView {
     const frameIndex = animation.sprite.loop
       ? rawFrameIndex % animation.sprite.frameCount
       : clamp(rawFrameIndex, 0, animation.sprite.frameCount - 1)
+    const cycleDurationMs = spriteCycleDurationMs(animation)
     const frame = ensureAvatarSpriteFrameTexture(
       this.scene,
       animation,
@@ -1273,6 +1290,12 @@ class AvatarView {
       this.spriteTextureFrame !== frame.textureFrame
 
     this.spriteFrameIndex = frameIndex
+    this.spriteElapsedMs = elapsedMs
+    this.spriteRawFrameIndex = rawFrameIndex
+    this.spriteCycleDurationMs = cycleDurationMs
+    this.spriteNormalizedCycleProgress = animation.sprite.loop
+      ? elapsedMs % cycleDurationMs / cycleDurationMs
+      : clamp(elapsedMs / cycleDurationMs, 0, 1)
     this.spriteFrameKey = frame.semanticFrameKey
     this.spriteTextureKey = frame.textureKey
     this.spriteTextureFrame = frame.textureFrame

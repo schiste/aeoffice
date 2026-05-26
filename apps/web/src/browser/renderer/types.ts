@@ -699,6 +699,16 @@ export interface RendererAvatarAnimationInfo {
   readonly textureKey: string
   readonly textureFrame?: string
   readonly frameSource: RendererAvatarFrameSource
+  readonly frameProgression: {
+    readonly source: "phaser_scene_time"
+    readonly elapsedMs: number
+    readonly rawFrameIndex: number
+    readonly currentFrameIndex: number
+    readonly frameCount: number
+    readonly cycleDurationMs: number
+    readonly normalizedCycleProgress: number
+    readonly loop: boolean
+  }
   readonly frameRate: number
   readonly frameDurationMs: number
   readonly loop: boolean

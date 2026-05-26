@@ -1121,3 +1121,27 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   inspected. The standalone develop-web-game client was attempted against
   `http://127.0.0.1:8108/app`, but still fails before navigation because the
   skill runtime cannot resolve `playwright`.
+- Renderer QA now covers avatar animation regressions directly: it captures
+  8-way facing crops from the avatar preview gallery, asserts each crop has
+  visible/high-contrast avatar pixels, and checks that the facing set produces
+  distinct silhouettes instead of duplicated diagonal/side textures.
+- Avatar animation telemetry now includes frame progression derived from
+  Phaser scene time: elapsed time, raw frame index, current frame index, frame
+  count, cycle duration, normalized loop progress, and loop status. Frontend
+  smoke and renderer QA both verify the telemetry stays consistent with the
+  active sprite frame.
+- Renderer QA now switches from the fully-cycled avatar gallery to a stress map
+  and back to the avatar gallery twice, then verifies visible avatar texture
+  keys and runtime texture counts remain bounded. This gives us an automated
+  leak check for map/avatar switches before real imported atlases land.
+- Verification passed after the avatar QA expansion:
+  `npm --workspace @aedventure/web run build`,
+  `node --check scripts/frontend-smoke.test.cjs`,
+  `node --check scripts/renderer-qa.test.cjs`, `git diff --check`,
+  `npm run smoke:frontend`, `npm run qa:renderer`, `npm run qa:responsive`,
+  and `npm run check`. The latest avatar preview gallery plus 8-way crop
+  artifacts were visually inspected under
+  `/var/folders/f2/krjzd4c15nn491pm37zrkp1h0000gn/T/aedventure-renderer-qa`.
+  The required standalone develop-web-game client was attempted against
+  `http://127.0.0.1:8108/app`, but still fails before navigation because the
+  skill runtime cannot resolve `playwright`.
