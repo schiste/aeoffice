@@ -150,6 +150,22 @@ assert.equal(Math.round(cornerSlide.position.y), 16)
 assert.ok(cornerSlide.appliedVector.x > 0.9)
 assert.ok(cornerSlide.appliedVector.y < 0)
 
+const cornerSlideDisabled = simulateMovement({
+  current: { x: 47, y: 18 },
+  vector: { x: 1, y: 0 },
+  seq: 71,
+  map,
+  playerSize,
+  speedPxPerSecond: 64,
+  deltaMs: 250,
+  collisionSlide: {
+    maxNudgePx: 0,
+  },
+})
+
+assert.equal(cornerSlideDisabled.accepted, false)
+assert.equal(cornerSlideDisabled.reason, "collision")
+
 const fullyBlocked = simulateMovement({
   current: { x: 48, y: 32 },
   vector: { x: 1, y: 0 },

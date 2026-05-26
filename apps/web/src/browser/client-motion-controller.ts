@@ -10,9 +10,10 @@ import {
   type MovementVector,
 } from "@aedventure/protocol"
 
-import { CLIENT_PREDICTION_PLAYER_SIZE } from "./movement-prediction"
 import {
   DEFAULT_MOVEMENT_FEEL,
+  movementCollisionBodySize,
+  movementCollisionSlideOptions,
   type MovementFeelTuning,
 } from "./movement-feel"
 
@@ -261,9 +262,10 @@ export class ClientMotionController {
       vector,
       seq: 0,
       map,
-      playerSize: playerSize ?? CLIENT_PREDICTION_PLAYER_SIZE,
+      playerSize: playerSize ?? movementCollisionBodySize(this.feel),
       speedPxPerSecond,
       deltaMs,
+      collisionSlide: movementCollisionSlideOptions(this.feel),
     })
 
     if (!result.accepted) {

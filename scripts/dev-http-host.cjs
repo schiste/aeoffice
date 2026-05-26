@@ -8,6 +8,8 @@ const DEFAULT_PORT = 8787
 const DEVELOPMENT_WORLD_TICK_MS = 50
 const DEVELOPMENT_WALK_SPEED_PX_PER_SECOND = 88
 const DEVELOPMENT_RUN_SPEED_PX_PER_SECOND = 148
+const DEVELOPMENT_COLLISION_BODY_RADIUS_PX = 7.5
+const DEVELOPMENT_COLLISION_SLIDE_MAX_NUDGE_PX = 12
 const WEB_APP_DIST_DIR = resolve(__dirname, "../apps/web/dist-app")
 
 function createPrefixedFetchHandler(routes) {
@@ -439,6 +441,7 @@ function createDevelopmentToolsHandler(apiRuntime, worldRuntime, clock) {
   const authHandler = createDevAuthHandler(apiRuntime, clock)
   const fixtureMapHandler = createDevFixtureMapHandler()
   const worldGeometryHandler = createDevWorldGeometryHandler(worldRuntime)
+  const worldMovementHandler = createDevWorldMovementHandler(worldRuntime)
 
   return async (request) => {
     const url = new URL(request.url)
@@ -453,6 +456,10 @@ function createDevelopmentToolsHandler(apiRuntime, worldRuntime, clock) {
 
     if (url.pathname === "/world-geometry") {
       return worldGeometryHandler(request)
+    }
+
+    if (url.pathname === "/world-movement") {
+      return worldMovementHandler(request)
     }
 
     return jsonResponse(404, {
@@ -479,6 +486,29 @@ function createDevWorldGeometryHandler(worldRuntime) {
       status: "ok",
       blockedTileCount: geometry.map.blockedTiles.length,
       zoneCount: geometry.zones.length,
+    })
+  }
+}
+
+function createDevWorldMovementHandler(worldRuntime) {
+  return async (request) => {
+    if (request.method !== "POST") {
+      return jsonResponse(405, {
+        error: "method_not_allowed",
+        reason: "World movement tuning updates only support POST.",
+      })
+    }
+
+    const body = await request.json()
+    const tuning = developmentWorldMovementFromBody(body)
+    worldRuntime.world.updateMovementTuning(tuning)
+
+    return jsonResponse(200, {
+      status: "ok",
+      playerSize: tuning.playerSize,
+      speedPxPerSecond: tuning.speedPxPerSecond,
+      runSpeedPxPerSecond: tuning.runSpeedPxPerSecond,
+      collisionSlide: tuning.collisionSlide,
     })
   }
 }
@@ -708,13 +738,47 @@ function developmentWorldConfig() {
         height: (zone.yEnd - zone.yStart) * fixtureMap.tileSize,
       },
     })),
-    playerSize: { width: 16, height: 16 },
+    playerSize: collisionBodySizeForRadius(DEVELOPMENT_COLLISION_BODY_RADIUS_PX),
     speedPxPerSecond: DEVELOPMENT_WALK_SPEED_PX_PER_SECOND,
     runSpeedPxPerSecond: DEVELOPMENT_RUN_SPEED_PX_PER_SECOND,
+    collisionSlide: {
+      maxNudgePx: DEVELOPMENT_COLLISION_SLIDE_MAX_NUDGE_PX,
+    },
     defaultAvatarId: "adam",
     tickMs: DEVELOPMENT_WORLD_TICK_MS,
     defaultRoomId: "room-lobby",
     proximityChatRadiusPx: 96,
+  }
+}
+
+function developmentWorldMovementFromBody(body) {
+  const record = body && typeof body === "object" && !Array.isArray(body) ? body : {}
+  const collisionBodyRadiusPx = optionalPositiveNumber(
+    record.collisionBodyRadiusPx,
+    "collisionBodyRadiusPx",
+    DEVELOPMENT_COLLISION_BODY_RADIUS_PX,
+  )
+  const collisionSlideMaxNudgePx = optionalNonNegativeNumber(
+    record.collisionSlideMaxNudgePx,
+    "collisionSlideMaxNudgePx",
+    DEVELOPMENT_COLLISION_SLIDE_MAX_NUDGE_PX,
+  )
+
+  return {
+    playerSize: collisionBodySizeForRadius(collisionBodyRadiusPx),
+    speedPxPerSecond: optionalPositiveNumber(
+      record.walkSpeedPxPerSecond,
+      "walkSpeedPxPerSecond",
+      DEVELOPMENT_WALK_SPEED_PX_PER_SECOND,
+    ),
+    runSpeedPxPerSecond: optionalPositiveNumber(
+      record.runSpeedPxPerSecond,
+      "runSpeedPxPerSecond",
+      DEVELOPMENT_RUN_SPEED_PX_PER_SECOND,
+    ),
+    collisionSlide: {
+      maxNudgePx: collisionSlideMaxNudgePx,
+    },
   }
 }
 
@@ -755,6 +819,15 @@ function developmentWorldGeometryFromBody(body) {
   }
 }
 
+function collisionBodySizeForRadius(radiusPx) {
+  const diameter = radiusPx * 2
+
+  return {
+    width: diameter,
+    height: diameter,
+  }
+}
+
 function requiredStringValue(value, field) {
   if (typeof value !== "string" || value.trim() === "") {
     throw new Error(`Expected ${field} to be a non-empty string.`)
@@ -771,12 +844,22 @@ function requiredPositiveNumber(value, field) {
   return value
 }
 
+function optionalPositiveNumber(value, field, fallback) {
+  if (value === undefined) return fallback
+  return requiredPositiveNumber(value, field)
+}
+
 function requiredNonNegativeNumber(value, field) {
   if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
     throw new Error(`Expected ${field} to be a non-negative number.`)
   }
 
   return value
+}
+
+function optionalNonNegativeNumber(value, field, fallback) {
+  if (value === undefined) return fallback
+  return requiredNonNegativeNumber(value, field)
 }
 
 function createWorldParticipantDirectory(world) {

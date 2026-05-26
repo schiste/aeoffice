@@ -1,4 +1,5 @@
 import {
+  type CollisionSlideOptions,
   type CollisionMap,
   type Size,
   simulateMovement,
@@ -76,6 +77,7 @@ export interface CreateClientMovementPredictionInput {
   readonly nowMs: number
   readonly deltaMs?: number
   readonly playerSize?: Size
+  readonly collisionSlide?: CollisionSlideOptions
   readonly speedPxPerSecond?: number
   readonly runSpeedPxPerSecond?: number
 }
@@ -85,6 +87,7 @@ export interface ReplayMovementPredictionsInput {
   readonly predictions: readonly ClientMovementPrediction[]
   readonly map: CollisionMap
   readonly playerSize?: Size
+  readonly collisionSlide?: CollisionSlideOptions
 }
 
 export interface ReplayMovementPredictionsResult {
@@ -148,6 +151,7 @@ export function createClientMovementPrediction(
     playerSize,
     speedPxPerSecond,
     deltaMs,
+    collisionSlide: input.collisionSlide,
   })
 
   return {
@@ -185,6 +189,7 @@ export function replayMovementPredictions(
       nowMs: prediction.startedAtMs,
       deltaMs: prediction.deltaMs,
       playerSize: input.playerSize,
+      collisionSlide: input.collisionSlide,
       speedPxPerSecond:
         prediction.movementMode === "walk"
           ? prediction.speedPxPerSecond

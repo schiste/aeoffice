@@ -34,6 +34,11 @@ export interface CollisionMap {
   readonly blockedTiles: readonly TileCoordinate[]
 }
 
+export interface CollisionSlideOptions {
+  readonly maxNudgePx?: number
+  readonly nudgeStepPx?: number
+}
+
 export interface Zone {
   readonly id: string
   readonly bounds: Rectangle
@@ -48,6 +53,7 @@ export interface MovementSimulationInput {
   readonly playerSize: Size
   readonly speedPxPerSecond: number
   readonly deltaMs: number
+  readonly collisionSlide?: CollisionSlideOptions
   readonly zones?: readonly Zone[]
   readonly currentZoneIds?: readonly string[]
   readonly permissions?: readonly string[]
@@ -95,6 +101,7 @@ export function simulateMovement(
     normalizedVector,
     attemptedPosition,
     distance,
+    input.collisionSlide,
   )
 
   if (!resolvedMovement) {
@@ -220,6 +227,7 @@ function resolveMovementAgainstCollision(
   normalizedVector: MovementVector,
   attemptedPosition: Vector2,
   distance: number,
+  collisionSlide: CollisionSlideOptions | undefined,
 ):
   | {
       readonly position: Vector2
@@ -244,6 +252,7 @@ function resolveMovementAgainstCollision(
     normalizedVector,
     distance,
     input.map.tileSize,
+    collisionSlide,
   )
 
   for (const candidate of slideCandidates) {
@@ -263,6 +272,7 @@ function collisionSlideCandidates(
   normalizedVector: MovementVector,
   distance: number,
   tileSize: number,
+  collisionSlide: CollisionSlideOptions | undefined,
 ): readonly {
   readonly position: Vector2
   readonly appliedVector: MovementVector
@@ -271,7 +281,13 @@ function collisionSlideCandidates(
 }[] {
   return [
     ...axisSlideCandidates(current, normalizedVector, distance),
-    ...cornerSlideCandidates(current, normalizedVector, distance, tileSize),
+    ...cornerSlideCandidates(
+      current,
+      normalizedVector,
+      distance,
+      tileSize,
+      collisionSlide,
+    ),
   ]
 }
 
@@ -322,6 +338,7 @@ function cornerSlideCandidates(
   normalizedVector: MovementVector,
   distance: number,
   tileSize: number,
+  collisionSlide: CollisionSlideOptions | undefined,
 ): readonly {
   readonly position: Vector2
   readonly appliedVector: MovementVector
@@ -334,10 +351,18 @@ function cornerSlideCandidates(
     readonly collisionSlideAxis: "corner"
     readonly collisionSlideDistancePx: number
   }[] = []
-  const maxNudgePx = Math.min(CORNER_SLIDE_MAX_NUDGE_PX, tileSize / 3)
+  const configuredMaxNudgePx =
+    collisionSlide?.maxNudgePx ?? CORNER_SLIDE_MAX_NUDGE_PX
+  if (configuredMaxNudgePx <= 0) return candidates
+
+  const maxNudgePx = Math.min(configuredMaxNudgePx, tileSize / 2)
+  const nudgeStepPx = Math.max(
+    0.5,
+    collisionSlide?.nudgeStepPx ?? CORNER_SLIDE_NUDGE_STEP_PX,
+  )
   const nudgeDistances = orderedNudgeDistances(
     maxNudgePx,
-    CORNER_SLIDE_NUDGE_STEP_PX,
+    nudgeStepPx,
   )
   const primaryAxis =
     Math.abs(normalizedVector.x) >= Math.abs(normalizedVector.y) ? "x" : "y"

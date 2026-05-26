@@ -35,7 +35,10 @@ import {
   clampMovementFeelValue,
   formatMovementFeelValue,
   isMovementFeelTuningKey,
+  movementCollisionBodySize,
+  movementCollisionSlideOptions,
   normalizeMovementFeel,
+  shapeMovementVectorForFeel,
   type MovementFeelTuning,
   type MovementFeelTuningKey,
 } from "./movement-feel"
@@ -605,6 +608,7 @@ const recentEvents: string[] = []
 const chatMessages: ChatRecord[] = []
 const movementDebugRecords: MovementDebugRecord[] = []
 const toasts = new Map<string, number>()
+let movementFeelSyncTimerId: number | undefined
 
 const elements = {
   start: mustQuery<HTMLButtonElement>("#start"),
@@ -1197,6 +1201,7 @@ function stepClientMotionFrame(nowMs: number): void {
     nowMs,
     intent: activeHeldMovementIntent(),
     map: collisionMapForFixtureMap(state.fixtureMap),
+    playerSize: movementCollisionBodySize(state.movementFeel),
   })
 
   if (!result.changed) return
@@ -1210,6 +1215,7 @@ function primeClientMotionIntent(intent: ClientMotionIntent): void {
     nowMs: performance.now(),
     intent,
     map: collisionMapForFixtureMap(state.fixtureMap),
+    playerSize: movementCollisionBodySize(state.movementFeel),
   })
 
   if (!result.changed) return
@@ -1304,6 +1310,8 @@ function beginClientMovementPrediction(
     map: collisionMapForFixtureMap(state.fixtureMap),
     lastSentAtMs: state.movementPrediction.lastSentAtMs,
     nowMs: Date.now(),
+    playerSize: movementCollisionBodySize(state.movementFeel),
+    collisionSlide: movementCollisionSlideOptions(state.movementFeel),
     speedPxPerSecond: state.movementFeel.walkSpeedPxPerSecond,
     runSpeedPxPerSecond: state.movementFeel.runSpeedPxPerSecond,
   })
@@ -1749,6 +1757,7 @@ function applyMovementFeel(nextFeel: MovementFeelTuning): void {
   state.movementFeel = normalizeMovementFeel(nextFeel)
   clientMotion.setFeel(state.movementFeel)
   renderMovementFeelPanel()
+  scheduleDevelopmentMovementFeelSync()
 }
 
 function renderMovementFeelPanel(): void {
@@ -1774,9 +1783,43 @@ function renderMovementFeelPanel(): void {
   })
 }
 
+function scheduleDevelopmentMovementFeelSync(): void {
+  if (!state.devTools.gated) return
+
+  if (movementFeelSyncTimerId !== undefined) {
+    window.clearTimeout(movementFeelSyncTimerId)
+  }
+
+  movementFeelSyncTimerId = window.setTimeout(() => {
+    movementFeelSyncTimerId = undefined
+    void syncDevelopmentMovementFeel(state.movementFeel)
+  }, 120)
+}
+
+async function syncDevelopmentMovementFeel(feel: MovementFeelTuning): Promise<void> {
+  try {
+    const body = await postJson<{
+      readonly status: "ok"
+      readonly playerSize: { readonly width: number; readonly height: number }
+    }>("/dev/world-movement", {
+      walkSpeedPxPerSecond: feel.walkSpeedPxPerSecond,
+      runSpeedPxPerSecond: feel.runSpeedPxPerSecond,
+      collisionBodyRadiusPx: feel.collisionBodyRadiusPx,
+      collisionSlideMaxNudgePx: feel.collisionSlideMaxNudgePx,
+    })
+    logMovementDebug(
+      "feel-sync",
+      `server body=${formatMovementNumber(body.playerSize.width)}x${formatMovementNumber(body.playerSize.height)}`,
+    )
+  } catch (error: unknown) {
+    logMovementDebug("feel-sync", `skipped ${errorMessage(error)}`)
+  }
+}
+
 function activeHeldMovementIntent():
   | {
       readonly vector: MovementVector
+      readonly rawVector: MovementVector
       readonly direction: Direction
       readonly movementMode: MovementMode
     }
@@ -1806,6 +1849,8 @@ function activeHeldMovementIntent():
   }
 
   if (vector.x === 0 && vector.y === 0) return undefined
+  const shapedVector = shapeMovementVectorForFeel(vector, state.movementFeel)
+  if (shapedVector.x === 0 && shapedVector.y === 0) return undefined
   const orderedIntents = [
     ...movementInput.pressedDirections.map((direction) => ({
       direction,
@@ -1816,12 +1861,13 @@ function activeHeldMovementIntent():
   ]
 
   return {
-    vector,
+    vector: shapedVector,
+    rawVector: vector,
     movementMode: activeMovementMode(),
     direction:
       orderedIntents
-        .filter((intent) => vectorIncludesIntent(vector, intent.vector))
-        .at(-1)?.direction ?? directionForMovementVector(vector),
+        .filter((intent) => vectorIncludesIntent(shapedVector, intent.vector))
+        .at(-1)?.direction ?? directionForMovementVector(shapedVector),
   }
 }
 
@@ -1833,7 +1879,7 @@ function requestMoveFromHeldInput(): void {
   }
   logMovementDebug(
     "intent",
-    `vector=${formatMovementVector(intent.vector)} facing=${intent.direction} mode=${intent.movementMode} keys=${movementInput.pressedDirections.join("+") || "-"} pads=${movementInput.pressedControls.length} joystick=${movementInput.joystick.active ? formatMovementVector(movementInput.joystick.vector) : "-"}`,
+    `vector=${formatMovementVector(intent.rawVector)} shaped=${formatMovementVector(intent.vector)} facing=${intent.direction} mode=${intent.movementMode} keys=${movementInput.pressedDirections.join("+") || "-"} pads=${movementInput.pressedControls.length} joystick=${movementInput.joystick.active ? formatMovementVector(movementInput.joystick.vector) : "-"}`,
   )
   requestMove(intent.vector, intent.direction, intent.movementMode)
 }
@@ -3211,6 +3257,8 @@ function replayPendingMovementPredictions(
     from: authoritativePosition,
     predictions: pending,
     map: collisionMapForFixtureMap(state.fixtureMap),
+    playerSize: movementCollisionBodySize(state.movementFeel),
+    collisionSlide: movementCollisionSlideOptions(state.movementFeel),
   })
 }
 
@@ -4844,11 +4892,18 @@ function eventTargetConsumesMovementKeys(target: EventTarget | null): boolean {
 
 function movementPredictionTextState() {
   const prediction = state.movementPrediction
+  const playerSize = movementCollisionBodySize(state.movementFeel)
 
   return {
     mode: "client_prediction_server_reconciliation",
     maxStepMs: CLIENT_PREDICTION_MAX_STEP_MS,
     historyLimit: CLIENT_INPUT_HISTORY_LIMIT,
+    collisionBody: {
+      radiusPx: state.movementFeel.collisionBodyRadiusPx,
+      width: Number(playerSize.width.toFixed(2)),
+      height: Number(playerSize.height.toFixed(2)),
+      slideMaxNudgePx: state.movementFeel.collisionSlideMaxNudgePx,
+    },
     active: Boolean(prediction.active),
     seq: prediction.active?.seq,
     pendingCount: prediction.pending.length,

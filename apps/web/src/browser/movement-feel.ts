@@ -4,6 +4,9 @@ export interface MovementFeelTuning {
   readonly accelerationTimeConstantMs: number
   readonly decelerationTimeConstantMs: number
   readonly turnResponseTimeConstantMs: number
+  readonly analogCurveExponent: number
+  readonly collisionBodyRadiusPx: number
+  readonly collisionSlideMaxNudgePx: number
   readonly activeCorrectionTimeConstantMs: number
   readonly idleCorrectionTimeConstantMs: number
   readonly softCorrectionThresholdPx: number
@@ -31,6 +34,9 @@ export const MOVEMENT_RUN_SPEED_PX_PER_SECOND = 148
 export const MOVEMENT_ACCELERATION_TIME_CONSTANT_MS = 34
 export const MOVEMENT_DECELERATION_TIME_CONSTANT_MS = 28
 export const MOVEMENT_TURN_RESPONSE_TIME_CONSTANT_MS = 18
+export const MOVEMENT_ANALOG_CURVE_EXPONENT = 1
+export const MOVEMENT_COLLISION_BODY_RADIUS_PX = 7.5
+export const MOVEMENT_COLLISION_SLIDE_MAX_NUDGE_PX = 12
 export const MOVEMENT_ACTIVE_CORRECTION_TIME_CONSTANT_MS = 190
 export const MOVEMENT_IDLE_CORRECTION_TIME_CONSTANT_MS = 90
 export const MOVEMENT_SOFT_CORRECTION_THRESHOLD_PX = 1.5
@@ -46,6 +52,9 @@ export const DEFAULT_MOVEMENT_FEEL: MovementFeelTuning = {
   accelerationTimeConstantMs: MOVEMENT_ACCELERATION_TIME_CONSTANT_MS,
   decelerationTimeConstantMs: MOVEMENT_DECELERATION_TIME_CONSTANT_MS,
   turnResponseTimeConstantMs: MOVEMENT_TURN_RESPONSE_TIME_CONSTANT_MS,
+  analogCurveExponent: MOVEMENT_ANALOG_CURVE_EXPONENT,
+  collisionBodyRadiusPx: MOVEMENT_COLLISION_BODY_RADIUS_PX,
+  collisionSlideMaxNudgePx: MOVEMENT_COLLISION_SLIDE_MAX_NUDGE_PX,
   activeCorrectionTimeConstantMs: MOVEMENT_ACTIVE_CORRECTION_TIME_CONSTANT_MS,
   idleCorrectionTimeConstantMs: MOVEMENT_IDLE_CORRECTION_TIME_CONSTANT_MS,
   softCorrectionThresholdPx: MOVEMENT_SOFT_CORRECTION_THRESHOLD_PX,
@@ -102,6 +111,33 @@ export const MOVEMENT_FEEL_CONTROLS: readonly MovementFeelControl[] = [
     step: 1,
     unit: "ms",
     help: "Lower values make direction changes snappier.",
+  },
+  {
+    key: "analogCurveExponent",
+    label: "Analog curve",
+    min: 0.65,
+    max: 1.8,
+    step: 0.05,
+    unit: "x",
+    help: "Lower values make partial joystick tilt more responsive.",
+  },
+  {
+    key: "collisionBodyRadiusPx",
+    label: "Body radius",
+    min: 5,
+    max: 10,
+    step: 0.25,
+    unit: "px",
+    help: "Authoritative collision body radius around the avatar feet.",
+  },
+  {
+    key: "collisionSlideMaxNudgePx",
+    label: "Slide assist",
+    min: 0,
+    max: 18,
+    step: 0.5,
+    unit: "px",
+    help: "Maximum corner nudge used to glide along walls and furniture.",
   },
   {
     key: "activeCorrectionTimeConstantMs",
@@ -207,7 +243,54 @@ export function formatMovementFeelValue(
   return control?.unit ? `${formatted}${control.unit}` : formatted
 }
 
+export function movementCollisionBodySize(
+  feel: MovementFeelTuning,
+): { readonly width: number; readonly height: number } {
+  const diameter = Math.max(1, feel.collisionBodyRadiusPx * 2)
+
+  return {
+    width: diameter,
+    height: diameter,
+  }
+}
+
+export function movementCollisionSlideOptions(
+  feel: MovementFeelTuning,
+): { readonly maxNudgePx: number } {
+  return {
+    maxNudgePx: feel.collisionSlideMaxNudgePx,
+  }
+}
+
+export function shapeMovementVectorForFeel(
+  vector: { readonly x: number; readonly y: number },
+  feel: MovementFeelTuning,
+): { readonly x: number; readonly y: number } {
+  const magnitude = Math.hypot(vector.x, vector.y)
+  if (magnitude === 0) return { x: 0, y: 0 }
+
+  const normalized = {
+    x: vector.x / magnitude,
+    y: vector.y / magnitude,
+  }
+  const clampedMagnitude = Math.min(1, magnitude)
+  const curvedMagnitude = Math.pow(
+    clampedMagnitude,
+    Math.max(0.01, feel.analogCurveExponent),
+  )
+
+  return {
+    x: roundMovementComponent(normalized.x * curvedMagnitude),
+    y: roundMovementComponent(normalized.y * curvedMagnitude),
+  }
+}
+
 function decimalPrecision(value: number): number {
   const [, decimals = ""] = value.toString().split(".")
   return decimals.length
+}
+
+function roundMovementComponent(value: number): number {
+  if (Math.abs(value) < 0.0005) return 0
+  return Number(Math.max(-1, Math.min(1, value)).toFixed(3))
 }

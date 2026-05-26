@@ -17,6 +17,7 @@ import {
   type WorldSnapshotMessage,
 } from "@aedventure/protocol"
 import {
+  type CollisionSlideOptions,
   type CollisionMap,
   type Size,
   type Vector2,
@@ -41,6 +42,7 @@ export interface WorldServerConfig {
   readonly playerSize: Size
   readonly speedPxPerSecond: number
   readonly runSpeedPxPerSecond?: number
+  readonly collisionSlide?: CollisionSlideOptions
   readonly defaultAvatarId: string
   readonly tickMs: number
   readonly defaultRoomId: string
@@ -60,6 +62,13 @@ export interface AddPlayerInput {
 export interface WorldGeometryConfig {
   readonly map: CollisionMap
   readonly zones?: readonly Zone[]
+}
+
+export interface WorldMovementTuningConfig {
+  readonly playerSize?: Size
+  readonly speedPxPerSecond?: number
+  readonly runSpeedPxPerSecond?: number
+  readonly collisionSlide?: CollisionSlideOptions
 }
 
 export interface PlayerSnapshot {
@@ -156,6 +165,13 @@ export class AuthoritativeWorld {
     }
   }
 
+  updateMovementTuning(tuning: WorldMovementTuningConfig): void {
+    this.config = {
+      ...this.config,
+      ...definedMovementTuning(tuning),
+    }
+  }
+
   handleClientMessage(
     playerId: string,
     message: ClientMessage | unknown,
@@ -213,6 +229,7 @@ export class AuthoritativeWorld {
       playerSize: this.config.playerSize,
       speedPxPerSecond,
       deltaMs,
+      collisionSlide: this.config.collisionSlide,
       zones: this.config.zones,
       currentZoneIds: state.zoneIds,
       permissions: state.permissions,
@@ -1137,6 +1154,23 @@ function movementSpeedPxPerSecond(
   }
 
   return config.speedPxPerSecond
+}
+
+function definedMovementTuning(
+  tuning: WorldMovementTuningConfig,
+): Partial<WorldServerConfig> {
+  return {
+    ...(tuning.playerSize ? { playerSize: tuning.playerSize } : {}),
+    ...(tuning.speedPxPerSecond !== undefined
+      ? { speedPxPerSecond: tuning.speedPxPerSecond }
+      : {}),
+    ...(tuning.runSpeedPxPerSecond !== undefined
+      ? { runSpeedPxPerSecond: tuning.runSpeedPxPerSecond }
+      : {}),
+    ...(tuning.collisionSlide
+      ? { collisionSlide: tuning.collisionSlide }
+      : {}),
+  }
 }
 
 function chatRejected(

@@ -140,6 +140,10 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   controls remain locked outside valid meeting state, debug zone bounds, private
   and portal affordances, and renderer zone state. `npm run build`,
   `npm run smoke:frontend`, `npm run qa:responsive`, and `npm run check` passed.
+- Movement feel tuning now treats collision and analog response as explicit game
+  systems: the tuning model owns body radius, analog curve, and corner-slide
+  assist, client prediction uses those values, and the development world server
+  can receive matching movement tuning through a dev-only route.
 - Meeting-zone interactions now use the compiled map zones in the browser app:
   the Phaser renderer highlights the active zone, the app exposes Join/Leave
   meeting controls outside the canvas, and media is no longer auto-joined when

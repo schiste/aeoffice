@@ -857,6 +857,18 @@ function assertMovementFeelContract(state) {
     "number",
   )
   assert.equal(
+    typeof state.movement?.feel?.values?.analogCurveExponent,
+    "number",
+  )
+  assert.equal(
+    typeof state.movement?.feel?.values?.collisionBodyRadiusPx,
+    "number",
+  )
+  assert.equal(
+    typeof state.movement?.feel?.values?.collisionSlideMaxNudgePx,
+    "number",
+  )
+  assert.equal(
     typeof state.movement?.feel?.values?.activeCorrectionTimeConstantMs,
     "number",
   )
@@ -873,6 +885,20 @@ function assertMovementFeelContract(state) {
       (control) => control.key === "turnResponseTimeConstantMs",
     ),
     "Expected turn response to be explicitly tunable.",
+  )
+  assert.ok(
+    state.movement.feel.controls.some(
+      (control) => control.key === "collisionBodyRadiusPx",
+    ),
+    "Expected collision body radius to be explicitly tunable.",
+  )
+  assert.equal(
+    typeof state.movement?.prediction?.collisionBody?.radiusPx,
+    "number",
+  )
+  assert.equal(
+    typeof state.movement?.prediction?.collisionBody?.slideMaxNudgePx,
+    "number",
   )
 }
 
