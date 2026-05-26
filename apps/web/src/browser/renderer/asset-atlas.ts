@@ -1,12 +1,21 @@
+import Phaser from "phaser"
+
 import { drawSemanticTile } from "./semantic-tiles"
 import type {
   FixtureToken,
+  RendererAssetPackInfo,
   RendererAssetPipelineInfo,
   TileSegment,
 } from "./types"
 
 const ATLAS_MANIFEST_FILE = "assets/internal-office-atlas.manifest.json"
 const ATLAS_IMAGE_FILE = "assets/internal-office-atlas@2x.png"
+export const OFFICE_ASSET_PACK_KEY = "aedventure.office.core-pack"
+export const OFFICE_ASSET_PACK_SECTION = "core-office"
+export const OFFICE_ATLAS_MANIFEST_CACHE_KEY = "aedventure.office.atlas.manifest"
+export const OFFICE_ATLAS_IMAGE_TEXTURE_KEY = "aedventure.office.atlas.image"
+export const TENANT_DEFAULT_BUNDLE_ID = "tenant.default"
+export const OFFICE_POLISHED_THEME_BUNDLE_ID = "theme.office.polished_v1"
 
 export interface InternalOfficeAtlasManifest {
   readonly schemaVersion: number
@@ -85,15 +94,8 @@ export interface InternalOfficeAtlasFrame {
 
 export interface RuntimeAssetAtlas {
   readonly manifest: InternalOfficeAtlasManifest
-  readonly image: HTMLImageElement
+  readonly image: CanvasImageSource
   readonly framesByTokenId: ReadonlyMap<string, InternalOfficeAtlasFrame>
-}
-
-let atlasPromise: Promise<RuntimeAssetAtlas | undefined> | undefined
-
-export function loadInternalOfficeAtlas(): Promise<RuntimeAssetAtlas | undefined> {
-  atlasPromise ??= loadAtlas()
-  return atlasPromise
 }
 
 export function emptyAssetPipelineInfo(): RendererAssetPipelineInfo {
@@ -107,6 +109,7 @@ export function emptyAssetPipelineInfo(): RendererAssetPipelineInfo {
     fallbackTokenCount: 0,
     fallbackTokenIds: [],
     tilesetReused: false,
+    loader: emptyAssetPackInfo(),
     metadata: emptyAssetMetadataInfo(),
   }
 }
@@ -118,6 +121,7 @@ export function assetPipelineInfoFromRender(
   options: {
     readonly tilesetSignature?: string
     readonly tilesetReused?: boolean
+    readonly loader?: RendererAssetPackInfo
   } = {},
 ): RendererAssetPipelineInfo {
   return {
@@ -135,6 +139,7 @@ export function assetPipelineInfoFromRender(
     retinaStrategy: atlas?.manifest.image.retinaStrategy,
     tilesetSignature: options.tilesetSignature,
     tilesetReused: options.tilesetReused ?? false,
+    loader: options.loader ?? emptyAssetPackInfo(),
     metadata: assetMetadataInfo(atlas?.manifest),
   }
 }
@@ -191,37 +196,100 @@ export function drawTokenFrameWithFallback(
   drawSemanticTile(context, token, x, y, tileSize, segment)
 }
 
-async function loadAtlas(): Promise<RuntimeAssetAtlas | undefined> {
-  try {
-    const manifestResponse = await fetch(atlasManifestPath(), {
-      cache: "force-cache",
-    })
-    if (!manifestResponse.ok) return undefined
-
-    const manifest = (await manifestResponse.json()) as InternalOfficeAtlasManifest
-    const image = await loadImage(appAssetUrl(manifest.image.path || ATLAS_IMAGE_FILE))
-
-    return {
-      manifest,
-      image,
-      framesByTokenId: new Map(
-        manifest.frames.map((frame) => [frame.tokenId, frame]),
-      ),
-    }
-  } catch {
-    return undefined
+export function internalOfficeAssetPackData(): Record<
+  string,
+  Phaser.Types.Loader.FileTypes.PackFileSection
+> {
+  return {
+    [OFFICE_ASSET_PACK_SECTION]: {
+      files: [
+        {
+          type: "json",
+          key: OFFICE_ATLAS_MANIFEST_CACHE_KEY,
+          url: atlasManifestPath(),
+        } as Phaser.Types.Loader.FileConfig,
+        {
+          type: "image",
+          key: OFFICE_ATLAS_IMAGE_TEXTURE_KEY,
+          url: atlasImagePath(),
+        } as Phaser.Types.Loader.FileConfig,
+      ],
+    },
   }
 }
 
-function atlasManifestPath(): string {
+export function runtimeAssetAtlasFromLoadedAssets(
+  scene: Phaser.Scene,
+): RuntimeAssetAtlas | undefined {
+  const manifest = scene.cache.json.get(
+    OFFICE_ATLAS_MANIFEST_CACHE_KEY,
+  ) as InternalOfficeAtlasManifest | undefined
+
+  if (!manifest || !scene.textures.exists(OFFICE_ATLAS_IMAGE_TEXTURE_KEY)) {
+    return undefined
+  }
+
+  const texture = scene.textures.get(OFFICE_ATLAS_IMAGE_TEXTURE_KEY)
+  const image = texture.getSourceImage() as CanvasImageSource
+
+  if (!hasDrawableImageSize(image)) {
+    return undefined
+  }
+
+  return {
+    manifest,
+    image,
+    framesByTokenId: new Map(
+      manifest.frames.map((frame) => [frame.tokenId, frame]),
+    ),
+  }
+}
+
+function hasDrawableImageSize(
+  image: CanvasImageSource,
+): image is CanvasImageSource {
+  return (
+    typeof (image as { width?: unknown }).width === "number" &&
+    typeof (image as { height?: unknown }).height === "number"
+  )
+}
+
+export function emptyAssetPackInfo(): RendererAssetPackInfo {
+  return {
+    source: "phaser_loader_asset_pack",
+    packKey: OFFICE_ASSET_PACK_KEY,
+    packSource: "inline_pack_object",
+    coreSection: OFFICE_ASSET_PACK_SECTION,
+    loadedSections: [],
+    deferredSections: ["avatar-atlas", "tenant-theme"],
+    tenantBundleId: TENANT_DEFAULT_BUNDLE_ID,
+    themeBundleId: OFFICE_POLISHED_THEME_BUNDLE_ID,
+    progress: {
+      started: false,
+      complete: false,
+      value: 0,
+      totalFiles: 0,
+      loadedFiles: 0,
+      failedFiles: 0,
+      completedKeys: [],
+      failedKeys: [],
+    },
+    cache: {
+      jsonKeys: [],
+      textureKeys: [],
+    },
+  }
+}
+
+export function atlasManifestPath(): string {
   return appAssetUrl(ATLAS_MANIFEST_FILE)
 }
 
-function atlasImagePath(): string {
+export function atlasImagePath(): string {
   return appAssetUrl(ATLAS_IMAGE_FILE)
 }
 
-function appAssetUrl(filePath: string): string {
+export function appAssetUrl(filePath: string): string {
   if (/^https?:\/\//.test(filePath)) return filePath
 
   const normalizedFilePath = filePath.replace(/^\/+/, "")
@@ -232,19 +300,9 @@ function appAssetUrl(filePath: string): string {
   return `${appBasePath()}assets/${normalizedFilePath}`
 }
 
-function appBasePath(): string {
+export function appBasePath(): string {
   const appPathMatch = window.location.pathname.match(/^(.*\/app)(?:\/|$)/)
   return appPathMatch ? `${appPathMatch[1]}/` : "/app/"
-}
-
-function loadImage(src: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const image = new Image()
-    image.decoding = "async"
-    image.onload = () => resolve(image)
-    image.onerror = () => reject(new Error(`Unable to load asset atlas ${src}.`))
-    image.src = src
-  })
 }
 
 function assetMetadataInfo(

@@ -656,6 +656,7 @@ export interface RendererAssetPipelineInfo {
   readonly retinaStrategy?: string
   readonly tilesetSignature?: string
   readonly tilesetReused: boolean
+  readonly loader: RendererAssetPackInfo
   readonly metadata: {
     readonly schemaVersion?: number
     readonly frameCount: number
@@ -669,6 +670,31 @@ export interface RendererAssetPipelineInfo {
     readonly sourceInputCount: number
     readonly sourceLicenseValidated: boolean
     readonly atlasBuildValidated: boolean
+  }
+}
+
+export interface RendererAssetPackInfo {
+  readonly source: "phaser_loader_asset_pack"
+  readonly packKey: string
+  readonly packSource: "inline_pack_object"
+  readonly coreSection: string
+  readonly loadedSections: readonly string[]
+  readonly deferredSections: readonly string[]
+  readonly tenantBundleId: string
+  readonly themeBundleId: string
+  readonly progress: {
+    readonly started: boolean
+    readonly complete: boolean
+    readonly value: number
+    readonly totalFiles: number
+    readonly loadedFiles: number
+    readonly failedFiles: number
+    readonly completedKeys: readonly string[]
+    readonly failedKeys: readonly string[]
+  }
+  readonly cache: {
+    readonly jsonKeys: readonly string[]
+    readonly textureKeys: readonly string[]
   }
 }
 

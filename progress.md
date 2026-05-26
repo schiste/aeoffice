@@ -1169,3 +1169,32 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   The standalone develop-web-game client was attempted against
   `http://127.0.0.1:8108/app`, but still fails before navigation because the
   skill runtime cannot resolve `playwright`.
+- Renderer office textures now load through Phaser's LoaderPlugin asset-pack
+  path instead of a custom fetch/Image preload. The core office pack registers
+  the internal atlas manifest as JSON and the atlas image as a Phaser texture,
+  while renderer telemetry reports pack key, section, tenant/theme bundle IDs,
+  load progress, completed file keys, failed file keys, and JSON/texture cache
+  membership through `render_game_to_text.renderer.assets.loader`.
+- The semantic tileset still compiles from stable asset-registry token IDs, but
+  its atlas source is now resolved from Phaser caches via
+  `runtimeAssetAtlasFromLoadedAssets()`. Procedural drawing remains the
+  fallback path when an atlas frame is missing, keeping generated maps and QA
+  fixtures deterministic while opening the path for multi-atlas and tenant
+  theme bundles later.
+- Frontend smoke and renderer QA now assert the loader contract: the
+  `core-office` section is loaded, deferred sections include avatar and tenant
+  bundles, failed file count is zero, the office atlas manifest is present in
+  the Phaser JSON cache, and the office atlas image is present in the Phaser
+  texture cache.
+- Renderer QA's avatar texture leak check now dispatches scene-switch commands
+  and verifies the resulting `render_game_to_text` state. This avoids keeping a
+  Playwright evaluation promise attached while Phaser tears down the 128-avatar
+  preview scene, which was causing a transient execution-context loss even
+  though the page and renderer remained alive.
+- Verification passed after the Phaser asset-pack loader migration:
+  `npm --workspace @aedventure/web run build`,
+  `node --check scripts/renderer-qa.test.cjs`, `git diff --check`,
+  `npm run smoke:frontend`, `npm run qa:renderer`, `npm run qa:responsive`,
+  and `npm run check`. The latest stress-map, avatar-gallery, desktop, and
+  mobile screenshots were visually inspected under the renderer and responsive
+  QA artifact directories.

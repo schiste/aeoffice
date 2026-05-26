@@ -772,6 +772,15 @@ function assertRenderStateContract(state) {
   )
   assert.equal(typeof state.renderer?.assets?.atlasLoaded, "boolean")
   assert.equal(typeof state.renderer?.assets?.primarySource, "string")
+  assert.equal(
+    state.renderer?.assets?.loader?.source,
+    "phaser_loader_asset_pack",
+  )
+  assert.equal(typeof state.renderer?.assets?.loader?.progress?.value, "number")
+  assert.equal(
+    typeof state.renderer?.assets?.loader?.progress?.complete,
+    "boolean",
+  )
   assert.equal(typeof state.renderer?.assets?.metadata?.frameCount, "number")
   assert.equal(
     typeof state.renderer?.assets?.metadata?.sourceLicenseValidated,
@@ -1098,6 +1107,36 @@ function assertRendererCapabilities(state) {
   assert.equal(state.renderer.assets.metadata.atlasBuildValidated, true)
   assert.ok(state.renderer.assets.metadata.frameCount >= 20)
   assert.ok(state.renderer.assets.metadata.variantCount >= 40)
+  assert.equal(
+    state.renderer.assets.loader.packKey,
+    "aedventure.office.core-pack",
+  )
+  assert.equal(state.renderer.assets.loader.packSource, "inline_pack_object")
+  assert.deepEqual(state.renderer.assets.loader.loadedSections, ["core-office"])
+  assert.ok(
+    state.renderer.assets.loader.deferredSections.includes("avatar-atlas"),
+    "Expected avatar atlas bundle to be deferred for lazy loading.",
+  )
+  assert.equal(state.renderer.assets.loader.tenantBundleId, "tenant.default")
+  assert.equal(
+    state.renderer.assets.loader.themeBundleId,
+    "theme.office.polished_v1",
+  )
+  assert.equal(state.renderer.assets.loader.progress.complete, true)
+  assert.equal(state.renderer.assets.loader.progress.failedFiles, 0)
+  assert.ok(state.renderer.assets.loader.progress.loadedFiles >= 2)
+  assert.ok(
+    state.renderer.assets.loader.cache.jsonKeys.includes(
+      "aedventure.office.atlas.manifest",
+    ),
+    "Expected office atlas manifest to be in Phaser JSON cache.",
+  )
+  assert.ok(
+    state.renderer.assets.loader.cache.textureKeys.includes(
+      "aedventure.office.atlas.image",
+    ),
+    "Expected office atlas image to be in Phaser Texture Manager.",
+  )
   assert.ok(
     state.renderer.assets.metadata.tenantThemeTags.includes("brandable"),
     "Expected tenant theme tag metadata to include brandable assets.",

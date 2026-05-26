@@ -2,8 +2,10 @@ import Phaser from "phaser"
 
 import {
   emptyAssetPipelineInfo,
-  loadInternalOfficeAtlas,
+  runtimeAssetAtlasFromLoadedAssets,
+  type RuntimeAssetAtlas,
 } from "./asset-atlas"
+import { RendererAssetPackLoader } from "./asset-pack-loader"
 import { AvatarRenderer } from "./avatar-renderer"
 import { CameraController } from "./camera-controller"
 import { depthInfo, emptyDepthInfo } from "./depth"
@@ -56,7 +58,8 @@ export class OfficeScene extends Phaser.Scene {
   private readonly depthDebugOverlay: DepthDebugOverlay
   private readonly devToolsOverlay: DevToolsOverlay
   private readonly telemetry = new RendererTelemetry()
-  private readonly atlasPromise = loadInternalOfficeAtlas()
+  private readonly assetPackLoader: RendererAssetPackLoader
+  private runtimeAssetAtlas?: RuntimeAssetAtlas
   private activeMap?: Phaser.Tilemaps.Tilemap
   private tilemapInfo: RendererTilemapInfo = emptyTilemapInfo()
   private assetPipelineInfo: RendererAssetPipelineInfo = emptyAssetPipelineInfo()
@@ -81,11 +84,21 @@ export class OfficeScene extends Phaser.Scene {
     this.effectsLayer = new EffectsLayer(this)
     this.depthDebugOverlay = new DepthDebugOverlay(this)
     this.devToolsOverlay = new DevToolsOverlay(this)
+    this.assetPackLoader = new RendererAssetPackLoader(this)
     this.rendererDepthInfo = emptyDepthInfo(this.depthDebugOverlay.isEnabled())
+  }
+
+  preload(): void {
+    this.assetPackLoader.preloadCoreOfficePack()
   }
 
   create(): void {
     this.sceneReady = true
+    this.runtimeAssetAtlas = runtimeAssetAtlasFromLoadedAssets(this)
+    this.assetPipelineInfo = {
+      ...emptyAssetPipelineInfo(),
+      loader: this.assetPackLoader.getInfo(),
+    }
     this.cameraController.markReady()
     this.zoneRenderer.bindPointerInput()
     this.syncDevToolOverlays()
@@ -107,7 +120,7 @@ export class OfficeScene extends Phaser.Scene {
       )
     }
 
-    const atlas = await this.atlasPromise
+    const atlas = this.runtimeAssetAtlas
     const tileSize = fixtureMap.compiled.tileSize
     const widthInPixels = fixtureMap.compiled.width * tileSize
     const heightInPixels = fixtureMap.compiled.height * tileSize
@@ -141,6 +154,7 @@ export class OfficeScene extends Phaser.Scene {
       fixtureMap,
       multiTileVariantGids,
       atlas,
+      this.assetPackLoader.getInfo(),
     )
     const tileset = this.activeMap.addTilesetImage(
       TILESET_NAME,

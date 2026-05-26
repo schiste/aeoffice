@@ -739,15 +739,9 @@ async function runAvatarTextureLeakCheck(page, galleryState) {
     firstFullGallery.renderer.performance.runtime.textureCount
   const firstAvatarTextureCount = uniqueAvatarTextureCount(firstFullGallery)
 
-  await page.evaluate(async () => {
-    if (!window.__aedventureRendererTest?.renderLargeStaticMap) {
-      throw new Error("Missing large static map test API.")
-    }
-
-    await window.__aedventureRendererTest.renderLargeStaticMap({
-      width: 20,
-      height: 15,
-    })
+  await dispatchRendererTestCommand(page, "renderLargeStaticMap", {
+    width: 20,
+    height: 15,
   })
   const mapState = await waitForTextState(
     page,
@@ -759,18 +753,10 @@ async function runAvatarTextureLeakCheck(page, galleryState) {
     9000,
   )
 
-  await page.evaluate(async () => {
-    if (!window.__aedventureRendererTest?.renderAvatarPreviewGallery) {
-      throw new Error("Missing avatar preview gallery API.")
-    }
-
-    await window.__aedventureRendererTest.renderAvatarPreviewGallery()
-  })
+  await dispatchRendererTestCommand(page, "renderAvatarPreviewGallery")
   const secondFullGallery = await waitForFullAvatarFrameCache(page)
 
-  await page.evaluate(async () => {
-    await window.__aedventureRendererTest.renderAvatarPreviewGallery()
-  })
+  await dispatchRendererTestCommand(page, "renderAvatarPreviewGallery")
   const thirdFullGallery = await waitForFullAvatarFrameCache(page)
 
   const secondTextureCount =
@@ -824,6 +810,24 @@ async function runAvatarTextureLeakCheck(page, galleryState) {
   }
 }
 
+async function dispatchRendererTestCommand(page, commandName, ...args) {
+  await page.evaluate(
+    ({ commandName, args }) => {
+      const api = window.__aedventureRendererTest
+      const command = api?.[commandName]
+
+      if (typeof command !== "function") {
+        throw new Error(`Missing renderer test API: ${commandName}`)
+      }
+
+      void Promise.resolve(command(...args)).catch((error) => {
+        console.error(error instanceof Error ? error.stack : String(error))
+      })
+    },
+    { commandName, args },
+  )
+}
+
 async function waitForFullAvatarFrameCache(page) {
   await page.waitForTimeout(2300)
 
@@ -871,6 +875,23 @@ function assertRendererSnapshot(state) {
   assert.ok(state.renderer.webgl.maxTextureSize >= 1024)
   assert.equal(state.renderer.assets.primarySource, "internal_atlas")
   assert.equal(state.renderer.assets.atlasLoaded, true)
+  assert.equal(
+    state.renderer.assets.loader.source,
+    "phaser_loader_asset_pack",
+  )
+  assert.equal(state.renderer.assets.loader.progress.complete, true)
+  assert.equal(state.renderer.assets.loader.progress.failedFiles, 0)
+  assert.ok(state.renderer.assets.loader.loadedSections.includes("core-office"))
+  assert.ok(
+    state.renderer.assets.loader.cache.jsonKeys.includes(
+      "aedventure.office.atlas.manifest",
+    ),
+  )
+  assert.ok(
+    state.renderer.assets.loader.cache.textureKeys.includes(
+      "aedventure.office.atlas.image",
+    ),
+  )
   assert.equal(state.renderer.assets.metadata.sourceLicenseValidated, true)
   assert.equal(state.renderer.assets.metadata.atlasBuildValidated, true)
   assert.ok(state.renderer.assets.metadata.collisionFootprintCount >= 20)
