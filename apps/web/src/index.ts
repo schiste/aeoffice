@@ -7,6 +7,7 @@ import type {
   ChatScope,
   ClientMessage,
   Direction,
+  MovementMode,
   MovementVector,
   ServerMessage,
 } from "@aedventure/protocol"
@@ -151,6 +152,7 @@ export interface PlayerView {
   readonly permissions: readonly PermissionKey[]
   readonly roles: readonly RoleKey[]
   readonly lastSeqAck: number
+  readonly movementMode?: MovementMode
 }
 
 export interface VirtualOfficeRenderer {
@@ -726,6 +728,10 @@ function playerViewFromSnapshot(value: Record<string, unknown>): PlayerView {
     permissions: stringArray(value.permissions) as readonly PermissionKey[],
     roles: stringArray(value.roles) as readonly RoleKey[],
     lastSeqAck: value.lastSeqAck,
+    movementMode:
+      typeof value.movementMode === "string"
+        ? (value.movementMode as MovementMode)
+        : undefined,
   }
 }
 

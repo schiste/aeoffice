@@ -23,8 +23,8 @@ Phaser 4 canvas renderer:
   validation.
 - Request a world token from the API.
 - Join the world-server with that server-issued token.
-- Stream movement protocol intents over the realtime world transport and keep
-  HTTP as a fallback during local development.
+- Stream movement protocol intents over the fixed-tick realtime world transport
+  and keep HTTP as a fallback during local development.
 - Send chat protocol intents.
 - Apply authoritative server messages to local app state.
 - Request media-zone tokens from the media gateway.
@@ -32,7 +32,8 @@ Phaser 4 canvas renderer:
 Runtime adapters are intentionally narrow:
 
 - `HttpAppApiClient` calls the API for world tokens.
-- `WorldRealtimeTransport` streams movement intents through `/world/realtime`.
+- `WorldRealtimeTransport` streams movement intents through `/world/realtime`
+  and consumes server snapshot broadcasts for reconciliation/telemetry.
 - HTTP world routes remain available for join, snapshot, leave, chat, and
   movement fallback during local app-layer smoke testing.
 - `HttpMediaGatewayClient` calls the media gateway for LiveKit tokens.

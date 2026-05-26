@@ -5,7 +5,7 @@ const { resolve, sep } = require("node:path")
 
 const DEFAULT_HOSTNAME = "127.0.0.1"
 const DEFAULT_PORT = 8787
-const DEVELOPMENT_WORLD_TICK_MS = 60
+const DEVELOPMENT_WORLD_TICK_MS = 50
 const DEVELOPMENT_WALK_SPEED_PX_PER_SECOND = 88
 const DEVELOPMENT_RUN_SPEED_PX_PER_SECOND = 148
 const WEB_APP_DIST_DIR = resolve(__dirname, "../apps/web/dist-app")
@@ -138,6 +138,16 @@ function startDevelopmentServer(options = {}) {
 
 function installDevelopmentWorldRealtimeGateway(server, worldRuntime, clock) {
   const sockets = new Map()
+  const tickInterval = setInterval(() => {
+    const events = worldRuntime.controller.tick(clock?.nowMs() ?? Date.now())
+    if (events.length > 0) {
+      routeRealtimeWorldEvents(sockets, undefined, events)
+    }
+  }, DEVELOPMENT_WORLD_TICK_MS)
+
+  server.on("close", () => {
+    clearInterval(tickInterval)
+  })
 
   server.on("upgrade", (request, socket, head) => {
     const url = new URL(
@@ -194,7 +204,7 @@ function installDevelopmentWorldRealtimeGateway(server, worldRuntime, clock) {
           clientId = packet.clientId
           sockets.set(clientId, socket)
 
-          const events = worldRuntime.controller.receive(
+          const events = worldRuntime.controller.queueRealtimeMessage(
             packet.clientId,
             packet.message,
             clock?.nowMs() ?? Date.now(),
@@ -249,7 +259,7 @@ function routeRealtimeWorldEvents(sockets, senderClientId, events) {
       continue
     }
 
-    const sender = sockets.get(senderClientId)
+    const sender = senderClientId ? sockets.get(senderClientId) : undefined
     if (sender) {
       sendWebSocketJson(sender, {
         type: "world_events",

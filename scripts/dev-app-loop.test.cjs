@@ -11,7 +11,7 @@ const {
 } = require("../apps/web/dist/index.js")
 
 const nowMs = Date.parse("2026-05-23T10:00:00.000Z")
-const DEVELOPMENT_STEP_PX = 5.28
+const DEVELOPMENT_STEP_PX = 4.4
 
 async function main() {
   const runtime = createDevelopmentRuntime({

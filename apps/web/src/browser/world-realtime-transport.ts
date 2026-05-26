@@ -26,6 +26,10 @@ export interface WorldRealtimeSnapshot {
   readonly sentCount: number
   readonly receivedCount: number
   readonly fallbackCount: number
+  readonly snapshotCount: number
+  readonly lastSnapshotTick?: number
+  readonly lastSnapshotServerTime?: number
+  readonly serverTickMs?: number
   readonly lastError?: string
 }
 
@@ -36,6 +40,10 @@ export class WorldRealtimeTransport {
   private sentCount = 0
   private receivedCount = 0
   private fallbackCount = 0
+  private snapshotCount = 0
+  private lastSnapshotTick?: number
+  private lastSnapshotServerTime?: number
+  private serverTickMs?: number
   private lastError?: string
   private url?: string
 
@@ -97,12 +105,12 @@ export class WorldRealtimeTransport {
   }
 
   send(clientId: string, message: ClientMessage): boolean {
-    if (this.status !== "open" || !this.socket || this.clientId !== clientId) {
+    if (!this.canStream(clientId)) {
       this.fallbackCount += 1
       return false
     }
 
-    this.socket.send(
+    this.socket?.send(
       JSON.stringify({
         type: "world_message",
         clientId,
@@ -113,6 +121,14 @@ export class WorldRealtimeTransport {
     return true
   }
 
+  canStream(clientId: string): boolean {
+    return (
+      this.status === "open" &&
+      Boolean(this.socket) &&
+      this.clientId === clientId
+    )
+  }
+
   snapshot(): WorldRealtimeSnapshot {
     return {
       status: this.status,
@@ -120,6 +136,10 @@ export class WorldRealtimeTransport {
       sentCount: this.sentCount,
       receivedCount: this.receivedCount,
       fallbackCount: this.fallbackCount,
+      snapshotCount: this.snapshotCount,
+      lastSnapshotTick: this.lastSnapshotTick,
+      lastSnapshotServerTime: this.lastSnapshotServerTime,
+      serverTickMs: this.serverTickMs,
       lastError: this.lastError,
     }
   }
@@ -130,11 +150,41 @@ export class WorldRealtimeTransport {
       if (packet.type !== "world_events" || !Array.isArray(packet.events)) return
 
       this.receivedCount += 1
+      this.observeSnapshots(packet.events)
       this.applyEvents(packet.events)
     } catch (error) {
       this.lastError = error instanceof Error ? error.message : "Invalid realtime packet."
     }
   }
+
+  private observeSnapshots(events: readonly WorldRoomEvent[]): void {
+    for (const event of events) {
+      const message = event.message
+      if (!isWorldSnapshotMessage(message)) continue
+
+      this.snapshotCount += 1
+      this.lastSnapshotTick = message.tick
+      this.lastSnapshotServerTime = message.serverTime
+      this.serverTickMs = message.tickMs
+    }
+  }
+}
+
+function isWorldSnapshotMessage(value: unknown): value is {
+  readonly type: "world_snapshot"
+  readonly tick: number
+  readonly serverTime: number
+  readonly tickMs: number
+} {
+  if (!value || typeof value !== "object") return false
+  const record = value as Record<string, unknown>
+
+  return (
+    record.type === "world_snapshot" &&
+    typeof record.tick === "number" &&
+    typeof record.serverTime === "number" &&
+    typeof record.tickMs === "number"
+  )
 }
 
 function worldRealtimeUrl(clientId: string): string {

@@ -14,6 +14,7 @@ import {
   type PlayerStateMessage,
   type ProtocolErrorMessage,
   type ServerMessage,
+  type WorldSnapshotMessage,
 } from "@aedventure/protocol"
 import {
   type CollisionMap,
@@ -71,6 +72,7 @@ export interface PlayerSnapshot {
   readonly permissions: readonly string[]
   readonly roles: readonly string[]
   readonly lastSeqAck: number
+  readonly movementMode: MovementMode
 }
 
 interface PlayerState {
@@ -84,6 +86,7 @@ interface PlayerState {
   roles: readonly string[]
   avatarId: string
   lastSeqAck: number
+  movementMode: MovementMode
   lastProcessedAt?: number
 }
 
@@ -108,6 +111,7 @@ export class AuthoritativeWorld {
       roles: input.roles ?? [],
       avatarId: input.avatarId ?? this.config.defaultAvatarId,
       lastSeqAck: 0,
+      movementMode: "walk",
     }
 
     this.players.set(input.playerId, state)
@@ -134,6 +138,10 @@ export class AuthoritativeWorld {
 
   listParticipants(): readonly ParticipantPolicyContext[] {
     return [...this.players.values()].map(participantContext)
+  }
+
+  tickMs(): number {
+    return this.config.tickMs
   }
 
   reset(geometry?: WorldGeometryConfig): void {
@@ -213,6 +221,7 @@ export class AuthoritativeWorld {
     state.lastProcessedAt = nowMs
     state.direction = message.direction ?? result.direction
     state.lastSeqAck = message.seq
+    state.movementMode = movementMode
 
     if (!result.accepted) {
       return movementRejected(
@@ -439,6 +448,12 @@ interface WorldRoomClient {
   readonly playerId: string
 }
 
+interface QueuedMoveIntent {
+  readonly clientId: string
+  readonly message: ClientMessage
+  readonly receivedAtMs: number
+}
+
 export class WorldAdmissionService {
   constructor(
     private readonly world: AuthoritativeWorld,
@@ -496,6 +511,8 @@ export class WorldAdmissionService {
 export class WorldRoomController {
   private readonly clients = new Map<string, WorldRoomClient>()
   private readonly playerClients = new Map<string, string>()
+  private readonly queuedMoveIntents = new Map<string, QueuedMoveIntent[]>()
+  private tickCount = 0
 
   constructor(
     private readonly world: AuthoritativeWorld,
@@ -542,12 +559,15 @@ export class WorldRoomController {
 
     this.clients.delete(clientId)
     this.playerClients.delete(client.playerId)
+    this.queuedMoveIntents.delete(clientId)
     return this.world.removePlayer(client.playerId)
   }
 
   resetRoom(geometry?: WorldGeometryConfig): void {
     this.clients.clear()
     this.playerClients.clear()
+    this.queuedMoveIntents.clear()
+    this.tickCount = 0
     this.world.reset(geometry)
   }
 
@@ -573,6 +593,75 @@ export class WorldRoomController {
     return routeServerMessage(response, clientId, this.playerClients)
   }
 
+  queueRealtimeMessage(
+    clientId: string,
+    message: unknown,
+    nowMs: number,
+  ): readonly WorldRoomEvent[] {
+    const client = this.clients.get(clientId)
+
+    if (!client) {
+      return [
+        {
+          type: "send",
+          clientIds: [clientId],
+          message: protocolError(
+            "invalid_payload",
+            "Client is not admitted to this world room.",
+            nowMs,
+          ),
+        },
+      ]
+    }
+
+    if (!isMoveIntentMessage(message)) {
+      return this.receive(clientId, message, nowMs)
+    }
+
+    const queued = this.queuedMoveIntents.get(clientId) ?? []
+    queued.push({
+      clientId,
+      message,
+      receivedAtMs: nowMs,
+    })
+    this.queuedMoveIntents.set(clientId, queued.slice(-4))
+
+    return []
+  }
+
+  tick(nowMs: number): readonly WorldRoomEvent[] {
+    this.tickCount += 1
+
+    const events: WorldRoomEvent[] = []
+
+    for (const [clientId, queued] of this.queuedMoveIntents) {
+      if (queued.length === 0) continue
+
+      const latest = queued.at(-1)
+      this.queuedMoveIntents.set(clientId, [])
+      if (!latest) continue
+
+      const client = this.clients.get(clientId)
+      if (!client) continue
+
+      const response = this.world.handleClientMessage(
+        client.playerId,
+        latest.message,
+        nowMs,
+      )
+      events.push(...routeServerMessage(response, clientId, this.playerClients))
+    }
+
+    if (this.clients.size > 0) {
+      events.push({
+        type: "broadcast",
+        message: this.snapshotMessage(nowMs),
+      })
+    }
+
+    return events
+  }
+
   snapshot(clientId: string): WorldRoomSnapshotResult {
     const client = this.clients.get(clientId)
 
@@ -595,6 +684,28 @@ export class WorldRoomController {
       status: "ok",
       clientId,
       players,
+    }
+  }
+
+  private snapshotMessage(nowMs: number): WorldSnapshotMessage {
+    const players = this.world.listPlayers()
+
+    return {
+      type: "world_snapshot",
+      roomId: players[0]?.roomId ?? "unknown",
+      tick: this.tickCount,
+      tickMs: this.world.tickMs(),
+      serverTime: nowMs,
+      players: players.map((player) => ({
+        playerId: player.playerId,
+        userId: player.userId,
+        x: player.position.x,
+        y: player.position.y,
+        direction: player.direction,
+        zoneIds: player.zoneIds,
+        lastSeqAck: player.lastSeqAck,
+        movementMode: player.movementMode,
+      })),
     }
   }
 }
@@ -1067,6 +1178,7 @@ function snapshot(state: PlayerState): PlayerSnapshot {
     permissions: state.permissions,
     roles: state.roles,
     lastSeqAck: state.lastSeqAck,
+    movementMode: state.movementMode,
   }
 }
 

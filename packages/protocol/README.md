@@ -22,6 +22,8 @@ Current implementation:
   normalized-intent movement vector; `direction` is only a cardinal facing hint
   for animation and legacy clients.
 - `PlayerStateMessage` broadcasts server-authoritative position.
+- `WorldSnapshotMessage` broadcasts fixed-tick room snapshots for realtime
+  transports, including each player's last acknowledged movement sequence.
 - `MovementRejectedMessage` rejects invalid movement without accepting client
   coordinates.
 - Runtime guards reject the old client-controlled `{ "x": 705, "y": 500 }`

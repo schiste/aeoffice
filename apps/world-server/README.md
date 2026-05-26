@@ -24,16 +24,17 @@ Current implementation:
 - `UnsignedLocalWorldTokenVerifier` is a development-only verifier for local
   tests.
 - `WorldRoomController` is a dependency-light room adapter that models join,
-  leave, client message routing, direct sends, and broadcasts.
+  leave, client message routing, realtime input queues, fixed simulation ticks,
+  direct sends, and broadcasts.
 - `WorldGatewayController`, `registerWorldGatewayRoutes`, and
   `createWorldFetchHandler` expose join, message, and leave through
   dependency-free route contracts for local app-layer smoke testing.
 - It emits `player_state`, `movement_rejected`, `chat_delivered`,
-  `chat_rejected`, or `protocol_error` messages.
+  `chat_rejected`, `world_snapshot`, or `protocol_error` messages.
 
 Next step:
 
 - Replace the local verifier with production JWT verification.
-- Promote the current `/world/realtime` development WebSocket transport into a
-  real Colyseus `Room` class that wraps `WorldRoomController` instead of
-  duplicating movement authority.
+- Promote the current fixed-tick `/world/realtime` development WebSocket
+  transport into a real Colyseus `Room` class that wraps `WorldRoomController`
+  instead of duplicating movement authority.

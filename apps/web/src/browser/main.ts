@@ -187,6 +187,23 @@ type ServerMessage =
       readonly speedPxPerSecond?: number
     }
   | {
+      readonly type: "world_snapshot"
+      readonly roomId: string
+      readonly tick: number
+      readonly tickMs: number
+      readonly serverTime: number
+      readonly players: readonly {
+        readonly playerId: string
+        readonly userId?: string
+        readonly x: number
+        readonly y: number
+        readonly direction: Direction
+        readonly zoneIds: readonly string[]
+        readonly lastSeqAck: number
+        readonly movementMode?: MovementMode
+      }[]
+    }
+  | {
       readonly type: "chat_delivered"
       readonly body: string
       readonly recipientPlayerIds: readonly string[]
@@ -1879,6 +1896,15 @@ function requestMove(
     return
   }
   primeClientMotionIntent({ vector, direction, movementMode })
+  if (worldRealtime.canStream(state.clientId)) {
+    movementInput.lastRequestedDirection = direction
+    void move(vector, direction, movementMode).catch((error: unknown) => {
+      recordEvent(`Movement failed: ${technicalErrorDetail(error)}`)
+      publishToast(friendlyActionError(error), "error")
+    })
+    return
+  }
+
   if (movementInput.inFlight) {
     movementInput.pendingIntent = { vector, direction, movementMode }
     logMovementDebug(
@@ -3040,6 +3066,11 @@ function applyServerMessage(message: ServerMessage): void {
     return
   }
 
+  if ("type" in message && message.type === "world_snapshot") {
+    applyRealtimeWorldSnapshot(message)
+    return
+  }
+
   if ("type" in message && message.type === "chat_delivered") {
     state.lastChatBody = message.body
     addChatMessage(message.body, message.recipientPlayerIds.length)
@@ -3329,6 +3360,54 @@ function applyMovementRejection(
       message.reason === "collision" ? "info" : "warning",
     )
   }
+}
+
+function applyRealtimeWorldSnapshot(
+  message: Extract<ServerMessage, { type: "world_snapshot" }>,
+): void {
+  const snapshotIds = new Set(message.players.map((player) => player.playerId))
+  state.snapshotPlayerIds = [...snapshotIds]
+  state.companion.joined = snapshotIds.has(state.companion.playerId)
+
+  for (const player of message.players) {
+    const position = { x: player.x, y: player.y }
+    const localPlayer = player.playerId === state.playerId
+
+    if (localPlayer) {
+      const reconciliation =
+        player.lastSeqAck > (state.movementPrediction.lastAckSeq ?? -1)
+          ? reconcileClientMovementPrediction(position, player.lastSeqAck, false)
+          : undefined
+
+      state.position = position
+      state.direction = player.direction
+      if (reconciliation) {
+        clientMotion.reconcile(reconciliation.replayTarget)
+      }
+    }
+
+    if (player.playerId === state.companion.playerId) {
+      state.companion.position = position
+      state.companion.direction = player.direction
+    }
+
+    upsertRenderedPlayer({
+      playerId: player.playerId,
+      userId: player.userId,
+      position,
+      direction: player.direction,
+      movementMode: player.movementMode,
+    })
+  }
+
+  for (const playerId of state.players.keys()) {
+    if (!snapshotIds.has(playerId)) {
+      state.players.delete(playerId)
+    }
+  }
+
+  renderPlayers()
+  updateActiveZoneFromPosition()
 }
 
 function shouldShowMovementRejectionFeedback(
@@ -4905,6 +4984,7 @@ function roundedVector(position: Vector2): Vector2 {
 
 function renderDemoToText(): string {
   const overlay = stageOverlayContent()
+  const realtime = worldRealtime.snapshot()
 
   return JSON.stringify({
     coordinateSystem: "pixel origin top-left, x right, y down",
@@ -4986,7 +5066,21 @@ function renderDemoToText(): string {
       serverProtocolMismatch: state.serverProtocolMismatch,
       repeatMs: MOVE_REPEAT_MS,
       rejectionFeedbackMs: MOVEMENT_REJECTION_FEEDBACK_MS,
-      realtime: worldRealtime.snapshot(),
+      realtime,
+      simulation: {
+        mode: realtime.status === "open"
+          ? "websocket_fixed_tick_snapshot_stream"
+          : "http_request_response_fallback",
+        inputHz: Number((1000 / MOVE_REPEAT_MS).toFixed(1)),
+        clientInputMs: MOVE_REPEAT_MS,
+        serverTickMs: realtime.serverTickMs,
+        serverHz: realtime.serverTickMs
+          ? Number((1000 / realtime.serverTickMs).toFixed(1))
+          : undefined,
+        snapshotCount: realtime.snapshotCount,
+        lastSnapshotTick: realtime.lastSnapshotTick,
+        lastSnapshotServerTime: realtime.lastSnapshotServerTime,
+      },
       motion: clientMotionTextState(),
       feel: movementFeelTextState(),
       joystick: joystickTextState(),

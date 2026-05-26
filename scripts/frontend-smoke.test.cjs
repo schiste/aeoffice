@@ -129,10 +129,17 @@ async function main() {
     )
     assert.equal(joined.lifecycle.phase, "joined")
     assert.equal(joined.lifecycle.stageOverlay.hidden, true)
-    assert.equal(joined.movement.repeatMs, 60)
-    assert.equal(joined.movement.prediction.maxStepMs, 60)
+    assert.equal(joined.movement.repeatMs, 50)
+    assert.equal(joined.movement.prediction.maxStepMs, 50)
     assert.equal(joined.movement.prediction.historyLimit, 48)
     assert.equal(joined.movement.motion.mode, "continuous_local_motion")
+    assert.equal(joined.movement.simulation.inputHz, 20)
+    assert.ok(
+      [
+        "http_request_response_fallback",
+        "websocket_fixed_tick_snapshot_stream",
+      ].includes(joined.movement.simulation.mode),
+    )
     assert.equal(joined.movement.motion.movementMode, "walk")
     assertMovementFeelContract(joined)
     assert.equal(joined.movement.feel.panelVisible, false)
@@ -158,6 +165,11 @@ async function main() {
       (state) => state.movement.realtime.status === "open",
     )
     assert.equal(realtimeReady.movement.realtime.status, "open")
+    assert.equal(
+      realtimeReady.movement.simulation.mode,
+      "websocket_fixed_tick_snapshot_stream",
+    )
+    assert.equal(realtimeReady.movement.simulation.inputHz, 20)
 
     const beforeMoveState = await renderGameToText(page)
     const beforeMove = beforeMoveState.player
@@ -211,6 +223,12 @@ async function main() {
     )
     assert.equal(typeof moved.movement.prediction.totalReplayed, "number")
     assert.equal(typeof moved.movement.prediction.lastReplayCount, "number")
+    assert.equal(moved.movement.simulation.serverTickMs, 50)
+    assert.equal(moved.movement.simulation.serverHz, 20)
+    assert.ok(
+      moved.movement.simulation.snapshotCount >= 1,
+      `Expected realtime snapshots, got ${JSON.stringify(moved.movement.simulation)}.`,
+    )
     assert.ok(
       ["confirmed", "predicted", "server_rejected", "client_blocked"].includes(
         moved.movement.prediction.lastOutcome,
@@ -657,6 +675,11 @@ function assertRenderStateContract(state) {
   assert.equal(typeof state.movement?.realtime?.sentCount, "number")
   assert.equal(typeof state.movement?.realtime?.receivedCount, "number")
   assert.equal(typeof state.movement?.realtime?.fallbackCount, "number")
+  assert.equal(typeof state.movement?.realtime?.snapshotCount, "number")
+  assert.equal(typeof state.movement?.simulation?.mode, "string")
+  assert.equal(typeof state.movement?.simulation?.inputHz, "number")
+  assert.equal(typeof state.movement?.simulation?.clientInputMs, "number")
+  assert.equal(typeof state.movement?.simulation?.snapshotCount, "number")
   assert.equal(typeof state.movement?.prediction?.lastOutcome, "string")
   assert.equal(typeof state.movement?.prediction?.totalPredicted, "number")
   assert.equal(typeof state.movement?.prediction?.totalConfirmed, "number")

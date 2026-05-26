@@ -806,3 +806,29 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   `git diff --check`. Desktop and mobile renderer screenshots were visually
   inspected. The standalone develop-web-game client still fails before
   navigation because it cannot resolve `playwright` from the skill runtime.
+- Realtime simulation core is now in place on the local world path. WebSocket
+  movement messages queue input intents instead of applying them immediately;
+  `WorldRoomController.tick()` consumes the latest queued intent per client on
+  a fixed 50 ms server tick, routes authoritative movement results, and
+  broadcasts `world_snapshot` messages with tick, tickMs, serverTime, players,
+  movement mode, and last acknowledged sequence.
+- Browser movement now streams input at 20 Hz when `/world/realtime` is open,
+  bypassing the old one-request-in-flight guard only for WebSocket transport.
+  HTTP movement fallback still keeps the guard. Client prediction remains
+  immediate, with reconciliation replay driven by player-state acks or snapshot
+  acks.
+- `render_game_to_text.movement.simulation` now exposes the realtime contract:
+  mode, input rate, client input frame, server tick, server rate, snapshot
+  count, last snapshot tick, and last snapshot server time. Smoke coverage now
+  asserts the 20 Hz input/50 ms server-tick path after movement.
+- Verification passed after the realtime simulation slice:
+  `npm --workspace @aedventure/protocol run build`,
+  `npm --workspace @aedventure/world-server run build`,
+  `npm --workspace @aedventure/web run build`,
+  `node apps/world-server/test/authoritative-world.test.js`,
+  `node apps/web/test/adapters.test.js`, `node scripts/dev-app-loop.test.cjs`,
+  `npm run smoke:frontend`, `npm run qa:renderer`,
+  `npm run qa:responsive`, `npm run check`, and `git diff --check`.
+  Desktop and mobile QA screenshots were visually inspected. The standalone
+  develop-web-game client still fails before navigation because it cannot
+  resolve `playwright` from the skill runtime.

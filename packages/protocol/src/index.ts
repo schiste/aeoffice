@@ -22,6 +22,7 @@ export type ClientMessage = MoveIntentMessage | ChatSendMessage
 
 export type ServerMessage =
   | PlayerStateMessage
+  | WorldSnapshotMessage
   | MovementRejectedMessage
   | ChatDeliveredMessage
   | ChatRejectedMessage
@@ -52,6 +53,26 @@ export interface PlayerStateMessage {
   readonly collisionSlideDistancePx?: number
   readonly movementMode?: MovementMode
   readonly speedPxPerSecond?: number
+}
+
+export interface WorldSnapshotPlayer {
+  readonly playerId: string
+  readonly userId?: string
+  readonly x: number
+  readonly y: number
+  readonly direction: Direction
+  readonly zoneIds: readonly string[]
+  readonly lastSeqAck: number
+  readonly movementMode?: MovementMode
+}
+
+export interface WorldSnapshotMessage {
+  readonly type: "world_snapshot"
+  readonly roomId: string
+  readonly tick: number
+  readonly tickMs: number
+  readonly serverTime: number
+  readonly players: readonly WorldSnapshotPlayer[]
 }
 
 export type MovementRejectedReason =

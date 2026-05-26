@@ -444,6 +444,52 @@ assert.equal(moveEvents[0].message.type, "player_state")
 assert.equal(moveEvents[0].message.playerId, "player-sender")
 assert.equal(moveEvents[0].message.x, 16)
 
+const queuedRealtimeLeft = controller.queueRealtimeMessage(
+  "client-sender",
+  { type: "move", direction: "left", seq: 10 },
+  Date.parse("2026-05-23T10:00:01.100Z"),
+)
+const queuedRealtimeRight = controller.queueRealtimeMessage(
+  "client-sender",
+  { type: "move", direction: "right", seq: 11 },
+  Date.parse("2026-05-23T10:00:01.120Z"),
+)
+assert.equal(queuedRealtimeLeft.length, 0)
+assert.equal(queuedRealtimeRight.length, 0)
+
+const tickEvents = controller.tick(Date.parse("2026-05-23T10:00:01.250Z"))
+const tickMoveEvent = tickEvents.find(
+  (event) => event.message.type === "player_state",
+)
+const tickSnapshotEvent = tickEvents.find(
+  (event) => event.message.type === "world_snapshot",
+)
+
+assert.ok(tickMoveEvent)
+assert.equal(tickMoveEvent.message.seqAck, 11)
+assert.equal(tickMoveEvent.message.x, 32)
+assert.equal(tickMoveEvent.message.direction, "right")
+assert.ok(tickSnapshotEvent)
+assert.equal(tickSnapshotEvent.type, "broadcast")
+assert.equal(tickSnapshotEvent.message.tick, 1)
+assert.equal(tickSnapshotEvent.message.tickMs, 250)
+assert.equal(tickSnapshotEvent.message.players.length, 2)
+assert.deepEqual(
+  tickSnapshotEvent.message.players.find(
+    (player) => player.playerId === "player-sender",
+  ),
+  {
+    playerId: "player-sender",
+    userId: "usr_sender",
+    x: 32,
+    y: 0,
+    direction: "right",
+    zoneIds: [],
+    lastSeqAck: 11,
+    movementMode: "walk",
+  },
+)
+
 const chatEvents = controller.receive(
   "client-sender",
   { type: "chat_send", scope: "room", body: "Server-routed hello", seq: 2 },
