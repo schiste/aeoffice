@@ -21,6 +21,11 @@ import {
 } from "./avatar-registry"
 import { ensureAvatarSpriteFrameTexture } from "./avatar-sprite-atlas"
 import {
+  isLocomotionAction,
+  resolveAvatarAnimationTransition,
+  type AvatarAnimationTransitionPlan,
+} from "./avatar-state-machine"
+import {
   AVATAR_HEIGHT,
   AVATAR_WIDTH,
 } from "./constants"
@@ -28,6 +33,7 @@ import { avatarDepth } from "./depth"
 import { clamp } from "./math"
 import type {
   AvatarAnimationAction,
+  AvatarAnimationTransitionReason,
   AvatarCosmeticSlot,
   AvatarEmoteId,
   AvatarVisualFacing,
@@ -394,6 +400,12 @@ class AvatarView {
   private spriteAnimationStartedAtMs = 0
   private spriteFrameIndex = 0
   private spriteFrameKey = ""
+  private turnHoldUntilMs = 0
+  private transitionFrom: AvatarAnimationAction = "idle"
+  private transitionTo: AvatarAnimationAction = "idle"
+  private transitionReason: AvatarAnimationTransitionReason = "initial"
+  private transitionPreservedSpritePhase = false
+  private transitionRestartedSpriteClock = true
   private poseState: AvatarPoseState
   private interpolationProfile: AvatarInterpolationProfile
   private currentEmoteId?: AvatarEmoteId
@@ -589,36 +601,55 @@ class AvatarView {
     const directionChanged = player.direction !== this.lastDirection
     const movementMode = player.movementMode ?? "walk"
     const movementModeChanged = movementMode !== this.lastMovementMode
-    const previewAction = player.animationPreview?.action
-    const nextAction: AvatarAnimationAction = previewAction ?? (moved
-      ? movementMode
-      : directionChanged
-        ? "turn"
-        : "idle")
     const visualFacingVector = snapshotMoved
       ? snapshotDelta
       : this.remoteVelocity
-    const nextVisualFacing =
-      player.animationPreview?.visualFacing ??
-      (moved && vectorLength(visualFacingVector) > 0.01
+    const visualFacingFromMotion =
+      vectorLength(visualFacingVector) > 0.01
         ? visualFacingForVector(visualFacingVector)
-        : directionChanged
-          ? visualFacingForDirection(player.direction)
-          : previousVisualFacing)
-    const nextAnimation = avatarAnimationDefinition(
-      nextAvatarId,
-      player.direction,
-      nextAction,
-    )
+        : previousVisualFacing
+    const visualFacingFromDirection = visualFacingForDirection(player.direction)
     const identityChanged =
       player.local !== this.playerLocal ||
       player.name !== this.label.text ||
       nextAvatarId !== this.avatarId
     const avatarChanged = nextAvatarId !== this.avatarId
+    const transition = resolveAvatarAnimationTransition({
+      currentAction: previousAnimation.action,
+      currentVisualFacing: previousVisualFacing,
+      currentDirection: previousAnimation.direction,
+      direction: player.direction,
+      movementMode,
+      moved,
+      directionChanged,
+      movementModeChanged,
+      identityChanged,
+      avatarChanged,
+      preview: player.animationPreview,
+      visualFacingFromMotion,
+      visualFacingFromDirection,
+      nowMs: this.scene.time.now,
+      turnHoldUntilMs: this.turnHoldUntilMs,
+      turnDurationMs: TURN_BLEND_DURATION_MS,
+    })
+    const nextAction = transition.action
+    const nextVisualFacing = transition.visualFacing
+    const nextAnimation = avatarAnimationDefinition(
+      nextAvatarId,
+      player.direction,
+      nextAction,
+    )
     const poseChanged =
       previousAnimation.key !== nextAnimation.key ||
       previousVisualFacing !== nextVisualFacing ||
       avatarChanged
+
+    if (transition.startTurnHold) {
+      this.turnHoldUntilMs = this.scene.time.now + nextAnimation.durationMs
+    } else if (transition.clearTurnHold) {
+      this.turnHoldUntilMs = 0
+    }
+    this.recordAnimationTransition(previousAnimation, nextAnimation, transition)
 
     this.playerLocal = player.local
     this.avatarId = nextAvatarId
@@ -652,17 +683,24 @@ class AvatarView {
             nextAnimation,
             previousVisualFacing,
             nextVisualFacing,
+            transition.reason,
           ),
         )
       }
-      this.restartSpriteAnimation(nextAnimation, nextAppearance, nextVisualFacing)
+      this.applySpriteAnimationTransition(
+        nextAnimation,
+        nextAppearance,
+        nextVisualFacing,
+        transition,
+        previousAnimation,
+      )
     } else {
       this.applySpriteFrame()
     }
     this.applyCameraAwareLabelScale()
     this.focusTarget.setDepth(avatarDepth(this.focusTarget.y))
 
-    if (moved || previewAction === "walk" || previewAction === "run") {
+    if (moved || isLocomotionAction(nextAction)) {
       if (player.local) {
         this.moveDirectlyTo(player.position)
       } else if (moved) {
@@ -670,7 +708,7 @@ class AvatarView {
       }
       this.startWalkTween(nextAnimation)
     } else if (
-      previewAction ||
+      player.animationPreview ||
       directionChanged ||
       identityChanged ||
       movementModeChanged
@@ -805,6 +843,14 @@ class AvatarView {
         frameDurationMs: this.animation.sprite.frameDurationMs,
         loop: this.animation.sprite.loop,
         blendDurationMs: this.animation.sprite.blendDurationMs,
+        transition: {
+          from: this.transitionFrom,
+          to: this.transitionTo,
+          reason: this.transitionReason,
+          preserveSpritePhase: this.transitionPreservedSpritePhase,
+          restartedSpriteClock: this.transitionRestartedSpriteClock,
+          turnHoldActive: this.turnHoldUntilMs > this.scene.time.now,
+        },
         poseBlendActive: this.poseTween?.isPlaying() ?? false,
       },
       interpolationProfile: this.interpolationProfile.id,
@@ -1107,6 +1153,56 @@ class AvatarView {
     this.applySpriteFrame(true, animation, appearance, visualFacing)
   }
 
+  private applySpriteAnimationTransition(
+    nextAnimation: AvatarAnimationDefinition,
+    nextAppearance: AvatarAppearanceMetadata,
+    nextVisualFacing: AvatarVisualFacing,
+    transition: AvatarAnimationTransitionPlan,
+    previousAnimation: AvatarAnimationDefinition,
+  ): void {
+    if (transition.preserveSpritePhase) {
+      this.preserveSpriteAnimationPhase(previousAnimation, nextAnimation)
+      this.spriteAnimationKey = nextAnimation.key
+      this.spriteVisualFacing = nextVisualFacing
+      this.applySpriteFrame(true, nextAnimation, nextAppearance, nextVisualFacing)
+      return
+    }
+
+    if (transition.restartSpriteClock) {
+      this.restartSpriteAnimation(nextAnimation, nextAppearance, nextVisualFacing)
+      return
+    }
+
+    this.applySpriteFrame(true, nextAnimation, nextAppearance, nextVisualFacing)
+  }
+
+  private preserveSpriteAnimationPhase(
+    previousAnimation: AvatarAnimationDefinition,
+    nextAnimation: AvatarAnimationDefinition,
+  ): void {
+    const nowMs = this.scene.time.now
+    const previousCycleMs = spriteCycleDurationMs(previousAnimation)
+    const nextCycleMs = spriteCycleDurationMs(nextAnimation)
+    const previousElapsedMs = Math.max(0, nowMs - this.spriteAnimationStartedAtMs)
+    const normalizedPhase = previousAnimation.sprite.loop
+      ? (previousElapsedMs % previousCycleMs) / previousCycleMs
+      : clamp(previousElapsedMs / previousCycleMs, 0, 1)
+
+    this.spriteAnimationStartedAtMs = nowMs - normalizedPhase * nextCycleMs
+  }
+
+  private recordAnimationTransition(
+    previousAnimation: AvatarAnimationDefinition,
+    nextAnimation: AvatarAnimationDefinition,
+    transition: AvatarAnimationTransitionPlan,
+  ): void {
+    this.transitionFrom = previousAnimation.action
+    this.transitionTo = nextAnimation.action
+    this.transitionReason = transition.reason
+    this.transitionPreservedSpritePhase = transition.preserveSpritePhase
+    this.transitionRestartedSpriteClock = transition.restartSpriteClock
+  }
+
   private applySpriteFrame(
     force = false,
     animation = this.animation,
@@ -1291,9 +1387,12 @@ class AvatarView {
           "idle",
         )
 
-        this.animation = idleAnimation
-        this.blendToAnimationPose(idleAnimation, this.visualFacing, 70)
-        this.startIdleTween(idleAnimation, this.lastPosition)
+        this.completeAnimationToIdle(
+          animation,
+          idleAnimation,
+          "locomotion_to_idle",
+          128,
+        )
       },
     })
     this.footTween = this.scene.tweens.add({
@@ -1347,13 +1446,38 @@ class AvatarView {
           "idle",
         )
 
-        this.animation = idleAnimation
-        this.walkTweenAction = undefined
-        this.bodyRoot.setAngle(0)
-        this.blendToAnimationPose(idleAnimation, this.visualFacing, 70)
-        this.startIdleTween(idleAnimation, this.lastPosition)
+        this.completeAnimationToIdle(
+          animation,
+          idleAnimation,
+          "turn_to_idle",
+          POSE_BLEND_DURATION_MS,
+        )
       },
     })
+  }
+
+  private completeAnimationToIdle(
+    previousAnimation: AvatarAnimationDefinition,
+    idleAnimation: AvatarAnimationDefinition,
+    reason: AvatarAnimationTransitionReason,
+    blendDurationMs: number,
+  ): void {
+    this.animation = idleAnimation
+    this.turnHoldUntilMs = 0
+    this.walkTweenAction = undefined
+    this.bodyRoot.setAngle(0)
+    this.recordAnimationTransition(previousAnimation, idleAnimation, {
+      action: idleAnimation.action,
+      visualFacing: this.visualFacing,
+      reason,
+      preserveSpritePhase: false,
+      restartSpriteClock: true,
+      startTurnHold: false,
+      clearTurnHold: true,
+    })
+    this.restartSpriteAnimation(idleAnimation, this.appearance, this.visualFacing)
+    this.blendToAnimationPose(idleAnimation, this.visualFacing, blendDurationMs)
+    this.startIdleTween(idleAnimation, this.lastPosition)
   }
 
   private applyCameraAwareLabelScale(): void {
@@ -1461,6 +1585,7 @@ function poseBlendDurationMs(
   nextAnimation: AvatarAnimationDefinition,
   previousFacing: AvatarVisualFacing,
   nextFacing: AvatarVisualFacing,
+  reason: AvatarAnimationTransitionReason,
 ): number {
   if (
     previousAnimation.key === nextAnimation.key &&
@@ -1469,10 +1594,21 @@ function poseBlendDurationMs(
     return 0
   }
 
+  if (reason === "locomotion_direction_blend") return 72
+  if (reason === "locomotion_speed_blend") return 118
+  if (reason === "idle_to_locomotion") return 86
+  if (reason === "locomotion_to_idle") return 128
   if (nextAnimation.action === "turn") return TURN_BLEND_DURATION_MS
   if (previousAnimation.action !== nextAnimation.action) return POSE_BLEND_DURATION_MS
 
   return 84
+}
+
+function spriteCycleDurationMs(animation: AvatarAnimationDefinition): number {
+  return Math.max(
+    animation.sprite.frameDurationMs,
+    animation.sprite.frameDurationMs * animation.sprite.frameCount,
+  )
 }
 
 function nearestEquivalentAngle(current: number, target: number): number {

@@ -1079,3 +1079,25 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   standalone develop-web-game client was attempted against
   `http://127.0.0.1:8108/app`, but still fails before navigation because the
   skill runtime cannot resolve `playwright`.
+- Avatar animation state is now resolved through an explicit transition
+  planner instead of ad hoc inline branching in `AvatarView.update()`. The
+  planner names transitions such as `idle_to_locomotion`,
+  `locomotion_direction_blend`, `locomotion_speed_blend`, `idle_to_turn`,
+  `turn_hold`, and `turn_to_idle`.
+- Locomotion frame phase is preserved across compatible walk/run and direction
+  changes, so changing direction swaps the frame texture without resetting the
+  animation clock. Idle, turn, and identity changes still deliberately restart
+  the sprite clock.
+- `render_game_to_text.avatars.players[].animation.transition` now reports
+  from/to state, transition reason, whether sprite phase was preserved, whether
+  the sprite clock restarted, and whether a stationary turn hold is active.
+  Frontend smoke verifies idle-to-walk, direction-blend, stationary turn, and
+  turn-to-idle behavior.
+- Verification passed after the animation state-machine cleanup:
+  `npm --workspace @aedventure/web run build`,
+  `node --check scripts/frontend-smoke.test.cjs`, `git diff --check`,
+  `npm run smoke:frontend`, `npm run qa:renderer`, `npm run qa:responsive`,
+  and `npm run check`. Renderer and responsive screenshots were visually
+  inspected. The standalone develop-web-game client was attempted against
+  `http://127.0.0.1:8108/app`, but still fails before navigation because the
+  skill runtime cannot resolve `playwright`.

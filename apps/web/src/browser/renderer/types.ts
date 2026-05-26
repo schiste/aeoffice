@@ -335,6 +335,21 @@ export interface RenderedPlayer {
 
 export type AvatarAnimationAction = "idle" | "walk" | "run" | "turn"
 
+export type AvatarAnimationTransitionReason =
+  | "initial"
+  | "preview_locked"
+  | "idle_to_locomotion"
+  | "idle_to_turn"
+  | "locomotion_continue"
+  | "locomotion_direction_blend"
+  | "locomotion_speed_blend"
+  | "locomotion_to_turn"
+  | "turn_hold"
+  | "turn_to_idle"
+  | "locomotion_to_idle"
+  | "idle_hold"
+  | "identity_changed"
+
 export type AvatarVisualFacing =
   | "up"
   | "upRight"
@@ -636,6 +651,14 @@ export interface RendererAvatarAnimationInfo {
   readonly frameDurationMs: number
   readonly loop: boolean
   readonly blendDurationMs: number
+  readonly transition: {
+    readonly from: AvatarAnimationAction
+    readonly to: AvatarAnimationAction
+    readonly reason: AvatarAnimationTransitionReason
+    readonly preserveSpritePhase: boolean
+    readonly restartedSpriteClock: boolean
+    readonly turnHoldActive: boolean
+  }
   readonly poseBlendActive: boolean
 }
 

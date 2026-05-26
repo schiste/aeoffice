@@ -1997,6 +1997,10 @@ async function assertAvatarSystemSmoke(page) {
     assert.equal(player.animation.frameRate, 2)
     assert.equal(player.animation.frameDurationMs, 500)
     assert.equal(player.animation.loop, true)
+    assert.equal(typeof player.animation.transition.reason, "string")
+    assert.equal(typeof player.animation.transition.preserveSpritePhase, "boolean")
+    assert.equal(typeof player.animation.transition.restartedSpriteClock, "boolean")
+    assert.equal(typeof player.animation.transition.turnHoldActive, "boolean")
     assert.equal(typeof player.animation.frameIndex, "number")
     assert.ok(
       player.animation.frameKey.startsWith(player.animation.sprite.framePrefix),
@@ -2082,6 +2086,9 @@ async function assertAvatarSystemSmoke(page) {
     `Expected remote avatar to be between grid cells while smoothing, got ${JSON.stringify(movingRemote)}.`,
   )
   assert.equal(movingRemote.animation.visualFacing, "downRight")
+  assert.equal(movingRemote.animation.transition.reason, "idle_to_locomotion")
+  assert.equal(movingRemote.animation.transition.preserveSpritePhase, false)
+  assert.equal(movingRemote.animation.transition.restartedSpriteClock, true)
   assert.ok(
     movingRemote.remoteInterpolation.latestSnapshotAgeMs >= 0,
     `Expected remote snapshot age telemetry, got ${JSON.stringify(movingRemote.remoteInterpolation)}.`,
@@ -2089,6 +2096,41 @@ async function assertAvatarSystemSmoke(page) {
   assert.equal(
     movingRemote.remoteInterpolation.source,
     "server_snapshot_stream",
+  )
+
+  await page.evaluate(async () => {
+    await window.__aedventureRendererTest.moveAvatarFixturePlayer(
+      "avatar-cobalt",
+      { x: 320, y: 160 },
+      "right",
+    )
+  })
+  const directionBlend = await waitForTextState(
+    page,
+    (state) => {
+      const remote = state.avatars.players.find(
+        (player) => player.playerId === "avatar-cobalt",
+      )
+
+      return (
+        remote?.animation.action === "walk" &&
+        remote?.animation.visualFacing === "upRight" &&
+        remote?.animation.transition.reason === "locomotion_direction_blend"
+      )
+    },
+    9000,
+  )
+  const directionBlendRemote = directionBlend.avatars.players.find(
+    (player) => player.playerId === "avatar-cobalt",
+  )
+
+  assert.equal(
+    directionBlendRemote.animation.transition.preserveSpritePhase,
+    true,
+  )
+  assert.equal(
+    directionBlendRemote.animation.transition.restartedSpriteClock,
+    false,
   )
 
   await waitForTextState(
@@ -2099,8 +2141,50 @@ async function assertAvatarSystemSmoke(page) {
       )
 
       return remote?.interpolationActive === false &&
-        remote?.targetPosition.x === 288 &&
-        remote?.targetPosition.y === 192
+        remote?.targetPosition.x === 320 &&
+        remote?.targetPosition.y === 160 &&
+        remote?.animation.action === "idle"
+    },
+    9000,
+  )
+
+  await page.evaluate(async () => {
+    await window.__aedventureRendererTest.moveAvatarFixturePlayer(
+      "avatar-cobalt",
+      { x: 320, y: 160 },
+      "left",
+    )
+  })
+  const turning = await waitForTextState(
+    page,
+    (state) => {
+      const remote = state.avatars.players.find(
+        (player) => player.playerId === "avatar-cobalt",
+      )
+
+      return (
+        remote?.animation.action === "turn" &&
+        remote?.animation.transition.reason === "idle_to_turn"
+      )
+    },
+    9000,
+  )
+  const turningRemote = turning.avatars.players.find(
+    (player) => player.playerId === "avatar-cobalt",
+  )
+  assert.equal(turningRemote.animation.transition.turnHoldActive, true)
+
+  await waitForTextState(
+    page,
+    (state) => {
+      const remote = state.avatars.players.find(
+        (player) => player.playerId === "avatar-cobalt",
+      )
+
+      return (
+        remote?.animation.action === "idle" &&
+        remote?.animation.transition.reason === "turn_to_idle"
+      )
     },
     9000,
   )
