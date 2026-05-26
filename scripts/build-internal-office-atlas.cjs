@@ -75,25 +75,91 @@ const FRAMES = [
   frame("floor.wood_parquet", "floor", 1, 1, false),
   frame("floor.polished_concrete", "floor", 1, 1, false),
   frame("floor.soft_carpet", "floor", 1, 1, false),
-  frame("wall.wood.straight", "wall", 1, 1, true, "foreground"),
-  frame("wall.wood.corner", "wall", 1, 1, true, "foreground"),
-  frame("wall.glass.straight", "wall", 1, 1, true, "foreground"),
-  frame("wall.glass.corner", "wall", 1, 1, true, "foreground"),
-  frame("wall.neutral.straight", "wall", 1, 1, true, "foreground"),
-  frame("wall.neutral.corner", "wall", 1, 1, true, "foreground"),
-  frame("item.large_conference_table", "item", 3, 2, true, "y_sort"),
-  frame("item.small_round_table", "item", 2, 2, true, "y_sort"),
-  frame("item.office_chair", "item", 1, 1, true, "y_sort"),
-  frame("item.coffee_machine", "item", 1, 1, true, "y_sort"),
-  frame("item.plant_potted", "item", 1, 1, true, "y_sort"),
-  frame("item.coffee_bar", "item", 2, 1, true, "y_sort"),
-  frame("item.door_single", "item", 1, 1, false, "y_sort"),
-  frame("item.lounge_couch", "item", 2, 1, true, "y_sort"),
-  frame("avatar.local_placeholder", "avatar", 1, 1, false),
-  frame("avatar.ember", "avatar", 1, 1, false),
-  frame("avatar.cobalt", "avatar", 1, 1, false),
-  frame("avatar.moss", "avatar", 1, 1, false),
-  frame("avatar.violet", "avatar", 1, 1, false),
+  frame("wall.wood.straight", "wall", 1, 1, true, "foreground", {
+    occlusionSplitAtY: 12,
+  }),
+  frame("wall.wood.corner", "wall", 1, 1, true, "foreground", {
+    occlusionSplitAtY: 12,
+  }),
+  frame("wall.glass.straight", "wall", 1, 1, true, "foreground", {
+    occlusionSplitAtY: 12,
+  }),
+  frame("wall.glass.corner", "wall", 1, 1, true, "foreground", {
+    occlusionSplitAtY: 12,
+  }),
+  frame("wall.neutral.straight", "wall", 1, 1, true, "foreground", {
+    occlusionSplitAtY: 12,
+  }),
+  frame("wall.neutral.corner", "wall", 1, 1, true, "foreground", {
+    occlusionSplitAtY: 12,
+  }),
+  frame("item.large_conference_table", "item", 3, 2, true, "y_sort", {
+    collisionFootprint: { x: 8, y: 18, width: 80, height: 38 },
+    visualFootprint: { x: 0, y: 4, width: 96, height: 58 },
+    zAnchor: { x: 48, y: 58 },
+    themeTags: ["meeting", "cozy_wood", "brandable"],
+  }),
+  frame("item.small_round_table", "item", 2, 2, true, "y_sort", {
+    collisionFootprint: { x: 8, y: 18, width: 48, height: 36 },
+    visualFootprint: { x: 0, y: 1, width: 64, height: 62 },
+    zAnchor: { x: 32, y: 58 },
+    themeTags: ["meeting", "lounge", "brandable"],
+  }),
+  frame("item.office_chair", "item", 1, 1, true, "y_sort", {
+    collisionFootprint: { x: 7, y: 12, width: 18, height: 16 },
+    visualFootprint: { x: 5, y: 6, width: 22, height: 22 },
+    zAnchor: { x: 16, y: 28 },
+    themeTags: ["meeting", "brandable"],
+  }),
+  frame("item.coffee_machine", "item", 1, 1, true, "y_sort", {
+    collisionFootprint: { x: 9, y: 8, width: 14, height: 18 },
+    visualFootprint: { x: 7, y: 5, width: 18, height: 23 },
+    zAnchor: { x: 16, y: 27 },
+    themeTags: ["kitchen", "brandable"],
+  }),
+  frame("item.plant_potted", "item", 1, 1, true, "y_sort", {
+    collisionFootprint: { x: 8, y: 18, width: 16, height: 10 },
+    visualFootprint: { x: 5, y: 4, width: 22, height: 25 },
+    zAnchor: { x: 16, y: 28 },
+    themeTags: ["biophilic", "brandable"],
+  }),
+  frame("item.coffee_bar", "item", 2, 1, true, "y_sort", {
+    collisionFootprint: { x: 4, y: 10, width: 56, height: 18 },
+    visualFootprint: { x: 0, y: 6, width: 64, height: 24 },
+    zAnchor: { x: 32, y: 29 },
+    themeTags: ["kitchen", "lounge", "brandable"],
+  }),
+  frame("item.door_single", "item", 1, 1, false, "y_sort", {
+    visualFootprint: { x: 7, y: 4, width: 18, height: 24 },
+    zAnchor: { x: 16, y: 29 },
+    themeTags: ["entry", "brandable"],
+  }),
+  frame("item.lounge_couch", "item", 2, 1, true, "y_sort", {
+    collisionFootprint: { x: 3, y: 11, width: 58, height: 16 },
+    visualFootprint: { x: 0, y: 7, width: 64, height: 22 },
+    zAnchor: { x: 32, y: 28 },
+    themeTags: ["lounge", "quiet_carpet", "brandable"],
+  }),
+  frame("avatar.local_placeholder", "avatar", 1, 1, false, "none", {
+    visualFootprint: { x: 7, y: 1, width: 18, height: 28 },
+    zAnchor: { x: 16, y: 28 },
+  }),
+  frame("avatar.ember", "avatar", 1, 1, false, "none", {
+    visualFootprint: { x: 7, y: 1, width: 18, height: 28 },
+    zAnchor: { x: 16, y: 28 },
+  }),
+  frame("avatar.cobalt", "avatar", 1, 1, false, "none", {
+    visualFootprint: { x: 7, y: 1, width: 18, height: 28 },
+    zAnchor: { x: 16, y: 28 },
+  }),
+  frame("avatar.moss", "avatar", 1, 1, false, "none", {
+    visualFootprint: { x: 7, y: 1, width: 18, height: 28 },
+    zAnchor: { x: 16, y: 28 },
+  }),
+  frame("avatar.violet", "avatar", 1, 1, false, "none", {
+    visualFootprint: { x: 7, y: 1, width: 18, height: 28 },
+    zAnchor: { x: 16, y: 28 },
+  }),
 ]
 
 function main() {
@@ -140,7 +206,15 @@ function buildAtlas() {
   }
 }
 
-function frame(id, kind, widthTiles, heightTiles, collidable, occlusionMode = "none") {
+function frame(
+  id,
+  kind,
+  widthTiles,
+  heightTiles,
+  collidable,
+  occlusionMode = "none",
+  options = {},
+) {
   return {
     id,
     kind,
@@ -148,6 +222,7 @@ function frame(id, kind, widthTiles, heightTiles, collidable, occlusionMode = "n
     heightTiles,
     collidable,
     occlusionMode,
+    ...options,
   }
 }
 
@@ -241,6 +316,14 @@ function manifestFor(layout, imageSha256) {
 function frameMetadata(layoutFrame) {
   const width = layoutFrame.widthTiles * LOGICAL_TILE_SIZE
   const height = layoutFrame.heightTiles * LOGICAL_TILE_SIZE
+  const themeTags = layoutFrame.themeTags ?? defaultThemeTags(layoutFrame.id)
+  const occlusionSplitAtY = layoutFrame.occlusionSplitAtY ?? 0
+  const foregroundFootprint = {
+    x: 0,
+    y: occlusionSplitAtY,
+    width,
+    height: height - occlusionSplitAtY,
+  }
 
   return {
     size: {
@@ -252,43 +335,91 @@ function frameMetadata(layoutFrame) {
       x: width / 2,
       y: height / 2,
     },
-    collisionFootprint: layoutFrame.collidable
-      ? {
-          x: 0,
-          y: 0,
-          width,
-          height,
-        }
-      : {
-          x: 0,
-          y: 0,
-          width: 0,
-          height: 0,
-        },
-    visualFootprint: {
+    collisionFootprint:
+      layoutFrame.collisionFootprint ??
+      (layoutFrame.collidable
+        ? {
+            x: 0,
+            y: 0,
+            width,
+            height,
+          }
+        : {
+            x: 0,
+            y: 0,
+            width: 0,
+            height: 0,
+          }),
+    visualFootprint: layoutFrame.visualFootprint ?? {
       x: 0,
       y: 0,
       width,
       height,
     },
-    zAnchor: {
+    zAnchor: layoutFrame.zAnchor ?? {
       x: width / 2,
       y: height,
     },
     occlusion: {
       mode: layoutFrame.occlusionMode,
-      splitAtY: layoutFrame.occlusionMode === "foreground" ? 0 : undefined,
+      splitAtY:
+        layoutFrame.occlusionMode === "foreground" ? occlusionSplitAtY : undefined,
       foregroundFootprint:
         layoutFrame.occlusionMode === "foreground"
-          ? {
-              x: 0,
-              y: 0,
-              width,
-              height,
-            }
+          ? layoutFrame.foregroundFootprint ?? foregroundFootprint
           : undefined,
     },
+    themeTags,
+    variants: layoutFrame.variants ?? defaultVariants(layoutFrame.id, themeTags),
   }
+}
+
+function defaultVariants(frameId, themeTags) {
+  const variants = [
+    {
+      id: `${frameId}.default`,
+      label: "Default",
+      role: "default",
+      frameId,
+      themeTags,
+    },
+  ]
+
+  if (themeTags.includes("brandable")) {
+    variants.push({
+      id: `${frameId}.tenant_tint`,
+      label: "Tenant tint",
+      role: "tenant_tint",
+      frameId,
+      themeTags,
+    })
+  }
+
+  return variants
+}
+
+function defaultThemeTags(frameId) {
+  if (frameId.startsWith("floor.wood") || frameId.startsWith("wall.wood")) {
+    return ["cozy_wood", "brandable"]
+  }
+
+  if (frameId.startsWith("wall.glass") || frameId.includes("concrete")) {
+    return ["modern_light", "brandable"]
+  }
+
+  if (frameId.includes("neutral")) return ["neutral_office", "brandable"]
+  if (frameId.includes("carpet")) return ["quiet_carpet", "brandable"]
+  if (frameId.includes("conference") || frameId.includes("chair")) {
+    return ["meeting", "brandable"]
+  }
+
+  if (frameId.includes("coffee")) return ["kitchen", "brandable"]
+  if (frameId.includes("plant")) return ["biophilic", "brandable"]
+  if (frameId.includes("door")) return ["entry", "brandable"]
+  if (frameId.includes("couch")) return ["lounge", "brandable"]
+  if (frameId.startsWith("avatar.")) return ["avatar", "brandable"]
+
+  return ["neutral_office", "brandable"]
 }
 
 function sourceImageInputsForManifest() {

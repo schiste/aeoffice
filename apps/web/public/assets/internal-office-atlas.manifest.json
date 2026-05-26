@@ -99,7 +99,33 @@
       },
       "occlusion": {
         "mode": "none"
-      }
+      },
+      "themeTags": [
+        "cozy_wood",
+        "brandable"
+      ],
+      "variants": [
+        {
+          "id": "floor.wood_parquet.default",
+          "label": "Default",
+          "role": "default",
+          "frameId": "floor.wood_parquet",
+          "themeTags": [
+            "cozy_wood",
+            "brandable"
+          ]
+        },
+        {
+          "id": "floor.wood_parquet.tenant_tint",
+          "label": "Tenant tint",
+          "role": "tenant_tint",
+          "frameId": "floor.wood_parquet",
+          "themeTags": [
+            "cozy_wood",
+            "brandable"
+          ]
+        }
+      ]
     },
     {
       "id": "floor.polished_concrete",
@@ -136,7 +162,33 @@
       },
       "occlusion": {
         "mode": "none"
-      }
+      },
+      "themeTags": [
+        "modern_light",
+        "brandable"
+      ],
+      "variants": [
+        {
+          "id": "floor.polished_concrete.default",
+          "label": "Default",
+          "role": "default",
+          "frameId": "floor.polished_concrete",
+          "themeTags": [
+            "modern_light",
+            "brandable"
+          ]
+        },
+        {
+          "id": "floor.polished_concrete.tenant_tint",
+          "label": "Tenant tint",
+          "role": "tenant_tint",
+          "frameId": "floor.polished_concrete",
+          "themeTags": [
+            "modern_light",
+            "brandable"
+          ]
+        }
+      ]
     },
     {
       "id": "floor.soft_carpet",
@@ -173,7 +225,33 @@
       },
       "occlusion": {
         "mode": "none"
-      }
+      },
+      "themeTags": [
+        "quiet_carpet",
+        "brandable"
+      ],
+      "variants": [
+        {
+          "id": "floor.soft_carpet.default",
+          "label": "Default",
+          "role": "default",
+          "frameId": "floor.soft_carpet",
+          "themeTags": [
+            "quiet_carpet",
+            "brandable"
+          ]
+        },
+        {
+          "id": "floor.soft_carpet.tenant_tint",
+          "label": "Tenant tint",
+          "role": "tenant_tint",
+          "frameId": "floor.soft_carpet",
+          "themeTags": [
+            "quiet_carpet",
+            "brandable"
+          ]
+        }
+      ]
     },
     {
       "id": "wall.wood.straight",
@@ -210,14 +288,40 @@
       },
       "occlusion": {
         "mode": "foreground",
-        "splitAtY": 0,
+        "splitAtY": 12,
         "foregroundFootprint": {
           "x": 0,
-          "y": 0,
+          "y": 12,
           "width": 32,
-          "height": 32
+          "height": 20
         }
-      }
+      },
+      "themeTags": [
+        "cozy_wood",
+        "brandable"
+      ],
+      "variants": [
+        {
+          "id": "wall.wood.straight.default",
+          "label": "Default",
+          "role": "default",
+          "frameId": "wall.wood.straight",
+          "themeTags": [
+            "cozy_wood",
+            "brandable"
+          ]
+        },
+        {
+          "id": "wall.wood.straight.tenant_tint",
+          "label": "Tenant tint",
+          "role": "tenant_tint",
+          "frameId": "wall.wood.straight",
+          "themeTags": [
+            "cozy_wood",
+            "brandable"
+          ]
+        }
+      ]
     },
     {
       "id": "wall.wood.corner",
@@ -254,14 +358,40 @@
       },
       "occlusion": {
         "mode": "foreground",
-        "splitAtY": 0,
+        "splitAtY": 12,
         "foregroundFootprint": {
           "x": 0,
-          "y": 0,
+          "y": 12,
           "width": 32,
-          "height": 32
+          "height": 20
         }
-      }
+      },
+      "themeTags": [
+        "cozy_wood",
+        "brandable"
+      ],
+      "variants": [
+        {
+          "id": "wall.wood.corner.default",
+          "label": "Default",
+          "role": "default",
+          "frameId": "wall.wood.corner",
+          "themeTags": [
+            "cozy_wood",
+            "brandable"
+          ]
+        },
+        {
+          "id": "wall.wood.corner.tenant_tint",
+          "label": "Tenant tint",
+          "role": "tenant_tint",
+          "frameId": "wall.wood.corner",
+          "themeTags": [
+            "cozy_wood",
+            "brandable"
+          ]
+        }
+      ]
     },
     {
       "id": "wall.glass.straight",
@@ -298,14 +428,40 @@
       },
       "occlusion": {
         "mode": "foreground",
-        "splitAtY": 0,
+        "splitAtY": 12,
         "foregroundFootprint": {
           "x": 0,
-          "y": 0,
+          "y": 12,
           "width": 32,
-          "height": 32
+          "height": 20
         }
-      }
+      },
+      "themeTags": [
+        "modern_light",
+        "brandable"
+      ],
+      "variants": [
+        {
+          "id": "wall.glass.straight.default",
+          "label": "Default",
+          "role": "default",
+          "frameId": "wall.glass.straight",
+          "themeTags": [
+            "modern_light",
+            "brandable"
+          ]
+        },
+        {
+          "id": "wall.glass.straight.tenant_tint",
+          "label": "Tenant tint",
+          "role": "tenant_tint",
+          "frameId": "wall.glass.straight",
+          "themeTags": [
+            "modern_light",
+            "brandable"
+          ]
+        }
+      ]
     },
     {
       "id": "wall.glass.corner",
@@ -342,14 +498,40 @@
       },
       "occlusion": {
         "mode": "foreground",
-        "splitAtY": 0,
+        "splitAtY": 12,
         "foregroundFootprint": {
           "x": 0,
-          "y": 0,
+          "y": 12,
           "width": 32,
-          "height": 32
+          "height": 20
         }
-      }
+      },
+      "themeTags": [
+        "modern_light",
+        "brandable"
+      ],
+      "variants": [
+        {
+          "id": "wall.glass.corner.default",
+          "label": "Default",
+          "role": "default",
+          "frameId": "wall.glass.corner",
+          "themeTags": [
+            "modern_light",
+            "brandable"
+          ]
+        },
+        {
+          "id": "wall.glass.corner.tenant_tint",
+          "label": "Tenant tint",
+          "role": "tenant_tint",
+          "frameId": "wall.glass.corner",
+          "themeTags": [
+            "modern_light",
+            "brandable"
+          ]
+        }
+      ]
     },
     {
       "id": "wall.neutral.straight",
@@ -386,14 +568,40 @@
       },
       "occlusion": {
         "mode": "foreground",
-        "splitAtY": 0,
+        "splitAtY": 12,
         "foregroundFootprint": {
           "x": 0,
-          "y": 0,
+          "y": 12,
           "width": 32,
-          "height": 32
+          "height": 20
         }
-      }
+      },
+      "themeTags": [
+        "neutral_office",
+        "brandable"
+      ],
+      "variants": [
+        {
+          "id": "wall.neutral.straight.default",
+          "label": "Default",
+          "role": "default",
+          "frameId": "wall.neutral.straight",
+          "themeTags": [
+            "neutral_office",
+            "brandable"
+          ]
+        },
+        {
+          "id": "wall.neutral.straight.tenant_tint",
+          "label": "Tenant tint",
+          "role": "tenant_tint",
+          "frameId": "wall.neutral.straight",
+          "themeTags": [
+            "neutral_office",
+            "brandable"
+          ]
+        }
+      ]
     },
     {
       "id": "wall.neutral.corner",
@@ -430,14 +638,40 @@
       },
       "occlusion": {
         "mode": "foreground",
-        "splitAtY": 0,
+        "splitAtY": 12,
         "foregroundFootprint": {
           "x": 0,
-          "y": 0,
+          "y": 12,
           "width": 32,
-          "height": 32
+          "height": 20
         }
-      }
+      },
+      "themeTags": [
+        "neutral_office",
+        "brandable"
+      ],
+      "variants": [
+        {
+          "id": "wall.neutral.corner.default",
+          "label": "Default",
+          "role": "default",
+          "frameId": "wall.neutral.corner",
+          "themeTags": [
+            "neutral_office",
+            "brandable"
+          ]
+        },
+        {
+          "id": "wall.neutral.corner.tenant_tint",
+          "label": "Tenant tint",
+          "role": "tenant_tint",
+          "frameId": "wall.neutral.corner",
+          "themeTags": [
+            "neutral_office",
+            "brandable"
+          ]
+        }
+      ]
     },
     {
       "id": "item.large_conference_table",
@@ -457,24 +691,53 @@
         "y": 32
       },
       "collisionFootprint": {
-        "x": 0,
-        "y": 0,
-        "width": 96,
-        "height": 64
+        "x": 8,
+        "y": 18,
+        "width": 80,
+        "height": 38
       },
       "visualFootprint": {
         "x": 0,
-        "y": 0,
+        "y": 4,
         "width": 96,
-        "height": 64
+        "height": 58
       },
       "zAnchor": {
         "x": 48,
-        "y": 64
+        "y": 58
       },
       "occlusion": {
         "mode": "y_sort"
-      }
+      },
+      "themeTags": [
+        "meeting",
+        "cozy_wood",
+        "brandable"
+      ],
+      "variants": [
+        {
+          "id": "item.large_conference_table.default",
+          "label": "Default",
+          "role": "default",
+          "frameId": "item.large_conference_table",
+          "themeTags": [
+            "meeting",
+            "cozy_wood",
+            "brandable"
+          ]
+        },
+        {
+          "id": "item.large_conference_table.tenant_tint",
+          "label": "Tenant tint",
+          "role": "tenant_tint",
+          "frameId": "item.large_conference_table",
+          "themeTags": [
+            "meeting",
+            "cozy_wood",
+            "brandable"
+          ]
+        }
+      ]
     },
     {
       "id": "item.small_round_table",
@@ -494,24 +757,53 @@
         "y": 32
       },
       "collisionFootprint": {
-        "x": 0,
-        "y": 0,
-        "width": 64,
-        "height": 64
+        "x": 8,
+        "y": 18,
+        "width": 48,
+        "height": 36
       },
       "visualFootprint": {
         "x": 0,
-        "y": 0,
+        "y": 1,
         "width": 64,
-        "height": 64
+        "height": 62
       },
       "zAnchor": {
         "x": 32,
-        "y": 64
+        "y": 58
       },
       "occlusion": {
         "mode": "y_sort"
-      }
+      },
+      "themeTags": [
+        "meeting",
+        "lounge",
+        "brandable"
+      ],
+      "variants": [
+        {
+          "id": "item.small_round_table.default",
+          "label": "Default",
+          "role": "default",
+          "frameId": "item.small_round_table",
+          "themeTags": [
+            "meeting",
+            "lounge",
+            "brandable"
+          ]
+        },
+        {
+          "id": "item.small_round_table.tenant_tint",
+          "label": "Tenant tint",
+          "role": "tenant_tint",
+          "frameId": "item.small_round_table",
+          "themeTags": [
+            "meeting",
+            "lounge",
+            "brandable"
+          ]
+        }
+      ]
     },
     {
       "id": "item.office_chair",
@@ -531,24 +823,50 @@
         "y": 16
       },
       "collisionFootprint": {
-        "x": 0,
-        "y": 0,
-        "width": 32,
-        "height": 32
+        "x": 7,
+        "y": 12,
+        "width": 18,
+        "height": 16
       },
       "visualFootprint": {
-        "x": 0,
-        "y": 0,
-        "width": 32,
-        "height": 32
+        "x": 5,
+        "y": 6,
+        "width": 22,
+        "height": 22
       },
       "zAnchor": {
         "x": 16,
-        "y": 32
+        "y": 28
       },
       "occlusion": {
         "mode": "y_sort"
-      }
+      },
+      "themeTags": [
+        "meeting",
+        "brandable"
+      ],
+      "variants": [
+        {
+          "id": "item.office_chair.default",
+          "label": "Default",
+          "role": "default",
+          "frameId": "item.office_chair",
+          "themeTags": [
+            "meeting",
+            "brandable"
+          ]
+        },
+        {
+          "id": "item.office_chair.tenant_tint",
+          "label": "Tenant tint",
+          "role": "tenant_tint",
+          "frameId": "item.office_chair",
+          "themeTags": [
+            "meeting",
+            "brandable"
+          ]
+        }
+      ]
     },
     {
       "id": "item.coffee_machine",
@@ -568,24 +886,50 @@
         "y": 16
       },
       "collisionFootprint": {
-        "x": 0,
-        "y": 0,
-        "width": 32,
-        "height": 32
+        "x": 9,
+        "y": 8,
+        "width": 14,
+        "height": 18
       },
       "visualFootprint": {
-        "x": 0,
-        "y": 0,
-        "width": 32,
-        "height": 32
+        "x": 7,
+        "y": 5,
+        "width": 18,
+        "height": 23
       },
       "zAnchor": {
         "x": 16,
-        "y": 32
+        "y": 27
       },
       "occlusion": {
         "mode": "y_sort"
-      }
+      },
+      "themeTags": [
+        "kitchen",
+        "brandable"
+      ],
+      "variants": [
+        {
+          "id": "item.coffee_machine.default",
+          "label": "Default",
+          "role": "default",
+          "frameId": "item.coffee_machine",
+          "themeTags": [
+            "kitchen",
+            "brandable"
+          ]
+        },
+        {
+          "id": "item.coffee_machine.tenant_tint",
+          "label": "Tenant tint",
+          "role": "tenant_tint",
+          "frameId": "item.coffee_machine",
+          "themeTags": [
+            "kitchen",
+            "brandable"
+          ]
+        }
+      ]
     },
     {
       "id": "item.plant_potted",
@@ -605,24 +949,50 @@
         "y": 16
       },
       "collisionFootprint": {
-        "x": 0,
-        "y": 0,
-        "width": 32,
-        "height": 32
+        "x": 8,
+        "y": 18,
+        "width": 16,
+        "height": 10
       },
       "visualFootprint": {
-        "x": 0,
-        "y": 0,
-        "width": 32,
-        "height": 32
+        "x": 5,
+        "y": 4,
+        "width": 22,
+        "height": 25
       },
       "zAnchor": {
         "x": 16,
-        "y": 32
+        "y": 28
       },
       "occlusion": {
         "mode": "y_sort"
-      }
+      },
+      "themeTags": [
+        "biophilic",
+        "brandable"
+      ],
+      "variants": [
+        {
+          "id": "item.plant_potted.default",
+          "label": "Default",
+          "role": "default",
+          "frameId": "item.plant_potted",
+          "themeTags": [
+            "biophilic",
+            "brandable"
+          ]
+        },
+        {
+          "id": "item.plant_potted.tenant_tint",
+          "label": "Tenant tint",
+          "role": "tenant_tint",
+          "frameId": "item.plant_potted",
+          "themeTags": [
+            "biophilic",
+            "brandable"
+          ]
+        }
+      ]
     },
     {
       "id": "item.coffee_bar",
@@ -642,24 +1012,53 @@
         "y": 16
       },
       "collisionFootprint": {
-        "x": 0,
-        "y": 0,
-        "width": 64,
-        "height": 32
+        "x": 4,
+        "y": 10,
+        "width": 56,
+        "height": 18
       },
       "visualFootprint": {
         "x": 0,
-        "y": 0,
+        "y": 6,
         "width": 64,
-        "height": 32
+        "height": 24
       },
       "zAnchor": {
         "x": 32,
-        "y": 32
+        "y": 29
       },
       "occlusion": {
         "mode": "y_sort"
-      }
+      },
+      "themeTags": [
+        "kitchen",
+        "lounge",
+        "brandable"
+      ],
+      "variants": [
+        {
+          "id": "item.coffee_bar.default",
+          "label": "Default",
+          "role": "default",
+          "frameId": "item.coffee_bar",
+          "themeTags": [
+            "kitchen",
+            "lounge",
+            "brandable"
+          ]
+        },
+        {
+          "id": "item.coffee_bar.tenant_tint",
+          "label": "Tenant tint",
+          "role": "tenant_tint",
+          "frameId": "item.coffee_bar",
+          "themeTags": [
+            "kitchen",
+            "lounge",
+            "brandable"
+          ]
+        }
+      ]
     },
     {
       "id": "item.door_single",
@@ -685,18 +1084,44 @@
         "height": 0
       },
       "visualFootprint": {
-        "x": 0,
-        "y": 0,
-        "width": 32,
-        "height": 32
+        "x": 7,
+        "y": 4,
+        "width": 18,
+        "height": 24
       },
       "zAnchor": {
         "x": 16,
-        "y": 32
+        "y": 29
       },
       "occlusion": {
         "mode": "y_sort"
-      }
+      },
+      "themeTags": [
+        "entry",
+        "brandable"
+      ],
+      "variants": [
+        {
+          "id": "item.door_single.default",
+          "label": "Default",
+          "role": "default",
+          "frameId": "item.door_single",
+          "themeTags": [
+            "entry",
+            "brandable"
+          ]
+        },
+        {
+          "id": "item.door_single.tenant_tint",
+          "label": "Tenant tint",
+          "role": "tenant_tint",
+          "frameId": "item.door_single",
+          "themeTags": [
+            "entry",
+            "brandable"
+          ]
+        }
+      ]
     },
     {
       "id": "item.lounge_couch",
@@ -716,24 +1141,53 @@
         "y": 16
       },
       "collisionFootprint": {
-        "x": 0,
-        "y": 0,
-        "width": 64,
-        "height": 32
+        "x": 3,
+        "y": 11,
+        "width": 58,
+        "height": 16
       },
       "visualFootprint": {
         "x": 0,
-        "y": 0,
+        "y": 7,
         "width": 64,
-        "height": 32
+        "height": 22
       },
       "zAnchor": {
         "x": 32,
-        "y": 32
+        "y": 28
       },
       "occlusion": {
         "mode": "y_sort"
-      }
+      },
+      "themeTags": [
+        "lounge",
+        "quiet_carpet",
+        "brandable"
+      ],
+      "variants": [
+        {
+          "id": "item.lounge_couch.default",
+          "label": "Default",
+          "role": "default",
+          "frameId": "item.lounge_couch",
+          "themeTags": [
+            "lounge",
+            "quiet_carpet",
+            "brandable"
+          ]
+        },
+        {
+          "id": "item.lounge_couch.tenant_tint",
+          "label": "Tenant tint",
+          "role": "tenant_tint",
+          "frameId": "item.lounge_couch",
+          "themeTags": [
+            "lounge",
+            "quiet_carpet",
+            "brandable"
+          ]
+        }
+      ]
     },
     {
       "id": "avatar.local_placeholder",
@@ -759,18 +1213,44 @@
         "height": 0
       },
       "visualFootprint": {
-        "x": 0,
-        "y": 0,
-        "width": 32,
-        "height": 32
+        "x": 7,
+        "y": 1,
+        "width": 18,
+        "height": 28
       },
       "zAnchor": {
         "x": 16,
-        "y": 32
+        "y": 28
       },
       "occlusion": {
         "mode": "none"
-      }
+      },
+      "themeTags": [
+        "avatar",
+        "brandable"
+      ],
+      "variants": [
+        {
+          "id": "avatar.local_placeholder.default",
+          "label": "Default",
+          "role": "default",
+          "frameId": "avatar.local_placeholder",
+          "themeTags": [
+            "avatar",
+            "brandable"
+          ]
+        },
+        {
+          "id": "avatar.local_placeholder.tenant_tint",
+          "label": "Tenant tint",
+          "role": "tenant_tint",
+          "frameId": "avatar.local_placeholder",
+          "themeTags": [
+            "avatar",
+            "brandable"
+          ]
+        }
+      ]
     },
     {
       "id": "avatar.ember",
@@ -796,18 +1276,44 @@
         "height": 0
       },
       "visualFootprint": {
-        "x": 0,
-        "y": 0,
-        "width": 32,
-        "height": 32
+        "x": 7,
+        "y": 1,
+        "width": 18,
+        "height": 28
       },
       "zAnchor": {
         "x": 16,
-        "y": 32
+        "y": 28
       },
       "occlusion": {
         "mode": "none"
-      }
+      },
+      "themeTags": [
+        "avatar",
+        "brandable"
+      ],
+      "variants": [
+        {
+          "id": "avatar.ember.default",
+          "label": "Default",
+          "role": "default",
+          "frameId": "avatar.ember",
+          "themeTags": [
+            "avatar",
+            "brandable"
+          ]
+        },
+        {
+          "id": "avatar.ember.tenant_tint",
+          "label": "Tenant tint",
+          "role": "tenant_tint",
+          "frameId": "avatar.ember",
+          "themeTags": [
+            "avatar",
+            "brandable"
+          ]
+        }
+      ]
     },
     {
       "id": "avatar.cobalt",
@@ -833,18 +1339,44 @@
         "height": 0
       },
       "visualFootprint": {
-        "x": 0,
-        "y": 0,
-        "width": 32,
-        "height": 32
+        "x": 7,
+        "y": 1,
+        "width": 18,
+        "height": 28
       },
       "zAnchor": {
         "x": 16,
-        "y": 32
+        "y": 28
       },
       "occlusion": {
         "mode": "none"
-      }
+      },
+      "themeTags": [
+        "avatar",
+        "brandable"
+      ],
+      "variants": [
+        {
+          "id": "avatar.cobalt.default",
+          "label": "Default",
+          "role": "default",
+          "frameId": "avatar.cobalt",
+          "themeTags": [
+            "avatar",
+            "brandable"
+          ]
+        },
+        {
+          "id": "avatar.cobalt.tenant_tint",
+          "label": "Tenant tint",
+          "role": "tenant_tint",
+          "frameId": "avatar.cobalt",
+          "themeTags": [
+            "avatar",
+            "brandable"
+          ]
+        }
+      ]
     },
     {
       "id": "avatar.moss",
@@ -870,18 +1402,44 @@
         "height": 0
       },
       "visualFootprint": {
-        "x": 0,
-        "y": 0,
-        "width": 32,
-        "height": 32
+        "x": 7,
+        "y": 1,
+        "width": 18,
+        "height": 28
       },
       "zAnchor": {
         "x": 16,
-        "y": 32
+        "y": 28
       },
       "occlusion": {
         "mode": "none"
-      }
+      },
+      "themeTags": [
+        "avatar",
+        "brandable"
+      ],
+      "variants": [
+        {
+          "id": "avatar.moss.default",
+          "label": "Default",
+          "role": "default",
+          "frameId": "avatar.moss",
+          "themeTags": [
+            "avatar",
+            "brandable"
+          ]
+        },
+        {
+          "id": "avatar.moss.tenant_tint",
+          "label": "Tenant tint",
+          "role": "tenant_tint",
+          "frameId": "avatar.moss",
+          "themeTags": [
+            "avatar",
+            "brandable"
+          ]
+        }
+      ]
     },
     {
       "id": "avatar.violet",
@@ -907,18 +1465,44 @@
         "height": 0
       },
       "visualFootprint": {
-        "x": 0,
-        "y": 0,
-        "width": 32,
-        "height": 32
+        "x": 7,
+        "y": 1,
+        "width": 18,
+        "height": 28
       },
       "zAnchor": {
         "x": 16,
-        "y": 32
+        "y": 28
       },
       "occlusion": {
         "mode": "none"
-      }
+      },
+      "themeTags": [
+        "avatar",
+        "brandable"
+      ],
+      "variants": [
+        {
+          "id": "avatar.violet.default",
+          "label": "Default",
+          "role": "default",
+          "frameId": "avatar.violet",
+          "themeTags": [
+            "avatar",
+            "brandable"
+          ]
+        },
+        {
+          "id": "avatar.violet.tenant_tint",
+          "label": "Tenant tint",
+          "role": "tenant_tint",
+          "frameId": "avatar.violet",
+          "themeTags": [
+            "avatar",
+            "brandable"
+          ]
+        }
+      ]
     }
   ],
   "generated": {

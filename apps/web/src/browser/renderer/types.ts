@@ -470,6 +470,20 @@ export interface RendererAssetPipelineInfo {
   readonly retinaStrategy?: string
   readonly tilesetSignature?: string
   readonly tilesetReused: boolean
+  readonly metadata: {
+    readonly schemaVersion?: number
+    readonly frameCount: number
+    readonly collisionFootprintCount: number
+    readonly visualFootprintCount: number
+    readonly zAnchorCount: number
+    readonly occlusionSplitCount: number
+    readonly variantCount: number
+    readonly tenantThemeTagCount: number
+    readonly tenantThemeTags: readonly string[]
+    readonly sourceInputCount: number
+    readonly sourceLicenseValidated: boolean
+    readonly atlasBuildValidated: boolean
+  }
 }
 
 export interface RendererObjectPoolInfo {

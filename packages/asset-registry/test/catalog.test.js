@@ -75,20 +75,42 @@ for (const tokenId of stableTargetTokenIds) {
   assert.equal(token.asset.size.width, token.widthTiles * 32)
   assert.equal(token.asset.size.height, token.heightTiles * 32)
   assert.equal(token.asset.size.exportScale, 2)
-  assert.equal(token.asset.visualFootprint.width, token.widthTiles * 32)
-  assert.equal(token.asset.visualFootprint.height, token.heightTiles * 32)
-  assert.equal(token.asset.zAnchor.y, token.heightTiles * 32)
+  assert.ok(token.asset.visualFootprint.width <= token.widthTiles * 32)
+  assert.ok(token.asset.visualFootprint.height <= token.heightTiles * 32)
+  assert.ok(token.asset.zAnchor.y <= token.heightTiles * 32)
   assert.ok(["none", "y_sort", "foreground"].includes(token.asset.occlusion.mode))
+  assert.ok(token.asset.themeTags.length >= 1)
+  assert.ok(token.asset.themeTags.includes("brandable"))
+  assert.ok(token.asset.variants.length >= 2)
+  assert.ok(
+    token.asset.variants.some(
+      (variant) => variant.role === "default" && variant.frameId === token.id,
+    ),
+  )
+  assert.ok(
+    token.asset.variants.some((variant) => variant.role === "tenant_tint"),
+    `Expected tenant-tint variant metadata for ${tokenId}.`,
+  )
 }
 assert.equal(tokensById.get("wall.wood.straight").asset.occlusion.mode, "foreground")
+assert.equal(tokensById.get("wall.wood.straight").asset.occlusion.splitAtY, 12)
 assert.equal(
   tokensById.get("wall.wood.straight").asset.occlusion.foregroundFootprint.height,
-  32,
+  20,
 )
 assert.equal(
   tokensById.get("item.large_conference_table").asset.occlusion.mode,
   "y_sort",
 )
+assert.ok(
+  tokensById.get("item.plant_potted").asset.collisionFootprint.width <
+    tokensById.get("item.plant_potted").asset.visualFootprint.width,
+)
+assert.deepEqual(tokensById.get("item.coffee_bar").asset.themeTags, [
+  "kitchen",
+  "lounge",
+  "brandable",
+])
 assert.equal(
   sourcesById.get("internal.generated.office.polished_v1").filePath,
   "apps/web/public/assets/internal-office-atlas.manifest.json",

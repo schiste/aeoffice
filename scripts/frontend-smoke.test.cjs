@@ -734,6 +734,19 @@ function assertRenderStateContract(state) {
   )
   assert.equal(typeof state.renderer?.assets?.atlasLoaded, "boolean")
   assert.equal(typeof state.renderer?.assets?.primarySource, "string")
+  assert.equal(typeof state.renderer?.assets?.metadata?.frameCount, "number")
+  assert.equal(
+    typeof state.renderer?.assets?.metadata?.sourceLicenseValidated,
+    "boolean",
+  )
+  assert.equal(
+    typeof state.renderer?.assets?.metadata?.atlasBuildValidated,
+    "boolean",
+  )
+  assert.ok(
+    Array.isArray(state.renderer?.assets?.metadata?.tenantThemeTags),
+    "Expected renderer.assets.metadata.tenantThemeTags in render_game_to_text.",
+  )
   assert.equal(typeof state.renderer?.depth?.debugOverlayEnabled, "boolean")
   assert.equal(typeof state.devTools?.gated, "boolean")
   assert.equal(typeof state.devTools?.enabled, "boolean")
@@ -1015,6 +1028,14 @@ function assertRendererCapabilities(state) {
   assert.equal(state.renderer.assets.manifestLoaded, true)
   assert.equal(state.renderer.assets.exportScale, 2)
   assert.equal(state.renderer.assets.fallbackTokenCount, 0)
+  assert.equal(state.renderer.assets.metadata.sourceLicenseValidated, true)
+  assert.equal(state.renderer.assets.metadata.atlasBuildValidated, true)
+  assert.ok(state.renderer.assets.metadata.frameCount >= 20)
+  assert.ok(state.renderer.assets.metadata.variantCount >= 40)
+  assert.ok(
+    state.renderer.assets.metadata.tenantThemeTags.includes("brandable"),
+    "Expected tenant theme tag metadata to include brandable assets.",
+  )
   assert.equal(state.renderer.depth.debugOverlayEnabled, false)
   assert.equal(typeof state.renderer.depth.objectCount, "number")
   assert.equal(typeof state.renderer.depth.playerCount, "number")

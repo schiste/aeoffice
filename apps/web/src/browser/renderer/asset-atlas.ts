@@ -13,6 +13,18 @@ export interface InternalOfficeAtlasManifest {
   readonly atlasId: string
   readonly sourceId: string
   readonly tilesetId: string
+  readonly source: {
+    readonly license: string
+    readonly redistributionAllowed: "yes" | "no" | "unknown"
+    readonly commercialUseAllowed: "yes" | "no" | "unknown"
+    readonly bundledInTargetApp: boolean
+    readonly externalImageInputs: readonly {
+      readonly id: string
+      readonly license: string
+      readonly sha256: string
+      readonly creditsSha256?: string
+    }[]
+  }
   readonly image: {
     readonly path: string
     readonly width: number
@@ -46,6 +58,29 @@ export interface InternalOfficeAtlasFrame {
       readonly height: number
     }
   }
+  readonly collisionFootprint?: {
+    readonly x: number
+    readonly y: number
+    readonly width: number
+    readonly height: number
+  }
+  readonly visualFootprint?: {
+    readonly x: number
+    readonly y: number
+    readonly width: number
+    readonly height: number
+  }
+  readonly zAnchor?: {
+    readonly x: number
+    readonly y: number
+  }
+  readonly themeTags?: readonly string[]
+  readonly variants?: readonly {
+    readonly id: string
+    readonly role: string
+    readonly frameId: string
+    readonly themeTags: readonly string[]
+  }[]
 }
 
 export interface RuntimeAssetAtlas {
@@ -72,6 +107,7 @@ export function emptyAssetPipelineInfo(): RendererAssetPipelineInfo {
     fallbackTokenCount: 0,
     fallbackTokenIds: [],
     tilesetReused: false,
+    metadata: emptyAssetMetadataInfo(),
   }
 }
 
@@ -99,6 +135,7 @@ export function assetPipelineInfoFromRender(
     retinaStrategy: atlas?.manifest.image.retinaStrategy,
     tilesetSignature: options.tilesetSignature,
     tilesetReused: options.tilesetReused ?? false,
+    metadata: assetMetadataInfo(atlas?.manifest),
   }
 }
 
@@ -208,4 +245,75 @@ function loadImage(src: string): Promise<HTMLImageElement> {
     image.onerror = () => reject(new Error(`Unable to load asset atlas ${src}.`))
     image.src = src
   })
+}
+
+function assetMetadataInfo(
+  manifest: InternalOfficeAtlasManifest | undefined,
+): RendererAssetPipelineInfo["metadata"] {
+  if (!manifest) return emptyAssetMetadataInfo()
+
+  const themeTags = new Set<string>()
+  let collisionFootprintCount = 0
+  let visualFootprintCount = 0
+  let zAnchorCount = 0
+  let occlusionSplitCount = 0
+  let variantCount = 0
+
+  manifest.frames.forEach((frame) => {
+    if (frame.collisionFootprint) collisionFootprintCount += 1
+    if (frame.visualFootprint) visualFootprintCount += 1
+    if (frame.zAnchor) zAnchorCount += 1
+    if (frame.occlusion?.splitAtY !== undefined) occlusionSplitCount += 1
+    frame.themeTags?.forEach((tag) => themeTags.add(tag))
+    frame.variants?.forEach((variant) => {
+      variantCount += 1
+      variant.themeTags.forEach((tag) => themeTags.add(tag))
+    })
+  })
+
+  return {
+    schemaVersion: manifest.schemaVersion,
+    frameCount: manifest.frames.length,
+    collisionFootprintCount,
+    visualFootprintCount,
+    zAnchorCount,
+    occlusionSplitCount,
+    variantCount,
+    tenantThemeTagCount: themeTags.size,
+    tenantThemeTags: [...themeTags].sort(),
+    sourceInputCount: manifest.source.externalImageInputs.length,
+    sourceLicenseValidated:
+      manifest.source.redistributionAllowed === "yes" &&
+      manifest.source.commercialUseAllowed === "yes" &&
+      manifest.source.bundledInTargetApp === true &&
+      manifest.source.externalImageInputs.every((input) =>
+        /CC-BY-SA|GPL/.test(input.license),
+      ),
+    atlasBuildValidated:
+      manifest.schemaVersion >= 1 &&
+      manifest.frames.every(
+        (frame) =>
+          Boolean(frame.collisionFootprint) &&
+          Boolean(frame.visualFootprint) &&
+          Boolean(frame.zAnchor) &&
+          Boolean(frame.themeTags?.length) &&
+          Boolean(frame.variants?.length),
+      ),
+  }
+}
+
+function emptyAssetMetadataInfo(): RendererAssetPipelineInfo["metadata"] {
+  return {
+    frameCount: 0,
+    collisionFootprintCount: 0,
+    visualFootprintCount: 0,
+    zAnchorCount: 0,
+    occlusionSplitCount: 0,
+    variantCount: 0,
+    tenantThemeTagCount: 0,
+    tenantThemeTags: [],
+    sourceInputCount: 0,
+    sourceLicenseValidated: false,
+    atlasBuildValidated: false,
+  }
 }

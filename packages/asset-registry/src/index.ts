@@ -11,6 +11,33 @@ export type RenderLayer = "floor" | "wall" | "object" | "avatar"
 
 export type VisualAssetOcclusionMode = "none" | "y_sort" | "foreground"
 
+export type VisualAssetThemeTag =
+  | "cozy_wood"
+  | "modern_light"
+  | "neutral_office"
+  | "quiet_carpet"
+  | "meeting"
+  | "lounge"
+  | "kitchen"
+  | "biophilic"
+  | "entry"
+  | "avatar"
+  | "brandable"
+
+export type VisualAssetVariantRole =
+  | "default"
+  | "alternate_material"
+  | "tenant_tint"
+  | "accent"
+
+export interface VisualAssetVariantMetadata {
+  readonly id: string
+  readonly label: string
+  readonly role: VisualAssetVariantRole
+  readonly frameId: string
+  readonly themeTags: readonly VisualAssetThemeTag[]
+}
+
 export interface VisualAssetSource {
   readonly id: string
   readonly status: AssetApprovalStatus
@@ -65,6 +92,8 @@ export interface VisualAssetFrameMetadata {
   readonly visualFootprint: VisualAssetFootprint
   readonly zAnchor: VisualAssetPoint
   readonly occlusion: VisualAssetOcclusionMetadata
+  readonly themeTags: readonly VisualAssetThemeTag[]
+  readonly variants: readonly VisualAssetVariantMetadata[]
 }
 
 export interface VisualAssetOcclusionMetadata {
@@ -264,6 +293,16 @@ const INTERNAL_POLISHED_ATLAS_MANIFEST_PATH =
   "apps/web/public/assets/internal-office-atlas.manifest.json"
 const INTERNAL_POLISHED_ATLAS_EXPORT_SCALE = 2
 
+interface InternalAtlasFrameOptions {
+  readonly collisionFootprint?: VisualAssetFootprint
+  readonly visualFootprint?: VisualAssetFootprint
+  readonly zAnchor?: VisualAssetPoint
+  readonly occlusionSplitAtY?: number
+  readonly foregroundFootprint?: VisualAssetFootprint
+  readonly themeTags?: readonly VisualAssetThemeTag[]
+  readonly variants?: readonly VisualAssetVariantMetadata[]
+}
+
 const INTERNAL_POLISHED_SOURCE = {
   status: "target_approved" as const,
   filePath: INTERNAL_POLISHED_ATLAS_MANIFEST_PATH,
@@ -285,14 +324,16 @@ function internalAtlasFrame(
   heightTiles: number,
   collidable: boolean,
   occlusionMode: VisualAssetOcclusionMode = "none",
+  options: InternalAtlasFrameOptions = {},
 ): VisualAssetFrameMetadata {
   const width = widthTiles * 32
   const height = heightTiles * 32
+  const themeTags = options.themeTags ?? defaultThemeTags(frameId)
   const foregroundFootprint = {
     x: 0,
-    y: 0,
+    y: options.occlusionSplitAtY ?? 0,
     width,
-    height,
+    height: height - (options.occlusionSplitAtY ?? 0),
   }
 
   return {
@@ -307,26 +348,28 @@ function internalAtlasFrame(
       x: width / 2,
       y: height / 2,
     },
-    collisionFootprint: collidable
-      ? {
-          x: 0,
-          y: 0,
-          width,
-          height,
-        }
-      : {
-          x: 0,
-          y: 0,
-          width: 0,
-          height: 0,
-        },
-    visualFootprint: {
+    collisionFootprint:
+      options.collisionFootprint ??
+      (collidable
+        ? {
+            x: 0,
+            y: 0,
+            width,
+            height,
+          }
+        : {
+            x: 0,
+            y: 0,
+            width: 0,
+            height: 0,
+          }),
+    visualFootprint: options.visualFootprint ?? {
       x: 0,
       y: 0,
       width,
       height,
     },
-    zAnchor: {
+    zAnchor: options.zAnchor ?? {
       x: width / 2,
       y: height,
     },
@@ -334,13 +377,66 @@ function internalAtlasFrame(
       occlusionMode === "foreground"
         ? {
             mode: occlusionMode,
-            splitAtY: 0,
-            foregroundFootprint,
+            splitAtY: options.occlusionSplitAtY ?? 0,
+            foregroundFootprint: options.foregroundFootprint ?? foregroundFootprint,
           }
         : {
             mode: occlusionMode,
           },
+    themeTags,
+    variants: options.variants ?? defaultVariants(frameId, themeTags),
   }
+}
+
+function defaultVariants(
+  frameId: string,
+  themeTags: readonly VisualAssetThemeTag[],
+): readonly VisualAssetVariantMetadata[] {
+  const variants: VisualAssetVariantMetadata[] = [
+    {
+      id: `${frameId}.default`,
+      label: "Default",
+      role: "default",
+      frameId,
+      themeTags,
+    },
+  ]
+
+  if (themeTags.includes("brandable")) {
+    variants.push({
+      id: `${frameId}.tenant_tint`,
+      label: "Tenant tint",
+      role: "tenant_tint",
+      frameId,
+      themeTags,
+    })
+  }
+
+  return variants
+}
+
+function defaultThemeTags(frameId: string): readonly VisualAssetThemeTag[] {
+  if (frameId.startsWith("floor.wood") || frameId.startsWith("wall.wood")) {
+    return ["cozy_wood", "brandable"]
+  }
+
+  if (frameId.startsWith("wall.glass") || frameId.includes("concrete")) {
+    return ["modern_light", "brandable"]
+  }
+
+  if (frameId.includes("neutral")) return ["neutral_office", "brandable"]
+  if (frameId.includes("carpet")) return ["quiet_carpet", "brandable"]
+  if (frameId.includes("conference") || frameId.includes("chair")) {
+    return ["meeting", "brandable"]
+  }
+
+  if (frameId.includes("coffee")) return ["kitchen", "brandable"]
+  if (frameId.includes("plant")) return ["biophilic", "brandable"]
+  if (frameId.includes("door")) return ["entry", "brandable"]
+  if (frameId.includes("couch")) return ["lounge", "brandable"]
+  if (frameId.startsWith("avatar.")) return ["avatar", "brandable"]
+
+  return ["neutral_office", "brandable"]
 }
 
 export const starterVisualAssetCatalog: VisualAssetCatalog = {
@@ -442,7 +538,9 @@ export const starterVisualAssetCatalog: VisualAssetCatalog = {
       widthTiles: 1,
       heightTiles: 1,
       collidable: true,
-      asset: internalAtlasFrame("wall.wood.straight", 1, 1, true, "foreground"),
+      asset: internalAtlasFrame("wall.wood.straight", 1, 1, true, "foreground", {
+        occlusionSplitAtY: 12,
+      }),
       tags: ["cozy_wood", "wall"],
     },
     {
@@ -455,7 +553,9 @@ export const starterVisualAssetCatalog: VisualAssetCatalog = {
       widthTiles: 1,
       heightTiles: 1,
       collidable: true,
-      asset: internalAtlasFrame("wall.wood.corner", 1, 1, true, "foreground"),
+      asset: internalAtlasFrame("wall.wood.corner", 1, 1, true, "foreground", {
+        occlusionSplitAtY: 12,
+      }),
       tags: ["cozy_wood", "wall", "corner"],
     },
     {
@@ -468,7 +568,9 @@ export const starterVisualAssetCatalog: VisualAssetCatalog = {
       widthTiles: 1,
       heightTiles: 1,
       collidable: true,
-      asset: internalAtlasFrame("wall.glass.straight", 1, 1, true, "foreground"),
+      asset: internalAtlasFrame("wall.glass.straight", 1, 1, true, "foreground", {
+        occlusionSplitAtY: 12,
+      }),
       tags: ["modern_light", "wall", "glass"],
     },
     {
@@ -481,7 +583,9 @@ export const starterVisualAssetCatalog: VisualAssetCatalog = {
       widthTiles: 1,
       heightTiles: 1,
       collidable: true,
-      asset: internalAtlasFrame("wall.glass.corner", 1, 1, true, "foreground"),
+      asset: internalAtlasFrame("wall.glass.corner", 1, 1, true, "foreground", {
+        occlusionSplitAtY: 12,
+      }),
       tags: ["modern_light", "wall", "glass", "corner"],
     },
     {
@@ -494,7 +598,9 @@ export const starterVisualAssetCatalog: VisualAssetCatalog = {
       widthTiles: 1,
       heightTiles: 1,
       collidable: true,
-      asset: internalAtlasFrame("wall.neutral.straight", 1, 1, true, "foreground"),
+      asset: internalAtlasFrame("wall.neutral.straight", 1, 1, true, "foreground", {
+        occlusionSplitAtY: 12,
+      }),
       tags: ["neutral_office", "wall", "neutral"],
     },
     {
@@ -507,7 +613,9 @@ export const starterVisualAssetCatalog: VisualAssetCatalog = {
       widthTiles: 1,
       heightTiles: 1,
       collidable: true,
-      asset: internalAtlasFrame("wall.neutral.corner", 1, 1, true, "foreground"),
+      asset: internalAtlasFrame("wall.neutral.corner", 1, 1, true, "foreground", {
+        occlusionSplitAtY: 12,
+      }),
       tags: ["neutral_office", "wall", "neutral", "corner"],
     },
     {
@@ -520,7 +628,12 @@ export const starterVisualAssetCatalog: VisualAssetCatalog = {
       widthTiles: 3,
       heightTiles: 2,
       collidable: true,
-      asset: internalAtlasFrame("item.large_conference_table", 3, 2, true, "y_sort"),
+      asset: internalAtlasFrame("item.large_conference_table", 3, 2, true, "y_sort", {
+        collisionFootprint: { x: 8, y: 18, width: 80, height: 38 },
+        visualFootprint: { x: 0, y: 4, width: 96, height: 58 },
+        zAnchor: { x: 48, y: 58 },
+        themeTags: ["meeting", "cozy_wood", "brandable"],
+      }),
       tags: ["meeting", "table", "office"],
     },
     {
@@ -533,7 +646,12 @@ export const starterVisualAssetCatalog: VisualAssetCatalog = {
       widthTiles: 2,
       heightTiles: 2,
       collidable: true,
-      asset: internalAtlasFrame("item.small_round_table", 2, 2, true, "y_sort"),
+      asset: internalAtlasFrame("item.small_round_table", 2, 2, true, "y_sort", {
+        collisionFootprint: { x: 8, y: 18, width: 48, height: 36 },
+        visualFootprint: { x: 0, y: 1, width: 64, height: 62 },
+        zAnchor: { x: 32, y: 58 },
+        themeTags: ["meeting", "lounge", "brandable"],
+      }),
       tags: ["meeting", "table", "coffee", "office"],
     },
     {
@@ -546,7 +664,12 @@ export const starterVisualAssetCatalog: VisualAssetCatalog = {
       widthTiles: 1,
       heightTiles: 1,
       collidable: true,
-      asset: internalAtlasFrame("item.office_chair", 1, 1, true, "y_sort"),
+      asset: internalAtlasFrame("item.office_chair", 1, 1, true, "y_sort", {
+        collisionFootprint: { x: 7, y: 12, width: 18, height: 16 },
+        visualFootprint: { x: 5, y: 6, width: 22, height: 22 },
+        zAnchor: { x: 16, y: 28 },
+        themeTags: ["meeting", "brandable"],
+      }),
       tags: ["meeting", "chair", "office"],
     },
     {
@@ -559,7 +682,12 @@ export const starterVisualAssetCatalog: VisualAssetCatalog = {
       widthTiles: 1,
       heightTiles: 1,
       collidable: true,
-      asset: internalAtlasFrame("item.coffee_machine", 1, 1, true, "y_sort"),
+      asset: internalAtlasFrame("item.coffee_machine", 1, 1, true, "y_sort", {
+        collisionFootprint: { x: 9, y: 8, width: 14, height: 18 },
+        visualFootprint: { x: 7, y: 5, width: 18, height: 23 },
+        zAnchor: { x: 16, y: 27 },
+        themeTags: ["kitchen", "brandable"],
+      }),
       tags: ["kitchen", "coffee", "office"],
     },
     {
@@ -572,7 +700,12 @@ export const starterVisualAssetCatalog: VisualAssetCatalog = {
       widthTiles: 1,
       heightTiles: 1,
       collidable: true,
-      asset: internalAtlasFrame("item.plant_potted", 1, 1, true, "y_sort"),
+      asset: internalAtlasFrame("item.plant_potted", 1, 1, true, "y_sort", {
+        collisionFootprint: { x: 8, y: 18, width: 16, height: 10 },
+        visualFootprint: { x: 5, y: 4, width: 22, height: 25 },
+        zAnchor: { x: 16, y: 28 },
+        themeTags: ["biophilic", "brandable"],
+      }),
       tags: ["decor", "plant", "office"],
     },
     {
@@ -585,7 +718,12 @@ export const starterVisualAssetCatalog: VisualAssetCatalog = {
       widthTiles: 2,
       heightTiles: 1,
       collidable: true,
-      asset: internalAtlasFrame("item.coffee_bar", 2, 1, true, "y_sort"),
+      asset: internalAtlasFrame("item.coffee_bar", 2, 1, true, "y_sort", {
+        collisionFootprint: { x: 4, y: 10, width: 56, height: 18 },
+        visualFootprint: { x: 0, y: 6, width: 64, height: 24 },
+        zAnchor: { x: 32, y: 29 },
+        themeTags: ["kitchen", "lounge", "brandable"],
+      }),
       tags: ["kitchen", "coffee", "bar", "office"],
     },
     {
@@ -598,7 +736,11 @@ export const starterVisualAssetCatalog: VisualAssetCatalog = {
       widthTiles: 1,
       heightTiles: 1,
       collidable: false,
-      asset: internalAtlasFrame("item.door_single", 1, 1, false, "y_sort"),
+      asset: internalAtlasFrame("item.door_single", 1, 1, false, "y_sort", {
+        visualFootprint: { x: 7, y: 4, width: 18, height: 24 },
+        zAnchor: { x: 16, y: 29 },
+        themeTags: ["entry", "brandable"],
+      }),
       tags: ["door", "entry", "office"],
       notes:
         "Non-collidable door token. Server collision still depends on wall openings in the compiled map.",
@@ -613,7 +755,12 @@ export const starterVisualAssetCatalog: VisualAssetCatalog = {
       widthTiles: 2,
       heightTiles: 1,
       collidable: true,
-      asset: internalAtlasFrame("item.lounge_couch", 2, 1, true, "y_sort"),
+      asset: internalAtlasFrame("item.lounge_couch", 2, 1, true, "y_sort", {
+        collisionFootprint: { x: 3, y: 11, width: 58, height: 16 },
+        visualFootprint: { x: 0, y: 7, width: 64, height: 22 },
+        zAnchor: { x: 32, y: 28 },
+        themeTags: ["lounge", "quiet_carpet", "brandable"],
+      }),
       tags: ["lounge", "couch", "sofa", "office"],
     },
     {
@@ -626,7 +773,10 @@ export const starterVisualAssetCatalog: VisualAssetCatalog = {
       widthTiles: 1,
       heightTiles: 1,
       collidable: false,
-      asset: internalAtlasFrame("avatar.local_placeholder", 1, 1, false),
+      asset: internalAtlasFrame("avatar.local_placeholder", 1, 1, false, "none", {
+        visualFootprint: { x: 7, y: 1, width: 18, height: 28 },
+        zAnchor: { x: 16, y: 28 },
+      }),
       tags: ["avatar", "placeholder"],
     },
     {
@@ -639,7 +789,10 @@ export const starterVisualAssetCatalog: VisualAssetCatalog = {
       widthTiles: 1,
       heightTiles: 1,
       collidable: false,
-      asset: internalAtlasFrame("avatar.ember", 1, 1, false),
+      asset: internalAtlasFrame("avatar.ember", 1, 1, false, "none", {
+        visualFootprint: { x: 7, y: 1, width: 18, height: 28 },
+        zAnchor: { x: 16, y: 28 },
+      }),
       tags: ["avatar", "polished", "ember"],
     },
     {
@@ -652,7 +805,10 @@ export const starterVisualAssetCatalog: VisualAssetCatalog = {
       widthTiles: 1,
       heightTiles: 1,
       collidable: false,
-      asset: internalAtlasFrame("avatar.cobalt", 1, 1, false),
+      asset: internalAtlasFrame("avatar.cobalt", 1, 1, false, "none", {
+        visualFootprint: { x: 7, y: 1, width: 18, height: 28 },
+        zAnchor: { x: 16, y: 28 },
+      }),
       tags: ["avatar", "polished", "cobalt"],
     },
     {
@@ -665,7 +821,10 @@ export const starterVisualAssetCatalog: VisualAssetCatalog = {
       widthTiles: 1,
       heightTiles: 1,
       collidable: false,
-      asset: internalAtlasFrame("avatar.moss", 1, 1, false),
+      asset: internalAtlasFrame("avatar.moss", 1, 1, false, "none", {
+        visualFootprint: { x: 7, y: 1, width: 18, height: 28 },
+        zAnchor: { x: 16, y: 28 },
+      }),
       tags: ["avatar", "polished", "moss"],
     },
     {
@@ -678,7 +837,10 @@ export const starterVisualAssetCatalog: VisualAssetCatalog = {
       widthTiles: 1,
       heightTiles: 1,
       collidable: false,
-      asset: internalAtlasFrame("avatar.violet", 1, 1, false),
+      asset: internalAtlasFrame("avatar.violet", 1, 1, false, "none", {
+        visualFootprint: { x: 7, y: 1, width: 18, height: 28 },
+        zAnchor: { x: 16, y: 28 },
+      }),
       tags: ["avatar", "polished", "violet"],
     },
     {
@@ -758,6 +920,23 @@ export function validateVisualAssetCatalog(
     ) {
       errors.push(
         `Bundled source is not approved for target distribution: ${source.id}`,
+      )
+    }
+
+    if (source.bundledInTargetApp && !source.filePath) {
+      errors.push(`Bundled source ${source.id} must declare a local manifest path`)
+    }
+
+    if (source.bundledInTargetApp && !source.attributionText) {
+      errors.push(`Bundled source ${source.id} must declare attribution text`)
+    }
+
+    if (
+      source.bundledInTargetApp &&
+      !isApprovedCopyleftLicense(source.license)
+    ) {
+      errors.push(
+        `Bundled source ${source.id} must use an approved copyleft license path`,
       )
     }
   }
@@ -867,6 +1046,33 @@ export function validateVisualAssetCatalog(
       ) {
         errors.push(`Token ${token.id} foreground footprint is outside asset bounds`)
       }
+
+      if (token.asset.themeTags.length === 0) {
+        errors.push(`Token ${token.id} asset must declare tenant theme tags`)
+      }
+
+      if (token.asset.variants.length === 0) {
+        errors.push(`Token ${token.id} asset must declare at least one variant`)
+      }
+
+      if (
+        !token.asset.variants.some(
+          (variant) =>
+            variant.role === "default" && variant.frameId === token.asset?.frameId,
+        )
+      ) {
+        errors.push(`Token ${token.id} asset variants must include a default frame`)
+      }
+
+      for (const variant of token.asset.variants) {
+        if (!variant.id || !variant.label || !variant.frameId) {
+          errors.push(`Token ${token.id} has an incomplete variant definition`)
+        }
+
+        if (variant.themeTags.length === 0) {
+          errors.push(`Token ${token.id} variant ${variant.id} has no theme tags`)
+        }
+      }
     }
   }
 
@@ -894,6 +1100,11 @@ export function validateVisualAssetCatalog(
   }
 
   return errors
+}
+
+function isApprovedCopyleftLicense(license: string): boolean {
+  if (/OGA-BY|CC-BY-[0-9]/.test(license)) return false
+  return /LicenseRef-LPC-Copyleft-Mixed|CC-BY-SA|GPL|AGPL|LGPL/.test(license)
 }
 
 function pointWithinAsset(

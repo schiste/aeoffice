@@ -112,8 +112,18 @@ for (const token of starterVisualAssetCatalog.tokens) {
   assert.deepEqual(frame.visualFootprint, token.asset.visualFootprint)
   assert.deepEqual(frame.zAnchor, token.asset.zAnchor)
   assert.deepEqual(frame.occlusion, token.asset.occlusion)
+  assert.deepEqual(frame.themeTags, token.asset.themeTags)
+  assert.deepEqual(frame.variants, token.asset.variants)
   assert.equal(frame.width, token.asset.size.width * token.asset.size.exportScale)
   assert.equal(frame.height, token.asset.size.height * token.asset.size.exportScale)
+  assert.ok(frame.themeTags.length > 0, `${token.id} must expose theme tags.`)
+  assert.ok(frame.variants.length > 0, `${token.id} must expose variants.`)
+  assert.ok(
+    frame.variants.some(
+      (variant) => variant.role === "default" && variant.frameId === token.id,
+    ),
+    `${token.id} must expose a default variant.`,
+  )
 }
 
 for (const frame of manifest.frames) {

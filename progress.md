@@ -860,3 +860,27 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   The standalone develop-web-game client was attempted against a local Vite
   server but still fails before navigation because it cannot resolve
   `playwright` from the skill runtime.
+- Asset metadata pipeline was hardened. Internal atlas frames now carry
+  per-frame tenant theme tags, default and tenant-tint variant metadata,
+  precise visual footprints, per-object collision footprints, z-anchors, and
+  foreground occlusion split metadata. The generated manifest mirrors the
+  TypeScript catalog so drift is caught by asset verification.
+- Source/license validation is stricter for bundled target assets: bundled
+  sources must have a manifest path, attribution text, distribution approval,
+  commercial approval, and an approved copyleft license path. Manifest inputs
+  still record source URLs, attribution, license, and checksums.
+- `render_game_to_text.renderer.assets.metadata` now exposes frame count,
+  footprint counts, z-anchor count, occlusion split count, variant count,
+  tenant theme tags, source input count, source-license validation, and atlas
+  build validation for browser automation and future agents.
+- Verification passed after the asset metadata pipeline slice:
+  `npm --workspace @aedventure/asset-registry run build`,
+  `node scripts/build-internal-office-atlas.cjs --check`,
+  `node packages/asset-registry/test/catalog.test.js`,
+  `node scripts/verify-internal-assets.cjs`,
+  `npm --workspace @aedventure/web run build`, `npm run smoke:frontend`,
+  `npm run qa:renderer`, `npm run qa:responsive`, `npm run check`, and
+  `git diff --check`. Desktop/mobile renderer and responsive screenshots were
+  visually inspected. The standalone develop-web-game client still fails
+  before navigation because it cannot resolve `playwright` from the skill
+  runtime.
