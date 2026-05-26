@@ -98,6 +98,76 @@ export function ensureAvatarSpriteFrameTexture(
   return fallback
 }
 
+export interface ResolvedAvatarNativeAnimation {
+  readonly source: "phaser_animation_manager"
+  readonly key: string
+  readonly registered: boolean
+  readonly frameTextures: readonly ResolvedAvatarFrameTexture[]
+  readonly frameRate: number
+  readonly repeat: number
+  readonly skipMissedFrames: boolean
+}
+
+export function ensureAvatarNativeAnimation(
+  scene: Phaser.Scene,
+  animation: AvatarAnimationDefinition,
+  appearance: AvatarAppearanceMetadata,
+  visualFacing: AvatarVisualFacing,
+): ResolvedAvatarNativeAnimation {
+  const frameTextures = Array.from(
+    { length: animation.sprite.frameCount },
+    (_, frameIndex) =>
+      ensureAvatarSpriteFrameTexture(
+        scene,
+        animation,
+        appearance,
+        visualFacing,
+        frameIndex,
+      ),
+  )
+  const key = nativeAnimationKey(animation, visualFacing)
+  const repeat = animation.sprite.loop ? -1 : animation.repeat
+  const registered = scene.anims.exists(key) ||
+    Boolean(
+      scene.anims.create({
+        key,
+        frames: frameTextures.map((frame) => {
+          const animationFrame: Phaser.Types.Animations.AnimationFrame = {
+            key: frame.textureKey,
+            duration: animation.sprite.frameDurationMs,
+          }
+
+          if (frame.textureFrame !== undefined) {
+            animationFrame.frame = frame.textureFrame
+          }
+
+          return animationFrame
+        }),
+        frameRate: animation.sprite.frameRate,
+        repeat,
+        skipMissedFrames: false,
+        showOnStart: true,
+      }),
+    )
+
+  return {
+    source: "phaser_animation_manager",
+    key,
+    registered,
+    frameTextures,
+    frameRate: animation.sprite.frameRate,
+    repeat,
+    skipMissedFrames: false,
+  }
+}
+
+function nativeAnimationKey(
+  animation: AvatarAnimationDefinition,
+  visualFacing: AvatarVisualFacing,
+): string {
+  return `${animation.sprite.atlasId}:native:${animation.key}:${visualFacing}`
+}
+
 function drawAvatarFrame(
   context: CanvasRenderingContext2D,
   animation: AvatarAnimationDefinition,

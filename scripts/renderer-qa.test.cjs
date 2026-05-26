@@ -685,8 +685,8 @@ function assertAvatarFrameProgression(beforeState, afterState) {
     const beforeProgression = before.animation.frameProgression
     const afterProgression = after.animation.frameProgression
 
-    assert.equal(beforeProgression.source, "phaser_scene_time")
-    assert.equal(afterProgression.source, "phaser_scene_time")
+    assert.equal(beforeProgression.source, "phaser_animation_manager")
+    assert.equal(afterProgression.source, "phaser_animation_manager")
     assert.equal(afterProgression.frameCount, after.animation.sprite.frameCount)
     assert.equal(afterProgression.loop, after.animation.sprite.loop)
     assert.ok(
@@ -717,6 +717,12 @@ function assertAvatarFrameProgression(beforeState, afterState) {
       after: compactFrameProgression(afterProgression),
       frameKey: after.animation.frameKey,
       textureKey: after.animation.textureKey,
+      nativeAnimation: {
+        key: after.animation.nativeAnimation.key,
+        registered: after.animation.nativeAnimation.registered,
+        playing: after.animation.nativeAnimation.playing,
+        progress: after.animation.nativeAnimation.progress,
+      },
     }
   })
 
@@ -847,6 +853,7 @@ function avatarPreviewPlayer(state, avatarId, action, visualFacing) {
 
 function compactFrameProgression(progression) {
   return {
+    source: progression.source,
     elapsedMs: progression.elapsedMs,
     rawFrameIndex: progression.rawFrameIndex,
     currentFrameIndex: progression.currentFrameIndex,

@@ -19,7 +19,11 @@ import {
   type AvatarAppearanceMetadata,
   type AvatarInterpolationProfile,
 } from "./avatar-registry"
-import { ensureAvatarSpriteFrameTexture } from "./avatar-sprite-atlas"
+import {
+  ensureAvatarNativeAnimation,
+  ensureAvatarSpriteFrameTexture,
+  type ResolvedAvatarNativeAnimation,
+} from "./avatar-sprite-atlas"
 import {
   isLocomotionAction,
   resolveAvatarAnimationTransition,
@@ -359,7 +363,7 @@ class AvatarView {
   private readonly bodyRoot: Phaser.GameObjects.Container
   private readonly shadow: Phaser.GameObjects.Ellipse
   private readonly impactRing: Phaser.GameObjects.Ellipse
-  private readonly sprite: Phaser.GameObjects.Image
+  private readonly sprite: Phaser.GameObjects.Sprite
   private readonly leftFoot: Phaser.GameObjects.Ellipse
   private readonly rightFoot: Phaser.GameObjects.Ellipse
   private readonly torso: Phaser.GameObjects.Ellipse
@@ -407,6 +411,7 @@ class AvatarView {
   private spriteTextureFrame: string | undefined
   private spriteFrameSource: RendererAvatarFrameSource =
     "runtime_generated_fallback"
+  private spriteNativeAnimation?: ResolvedAvatarNativeAnimation
   private spriteElapsedMs = 0
   private spriteRawFrameIndex = 0
   private spriteCycleDurationMs = 1
@@ -507,7 +512,7 @@ class AvatarView {
     this.spriteTextureKey = initialSpriteFrame.textureKey
     this.spriteTextureFrame = initialSpriteFrame.textureFrame
     this.spriteFrameSource = initialSpriteFrame.source
-    this.sprite = scene.add.image(
+    this.sprite = scene.add.sprite(
       0,
       15,
       this.spriteTextureKey,
@@ -870,7 +875,7 @@ class AvatarView {
         textureFrame: this.spriteTextureFrame,
         frameSource: this.spriteFrameSource,
         frameProgression: {
-          source: "phaser_scene_time",
+          source: "phaser_animation_manager",
           elapsedMs: Math.round(this.spriteElapsedMs),
           rawFrameIndex: this.spriteRawFrameIndex,
           currentFrameIndex: this.spriteFrameIndex,
@@ -880,6 +885,28 @@ class AvatarView {
             this.spriteNormalizedCycleProgress.toFixed(3),
           ),
           loop: this.animation.sprite.loop,
+        },
+        nativeAnimation: {
+          source: "phaser_animation_manager",
+          key: this.spriteNativeAnimation?.key ?? "",
+          registered: this.spriteNativeAnimation?.registered ?? false,
+          playing: this.sprite.anims.isPlaying,
+          frameRate:
+            this.sprite.anims.frameRate ||
+            this.spriteNativeAnimation?.frameRate ||
+            this.animation.sprite.frameRate,
+          repeat:
+            this.spriteNativeAnimation?.repeat ??
+            (this.animation.sprite.loop ? -1 : this.animation.repeat),
+          skipMissedFrames:
+            this.spriteNativeAnimation?.skipMissedFrames ?? false,
+          progress: Number(this.spriteNormalizedCycleProgress.toFixed(3)),
+          currentFrameIndex: this.spriteFrameIndex,
+          currentFrameTextureKey:
+            this.sprite.anims.currentFrame?.textureKey ?? this.spriteTextureKey,
+          currentFrameTextureFrame:
+            this.sprite.anims.currentFrame?.textureFrame ??
+            this.spriteTextureFrame,
         },
         frameRate: this.animation.sprite.frameRate,
         frameDurationMs: this.animation.sprite.frameDurationMs,
@@ -1200,7 +1227,7 @@ class AvatarView {
     this.spriteAnimationKey = animation.key
     this.spriteVisualFacing = visualFacing
     this.spriteAnimationStartedAtMs = this.scene.time.now
-    this.applySpriteFrame(true, animation, appearance, visualFacing)
+    this.applyNativeSpriteAnimation(true, animation, appearance, visualFacing)
   }
 
   private applySpriteAnimationTransition(
@@ -1214,7 +1241,12 @@ class AvatarView {
       this.preserveSpriteAnimationPhase(previousAnimation, nextAnimation)
       this.spriteAnimationKey = nextAnimation.key
       this.spriteVisualFacing = nextVisualFacing
-      this.applySpriteFrame(true, nextAnimation, nextAppearance, nextVisualFacing)
+      this.applyNativeSpriteAnimation(
+        true,
+        nextAnimation,
+        nextAppearance,
+        nextVisualFacing,
+      )
       return
     }
 
@@ -1223,7 +1255,12 @@ class AvatarView {
       return
     }
 
-    this.applySpriteFrame(true, nextAnimation, nextAppearance, nextVisualFacing)
+    this.applyNativeSpriteAnimation(
+      true,
+      nextAnimation,
+      nextAppearance,
+      nextVisualFacing,
+    )
   }
 
   private preserveSpriteAnimationPhase(
@@ -1259,6 +1296,15 @@ class AvatarView {
     appearance = this.appearance,
     visualFacing = this.visualFacing,
   ): void {
+    this.applyNativeSpriteAnimation(force, animation, appearance, visualFacing)
+  }
+
+  private applyNativeSpriteAnimation(
+    force = false,
+    animation = this.animation,
+    appearance = this.appearance,
+    visualFacing = this.visualFacing,
+  ): void {
     if (
       this.spriteAnimationKey !== animation.key ||
       this.spriteVisualFacing !== visualFacing
@@ -1269,48 +1315,93 @@ class AvatarView {
       force = true
     }
 
-    const elapsedMs = Math.max(
-      0,
-      this.scene.time.now - this.spriteAnimationStartedAtMs,
-    )
-    const rawFrameIndex = Math.floor(elapsedMs / animation.sprite.frameDurationMs)
-    const frameIndex = animation.sprite.loop
-      ? rawFrameIndex % animation.sprite.frameCount
-      : clamp(rawFrameIndex, 0, animation.sprite.frameCount - 1)
-    const cycleDurationMs = spriteCycleDurationMs(animation)
-    const frame = ensureAvatarSpriteFrameTexture(
+    const nativeAnimation = ensureAvatarNativeAnimation(
       this.scene,
       animation,
       appearance,
       visualFacing,
-      frameIndex,
     )
-    const textureChanged =
-      this.spriteTextureKey !== frame.textureKey ||
-      this.spriteTextureFrame !== frame.textureFrame
+    const animationChanged =
+      this.spriteNativeAnimation?.key !== nativeAnimation.key ||
+      this.sprite.anims.currentAnim?.key !== nativeAnimation.key
+    const shouldRestartStoppedLoop =
+      animation.sprite.loop && !this.sprite.anims.isPlaying
 
-    this.spriteFrameIndex = frameIndex
+    if (force || animationChanged || shouldRestartStoppedLoop) {
+      const startProgress = this.currentNativeAnimationProgress(animation)
+
+      this.sprite.play(
+        {
+          key: nativeAnimation.key,
+          frameRate: nativeAnimation.frameRate,
+          repeat: nativeAnimation.repeat,
+          skipMissedFrames: nativeAnimation.skipMissedFrames,
+          startFrame: currentFrameIndexForProgress(animation, startProgress),
+        },
+        false,
+      )
+      this.sprite.anims.setProgress(startProgress)
+    }
+
+    this.sprite.anims.setProgress(this.currentNativeAnimationProgress(animation))
+    this.spriteNativeAnimation = nativeAnimation
+    this.syncSpriteFrameTelemetry(animation, nativeAnimation)
+    this.sprite.setOrigin(
+      animation.sprite.anchor.x,
+      animation.sprite.anchor.y,
+    )
+    this.sprite.setDisplaySize(
+      avatarSpriteAtlasMetadata().frameWidth,
+      avatarSpriteAtlasMetadata().frameHeight,
+    )
+  }
+
+  private syncSpriteFrameTelemetry(
+    animation: AvatarAnimationDefinition,
+    nativeAnimation: ResolvedAvatarNativeAnimation,
+  ): void {
+    const elapsedMs = Math.max(
+      0,
+      this.scene.time.now - this.spriteAnimationStartedAtMs,
+    )
+    const cycleDurationMs = spriteCycleDurationMs(animation)
+    const currentNativeFrame = this.sprite.anims.currentFrame
+    const currentFrameIndex = clamp(
+      currentNativeFrame ? currentNativeFrame.index - 1 : 0,
+      0,
+      animation.sprite.frameCount - 1,
+    )
+    const frame = nativeAnimation.frameTextures[currentFrameIndex] ??
+      nativeAnimation.frameTextures[0]
+    const rawFrameIndex = Math.floor(elapsedMs / animation.sprite.frameDurationMs)
+
+    this.spriteFrameIndex = currentFrameIndex
     this.spriteElapsedMs = elapsedMs
     this.spriteRawFrameIndex = rawFrameIndex
     this.spriteCycleDurationMs = cycleDurationMs
-    this.spriteNormalizedCycleProgress = animation.sprite.loop
-      ? elapsedMs % cycleDurationMs / cycleDurationMs
-      : clamp(elapsedMs / cycleDurationMs, 0, 1)
+    this.spriteNormalizedCycleProgress = clamp(
+      this.sprite.anims.getProgress(),
+      0,
+      1,
+    )
     this.spriteFrameKey = frame.semanticFrameKey
     this.spriteTextureKey = frame.textureKey
     this.spriteTextureFrame = frame.textureFrame
     this.spriteFrameSource = frame.source
-    if (force || textureChanged) {
-      this.sprite.setTexture(frame.textureKey, frame.textureFrame)
-      this.sprite.setOrigin(
-        animation.sprite.anchor.x,
-        animation.sprite.anchor.y,
-      )
-      this.sprite.setDisplaySize(
-        avatarSpriteAtlasMetadata().frameWidth,
-        avatarSpriteAtlasMetadata().frameHeight,
-      )
-    }
+  }
+
+  private currentNativeAnimationProgress(
+    animation: AvatarAnimationDefinition,
+  ): number {
+    const elapsedMs = Math.max(
+      0,
+      this.scene.time.now - this.spriteAnimationStartedAtMs,
+    )
+    const cycleDurationMs = spriteCycleDurationMs(animation)
+
+    if (animation.sprite.loop) return elapsedMs % cycleDurationMs / cycleDurationMs
+
+    return clamp(elapsedMs / cycleDurationMs, 0, 1)
   }
 
   private applyAnimationPose(
@@ -1683,6 +1774,17 @@ function spriteCycleDurationMs(animation: AvatarAnimationDefinition): number {
   return Math.max(
     animation.sprite.frameDurationMs,
     animation.sprite.frameDurationMs * animation.sprite.frameCount,
+  )
+}
+
+function currentFrameIndexForProgress(
+  animation: AvatarAnimationDefinition,
+  progress: number,
+): number {
+  return clamp(
+    Math.floor(progress * animation.sprite.frameCount),
+    0,
+    animation.sprite.frameCount - 1,
   )
 }
 

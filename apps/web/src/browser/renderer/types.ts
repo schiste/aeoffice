@@ -463,7 +463,7 @@ export interface RendererAvatarAnimationStateDefinition {
 export interface RendererAvatarAnimationPipelineInfo {
   readonly source: "sprite_atlas_metadata"
   readonly atlasId: string
-  readonly renderer: "phaser_image_frame_swap"
+  readonly renderer: "phaser_animation_manager"
   readonly frameKeyStrategy: "avatar_action_server_direction_frame"
   readonly generatedTextureSource: "runtime_canvas_sprite_frames"
   readonly atlasImport: RendererAvatarAtlasImportInfo
@@ -700,7 +700,7 @@ export interface RendererAvatarAnimationInfo {
   readonly textureFrame?: string
   readonly frameSource: RendererAvatarFrameSource
   readonly frameProgression: {
-    readonly source: "phaser_scene_time"
+    readonly source: "phaser_animation_manager"
     readonly elapsedMs: number
     readonly rawFrameIndex: number
     readonly currentFrameIndex: number
@@ -708,6 +708,19 @@ export interface RendererAvatarAnimationInfo {
     readonly cycleDurationMs: number
     readonly normalizedCycleProgress: number
     readonly loop: boolean
+  }
+  readonly nativeAnimation: {
+    readonly source: "phaser_animation_manager"
+    readonly key: string
+    readonly registered: boolean
+    readonly playing: boolean
+    readonly frameRate: number
+    readonly repeat: number
+    readonly skipMissedFrames: boolean
+    readonly progress: number
+    readonly currentFrameIndex: number
+    readonly currentFrameTextureKey: string
+    readonly currentFrameTextureFrame?: string | number
   }
   readonly frameRate: number
   readonly frameDurationMs: number

@@ -388,7 +388,7 @@ export function avatarAnimationPipelineMetadata(): RendererAvatarAnimationPipeli
   return {
     source: "sprite_atlas_metadata",
     atlasId: AVATAR_SPRITE_ATLAS.atlasId,
-    renderer: "phaser_image_frame_swap",
+    renderer: "phaser_animation_manager",
     frameKeyStrategy: AVATAR_SPRITE_ATLAS.frameKeyStrategy,
     generatedTextureSource: AVATAR_SPRITE_ATLAS.generatedTextureSource,
     atlasImport: AVATAR_SPRITE_ATLAS.atlasImport,

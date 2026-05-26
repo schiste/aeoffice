@@ -1918,7 +1918,7 @@ async function assertAvatarSystemSmoke(page) {
   )
   assert.equal(
     avatarState.avatars.animationPipeline.renderer,
-    "phaser_image_frame_swap",
+    "phaser_animation_manager",
   )
   assert.equal(
     avatarState.avatars.animationPipeline.turnBlending,
@@ -2054,7 +2054,10 @@ async function assertAvatarSystemSmoke(page) {
     assert.equal(typeof player.animation.transition.restartedSpriteClock, "boolean")
     assert.equal(typeof player.animation.transition.turnHoldActive, "boolean")
     assert.equal(typeof player.animation.frameIndex, "number")
-    assert.equal(player.animation.frameProgression.source, "phaser_scene_time")
+    assert.equal(
+      player.animation.frameProgression.source,
+      "phaser_animation_manager",
+    )
     assert.equal(
       player.animation.frameProgression.currentFrameIndex,
       player.animation.frameIndex,
@@ -2072,6 +2075,32 @@ async function assertAvatarSystemSmoke(page) {
     assert.equal(
       typeof player.animation.frameProgression.normalizedCycleProgress,
       "number",
+    )
+    assert.equal(
+      player.animation.nativeAnimation.source,
+      "phaser_animation_manager",
+    )
+    assert.ok(
+      player.animation.nativeAnimation.key.includes(player.animation.key),
+      `Expected native animation key to include semantic animation key, got ${JSON.stringify(player.animation.nativeAnimation)}.`,
+    )
+    assert.equal(player.animation.nativeAnimation.registered, true)
+    assert.equal(typeof player.animation.nativeAnimation.playing, "boolean")
+    assert.equal(
+      player.animation.nativeAnimation.frameRate,
+      player.animation.frameRate,
+    )
+    assert.equal(
+      player.animation.nativeAnimation.repeat,
+      player.animation.loop ? -1 : 0,
+    )
+    assert.equal(
+      player.animation.nativeAnimation.currentFrameIndex,
+      player.animation.frameIndex,
+    )
+    assert.equal(
+      player.animation.nativeAnimation.currentFrameTextureKey,
+      player.animation.textureKey,
     )
     assert.equal(player.animation.frameSource, "runtime_generated_fallback")
     assert.ok(

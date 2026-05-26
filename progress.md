@@ -1145,3 +1145,27 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   The required standalone develop-web-game client was attempted against
   `http://127.0.0.1:8108/app`, but still fails before navigation because the
   skill runtime cannot resolve `playwright`.
+- Avatar playback now goes through Phaser's Animation Manager instead of
+  direct image frame swapping. The avatar sprite atlas adapter registers native
+  Phaser animation keys for each semantic avatar/action/server-direction plus
+  8-way visual facing, while still generating fallback canvas frame textures
+  until real atlas images are available.
+- Avatar views now use `Phaser.GameObjects.Sprite` and expose native animation
+  telemetry through `render_game_to_text`: native animation key, registration
+  state, playing state, repeat, frame rate, progress, and current Phaser frame
+  texture. The semantic state machine still owns action transitions and phase
+  preservation; Phaser now owns frame lookup and texture-frame selection.
+- Renderer QA reports frame progression with `source:
+  phaser_animation_manager` and includes native animation details for the
+  avatar preview samples. The texture leak check remains bounded after the
+  animation-manager migration.
+- Verification passed after the Phaser Animation Manager migration:
+  `npm --workspace @aedventure/web run build`,
+  `node --check scripts/frontend-smoke.test.cjs`,
+  `node --check scripts/renderer-qa.test.cjs`,
+  `npm run smoke:frontend`, `npm run qa:renderer`,
+  `npm run qa:responsive`, and `npm run check`. The latest avatar preview
+  gallery plus desktop/mobile responsive screenshots were visually inspected.
+  The standalone develop-web-game client was attempted against
+  `http://127.0.0.1:8108/app`, but still fails before navigation because the
+  skill runtime cannot resolve `playwright`.
