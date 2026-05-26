@@ -770,6 +770,11 @@ function assertRenderStateContract(state) {
     Array.isArray(state.renderer?.tilemap?.staticLayers),
     "Expected renderer.tilemap.staticLayers in render_game_to_text.",
   )
+  assert.equal(
+    state.renderer?.tilemap?.staticLayerBake?.source,
+    "phaser_render_texture",
+  )
+  assert.equal(typeof state.renderer?.tilemap?.staticLayerBake?.enabled, "boolean")
   assert.equal(typeof state.renderer?.assets?.atlasLoaded, "boolean")
   assert.equal(typeof state.renderer?.assets?.primarySource, "string")
   assert.equal(
@@ -1071,6 +1076,14 @@ function assertRendererCapabilities(state) {
   assert.equal(state.renderer.tilemap.staticCpuLayerCount, 0)
   assert.equal(state.renderer.tilemap.staticLayerBatching, "phaser_tilemap_gpu_layers")
   assert.equal(state.renderer.tilemap.staticLayerBatchCount, 2)
+  assert.equal(state.renderer.tilemap.staticLayerBake.enabled, true)
+  assert.equal(
+    state.renderer.tilemap.staticLayerBake.mode,
+    "single_render_texture",
+  )
+  assert.equal(state.renderer.tilemap.staticLayerBake.sourceLayerCount, 2)
+  assert.equal(state.renderer.tilemap.staticLayerBake.bakedLayerCount, 1)
+  assert.ok(state.renderer.tilemap.staticLayerBake.displayObjectReduction >= 1)
   assert.equal(state.renderer.tilemap.objectLayerMode, "sprites")
   assert.equal(state.renderer.tilemap.zoneLayerMode, "graphics")
   assert.equal(state.renderer.tilemap.avatarLayerMode, "display_objects")
@@ -1200,6 +1213,10 @@ function assertRendererPerformance(performance) {
     performance.strategy.tileLayerBatching,
     "phaser_tilemap_gpu_layers",
   )
+  assert.equal(
+    performance.strategy.staticLayerBaking,
+    "phaser_render_texture_static_architecture",
+  )
   assert.equal(performance.strategy.roomChunking, "logical_32x32_tile_chunks")
   assert.equal(performance.strategy.tileLayerCulling, "camera_gpu_layer")
   assert.equal(performance.strategy.objectCulling, "camera_worldview_margin")
@@ -1224,6 +1241,11 @@ function assertRendererPerformance(performance) {
   assert.equal(typeof performance.runtime.textureCount, "number")
   assert.match(performance.proofs.mapSize, /^\d+x\d+$/)
   assert.equal(typeof performance.proofs.tileBatching.compatible, "boolean")
+  assert.equal(typeof performance.proofs.staticLayerBaking.enabled, "boolean")
+  assert.equal(
+    typeof performance.proofs.staticLayerBaking.displayObjectReduction,
+    "number",
+  )
   assert.equal(typeof performance.proofs.viewportCulling.active, "boolean")
   assert.equal(typeof performance.proofs.viewportCulling.culledRatio, "number")
   assert.equal(typeof performance.proofs.objectPooling.reuseObserved, "boolean")
@@ -1623,6 +1645,7 @@ async function assertLargeGpuMapSmoke(page) {
     passed: true,
     benchmarkMapsCovered: true,
     tileBatching: true,
+    staticLayerBaking: true,
     viewportCulling: true,
     objectPooling: true,
     textureReuse: true,
@@ -1632,6 +1655,7 @@ async function assertLargeGpuMapSmoke(page) {
     assertRendererPerformance(sample.performance)
     assert.deepEqual(sample.proof, {
       tileBatching: true,
+      staticLayerBaking: true,
       viewportCullingAccounted: true,
       viewportCullingActive: true,
       objectPoolingActive: true,
@@ -1674,6 +1698,7 @@ async function assertLargeGpuMapSmoke(page) {
       state.renderer.performance.pooling.activeSpriteCount > 0 &&
       state.renderer.performance.pooling.culledSpriteCount > 0 &&
       state.renderer.performance.proofs.tileBatching.compatible === true &&
+      state.renderer.performance.proofs.staticLayerBaking.enabled === true &&
       state.renderer.performance.proofs.viewportCulling.culledRatio > 0,
     9000,
   )

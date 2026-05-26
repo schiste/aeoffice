@@ -578,6 +578,7 @@ async function runMapSwitchLeakCheck(page) {
     passed: true,
     benchmarkMapsCovered: true,
     tileBatching: true,
+    staticLayerBaking: true,
     viewportCulling: true,
     objectPooling: true,
     textureReuse: true,
@@ -591,6 +592,7 @@ async function runMapSwitchLeakCheck(page) {
     assert.ok(sample.mapRenderDurationMs >= 0)
     assert.equal(sample.performance.lifecycle.phaserGameReused, true)
     assert.equal(sample.proof.tileBatching, true)
+    assert.equal(sample.proof.staticLayerBaking, true)
     assert.equal(sample.proof.viewportCullingAccounted, true)
     assert.equal(sample.proof.viewportCullingActive, true)
     assert.equal(sample.proof.objectPoolingActive, true)
@@ -618,6 +620,7 @@ async function runMapSwitchLeakCheck(page) {
       displayObjectCount: sample.performance.runtime.displayObjectCount,
       textureCount: sample.performance.runtime.textureCount,
       tileBatching: sample.proof.tileBatching,
+      staticLayerBaking: sample.proof.staticLayerBaking,
       viewportCulling: {
         visible:
           sample.performance.proofs.viewportCulling.visibleObjectSpriteCount,
@@ -898,6 +901,14 @@ function assertRendererSnapshot(state) {
   assert.ok(state.renderer.assets.metadata.occlusionSplitCount >= 6)
   assert.equal(state.renderer.tilemap.staticGpuLayerCount, 2)
   assert.equal(state.renderer.tilemap.objectLayerMode, "sprites")
+  assert.equal(state.renderer.tilemap.staticLayerBake.enabled, true)
+  assert.equal(
+    state.renderer.tilemap.staticLayerBake.mode,
+    "single_render_texture",
+  )
+  assert.equal(state.renderer.tilemap.staticLayerBake.sourceLayerCount, 2)
+  assert.equal(state.renderer.tilemap.staticLayerBake.bakedLayerCount, 1)
+  assert.ok(state.renderer.tilemap.staticLayerBake.displayObjectReduction >= 1)
   assert.equal(state.renderer.mapValidation.valid, true)
   assert.equal(state.renderer.mapValidation.mutationSafe, true)
   assert.equal(state.renderer.performance.runtime.textureCount > 0, true)
@@ -947,6 +958,11 @@ function assertRendererPerformance(performance) {
   assert.equal(typeof performance.pooling.culledSpriteCount, "number")
   assert.match(performance.proofs.mapSize, /^\d+x\d+$/)
   assert.equal(typeof performance.proofs.tileBatching.compatible, "boolean")
+  assert.equal(typeof performance.proofs.staticLayerBaking.enabled, "boolean")
+  assert.equal(
+    typeof performance.proofs.staticLayerBaking.displayObjectReduction,
+    "number",
+  )
   assert.equal(typeof performance.proofs.viewportCulling.active, "boolean")
   assert.equal(typeof performance.proofs.viewportCulling.culledRatio, "number")
   assert.equal(typeof performance.proofs.objectPooling.reuseObserved, "boolean")
@@ -971,6 +987,7 @@ function snapshotForReport(label, state) {
       tilemap: {
         staticGpuLayerCount: state.renderer.tilemap.staticGpuLayerCount,
         staticTileCount: state.renderer.tilemap.staticTileCount,
+        staticLayerBake: state.renderer.tilemap.staticLayerBake,
       },
       depth: {
         objectCount: state.renderer.depth.objectCount,

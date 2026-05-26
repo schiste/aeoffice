@@ -44,6 +44,7 @@ export function rendererPerformanceInfo(options: {
     },
     strategy: {
       tileLayerBatching: "phaser_tilemap_gpu_layers",
+      staticLayerBaking: "phaser_render_texture_static_architecture",
       roomChunking: "logical_32x32_tile_chunks",
       tileLayerCulling: "camera_gpu_layer",
       objectCulling: "camera_worldview_margin",
@@ -77,6 +78,16 @@ export function rendererPerformanceInfo(options: {
         staticCpuLayerCount: options.tilemap.staticCpuLayerCount,
         staticLayerBatchCount: options.tilemap.staticLayerBatchCount,
         staticTileCount: options.tilemap.staticTileCount,
+      },
+      staticLayerBaking: {
+        enabled: options.tilemap.staticLayerBake.enabled,
+        mode: options.tilemap.staticLayerBake.mode,
+        sourceLayerCount: options.tilemap.staticLayerBake.sourceLayerCount,
+        bakedLayerCount: options.tilemap.staticLayerBake.bakedLayerCount,
+        sourceTileCount: options.tilemap.staticLayerBake.sourceTileCount,
+        displayObjectReduction:
+          options.tilemap.staticLayerBake.displayObjectReduction,
+        skippedReason: options.tilemap.staticLayerBake.skippedReason,
       },
       viewportCulling: {
         active:

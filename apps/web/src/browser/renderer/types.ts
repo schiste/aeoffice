@@ -591,6 +591,24 @@ export interface RendererTilemapLayerInfo {
   readonly populatedTileCount: number
 }
 
+export interface RendererStaticLayerBakeInfo {
+  readonly source: "phaser_render_texture"
+  readonly enabled: boolean
+  readonly mode: "single_render_texture" | "disabled"
+  readonly textureKey?: string
+  readonly width: number
+  readonly height: number
+  readonly sourceLayerCount: number
+  readonly bakedLayerCount: number
+  readonly sourceTileCount: number
+  readonly displayObjectReduction: number
+  readonly skippedReason?:
+    | "no_static_layers"
+    | "non_webgl_renderer"
+    | "texture_too_large"
+    | "render_texture_unavailable"
+}
+
 export interface RendererTilemapInfo {
   readonly staticLayers: readonly RendererTilemapLayerInfo[]
   readonly staticGpuLayerCount: number
@@ -598,6 +616,7 @@ export interface RendererTilemapInfo {
   readonly staticTileCount: number
   readonly staticLayerBatching: "phaser_tilemap_gpu_layers"
   readonly staticLayerBatchCount: number
+  readonly staticLayerBake: RendererStaticLayerBakeInfo
   readonly objectLayerMode: "sprites"
   readonly zoneLayerMode: "graphics"
   readonly avatarLayerMode: "display_objects"
@@ -903,6 +922,7 @@ export interface RendererPerformanceInfo {
   }
   readonly strategy: {
     readonly tileLayerBatching: "phaser_tilemap_gpu_layers"
+    readonly staticLayerBaking: "phaser_render_texture_static_architecture"
     readonly roomChunking: "logical_32x32_tile_chunks"
     readonly tileLayerCulling: "camera_gpu_layer"
     readonly objectCulling: "camera_worldview_margin"
@@ -944,6 +964,15 @@ export interface RendererPerformanceProofInfo {
     readonly staticCpuLayerCount: number
     readonly staticLayerBatchCount: number
     readonly staticTileCount: number
+  }
+  readonly staticLayerBaking: {
+    readonly enabled: boolean
+    readonly mode: "single_render_texture" | "disabled"
+    readonly sourceLayerCount: number
+    readonly bakedLayerCount: number
+    readonly sourceTileCount: number
+    readonly displayObjectReduction: number
+    readonly skippedReason?: RendererStaticLayerBakeInfo["skippedReason"]
   }
   readonly viewportCulling: {
     readonly active: boolean

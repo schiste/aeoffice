@@ -13,8 +13,18 @@ import type {
   MultiTileVariantGids,
   RendererAssetPipelineInfo,
   RendererTilemapLayerInfo,
+  RendererTileLayerMode,
   TileLayer,
 } from "./types"
+
+export type StaticTileLayerGameObject =
+  | Phaser.Tilemaps.TilemapLayer
+  | Phaser.Tilemaps.TilemapGPULayer
+
+export interface StaticTileLayerPaintResult {
+  readonly info: RendererTilemapLayerInfo
+  readonly gameObject: StaticTileLayerGameObject
+}
 
 export class TilemapRenderer {
   private lastTilesetSignature?: string
@@ -139,7 +149,7 @@ export class TilemapRenderer {
     tokensByGid: ReadonlyMap<number, FixtureToken>,
     multiTileVariantGids: ReadonlyMap<number, readonly (readonly number[])[]>,
     depth: number,
-  ): RendererTilemapLayerInfo {
+  ): StaticTileLayerPaintResult {
     const phaserLayer = tilemap.createBlankLayer(name, tileset)
 
     if (!phaserLayer) {
@@ -155,23 +165,20 @@ export class TilemapRenderer {
       multiTileVariantGids,
     )
     const gpuLayer = this.promoteBlankLayerToGpu(tilemap, name, tileset, depth)
-
-    if (gpuLayer) {
-      return {
-        name,
-        mode: "gpu",
-        width: layer.gids[0]?.length ?? 0,
-        height: layer.gids.length,
-        populatedTileCount,
-      }
+    const paintedLayer = gpuLayer ?? {
+      layer: phaserLayer,
+      mode: "cpu" as const,
     }
 
     return {
-      name,
-      mode: "cpu",
-      width: layer.gids[0]?.length ?? 0,
-      height: layer.gids.length,
-      populatedTileCount,
+      info: {
+        name,
+        mode: paintedLayer.mode,
+        width: layer.gids[0]?.length ?? 0,
+        height: layer.gids.length,
+        populatedTileCount,
+      },
+      gameObject: paintedLayer.layer,
     }
   }
 
@@ -209,7 +216,9 @@ export class TilemapRenderer {
     name: RendererTilemapLayerInfo["name"],
     tileset: Phaser.Tilemaps.Tileset,
     depth: number,
-  ): Phaser.Tilemaps.TilemapGPULayer | undefined {
+  ):
+    | { readonly layer: StaticTileLayerGameObject; readonly mode: RendererTileLayerMode }
+    | undefined {
     if (this.scene.renderer.type !== Phaser.WEBGL) return undefined
     if (tilemap.width > 4096 || tilemap.height > 4096) return undefined
 
@@ -224,13 +233,15 @@ export class TilemapRenderer {
       const fallbackLayer = tilemap.createLayer(name, tileset, 0, 0, false)
       fallbackLayer?.setDepth(depth)
       fallbackLayer?.setVertexRoundMode(RENDERER_VERTEX_ROUND_MODE)
-      return undefined
+      return fallbackLayer
+        ? { layer: fallbackLayer, mode: "cpu" }
+        : undefined
     }
 
     if (!isTilemapGpuLayer(gpuLayer)) {
       gpuLayer.setDepth(depth)
       gpuLayer.setVertexRoundMode(RENDERER_VERTEX_ROUND_MODE)
-      return undefined
+      return { layer: gpuLayer, mode: "cpu" }
     }
 
     gpuLayer.setDepth(depth)
@@ -239,7 +250,7 @@ export class TilemapRenderer {
     // transformed objects avoid the wobble that full rounding can introduce.
     gpuLayer.setVertexRoundMode(RENDERER_VERTEX_ROUND_MODE)
 
-    return gpuLayer
+    return { layer: gpuLayer, mode: "gpu" }
   }
 }
 

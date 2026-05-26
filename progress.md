@@ -1198,3 +1198,29 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   and `npm run check`. The latest stress-map, avatar-gallery, desktop, and
   mobile screenshots were visually inspected under the renderer and responsive
   QA artifact directories.
+- Static architectural map layers now bake into a reusable Phaser
+  `RenderTexture` after the floor and wall tile layers are generated. The
+  source layers are still built as GPU tilemap layers from semantic map data,
+  then drawn once into a single `baked-static-architecture` render texture and
+  destroyed so runtime presentation uses one static background display object.
+- Renderer telemetry now reports `renderer.tilemap.staticLayerBake` plus
+  `renderer.performance.proofs.staticLayerBaking`. The proof records whether
+  baking is enabled, that the mode is `single_render_texture`, the source layer
+  count, baked layer count, source tile count, and the display-object reduction.
+  Large-map benchmark proof now requires static layer baking in addition to GPU
+  tile batching, viewport culling, object pooling, texture reuse, and no switch
+  leaks.
+- The bake texture is reused and resized across map switches instead of
+  allocating one texture per generated room. Renderer QA verified the repeated
+  100x80 map display-object delta and texture delta both remain `0`, with
+  `staticLayerBaking: true` for all 20x15, 50x40, and 100x80 benchmark samples.
+- Verification passed after the RenderTexture baking migration:
+  `npm --workspace @aedventure/web run build`,
+  `node --check scripts/frontend-smoke.test.cjs`,
+  `node --check scripts/renderer-qa.test.cjs`, `git diff --check`,
+  `npm run smoke:frontend`, `npm run qa:renderer`, `npm run qa:responsive`,
+  and `npm run check`. Latest renderer desktop/stress screenshots and the
+  mobile responsive screenshot were visually inspected. The standalone
+  develop-web-game client was attempted against `http://127.0.0.1:8108/app`,
+  but still fails before navigation because the skill runtime cannot resolve
+  `playwright`.

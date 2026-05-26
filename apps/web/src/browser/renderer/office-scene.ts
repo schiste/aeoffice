@@ -23,6 +23,10 @@ import { validateFixtureMapForRenderer } from "./map-render-validation"
 import { rendererPerformanceInfo } from "./performance-info"
 import { createMultiTileVariantGids } from "./semantic-tiles"
 import { TILESET_KEY, TILESET_NAME } from "./constants"
+import {
+  StaticLayerBaker,
+  emptyStaticLayerBakeInfo,
+} from "./static-layer-baker"
 import { ZoneRenderer } from "./zone-renderer"
 import type {
   FixtureMap,
@@ -55,6 +59,7 @@ export class OfficeScene extends Phaser.Scene {
   private readonly zoneRenderer: ZoneRenderer
   private readonly interactionRenderer: InteractionRenderer
   private readonly effectsLayer: EffectsLayer
+  private readonly staticLayerBaker: StaticLayerBaker
   private readonly depthDebugOverlay: DepthDebugOverlay
   private readonly devToolsOverlay: DevToolsOverlay
   private readonly telemetry = new RendererTelemetry()
@@ -82,6 +87,7 @@ export class OfficeScene extends Phaser.Scene {
     this.zoneRenderer = new ZoneRenderer(this)
     this.interactionRenderer = new InteractionRenderer(this)
     this.effectsLayer = new EffectsLayer(this)
+    this.staticLayerBaker = new StaticLayerBaker(this)
     this.depthDebugOverlay = new DepthDebugOverlay(this)
     this.devToolsOverlay = new DevToolsOverlay(this)
     this.assetPackLoader = new RendererAssetPackLoader(this)
@@ -131,6 +137,7 @@ export class OfficeScene extends Phaser.Scene {
     this.zoneRenderer.clear()
     this.interactionRenderer.clear()
     this.effectsLayer.clear()
+    this.staticLayerBaker.clear()
     this.depthDebugOverlay.clear()
     this.devToolsOverlay.clear()
     this.objectRenderer.releaseActiveSprites()
@@ -174,7 +181,7 @@ export class OfficeScene extends Phaser.Scene {
       fixtureMap.catalog.tokens.map((token) => [token.provisionalGid, token]),
     )
 
-    const floorLayerInfo = this.tilemapRenderer.paintStaticTileLayer(
+    const floorLayer = this.tilemapRenderer.paintStaticTileLayer(
       this.activeMap,
       "floor",
       fixtureMap.compiled.layers.floor,
@@ -183,7 +190,7 @@ export class OfficeScene extends Phaser.Scene {
       multiTileVariantGids.byRootGid,
       0,
     )
-    const wallLayerInfo = this.tilemapRenderer.paintStaticTileLayer(
+    const wallLayer = this.tilemapRenderer.paintStaticTileLayer(
       this.activeMap,
       "walls",
       fixtureMap.compiled.layers.walls,
@@ -192,7 +199,17 @@ export class OfficeScene extends Phaser.Scene {
       multiTileVariantGids.byRootGid,
       10,
     )
-    this.tilemapInfo = tilemapInfoFromLayers([floorLayerInfo, wallLayerInfo])
+    const staticLayerBake = this.staticLayerBaker.bakeStaticLayers(
+      [floorLayer, wallLayer],
+      {
+        width: widthInPixels,
+        height: heightInPixels,
+      },
+    )
+    this.tilemapInfo = tilemapInfoFromLayers(
+      [floorLayer.info, wallLayer.info],
+      staticLayerBake,
+    )
     this.effectsLayer.renderFixtureMap(fixtureMap, {
       width: widthInPixels,
       height: heightInPixels,
@@ -437,6 +454,7 @@ export class OfficeScene extends Phaser.Scene {
 
 function tilemapInfoFromLayers(
   staticLayers: RendererTilemapInfo["staticLayers"],
+  staticLayerBake = emptyStaticLayerBakeInfo(),
 ): RendererTilemapInfo {
   return {
     staticLayers,
@@ -450,6 +468,7 @@ function tilemapInfoFromLayers(
     ),
     staticLayerBatching: "phaser_tilemap_gpu_layers",
     staticLayerBatchCount: staticLayers.length,
+    staticLayerBake,
     objectLayerMode: "sprites",
     zoneLayerMode: "graphics",
     avatarLayerMode: "display_objects",

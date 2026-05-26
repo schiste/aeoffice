@@ -453,6 +453,7 @@ interface BigMapBenchmarkResult {
 
 interface BigMapBenchmarkSampleProof {
   readonly tileBatching: boolean
+  readonly staticLayerBaking: boolean
   readonly viewportCullingAccounted: boolean
   readonly viewportCullingActive: boolean
   readonly objectPoolingActive: boolean
@@ -464,6 +465,7 @@ interface BigMapBenchmarkProof {
   readonly passed: boolean
   readonly benchmarkMapsCovered: boolean
   readonly tileBatching: boolean
+  readonly staticLayerBaking: boolean
   readonly viewportCulling: boolean
   readonly objectPooling: boolean
   readonly textureReuse: boolean
@@ -2491,6 +2493,12 @@ function bigMapBenchmarkSampleProof(
       performance.proofs.tileBatching.compatible &&
       performance.proofs.tileBatching.staticGpuLayerCount === 2 &&
       performance.proofs.tileBatching.staticCpuLayerCount === 0,
+    staticLayerBaking:
+      performance.proofs.staticLayerBaking.enabled &&
+      performance.proofs.staticLayerBaking.mode === "single_render_texture" &&
+      performance.proofs.staticLayerBaking.sourceLayerCount === 2 &&
+      performance.proofs.staticLayerBaking.bakedLayerCount === 1 &&
+      performance.proofs.staticLayerBaking.displayObjectReduction >= 1,
     viewportCullingAccounted: performance.proofs.viewportCulling.active,
     viewportCullingActive:
       !largeMap || performance.proofs.viewportCulling.culledObjectSpriteCount > 0,
@@ -2527,6 +2535,9 @@ function bigMapBenchmarkProof(
     (secondLargeMap?.performance.pooling.createdTextureCount ?? 0) -
     (firstLargeMap?.performance.pooling.createdTextureCount ?? 0)
   const tileBatching = samples.every((sample) => sample.proof.tileBatching)
+  const staticLayerBaking = samples.every(
+    (sample) => sample.proof.staticLayerBaking,
+  )
   const viewportCulling = samples.every(
     (sample) =>
       sample.proof.viewportCullingAccounted &&
@@ -2549,12 +2560,14 @@ function bigMapBenchmarkProof(
     passed:
       benchmarkMapsCovered &&
       tileBatching &&
+      staticLayerBaking &&
       viewportCulling &&
       objectPooling &&
       textureReuse &&
       noMapSwitchLeaks,
     benchmarkMapsCovered,
     tileBatching,
+    staticLayerBaking,
     viewportCulling,
     objectPooling,
     textureReuse,
