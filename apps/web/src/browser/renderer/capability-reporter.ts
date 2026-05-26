@@ -5,6 +5,7 @@ import {
   RENDERER_ROUNDING_DECISIONS,
 } from "./constants"
 import type {
+  RendererAdvancedInputInfo,
   RendererAssetPipelineInfo,
   RendererCapabilityInfo,
   RendererDepthInfo,
@@ -37,6 +38,7 @@ export class RendererCapabilityReporter {
     tilemap: RendererTilemapInfo,
     assets: RendererAssetPipelineInfo,
     scenes: RendererSceneManagerInfo,
+    input: RendererAdvancedInputInfo,
     depth: RendererDepthInfo,
     effects: RendererEffectsInfo,
     mapValidation: RendererMapValidationInfo,
@@ -76,6 +78,7 @@ export class RendererCapabilityReporter {
       },
       assets,
       scenes,
+      input,
       depth,
       tilemap,
       effects,

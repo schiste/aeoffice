@@ -64,6 +64,7 @@ async function main() {
       avatarFacingChecks: [],
       avatarFrameProgression: undefined,
       avatarTextureLeak: undefined,
+      advancedInput: undefined,
     }
 
     await verifyRendererRuntime(browser, url, report)
@@ -102,6 +103,7 @@ async function verifyRendererRuntime(browser, url, report) {
     report.screenshots.push(
       await captureCanvas(page, "desktop-lobby-canvas.png"),
     )
+    report.advancedInput = await verifyAdvancedInput(page, initial)
 
     const baselineCadence = await measureFrameCadence(page)
     assertFrameCadence(initial.renderer.performance, baselineCadence)
@@ -230,6 +232,91 @@ async function verifyRendererRuntime(browser, url, report) {
   } finally {
     assertNoConsoleErrors(page, "desktop renderer runtime")
     await page.close()
+  }
+}
+
+async function verifyAdvancedInput(page, initialState) {
+  const objectTarget = initialState.renderer.depth.objects.find(
+    (object) => object.layer === "object",
+  )
+  assert.ok(objectTarget, "Expected at least one object target for input QA.")
+
+  const zoneTarget = initialState.zones.zones.find(
+    (zone) => zone.kind === "lobby" || zone.kind === "meeting",
+  )
+  assert.ok(zoneTarget, "Expected at least one semantic zone for input QA.")
+
+  const canvas = page.locator("canvas").first()
+  const canvasBox = await canvas.boundingBox()
+  assert.ok(canvasBox, "Expected Phaser canvas bounding box.")
+
+  const objectViewportPoint = await projectWorldToViewport(page, {
+    x: objectTarget.bounds.x + objectTarget.bounds.width / 2,
+    y: objectTarget.bounds.y + objectTarget.bounds.height / 2,
+  })
+  await page.mouse.move(
+    canvasBox.x + objectViewportPoint.x,
+    canvasBox.y + objectViewportPoint.y,
+  )
+  const hoveredObject = await waitForTextState(
+    page,
+    (state) =>
+      state.renderer.input.hitTesting.hoveredObjectId === objectTarget.id &&
+      state.renderer.input.cursor.current === "grab",
+  )
+  assert.equal(hoveredObject.renderer.input.cursor.hoverTargetKind, "object")
+
+  await page.mouse.down()
+  const selectedObject = await waitForTextState(
+    page,
+    (state) =>
+      state.renderer.input.selection.selectedObjectId === objectTarget.id &&
+      state.renderer.input.gesture.last === "select_object",
+  )
+  await page.mouse.move(
+    canvasBox.x + objectViewportPoint.x + 18,
+    canvasBox.y + objectViewportPoint.y + 4,
+  )
+  const draggingObject = await waitForTextState(
+    page,
+    (state) =>
+      state.renderer.input.drag.active === true &&
+      state.renderer.input.drag.targetId === objectTarget.id,
+  )
+  await page.mouse.up()
+  const draggedObject = await waitForTextState(
+    page,
+    (state) =>
+      state.renderer.input.drag.active === false &&
+      state.renderer.input.selection.selectedObjectId === objectTarget.id &&
+      state.renderer.input.gesture.last === "drag",
+  )
+
+  const zoneViewportPoint = await projectWorldToViewport(page, {
+    x: zoneTarget.bounds.x + zoneTarget.bounds.width / 2,
+    y: zoneTarget.bounds.y + zoneTarget.bounds.height / 2,
+  })
+  await page.mouse.move(
+    canvasBox.x + zoneViewportPoint.x,
+    canvasBox.y + zoneViewportPoint.y,
+  )
+  const hoveredZone = await waitForTextState(
+    page,
+    (state) =>
+      state.renderer.input.hitTesting.hoveredZoneId === zoneTarget.id &&
+      state.zones.hoveredZoneId === zoneTarget.id,
+  )
+
+  return {
+    source: "renderer_advanced_input_qa",
+    objectTargetId: objectTarget.id,
+    objectTokenId: objectTarget.tokenId,
+    hoveredObjectCursor: hoveredObject.renderer.input.cursor.current,
+    selectedObjectId: selectedObject.renderer.input.selection.selectedObjectId,
+    dragTargetId: draggingObject.renderer.input.drag.targetId,
+    dragDistancePx: draggedObject.renderer.input.gesture.distancePx,
+    zoneTargetId: zoneTarget.id,
+    hoveredZoneId: hoveredZone.renderer.input.hitTesting.hoveredZoneId,
   }
 }
 
@@ -831,6 +918,17 @@ async function dispatchRendererTestCommand(page, commandName, ...args) {
   )
 }
 
+async function projectWorldToViewport(page, point) {
+  return page.evaluate((worldPoint) => {
+    const api = window.__aedventureRendererTest
+    if (typeof api?.projectWorldToViewport !== "function") {
+      throw new Error("Missing renderer projectWorldToViewport test API.")
+    }
+
+    return api.projectWorldToViewport(worldPoint)
+  }, point)
+}
+
 async function waitForFullAvatarFrameCache(page) {
   await page.waitForTimeout(2300)
 
@@ -894,6 +992,23 @@ function assertRendererSnapshot(state) {
       (scene) => scene.key === "OfficeScene" && scene.status === "active",
     ),
   )
+  assert.equal(state.renderer.input.source, "phaser_input_plugin")
+  assert.equal(state.renderer.input.authority, "renderer_visual_selection_only")
+  assert.equal(state.renderer.input.enabled, true)
+  assert.ok(
+    state.renderer.input.features.includes("semantic_zone_hit_testing"),
+  )
+  assert.ok(state.renderer.input.features.includes("object_hit_areas"))
+  assert.ok(state.renderer.input.features.includes("drag_targets"))
+  assert.ok(state.renderer.input.features.includes("touch_gestures"))
+  assert.equal(typeof state.renderer.input.hitTesting.zoneTargetCount, "number")
+  assert.equal(typeof state.renderer.input.hitTesting.objectTargetCount, "number")
+  assert.equal(
+    typeof state.renderer.input.selection.selectableObjectCount,
+    "number",
+  )
+  assert.equal(state.renderer.input.drag.enabled, true)
+  assert.equal(state.renderer.input.touch.multiPointerEnabled, true)
   assert.equal(state.renderer.assets.primarySource, "internal_atlas")
   assert.equal(state.renderer.assets.atlasLoaded, true)
   assert.equal(
@@ -1076,6 +1191,13 @@ function snapshotForReport(label, state) {
         activeSceneKeys: state.renderer.scenes.activeSceneKeys,
         registeredSceneKeys: state.renderer.scenes.registeredSceneKeys,
         plannedSceneKeys: state.renderer.scenes.plannedSceneKeys,
+      },
+      input: {
+        features: state.renderer.input.features,
+        cursor: state.renderer.input.cursor,
+        hitTesting: state.renderer.input.hitTesting,
+        selection: state.renderer.input.selection,
+        gesture: state.renderer.input.gesture,
       },
       cameras: state.camera.secondary,
       mapValidation: state.renderer.mapValidation,

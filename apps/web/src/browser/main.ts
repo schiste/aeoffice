@@ -6430,6 +6430,7 @@ function engineArchitectureTextState() {
         "AvatarRenderer",
         "ZoneRenderer",
         "InteractionRenderer",
+        "AdvancedInputPlugin",
         "CameraController",
         "DevToolsOverlay",
       ],
@@ -6442,6 +6443,7 @@ function engineArchitectureTextState() {
     boundaries: {
       phaserIsolatedBehindRendererHost: true,
       sceneLifecycleOwnedByRenderer: true,
+      phaserInputOwnsRendererHitTesting: true,
       inputStateOwnedOutsideDomEvents: true,
       realtimeTransportOwnedByWorldSync: true,
       worldActionsRequireServerPermission: true,
@@ -6501,6 +6503,10 @@ declare global {
         direction: Direction,
         movementMode?: MovementMode,
       ) => Promise<void>
+      projectWorldToViewport: (point: Vector2) => {
+        readonly x: number
+        readonly y: number
+      }
       setZoneDebugOverlay: (enabled: boolean) => Promise<void>
       setRendererEffects: (options: RendererEffectsOptions) => Promise<void>
     }
@@ -6574,6 +6580,7 @@ if (localAutomationHost()) {
     renderZoneFixtureCase: renderZoneFixtureCaseForSmoke,
     moveLocalPlayer: moveLocalPlayerForSmoke,
     requestMove: requestMoveForSmoke,
+    projectWorldToViewport: (point) => renderer.projectWorldToViewport(point),
     setZoneDebugOverlay: async (enabled) => {
       renderer.setZoneDebugOverlayEnabled(enabled)
       await renderer.advanceTime()

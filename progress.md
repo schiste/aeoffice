@@ -1330,3 +1330,32 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   `http://127.0.0.1:8787`, but still fails before navigation with
   `ERR_MODULE_NOT_FOUND` because the skill-local script cannot resolve the
   `playwright` package.
+- Phaser advanced input support now lives behind a dedicated
+  `AdvancedInputPlugin`. It tracks pointer world coordinates, semantic zone
+  hit-testing, invisible object hit areas, drag targets, cursor state, touch
+  multi-pointer/pinch telemetry, and renderer-only object selection. This is
+  deliberately visual/selection telemetry only; movement, map mutation, and
+  permissions remain outside Phaser authority.
+- Zone hover now flows through the advanced input layer instead of direct
+  pointer listeners in `ZoneRenderer`. Object hit targets are generated from
+  renderer depth bounds, which keeps interaction geometry aligned with the same
+  metadata used for z-order, occlusion, and QA.
+- Renderer QA now performs a real input exercise: it projects a world object
+  through the renderer test API, moves the mouse over its Phaser hit area,
+  verifies `grab` cursor state, selects and drags the target, then moves over a
+  semantic zone and verifies zone hover. A failed first attempt exposed that
+  `GameObjects.Zone` needed native size-based hit areas rather than a custom
+  negative rectangle hit area.
+- Verification passed after the advanced input pass:
+  `npm --workspace @aedventure/web run build`,
+  `node --check scripts/frontend-smoke.test.cjs`,
+  `node --check scripts/renderer-qa.test.cjs`, `npm run smoke:frontend`,
+  `npm run qa:renderer`, `npm run qa:responsive`, `npm run check`, and
+  `git diff --check`. Latest renderer and mobile responsive screenshots were
+  visually inspected. The standalone develop-web-game client still fails before
+  navigation with `ERR_MODULE_NOT_FOUND` because the skill-local script cannot
+  resolve `playwright`.
+- Follow-up cleanup kept hover-only pointer movement out of active pointer
+  counts so drag/pinch telemetry only reflects pressed pointers. The localhost
+  QA scripts needed escalated execution on the final rerun because the sandbox
+  blocked temporary `127.0.0.1` binds, but the tests themselves passed.

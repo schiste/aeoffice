@@ -941,6 +941,10 @@ function assertEngineArchitectureContract(state) {
     state.engine?.renderer?.modules?.includes("AvatarRenderer"),
     `Expected AvatarRenderer module, got ${JSON.stringify(state.engine?.renderer)}.`,
   )
+  assert.ok(
+    state.engine?.renderer?.modules?.includes("AdvancedInputPlugin"),
+    `Expected AdvancedInputPlugin module, got ${JSON.stringify(state.engine?.renderer)}.`,
+  )
   assert.equal(state.engine?.controllers?.input, "InputController")
   assert.equal(state.engine?.controllers?.worldSync, "WorldSyncController")
   assert.equal(
@@ -948,6 +952,7 @@ function assertEngineArchitectureContract(state) {
     true,
   )
   assert.equal(state.engine?.boundaries?.sceneLifecycleOwnedByRenderer, true)
+  assert.equal(state.engine?.boundaries?.phaserInputOwnsRendererHitTesting, true)
   assert.equal(
     state.engine?.boundaries?.inputStateOwnedOutsideDomEvents,
     true,
@@ -981,6 +986,45 @@ function assertEngineArchitectureContract(state) {
         scene.key === "GeneratedRoomPreviewScene" &&
         scene.status === "planned",
     ),
+  )
+  assertAdvancedInputContract(state.renderer.input)
+}
+
+function assertAdvancedInputContract(input) {
+  assert.equal(input.source, "phaser_input_plugin")
+  assert.equal(input.authority, "renderer_visual_selection_only")
+  assert.equal(input.enabled, true)
+  assert.ok(input.features.includes("pointer_world_coordinates"))
+  assert.ok(input.features.includes("semantic_zone_hit_testing"))
+  assert.ok(input.features.includes("object_hit_areas"))
+  assert.ok(input.features.includes("drag_targets"))
+  assert.ok(input.features.includes("cursor_state"))
+  assert.ok(input.features.includes("touch_gestures"))
+  assert.ok(input.features.includes("object_selection"))
+  assert.equal(typeof input.pointer.active, "boolean")
+  assert.equal(typeof input.pointer.activePointerCount, "number")
+  assert.ok(input.hitTesting.zoneTargetCount >= 1)
+  assert.ok(input.hitTesting.objectTargetCount >= 1)
+  assert.ok(input.selection.selectableObjectCount >= 1)
+  assert.equal(input.drag.enabled, true)
+  assert.equal(typeof input.drag.active, "boolean")
+  assert.equal(input.touch.multiPointerEnabled, true)
+  assert.equal(typeof input.touch.pinchScale, "number")
+  assert.ok(
+    ["default", "pointer", "grab", "grabbing", "crosshair"].includes(
+      input.cursor.current,
+    ),
+  )
+  assert.ok(
+    [
+      "none",
+      "tap",
+      "double_tap",
+      "long_press",
+      "drag",
+      "pinch",
+      "select_object",
+    ].includes(input.gesture.last),
   )
 }
 

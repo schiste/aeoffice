@@ -5,6 +5,7 @@ import {
   runtimeAssetAtlasFromLoadedAssets,
   type RuntimeAssetAtlas,
 } from "./asset-atlas"
+import { AdvancedInputPlugin } from "./advanced-input-plugin"
 import { RendererAssetPackLoader } from "./asset-pack-loader"
 import { AvatarRenderer } from "./avatar-renderer"
 import { CameraController } from "./camera-controller"
@@ -33,6 +34,7 @@ import type {
   AvatarEmoteId,
   RenderedPlayer,
   RendererAvatarInfo,
+  RendererAdvancedInputInfo,
   RendererAssetPackInfo,
   RendererAssetPipelineInfo,
   RendererCameraMode,
@@ -59,6 +61,7 @@ export class OfficeScene extends Phaser.Scene {
   private readonly objectRenderer: ObjectRenderer
   private readonly zoneRenderer: ZoneRenderer
   private readonly interactionRenderer: InteractionRenderer
+  private readonly advancedInputPlugin: AdvancedInputPlugin
   private readonly effectsLayer: EffectsLayer
   private readonly staticLayerBaker: StaticLayerBaker
   private readonly depthDebugOverlay: DepthDebugOverlay
@@ -90,6 +93,7 @@ export class OfficeScene extends Phaser.Scene {
     this.objectRenderer = new ObjectRenderer(this)
     this.zoneRenderer = new ZoneRenderer(this)
     this.interactionRenderer = new InteractionRenderer(this)
+    this.advancedInputPlugin = new AdvancedInputPlugin(this)
     this.effectsLayer = new EffectsLayer(this)
     this.staticLayerBaker = new StaticLayerBaker(this)
     this.depthDebugOverlay = new DepthDebugOverlay(this)
@@ -116,6 +120,9 @@ export class OfficeScene extends Phaser.Scene {
     }
     this.cameraController.markReady()
     this.zoneRenderer.bindPointerInput()
+    this.advancedInputPlugin.bind({
+      onHoveredZoneChange: (zoneId) => this.zoneRenderer.setHoveredZoneId(zoneId),
+    })
     this.syncDevToolOverlays()
     this.events.on(Phaser.Scenes.Events.UPDATE, (_time: number, delta: number) => {
       this.updateFrame(delta)
@@ -145,6 +152,7 @@ export class OfficeScene extends Phaser.Scene {
     this.cameraController.clearFollow()
     this.zoneRenderer.clear()
     this.interactionRenderer.clear()
+    this.advancedInputPlugin.clearMapTargets()
     this.effectsLayer.clear()
     this.staticLayerBaker.clear()
     this.depthDebugOverlay.clear()
@@ -239,6 +247,8 @@ export class OfficeScene extends Phaser.Scene {
     )
     this.objectDepthInfo = [...furnitureDepthInfo, ...wallForegroundDepthInfo]
     this.zoneRenderer.reset(fixtureMap.compiled.zones, tileSize)
+    this.advancedInputPlugin.setZones(this.zoneRenderer.getZoneInfo().zones)
+    this.advancedInputPlugin.setObjects(this.objectDepthInfo)
     this.updatePlayers(players)
     this.refreshDevToolsOverlay()
     this.telemetry.recordRender(
@@ -286,10 +296,12 @@ export class OfficeScene extends Phaser.Scene {
 
   setActiveZones(zoneIds: readonly string[]): void {
     this.zoneRenderer.setActiveZones(zoneIds)
+    this.advancedInputPlugin.setZones(this.zoneRenderer.getZoneInfo().zones)
   }
 
   setZoneInteractionState(state: RendererZoneInteractionState): void {
     this.zoneRenderer.setInteractionState(state)
+    this.advancedInputPlugin.setZones(this.zoneRenderer.getZoneInfo().zones)
     this.effectsLayer.setZoneInteractionState(state)
   }
 
@@ -345,6 +357,10 @@ export class OfficeScene extends Phaser.Scene {
 
   getWorldInteractionInfo(): RendererWorldInteractionInfo {
     return this.interactionRenderer.getInfo()
+  }
+
+  getAdvancedInputInfo(): RendererAdvancedInputInfo {
+    return this.advancedInputPlugin.getInfo()
   }
 
   getEffectsInfo(): RendererEffectsInfo {

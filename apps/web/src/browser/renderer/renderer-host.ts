@@ -264,6 +264,7 @@ export class PhaserOfficeRenderer {
       this.scene.getTilemapInfo(),
       this.scene.getAssetPipelineInfo(),
       this.sceneManager.getInfo(this.game),
+      this.scene.getAdvancedInputInfo(),
       this.scene.getDepthInfo(),
       this.scene.getEffectsInfo(),
       this.scene.getMapValidationInfo(),

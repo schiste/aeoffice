@@ -40,16 +40,13 @@ export class ZoneRenderer {
   private hoveredZoneId?: string
   private debugOverlayEnabled = zoneDebugEnabled()
   private tileSize = 32
+  private frameUpdatesBound = false
 
   constructor(private readonly scene: Phaser.Scene) {}
 
   bindPointerInput(): void {
-    this.scene.input.on("pointermove", (pointer: Phaser.Input.Pointer) => {
-      this.setHoveredZoneId(this.zoneIdAt(pointer.worldX, pointer.worldY))
-    })
-    this.scene.input.on("pointerout", () => {
-      this.setHoveredZoneId(undefined)
-    })
+    if (this.frameUpdatesBound) return
+    this.frameUpdatesBound = true
     this.scene.events.on(Phaser.Scenes.Events.UPDATE, () => {
       this.updateZoomScaledElements()
     })
@@ -368,22 +365,10 @@ export class ZoneRenderer {
     })
   }
 
-  private setHoveredZoneId(zoneId: string | undefined): void {
+  setHoveredZoneId(zoneId: string | undefined): void {
     if (this.hoveredZoneId === zoneId) return
     this.hoveredZoneId = zoneId
     this.redrawZones()
-  }
-
-  private zoneIdAt(worldX: number, worldY: number): string | undefined {
-    return this.zones.find((zone) => {
-      const bounds = zoneBounds(zone, this.tileSize)
-      return (
-        worldX >= bounds.x &&
-        worldX < bounds.x + bounds.width &&
-        worldY >= bounds.y &&
-        worldY < bounds.y + bounds.height
-      )
-    })?.id
   }
 
   private zoneInfo(zone: FixtureZone): RendererZoneInfo {

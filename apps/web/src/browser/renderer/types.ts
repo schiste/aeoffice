@@ -258,6 +258,87 @@ export interface RendererWorldInteractionInfo {
   readonly candidates: readonly RendererWorldInteractionCandidate[]
 }
 
+export type RendererAdvancedInputPointerKind =
+  | "mouse"
+  | "touch"
+  | "pen"
+  | "unknown"
+
+export type RendererAdvancedInputCursor =
+  | "default"
+  | "pointer"
+  | "grab"
+  | "grabbing"
+  | "crosshair"
+
+export type RendererAdvancedInputGesture =
+  | "none"
+  | "tap"
+  | "double_tap"
+  | "long_press"
+  | "drag"
+  | "pinch"
+  | "select_object"
+
+export interface RendererAdvancedInputInfo {
+  readonly source: "phaser_input_plugin"
+  readonly authority: "renderer_visual_selection_only"
+  readonly enabled: boolean
+  readonly features: readonly (
+    | "pointer_world_coordinates"
+    | "semantic_zone_hit_testing"
+    | "object_hit_areas"
+    | "drag_targets"
+    | "cursor_state"
+    | "touch_gestures"
+    | "object_selection"
+  )[]
+  readonly pointer: {
+    readonly active: boolean
+    readonly kind: RendererAdvancedInputPointerKind
+    readonly worldX?: number
+    readonly worldY?: number
+    readonly screenX?: number
+    readonly screenY?: number
+    readonly activePointerCount: number
+    readonly primaryDown: boolean
+  }
+  readonly cursor: {
+    readonly current: RendererAdvancedInputCursor
+    readonly hoverTargetId?: string
+    readonly hoverTargetKind?: "zone" | "object"
+  }
+  readonly hitTesting: {
+    readonly zoneTargetCount: number
+    readonly objectTargetCount: number
+    readonly hoveredZoneId?: string
+    readonly hoveredObjectId?: string
+  }
+  readonly selection: {
+    readonly selectedObjectId?: string
+    readonly selectedObjectTokenId?: string
+    readonly selectableObjectCount: number
+  }
+  readonly drag: {
+    readonly enabled: boolean
+    readonly active: boolean
+    readonly targetId?: string
+    readonly distancePx: number
+  }
+  readonly touch: {
+    readonly multiPointerEnabled: boolean
+    readonly pinchActive: boolean
+    readonly pinchScale: number
+  }
+  readonly gesture: {
+    readonly last: RendererAdvancedInputGesture
+    readonly targetId?: string
+    readonly targetKind?: "zone" | "object" | "world"
+    readonly durationMs: number
+    readonly distancePx: number
+  }
+}
+
 export type RendererEffectsQuality = "auto" | "off" | "low" | "premium"
 export type RendererResolvedEffectsQuality = "off" | "low" | "premium"
 export type RendererTenantLightingMode = "day" | "night" | "tenant_theme"
@@ -972,6 +1053,7 @@ export interface RendererCapabilityInfo {
   }
   readonly assets: RendererAssetPipelineInfo
   readonly scenes: RendererSceneManagerInfo
+  readonly input: RendererAdvancedInputInfo
   readonly depth: RendererDepthInfo
   readonly tilemap: RendererTilemapInfo
   readonly effects: RendererEffectsInfo
