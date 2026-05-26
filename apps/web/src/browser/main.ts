@@ -8,6 +8,10 @@ import {
   type RendererDevToolOverlayState,
   type RendererEffectsOptions,
   type RendererPerformanceInfo,
+  type RendererWorldInteractionAction,
+  type RendererWorldInteractionCandidate,
+  type RendererWorldInteractionInfo,
+  type RendererWorldInteractionPermissionState,
   type RendererZoomPresetId,
 } from "./phaser-office-renderer"
 import { validateFixtureMapForRenderer } from "./renderer/map-render-validation"
@@ -287,6 +291,8 @@ interface AppState {
   }
   rendererReadiness: RendererReadiness
   activeZone?: FixtureZone
+  worldInteractionInfo: RendererWorldInteractionInfo
+  worldInteractionSignature?: string
   meetingJoined: boolean
   meetingZoneId?: string
   mediaRequestPending: boolean
@@ -511,6 +517,7 @@ const DEV_TOOL_OVERLAY_IDS: readonly RendererDevToolOverlayId[] = [
   "spriteBounds",
   "camera",
 ]
+const WORLD_INTERACTION_OBJECT_RADIUS_TILES = 1.35
 
 const state: AppState = {
   sessionId: undefined,
@@ -545,6 +552,8 @@ const state: AppState = {
   },
   rendererReadiness: "loading",
   activeZone: undefined,
+  worldInteractionInfo: emptyWorldInteractionInfo(),
+  worldInteractionSignature: undefined,
   meetingJoined: false,
   meetingZoneId: undefined,
   mediaRequestPending: false,
@@ -633,6 +642,10 @@ const elements = {
   meetingHint: mustQuery<HTMLElement>("#meeting-hint"),
   joinMeeting: mustQuery<HTMLButtonElement>("#join-meeting"),
   leaveMeeting: mustQuery<HTMLButtonElement>("#leave-meeting"),
+  worldActionPanel: mustQuery<HTMLElement>("#world-action-panel"),
+  worldActionStatus: mustQuery<HTMLElement>("#world-action-status"),
+  worldActionHint: mustQuery<HTMLElement>("#world-action-hint"),
+  worldActionPrimary: mustQuery<HTMLButtonElement>("#world-action-primary"),
   mediaPanel: mustQuery<HTMLElement>("#media-panel"),
   mediaPanelStatus: mustQuery<HTMLElement>("#media-panel-status"),
   mediaAvailability: mustQuery<HTMLElement>("#media-availability"),
@@ -717,6 +730,9 @@ elements.mapGeneratorForm.addEventListener("submit", (event) => {
 })
 elements.joinMeeting.addEventListener("click", () => queueAction(() => joinMeeting()))
 elements.leaveMeeting.addEventListener("click", () => queueAction(() => leaveMeeting()))
+elements.worldActionPrimary.addEventListener("click", () =>
+  queueAction(() => runPrimaryWorldAction()),
+)
 elements.toggleMic.addEventListener("click", () => toggleMic())
 elements.toggleCamera.addEventListener("click", () => toggleCamera())
 elements.runToggle.addEventListener("click", () => {
@@ -1107,6 +1123,8 @@ async function resetDemo(
   state.companion.direction = "down"
   state.snapshotPlayerIds = []
   state.activeZone = undefined
+  state.worldInteractionInfo = emptyWorldInteractionInfo()
+  state.worldInteractionSignature = undefined
   state.meetingJoined = false
   state.meetingZoneId = undefined
   state.mediaRequestPending = false
@@ -1129,6 +1147,7 @@ async function resetDemo(
     options.lifecycleMessage ?? "Room empty",
   )
   renderMediaPanel()
+  renderWorldActionPanel()
   elements.start.textContent = "Enter office"
   elements.start.disabled = false
   elements.reset.disabled = true
@@ -1892,6 +1911,11 @@ async function joinMeeting(): Promise<void> {
     return
   }
 
+  if (!worldActionPermitted("join_meeting", zone.id)) {
+    publishToast("The server has not permitted this meeting action yet.", "warning")
+    return
+  }
+
   elements.joinMeeting.disabled = true
   state.mediaRequestPending = true
   clearMediaUnavailable()
@@ -1948,6 +1972,7 @@ async function joinMeeting(): Promise<void> {
     )
   } finally {
     state.mediaRequestPending = false
+    syncWorldInteractionLayer()
     renderZonePresentation()
     renderMeetingControls()
     renderMediaPanel()
@@ -1963,6 +1988,7 @@ function leaveMeetingLocally(message: string): void {
   state.meetingZoneId = undefined
   clearMediaSession()
   setConnectionStatus("media", "idle", "Media off")
+  syncWorldInteractionLayer()
   renderZonePresentation()
   renderMeetingControls()
   renderMediaPanel()
@@ -2205,6 +2231,8 @@ function applyFixtureMap(
   state.fixtureMap = fixtureMap
   state.mapGeneration = mapGeneration
   state.movementPrediction = initialMovementPredictionState()
+  state.worldInteractionInfo = emptyWorldInteractionInfo()
+  state.worldInteractionSignature = undefined
   if (state.devTools.gated) {
     state.devTools.activeFixtureId = devFixtureIdForMapGeneration(mapGeneration)
   }
@@ -2439,6 +2467,7 @@ async function renderDepthFixtureCaseForSmoke(
 ): Promise<DepthFixtureCaseResult> {
   const depthCase = depthFixtureCase(caseId)
 
+  worldSync.disconnect()
   state.profile.avatarId = "cobalt"
   state.profile.displayName = "Depth Ada"
   await configureDevWorldGeometry(depthCase.fixtureMap)
@@ -2515,6 +2544,7 @@ async function renderAvatarFixtureCaseForSmoke(): Promise<AvatarFixtureResult> {
     },
   ]
 
+  worldSync.disconnect()
   await configureDevWorldGeometry(fixtureMap)
   applyFixtureMap(fixtureMap, {
     source: "generated",
@@ -2563,6 +2593,7 @@ async function moveAvatarFixturePlayerForSmoke(
 async function renderZoneFixtureCaseForSmoke(): Promise<ZoneFixtureResult> {
   const fixtureMap = zoneFixtureMap()
 
+  worldSync.disconnect()
   await configureDevWorldGeometry(fixtureMap)
   applyFixtureMap(fixtureMap, {
     source: "generated",
@@ -2576,6 +2607,7 @@ async function renderZoneFixtureCaseForSmoke(): Promise<ZoneFixtureResult> {
   state.position = fixtureSpawnPosition(fixtureMap, "default")
   state.direction = "down"
   resetClientMotion(state.position, state.direction)
+  await admitLocalPlayerForSmoke(state.position)
   state.players.clear()
   seedLocalRenderedPlayer()
   renderPlayers()
@@ -2589,6 +2621,9 @@ async function renderZoneFixtureCaseForSmoke(): Promise<ZoneFixtureResult> {
 }
 
 async function moveLocalPlayerForSmoke(position: Vector2): Promise<void> {
+  if (state.joined) {
+    await admitLocalPlayerForSmoke(position)
+  }
   state.position = position
   clientMotion.reconcile(position, { force: true })
   upsertRenderedPlayer({
@@ -2599,6 +2634,36 @@ async function moveLocalPlayerForSmoke(position: Vector2): Promise<void> {
   renderPlayers()
   updateActiveZoneFromPosition()
   await renderer.advanceTime()
+}
+
+async function admitLocalPlayerForSmoke(position: Vector2): Promise<void> {
+  if (!state.sessionId) {
+    const session = await signInDevUser(
+      "wikimedia-renderer-smoke-user",
+      displayNameForLocalProfile(),
+    )
+    state.sessionId = session.sessionId
+  }
+
+  await leaveWorldSafely(state.clientId, displayNameForLocalProfile())
+  const token = await issueWorldToken(state.sessionId)
+  const joined = await joinWorld({
+    clientId: state.clientId,
+    token: token.token,
+    playerId: state.playerId,
+    spawn: position,
+    roomId: "room-lobby",
+    avatarId: state.profile.avatarId,
+  })
+
+  if (joined.status !== "joined") {
+    throw new Error(`Smoke world admission failed: ${joined.reason}`)
+  }
+
+  state.joined = true
+  state.position = playerSnapshotPosition(joined.player)
+  state.direction = joined.player.direction ?? state.direction
+  state.worldInteractionSignature = undefined
 }
 
 async function requestMoveForSmoke(
@@ -3716,6 +3781,7 @@ function updateActiveZoneFromPosition(): void {
   const nextZoneId = zone?.id
 
   state.activeZone = zone
+  syncWorldInteractionLayer()
   renderZonePresentation()
   if (!activeMeetingZone() && !state.mediaSession) {
     state.micEnabled = false
@@ -3747,10 +3813,14 @@ function updateActiveZoneFromPosition(): void {
 
 function renderZonePresentation(): void {
   const activeZoneIds = state.activeZone ? [state.activeZone.id] : []
-  const availableActionZoneIds =
-    state.joined && state.activeZone && hasZoneActionAffordance(state.activeZone)
-      ? [state.activeZone.id]
-      : []
+  const availableActionZoneIds = state.worldInteractionInfo.candidates
+    .filter(
+      (candidate) =>
+        candidate.kind === "zone" &&
+        candidate.active &&
+        candidate.serverPermitted,
+    )
+    .map((candidate) => candidate.targetId)
   const joinedZoneIds = state.meetingJoined && state.meetingZoneId
     ? [state.meetingZoneId]
     : []
@@ -3760,6 +3830,549 @@ function renderZonePresentation(): void {
     availableActionZoneIds,
     joinedZoneIds,
   })
+}
+
+function syncWorldInteractionLayer(): void {
+  const candidates = worldInteractionCandidates()
+  const signature = worldInteractionSignature(candidates)
+  const activeCandidateIds = candidates
+    .filter((candidate) => candidate.active)
+    .map((candidate) => candidate.id)
+
+  if (signature === state.worldInteractionSignature) {
+    renderWorldInteractionInfo(state.worldInteractionInfo)
+    return
+  }
+
+  state.worldInteractionSignature = signature
+
+  if (activeCandidateIds.length === 0) {
+    renderWorldInteractionInfo(worldInteractionInfoFromCandidates(candidates))
+    return
+  }
+
+  const pendingInfo = worldInteractionInfoFromCandidates(
+    candidates.map((candidate) =>
+      candidate.active
+        ? {
+            ...candidate,
+            permission: state.joined ? "pending" : "denied",
+            permissionReason: state.joined ? undefined : "not_joined",
+          }
+        : candidate,
+    ),
+  )
+  renderWorldInteractionInfo(pendingInfo)
+
+  if (!state.joined) return
+
+  void resolveWorldInteractionPermissions(signature, candidates)
+}
+
+async function resolveWorldInteractionPermissions(
+  signature: string,
+  candidates: readonly RendererWorldInteractionCandidate[],
+): Promise<void> {
+  try {
+    const response = await postJson<WorldActionPermissionResponse>(
+      "/dev/world-action-permissions",
+      {
+        playerId: state.playerId,
+        candidates: candidates
+          .filter((candidate) => candidate.active)
+          .map((candidate) => ({
+            id: candidate.id,
+            kind: candidate.kind,
+            targetId: candidate.targetId,
+            action: candidate.action,
+            bounds: candidate.bounds,
+          })),
+      },
+    )
+
+    if (signature !== state.worldInteractionSignature) return
+
+    const permitted = new Set(response.permittedCandidateIds)
+    const deniedReasons = new Map(
+      response.deniedCandidates.map((candidate) => [
+        candidate.id,
+        candidate.reason,
+      ]),
+    )
+    const resolved = candidates.map((candidate) => {
+      if (!candidate.active) return candidate
+
+      const allowed = permitted.has(candidate.id)
+      const permission: RendererWorldInteractionPermissionState = allowed
+        ? "permitted"
+        : "denied"
+      return {
+        ...candidate,
+        permission,
+        serverPermitted: allowed,
+        permissionReason: allowed
+          ? undefined
+          : deniedReasons.get(candidate.id) ?? "server_denied",
+        markerVisible: candidate.kind === "object" && allowed,
+      }
+    })
+
+    renderWorldInteractionInfo(
+      worldInteractionInfoFromCandidates(resolved, "dev_world_action_policy"),
+    )
+  } catch {
+    if (signature !== state.worldInteractionSignature) return
+    renderWorldInteractionInfo(
+      worldInteractionInfoFromCandidates(
+        candidates.map((candidate) => ({
+          ...candidate,
+          permission: candidate.active ? "denied" : candidate.permission,
+          serverPermitted: false,
+          permissionReason: candidate.active
+            ? "permission_service_unavailable"
+            : candidate.permissionReason,
+          markerVisible: false,
+        })),
+        "unavailable",
+      ),
+    )
+  }
+}
+
+function renderWorldInteractionInfo(info: RendererWorldInteractionInfo): void {
+  state.worldInteractionInfo = info
+  renderer.setWorldInteractions(info)
+  renderZonePresentation()
+  renderMeetingControls()
+  renderMediaPanel()
+  renderWorldActionPanel()
+}
+
+function worldInteractionCandidates(): readonly RendererWorldInteractionCandidate[] {
+  if (!state.fixtureMap) return []
+
+  const position = clientMotion.renderedPosition(state.position)
+  const zoneCandidates = state.fixtureMap.compiled.zones
+    .map((zone) => worldInteractionCandidateForZone(zone, position))
+    .filter(
+      (
+        candidate,
+      ): candidate is RendererWorldInteractionCandidate => candidate !== undefined,
+    )
+  const objectCandidates = worldInteractionCandidatesForObjects(
+    state.fixtureMap,
+    position,
+  )
+
+  return [...zoneCandidates, ...objectCandidates]
+}
+
+function worldInteractionCandidateForZone(
+  zone: FixtureZone,
+  position: Vector2,
+): RendererWorldInteractionCandidate | undefined {
+  const action = zoneWorldAction(zone)
+  if (!action || !state.fixtureMap) return undefined
+
+  const tileSize = state.fixtureMap.compiled.tileSize
+  const bounds = {
+    x: zone.xStart * tileSize,
+    y: zone.yStart * tileSize,
+    width: (zone.xEnd - zone.xStart) * tileSize,
+    height: (zone.yEnd - zone.yStart) * tileSize,
+  }
+  const active = pointInBounds(position, bounds)
+
+  return {
+    id: `zone:${zone.id}:${action}`,
+    kind: "zone",
+    targetId: zone.id,
+    action,
+    label: zoneDisplayName(zone),
+    prompt: zoneActionPrompt(action, zone),
+    bounds,
+    active,
+    distancePx: distanceToBoundsCenter(position, bounds),
+    permission: active ? "pending" : "denied",
+    serverPermitted: false,
+    permissionReason: active ? undefined : "not_nearby",
+    markerVisible: false,
+  }
+}
+
+function worldInteractionCandidatesForObjects(
+  fixtureMap: FixtureMap,
+  position: Vector2,
+): readonly RendererWorldInteractionCandidate[] {
+  const tokensByGid = new Map(
+    fixtureMap.catalog.tokens.map((token) => [token.provisionalGid, token]),
+  )
+  const candidates: RendererWorldInteractionCandidate[] = []
+  const tileSize = fixtureMap.compiled.tileSize
+  const interactionRadius = tileSize * WORLD_INTERACTION_OBJECT_RADIUS_TILES
+
+  fixtureMap.compiled.layers.objects.gids.forEach((row, y) => {
+    row.forEach((gid, x) => {
+      if (gid <= 0) return
+
+      const token = tokensByGid.get(gid)
+      if (!token) return
+
+      const interaction = objectWorldInteraction(token.id)
+      if (!interaction) return
+
+      const bounds = {
+        x: x * tileSize,
+        y: y * tileSize,
+        width: token.widthTiles * tileSize,
+        height: token.heightTiles * tileSize,
+      }
+      const active = pointInExpandedBounds(position, bounds, interactionRadius)
+      const distancePx = distanceToBoundsCenter(position, bounds)
+
+      candidates.push({
+        id: `object:${token.id}:${x},${y}:${interaction.action}`,
+        kind: "object",
+        targetId: `${token.id}:${x},${y}`,
+        action: interaction.action,
+        label: interaction.label,
+        prompt: interaction.prompt,
+        bounds,
+        active,
+        distancePx,
+        permission: active ? "pending" : "denied",
+        serverPermitted: false,
+        permissionReason: active ? undefined : "not_nearby",
+        markerVisible: false,
+      })
+    })
+  })
+
+  return candidates.sort(
+    (left, right) => (left.distancePx ?? 0) - (right.distancePx ?? 0),
+  )
+}
+
+function worldInteractionInfoFromCandidates(
+  candidates: readonly RendererWorldInteractionCandidate[],
+  permissionSource: RendererWorldInteractionInfo["permissionSource"] = "unavailable",
+): RendererWorldInteractionInfo {
+  const activeCandidates = candidates.filter((candidate) => candidate.active)
+  const permittedCandidates = activeCandidates.filter(
+    (candidate) => candidate.serverPermitted,
+  )
+  const deniedCandidates = activeCandidates.filter(
+    (candidate) => candidate.permission === "denied",
+  )
+  const pendingCandidates = activeCandidates.filter(
+    (candidate) => candidate.permission === "pending",
+  )
+  const primary = primaryWorldInteractionCandidate(activeCandidates)
+  const stateName: RendererWorldInteractionInfo["state"] =
+    activeCandidates.length === 0
+      ? "idle"
+      : pendingCandidates.length > 0
+        ? "pending"
+        : permittedCandidates.length > 0
+          ? "available"
+          : "denied"
+
+  return {
+    source: "server_permitted_world_interactions",
+    authority: "server_permitted_actions_only",
+    permissionSource,
+    state: stateName,
+    primaryCandidateId: primary?.id,
+    activeCandidateIds: activeCandidates.map((candidate) => candidate.id),
+    permittedCandidateIds: permittedCandidates.map((candidate) => candidate.id),
+    deniedCandidateIds: deniedCandidates.map((candidate) => candidate.id),
+    candidates,
+  }
+}
+
+function primaryWorldInteractionCandidate(
+  candidates: readonly RendererWorldInteractionCandidate[],
+): RendererWorldInteractionCandidate | undefined {
+  return [...candidates].sort((left, right) => {
+    const permissionDelta =
+      worldInteractionPermissionPriority(right.permission) -
+      worldInteractionPermissionPriority(left.permission)
+    if (permissionDelta !== 0) return permissionDelta
+
+    const actionDelta =
+      worldInteractionActionPriority(right.action) -
+      worldInteractionActionPriority(left.action)
+    if (actionDelta !== 0) return actionDelta
+
+    return (left.distancePx ?? 0) - (right.distancePx ?? 0)
+  })[0]
+}
+
+function worldInteractionPermissionPriority(
+  permission: RendererWorldInteractionPermissionState,
+): number {
+  switch (permission) {
+    case "permitted":
+      return 3
+    case "pending":
+      return 2
+    case "denied":
+      return 1
+  }
+}
+
+function worldInteractionActionPriority(
+  action: RendererWorldInteractionAction,
+): number {
+  switch (action) {
+    case "join_meeting":
+      return 70
+    case "enter_portal":
+      return 60
+    case "open_door":
+      return 55
+    case "enter_private":
+      return 50
+    case "use_object":
+      return 30
+  }
+}
+
+function worldInteractionSignature(
+  candidates: readonly RendererWorldInteractionCandidate[],
+): string {
+  const activeCandidates = candidates
+    .filter((candidate) => candidate.active)
+    .map((candidate) => candidate.id)
+    .sort()
+    .join("|")
+
+  return [
+    state.joined ? "joined" : "outside",
+    state.meetingJoined ? "in-call" : "no-call",
+    state.activeZone?.id ?? "no-zone",
+    activeCandidates,
+  ].join(":")
+}
+
+function emptyWorldInteractionInfo(): RendererWorldInteractionInfo {
+  return {
+    source: "server_permitted_world_interactions",
+    authority: "server_permitted_actions_only",
+    permissionSource: "unavailable",
+    state: "idle",
+    activeCandidateIds: [],
+    permittedCandidateIds: [],
+    deniedCandidateIds: [],
+    candidates: [],
+  }
+}
+
+function worldActionPermitted(
+  action: RendererWorldInteractionAction,
+  targetId: string,
+): boolean {
+  return state.worldInteractionInfo.candidates.some(
+    (candidate) =>
+      candidate.action === action &&
+      candidate.targetId === targetId &&
+      candidate.active &&
+      candidate.serverPermitted,
+  )
+}
+
+function renderWorldActionPanel(): void {
+  const info = state.worldInteractionInfo
+  const primary = info.primaryCandidateId
+    ? info.candidates.find((candidate) => candidate.id === info.primaryCandidateId)
+    : undefined
+
+  elements.worldActionPanel.dataset.state = info.state
+  elements.worldActionStatus.textContent = worldActionStatusLabel(info, primary)
+  elements.worldActionHint.textContent = worldActionHintLabel(info, primary)
+  elements.worldActionPrimary.disabled =
+    !primary || !primary.serverPermitted || info.state !== "available"
+  elements.worldActionPrimary.textContent = primary
+    ? worldActionButtonLabel(primary)
+    : "No action"
+}
+
+async function runPrimaryWorldAction(): Promise<void> {
+  const info = state.worldInteractionInfo
+  const primary = info.primaryCandidateId
+    ? info.candidates.find((candidate) => candidate.id === info.primaryCandidateId)
+    : undefined
+
+  if (!primary || !primary.serverPermitted) {
+    publishToast("No server-approved world action is available here.", "warning")
+    return
+  }
+
+  switch (primary.action) {
+    case "join_meeting":
+      await joinMeeting()
+      return
+    case "enter_private":
+      recordEvent(`Entered ${primary.label}`)
+      publishToast(`Access granted: ${primary.label}`, "success")
+      return
+    case "enter_portal":
+    case "open_door":
+      recordEvent(`Used ${primary.label}`)
+      publishToast(`${primary.label} opened`, "success")
+      return
+    case "use_object":
+      recordEvent(`Used ${primary.label}`)
+      publishToast(`${primary.label} ready`, "info")
+      return
+  }
+}
+
+function worldActionStatusLabel(
+  info: RendererWorldInteractionInfo,
+  primary: RendererWorldInteractionCandidate | undefined,
+): string {
+  if (!primary) return "No action available"
+  if (info.state === "pending") return "Checking permission"
+  if (primary.serverPermitted) return primary.prompt
+  return "Action unavailable"
+}
+
+function worldActionHintLabel(
+  info: RendererWorldInteractionInfo,
+  primary: RendererWorldInteractionCandidate | undefined,
+): string {
+  if (!primary) {
+    return "Walk near doors, zones, or shared objects to see available actions."
+  }
+  if (info.state === "pending") {
+    return "The local world server is deciding whether this action is allowed."
+  }
+  if (primary.serverPermitted) {
+    return "This action is visible because the server permitted it for your current position."
+  }
+  if (primary.permissionReason === "not_joined") {
+    return "Enter the office before using world actions."
+  }
+  if (primary.permissionReason === "permission_service_unavailable") {
+    return "World permissions are unavailable. Rejoin when the server is ready."
+  }
+  return "The server did not permit this action from your current state."
+}
+
+function worldActionButtonLabel(
+  candidate: RendererWorldInteractionCandidate,
+): string {
+  switch (candidate.action) {
+    case "join_meeting":
+      return "Join call"
+    case "enter_private":
+      return "Enter area"
+    case "enter_portal":
+      return "Use portal"
+    case "open_door":
+      return "Open door"
+    case "use_object":
+      return "Use"
+  }
+}
+
+function zoneWorldAction(
+  zone: FixtureZone,
+): RendererWorldInteractionAction | undefined {
+  const raw = `${zone.zoneType} ${zone.id}`.toLowerCase()
+
+  if (raw.includes("meeting")) return "join_meeting"
+  if (raw.includes("portal") || raw.includes("door")) return "enter_portal"
+  if (raw.includes("private")) return "enter_private"
+  return undefined
+}
+
+function zoneActionPrompt(
+  action: RendererWorldInteractionAction,
+  zone: FixtureZone,
+): string {
+  if (action === "join_meeting") return `Join ${zoneDisplayName(zone)} call`
+  if (action === "enter_private") return `Enter ${zoneDisplayName(zone)}`
+  if (action === "enter_portal") return `Use ${zoneDisplayName(zone)}`
+  return zoneDisplayName(zone)
+}
+
+function objectWorldInteraction(
+  tokenId: string,
+): {
+  readonly action: RendererWorldInteractionAction
+  readonly label: string
+  readonly prompt: string
+} | undefined {
+  const raw = tokenId.toLowerCase()
+
+  if (raw.includes("door")) {
+    return { action: "open_door", label: "Door", prompt: "Open door" }
+  }
+  if (raw.includes("coffee")) {
+    return {
+      action: "use_object",
+      label: "Coffee bar",
+      prompt: "Use coffee bar",
+    }
+  }
+  if (raw.includes("couch") || raw.includes("sofa")) {
+    return {
+      action: "use_object",
+      label: "Couch",
+      prompt: "Use couch",
+    }
+  }
+  if (raw.includes("table")) {
+    return {
+      action: "use_object",
+      label: "Table",
+      prompt: "Use table",
+    }
+  }
+  return undefined
+}
+
+function pointInBounds(position: Vector2, bounds: { readonly x: number; readonly y: number; readonly width: number; readonly height: number }): boolean {
+  return (
+    position.x >= bounds.x &&
+    position.x < bounds.x + bounds.width &&
+    position.y >= bounds.y &&
+    position.y < bounds.y + bounds.height
+  )
+}
+
+function pointInExpandedBounds(
+  position: Vector2,
+  bounds: { readonly x: number; readonly y: number; readonly width: number; readonly height: number },
+  margin: number,
+): boolean {
+  return (
+    position.x >= bounds.x - margin &&
+    position.x < bounds.x + bounds.width + margin &&
+    position.y >= bounds.y - margin &&
+    position.y < bounds.y + bounds.height + margin
+  )
+}
+
+function distanceToBoundsCenter(
+  position: Vector2,
+  bounds: { readonly x: number; readonly y: number; readonly width: number; readonly height: number },
+): number {
+  const centerX = bounds.x + bounds.width / 2
+  const centerY = bounds.y + bounds.height / 2
+  return Math.hypot(position.x - centerX, position.y - centerY)
+}
+
+interface WorldActionPermissionResponse {
+  readonly status: "ok"
+  readonly source: "dev_world_action_policy"
+  readonly permittedCandidateIds: readonly string[]
+  readonly deniedCandidates: readonly {
+    readonly id: string
+    readonly reason: string
+  }[]
 }
 
 function setGeneratorPreviewState(
@@ -3916,7 +4529,12 @@ function canUseDeviceControls(): boolean {
 function renderMeetingControls(): void {
   const zone = state.activeZone
   const availableZone = activeMeetingZone()
-  const canJoinMeeting = Boolean(availableZone) && !state.mediaRequestPending
+  const canJoinMeeting =
+    Boolean(availableZone) &&
+    !state.mediaRequestPending &&
+    (availableZone
+      ? worldActionPermitted("join_meeting", availableZone.id)
+      : false)
 
   elements.meetingPanel.dataset.state = state.mediaRequestPending
     ? "pending"
@@ -4091,6 +4709,8 @@ function recoverFromWorldLoss(reason: string): void {
   state.companion.direction = "down"
   state.snapshotPlayerIds = []
   state.activeZone = undefined
+  state.worldInteractionInfo = emptyWorldInteractionInfo()
+  state.worldInteractionSignature = undefined
   state.meetingJoined = false
   state.meetingZoneId = undefined
   state.mediaRequestPending = false
@@ -4111,6 +4731,7 @@ function recoverFromWorldLoss(reason: string): void {
   seedLocalRenderedPlayer()
   renderPlayers()
   renderZonePresentation()
+  syncWorldInteractionLayer()
   setConnectionStatus(
     "session",
     state.sessionId ? "ready" : "idle",
@@ -5166,6 +5787,7 @@ function renderDemoToText(): string {
     performance: renderer.getPerformanceInfo(),
     avatars: renderer.getAvatarInfo(),
     zones: renderer.getZoneInfo(),
+    worldInteractions: renderer.getWorldInteractionInfo(),
     camera: renderer.getCameraState(),
     viewport: renderer.getViewportState(),
     map: state.fixtureMap
@@ -5248,17 +5870,20 @@ function engineArchitectureTextState() {
         "ObjectRenderer",
         "AvatarRenderer",
         "ZoneRenderer",
+        "InteractionRenderer",
         "CameraController",
       ],
     },
     controllers: {
       input: "InputController",
       worldSync: "WorldSyncController",
+      interactions: "WorldInteractionLayer",
     },
     boundaries: {
       phaserIsolatedBehindRendererHost: true,
       inputStateOwnedOutsideDomEvents: true,
       realtimeTransportOwnedByWorldSync: true,
+      worldActionsRequireServerPermission: true,
     },
   }
 }

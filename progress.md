@@ -907,3 +907,24 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   visually inspected. The standalone develop-web-game client still fails
   before navigation because it cannot resolve `playwright` from the skill
   runtime.
+- World interactions now run through a server-permitted action layer instead
+  of canvas-only presentation. The renderer can show native object markers,
+  zone affordances, and available actions, while the app asks the dev host for
+  permitted meeting/private/portal/object actions before enabling product UI.
+- The World tool section now presents the nearest permitted action, including
+  meeting joins, private area availability, portal entries, door prompts, and
+  object-use prompts. Meeting controls only unlock when the world-action
+  permission response allows `join_meeting` for the current zone.
+- `render_game_to_text` now reports world interaction authority, candidates,
+  visible markers, and the renderer/app permission contract so automation can
+  verify that actions are server-gated rather than client-invented.
+- Verification passed after the world interaction layer slice:
+  `node --check scripts/dev-http-host.cjs`,
+  `node --check scripts/dev-http-host.test.cjs`,
+  `node --check scripts/frontend-smoke.test.cjs`,
+  `node scripts/dev-http-host.test.cjs`,
+  `npm --workspace @aedventure/web run build`, `npm run smoke:frontend`,
+  `npm run qa:renderer`, `npm run qa:responsive`, `npm run check`, and
+  `git diff --check`. The renderer-zone, desktop, and mobile screenshots were
+  visually inspected. The standalone develop-web-game client still fails before
+  navigation because it cannot resolve `playwright` from the skill runtime.

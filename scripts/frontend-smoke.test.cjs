@@ -1332,10 +1332,15 @@ async function assertMobileCollapsedControls(browser, url) {
         open: section.open,
       })),
       [
+        { label: "World", open: false },
         { label: "Call", open: false },
         { label: "Move", open: false },
         { label: "Chat", open: false },
       ],
+    )
+    await expectVisible(
+      mobilePage.locator("details.world-action-tool summary"),
+      "Expected collapsed World action handle on mobile.",
     )
     await expectVisible(
       mobilePage.locator("details.call-tool summary"),
@@ -1997,6 +2002,7 @@ async function assertZonePresentationSmoke(page) {
     (state) =>
       state.map?.label === "Zone fixture" &&
       state.zones.zoneCount === 4 &&
+      state.worldInteractions?.state === "available" &&
       state.zones.zones.some(
         (zone) =>
           zone.id === "meeting-zone" &&
@@ -2034,6 +2040,17 @@ async function assertZonePresentationSmoke(page) {
   assert.equal(meetingZone.active, true)
   assert.equal(meetingZone.markerVisible, true)
   assert.equal(meetingZone.labelVisible, true)
+  assert.equal(zoneState.worldInteractions.authority, "server_permitted_actions_only")
+  assert.equal(
+    zoneState.worldInteractions.candidates.find(
+      (candidate) => candidate.id === "zone:meeting-zone:join_meeting",
+    )?.serverPermitted,
+    true,
+  )
+  assert.equal(
+    zoneState.worldInteractions.primaryCandidateId,
+    "zone:meeting-zone:join_meeting",
+  )
   assert.equal(zoneState.meeting.panelState, "available")
   assert.equal(zoneState.meeting.joinDisabled, false)
   assert.ok(
@@ -2068,6 +2085,9 @@ async function assertZonePresentationSmoke(page) {
     page,
     (state) =>
       state.zones.activeZoneIds.includes("private-zone") &&
+      state.worldInteractions?.permittedCandidateIds.includes(
+        "zone:private-zone:enter_private",
+      ) &&
       state.zones.zones.find((zone) => zone.id === "private-zone")
         ?.availableAction === "enter_private",
   )
@@ -2086,6 +2106,13 @@ async function assertZonePresentationSmoke(page) {
     page,
     (state) =>
       state.zones.activeZoneIds.includes("portal-door") &&
+      state.worldInteractions?.permittedCandidateIds.includes(
+        "zone:portal-door:enter_portal",
+      ) &&
+      state.worldInteractions?.candidates.find(
+        (candidate) =>
+          candidate.kind === "object" && candidate.action === "open_door",
+      )?.markerVisible === true &&
       state.zones.zones.find((zone) => zone.id === "portal-door")
         ?.availableAction === "enter_portal",
   )

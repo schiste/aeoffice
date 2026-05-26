@@ -184,6 +184,46 @@ export interface RendererZonePresentationInfo {
   readonly zones: readonly RendererZoneInfo[]
 }
 
+export type RendererWorldInteractionKind = "zone" | "object"
+
+export type RendererWorldInteractionAction =
+  | RendererZoneAction
+  | "open_door"
+  | "use_object"
+
+export type RendererWorldInteractionPermissionState =
+  | "pending"
+  | "permitted"
+  | "denied"
+
+export interface RendererWorldInteractionCandidate {
+  readonly id: string
+  readonly kind: RendererWorldInteractionKind
+  readonly targetId: string
+  readonly action: RendererWorldInteractionAction
+  readonly label: string
+  readonly prompt: string
+  readonly bounds: RendererZoneBounds
+  readonly active: boolean
+  readonly distancePx?: number
+  readonly permission: RendererWorldInteractionPermissionState
+  readonly serverPermitted: boolean
+  readonly permissionReason?: string
+  readonly markerVisible: boolean
+}
+
+export interface RendererWorldInteractionInfo {
+  readonly source: "server_permitted_world_interactions"
+  readonly authority: "server_permitted_actions_only"
+  readonly permissionSource: "dev_world_action_policy" | "unavailable"
+  readonly state: "idle" | "pending" | "available" | "denied"
+  readonly primaryCandidateId?: string
+  readonly activeCandidateIds: readonly string[]
+  readonly permittedCandidateIds: readonly string[]
+  readonly deniedCandidateIds: readonly string[]
+  readonly candidates: readonly RendererWorldInteractionCandidate[]
+}
+
 export type RendererEffectsQuality = "auto" | "off" | "low" | "premium"
 export type RendererResolvedEffectsQuality = "off" | "low" | "premium"
 export type RendererTenantLightingMode = "day" | "night" | "tenant_theme"

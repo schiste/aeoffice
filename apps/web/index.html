@@ -256,6 +256,27 @@
               <strong>Room tools</strong>
             </div>
 
+            <details class="tool-section world-action-tool" open data-mobile-collapsible>
+              <summary>World</summary>
+              <section
+                id="world-action-panel"
+                class="world-action-panel"
+                aria-label="World action"
+                data-state="idle"
+              >
+                <div class="world-action-state">
+                  <span>Nearby action</span>
+                  <strong id="world-action-status">No action available</strong>
+                </div>
+                <p id="world-action-hint" class="world-action-hint">
+                  Walk near doors, zones, or shared objects to see available actions.
+                </p>
+                <button id="world-action-primary" type="button" disabled>
+                  No action
+                </button>
+              </section>
+            </details>
+
             <details class="tool-section call-tool" open data-mobile-collapsible>
               <summary>Call</summary>
               <section class="call-panel" aria-label="Call controls">

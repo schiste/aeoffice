@@ -192,6 +192,57 @@ async function main() {
     fixtureMapBody.compiled.blockedTiles.length,
   )
   assert.equal(worldGeometryBody.zoneCount, fixtureMapBody.compiled.zones.length)
+  const actionZone = fixtureMapBody.compiled.zones[0]
+  const actionZoneBounds = {
+    x: actionZone.xStart * fixtureMapBody.compiled.tileSize,
+    y: actionZone.yStart * fixtureMapBody.compiled.tileSize,
+    width: (actionZone.xEnd - actionZone.xStart) * fixtureMapBody.compiled.tileSize,
+    height: (actionZone.yEnd - actionZone.yStart) * fixtureMapBody.compiled.tileSize,
+  }
+  runtime.worldRuntime.world.addPlayer({
+    playerId: "action-player",
+    spawn: {
+      x: actionZoneBounds.x + actionZoneBounds.width / 2,
+      y: actionZoneBounds.y + actionZoneBounds.height / 2,
+    },
+    permissions: ["media:zone:join"],
+    roles: ["space:member"],
+  })
+  const worldActionPermissions = await runtime.handler(
+    new Request("http://localhost/dev/world-action-permissions", {
+      method: "POST",
+      body: JSON.stringify({
+        playerId: "action-player",
+        candidates: [
+          {
+            id: "zone:action-zone:join_meeting",
+            kind: "zone",
+            targetId: actionZone.id,
+            action: "join_meeting",
+            bounds: actionZoneBounds,
+          },
+          {
+            id: "object:item.door_single:99,99:open_door",
+            kind: "object",
+            targetId: "item.door_single:99,99",
+            action: "open_door",
+            bounds: { x: 9999, y: 9999, width: 32, height: 32 },
+          },
+        ],
+      }),
+    }),
+  )
+  const worldActionPermissionsBody = await worldActionPermissions.json()
+  assert.equal(worldActionPermissions.status, 200)
+  assert.deepEqual(worldActionPermissionsBody.permittedCandidateIds, [
+    "zone:action-zone:join_meeting",
+  ])
+  assert.deepEqual(worldActionPermissionsBody.deniedCandidates, [
+    {
+      id: "object:item.door_single:99,99:open_door",
+      reason: "not_in_range",
+    },
+  ])
   assert.equal(devSignIn.status, 200)
   assert.equal(devSignInBody.username, "Dev Ada")
   assert.ok(devSignInBody.sessionId)

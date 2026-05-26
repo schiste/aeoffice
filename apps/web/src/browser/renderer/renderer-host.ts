@@ -33,6 +33,7 @@ import type {
   RendererMapValidationInfo,
   RendererPerformanceInfo,
   RendererViewportState,
+  RendererWorldInteractionInfo,
   RendererZoneInteractionState,
   RendererZonePresentationInfo,
   RendererZoomPresetId,
@@ -53,6 +54,8 @@ export class PhaserOfficeRenderer {
     availableActionZoneIds: [],
     joinedZoneIds: [],
   }
+  private worldInteractionInfo: RendererWorldInteractionInfo =
+    emptyWorldInteractionInfo()
   private players: readonly RenderedPlayer[] = DEFAULT_RENDERED_PLAYERS
   private fixtureMap?: FixtureMap
   private renderTask: Promise<void> = Promise.resolve()
@@ -106,6 +109,7 @@ export class PhaserOfficeRenderer {
       await scene.renderFixtureMap(fixtureMap, this.players)
       this.fixtureMap = fixtureMap
       scene.setZoneInteractionState(this.zoneInteractionState)
+      scene.setWorldInteractions(this.worldInteractionInfo)
     })
     void this.renderTask.catch(() => undefined)
   }
@@ -141,6 +145,14 @@ export class PhaserOfficeRenderer {
     void this.renderTask.then(async () => {
       const scene = await this.ready
       scene.setZoneInteractionState(this.zoneInteractionState)
+    })
+  }
+
+  setWorldInteractions(info: RendererWorldInteractionInfo): void {
+    this.worldInteractionInfo = cloneWorldInteractionInfo(info)
+    void this.renderTask.then(async () => {
+      const scene = await this.ready
+      scene.setWorldInteractions(this.worldInteractionInfo)
     })
   }
 
@@ -201,6 +213,10 @@ export class PhaserOfficeRenderer {
 
   getZoneInfo(): RendererZonePresentationInfo {
     return this.scene.getZoneInfo()
+  }
+
+  getWorldInteractionInfo(): RendererWorldInteractionInfo {
+    return this.scene.getWorldInteractionInfo()
   }
 
   getEffectsInfo(): RendererEffectsInfo {
@@ -272,6 +288,7 @@ export class PhaserOfficeRenderer {
     this.renderTask = this.queueRender(async (scene) => {
       await scene.renderFixtureMap(fixtureMap, this.players)
       scene.setZoneInteractionState(this.zoneInteractionState)
+      scene.setWorldInteractions(this.worldInteractionInfo)
       this.zoomFactor = scene.getCameraState().zoomFactor
     })
   }
@@ -311,3 +328,28 @@ export class PhaserOfficeRenderer {
 }
 
 export { PhaserOfficeRenderer as RendererHost }
+
+function emptyWorldInteractionInfo(): RendererWorldInteractionInfo {
+  return {
+    source: "server_permitted_world_interactions",
+    authority: "server_permitted_actions_only",
+    permissionSource: "unavailable",
+    state: "idle",
+    activeCandidateIds: [],
+    permittedCandidateIds: [],
+    deniedCandidateIds: [],
+    candidates: [],
+  }
+}
+
+function cloneWorldInteractionInfo(
+  info: RendererWorldInteractionInfo,
+): RendererWorldInteractionInfo {
+  return {
+    ...info,
+    activeCandidateIds: [...info.activeCandidateIds],
+    permittedCandidateIds: [...info.permittedCandidateIds],
+    deniedCandidateIds: [...info.deniedCandidateIds],
+    candidates: info.candidates.map((candidate) => ({ ...candidate })),
+  }
+}

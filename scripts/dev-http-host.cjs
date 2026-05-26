@@ -442,6 +442,8 @@ function createDevelopmentToolsHandler(apiRuntime, worldRuntime, clock) {
   const fixtureMapHandler = createDevFixtureMapHandler()
   const worldGeometryHandler = createDevWorldGeometryHandler(worldRuntime)
   const worldMovementHandler = createDevWorldMovementHandler(worldRuntime)
+  const worldActionPermissionsHandler =
+    createDevWorldActionPermissionsHandler(worldRuntime, clock)
 
   return async (request) => {
     const url = new URL(request.url)
@@ -462,11 +464,148 @@ function createDevelopmentToolsHandler(apiRuntime, worldRuntime, clock) {
       return worldMovementHandler(request)
     }
 
+    if (url.pathname === "/world-action-permissions") {
+      return worldActionPermissionsHandler(request)
+    }
+
     return jsonResponse(404, {
       error: "not_found",
       reason: "No development tool route matches this request.",
     })
   }
+}
+
+function createDevWorldActionPermissionsHandler(worldRuntime, clock) {
+  return async (request) => {
+    if (request.method !== "POST") {
+      return jsonResponse(405, {
+        error: "method_not_allowed",
+        reason: "World action permission checks only support POST.",
+      })
+    }
+
+    const body = await request.json()
+    const record = body && typeof body === "object" && !Array.isArray(body)
+      ? body
+      : {}
+    const playerId = requiredStringValue(record.playerId, "playerId")
+    const candidates = Array.isArray(record.candidates)
+      ? record.candidates.map((candidate, index) =>
+          developmentWorldActionCandidateFromBody(candidate, index),
+        )
+      : []
+    const player = worldRuntime.world.getPlayer(playerId)
+
+    if (!player) {
+      return jsonResponse(200, {
+        status: "ok",
+        source: "dev_world_action_policy",
+        serverTime: clock?.nowMs() ?? Date.now(),
+        playerId,
+        permittedCandidateIds: [],
+        deniedCandidates: candidates.map((candidate) => ({
+          id: candidate.id,
+          reason: "unknown_player",
+        })),
+      })
+    }
+
+    const decisions = candidates.map((candidate) =>
+      devWorldActionPermissionDecision(player, candidate),
+    )
+
+    return jsonResponse(200, {
+      status: "ok",
+      source: "dev_world_action_policy",
+      serverTime: clock?.nowMs() ?? Date.now(),
+      playerId,
+      permittedCandidateIds: decisions
+        .filter((decision) => decision.permitted)
+        .map((decision) => decision.id),
+      deniedCandidates: decisions
+        .filter((decision) => !decision.permitted)
+        .map((decision) => ({
+          id: decision.id,
+          reason: decision.reason,
+        })),
+    })
+  }
+}
+
+function developmentWorldActionCandidateFromBody(candidate, index) {
+  const record =
+    candidate && typeof candidate === "object" && !Array.isArray(candidate)
+      ? candidate
+      : {}
+
+  return {
+    id: requiredStringValue(record.id, `candidates[${index}].id`),
+    kind: requiredStringValue(record.kind, `candidates[${index}].kind`),
+    targetId: requiredStringValue(record.targetId, `candidates[${index}].targetId`),
+    action: requiredStringValue(record.action, `candidates[${index}].action`),
+    bounds: {
+      x: requiredNonNegativeNumber(record.bounds?.x, `candidates[${index}].bounds.x`),
+      y: requiredNonNegativeNumber(record.bounds?.y, `candidates[${index}].bounds.y`),
+      width: requiredPositiveNumber(record.bounds?.width, `candidates[${index}].bounds.width`),
+      height: requiredPositiveNumber(record.bounds?.height, `candidates[${index}].bounds.height`),
+    },
+  }
+}
+
+function devWorldActionPermissionDecision(player, candidate) {
+  const permittedByLocation = candidate.kind === "zone"
+    ? player.zoneIds.includes(candidate.targetId)
+    : pointNearBounds(player.position, candidate.bounds, 44)
+
+  if (!permittedByLocation) {
+    return {
+      id: candidate.id,
+      permitted: false,
+      reason: "not_in_range",
+    }
+  }
+
+  if (candidate.action === "join_meeting") {
+    return {
+      id: candidate.id,
+      permitted: player.permissions.includes("media:zone:join"),
+      reason: player.permissions.includes("media:zone:join")
+        ? undefined
+        : "missing_media_zone_permission",
+    }
+  }
+
+  if (
+    candidate.action === "enter_private" ||
+    candidate.action === "enter_portal" ||
+    candidate.action === "open_door" ||
+    candidate.action === "use_object"
+  ) {
+    const permitted =
+      player.roles.includes("space:member") ||
+      player.permissions.includes("room:lobby:enter")
+
+    return {
+      id: candidate.id,
+      permitted,
+      reason: permitted ? undefined : "missing_world_action_permission",
+    }
+  }
+
+  return {
+    id: candidate.id,
+    permitted: false,
+    reason: "unsupported_action",
+  }
+}
+
+function pointNearBounds(position, bounds, margin) {
+  return (
+    position.x >= bounds.x - margin &&
+    position.x < bounds.x + bounds.width + margin &&
+    position.y >= bounds.y - margin &&
+    position.y < bounds.y + bounds.height + margin
+  )
 }
 
 function createDevWorldGeometryHandler(worldRuntime) {

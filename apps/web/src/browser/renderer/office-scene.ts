@@ -10,6 +10,7 @@ import { depthInfo, emptyDepthInfo } from "./depth"
 import { DepthDebugOverlay } from "./depth-debug-overlay"
 import { DevToolsOverlay } from "./dev-tools-overlay"
 import { EffectsLayer } from "./effects-layer"
+import { InteractionRenderer } from "./interaction-renderer"
 import { TilemapRenderer } from "./tilemap-renderer"
 import { ObjectRenderer } from "./object-renderer"
 import {
@@ -38,6 +39,7 @@ import type {
   RendererPerformanceInfo,
   RendererTilemapInfo,
   RendererViewportState,
+  RendererWorldInteractionInfo,
   RendererZoneInteractionState,
   RendererZonePresentationInfo,
   RendererZoomPresetId,
@@ -49,6 +51,7 @@ export class OfficeScene extends Phaser.Scene {
   private readonly tilemapRenderer: TilemapRenderer
   private readonly objectRenderer: ObjectRenderer
   private readonly zoneRenderer: ZoneRenderer
+  private readonly interactionRenderer: InteractionRenderer
   private readonly effectsLayer: EffectsLayer
   private readonly depthDebugOverlay: DepthDebugOverlay
   private readonly devToolsOverlay: DevToolsOverlay
@@ -74,6 +77,7 @@ export class OfficeScene extends Phaser.Scene {
     this.tilemapRenderer = new TilemapRenderer(this)
     this.objectRenderer = new ObjectRenderer(this)
     this.zoneRenderer = new ZoneRenderer(this)
+    this.interactionRenderer = new InteractionRenderer(this)
     this.effectsLayer = new EffectsLayer(this)
     this.depthDebugOverlay = new DepthDebugOverlay(this)
     this.devToolsOverlay = new DevToolsOverlay(this)
@@ -112,6 +116,7 @@ export class OfficeScene extends Phaser.Scene {
     this.avatarRenderer.clear()
     this.cameraController.clearFollow()
     this.zoneRenderer.clear()
+    this.interactionRenderer.clear()
     this.effectsLayer.clear()
     this.depthDebugOverlay.clear()
     this.devToolsOverlay.clear()
@@ -247,6 +252,10 @@ export class OfficeScene extends Phaser.Scene {
     this.zoneRenderer.setInteractionState(state)
   }
 
+  setWorldInteractions(info: RendererWorldInteractionInfo): void {
+    this.interactionRenderer.render(info)
+  }
+
   setZoneDebugOverlayEnabled(enabled: boolean): void {
     this.devToolsOverlay.setState({
       enabled: this.devToolsOverlay.getInfo().enabled || enabled,
@@ -285,6 +294,10 @@ export class OfficeScene extends Phaser.Scene {
 
   getZoneInfo(): RendererZonePresentationInfo {
     return this.zoneRenderer.getZoneInfo()
+  }
+
+  getWorldInteractionInfo(): RendererWorldInteractionInfo {
+    return this.interactionRenderer.getInfo()
   }
 
   getEffectsInfo(): RendererEffectsInfo {
@@ -393,6 +406,7 @@ export class OfficeScene extends Phaser.Scene {
 
   private updateFrame(deltaMs: number): void {
     this.avatarRenderer.refreshFrame()
+    this.interactionRenderer.refreshFrame()
     this.cameraController.updateFrame(deltaMs)
     this.refreshDepthInfo()
     this.depthDebugOverlay.render(this.rendererDepthInfo)
