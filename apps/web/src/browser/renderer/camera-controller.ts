@@ -14,6 +14,7 @@ import {
   MOBILE_VIEWPORT_WIDTH,
 } from "./constants"
 import { clamp, roundTo } from "./math"
+import { SecondaryCameraController } from "./secondary-camera-controller"
 import type { AvatarFollowTarget } from "./avatar-renderer"
 import type {
   RendererCameraDeadzone,
@@ -66,8 +67,11 @@ export class CameraController {
     height: CAMERA_DEADZONE_HEIGHT,
   }
   private cameraReady = false
+  private readonly secondaryCameraController: SecondaryCameraController
 
-  constructor(private readonly scene: Phaser.Scene) {}
+  constructor(private readonly scene: Phaser.Scene) {
+    this.secondaryCameraController = new SecondaryCameraController(scene)
+  }
 
   markReady(): void {
     this.cameraReady = true
@@ -79,6 +83,7 @@ export class CameraController {
     this.scene.cameras.main.setSize(this.viewportSize.x, this.viewportSize.y)
     this.applyCameraZoom()
     this.applyDeadzone()
+    this.secondaryCameraController.markReady(this.viewportSize, this.mapSize)
   }
 
   setMapSize(width: number, height: number): void {
@@ -86,6 +91,7 @@ export class CameraController {
     this.scene.cameras.main.setBounds(0, 0, width, height)
     this.applyCameraZoom()
     this.applyCameraMode()
+    this.secondaryCameraController.setMapSize(width, height)
   }
 
   resizeViewport(width: number, height: number): void {
@@ -98,6 +104,7 @@ export class CameraController {
     }
     this.applyCameraZoom()
     this.applyDeadzone()
+    this.secondaryCameraController.resizeViewport(width, height)
   }
 
   setZoomFactor(zoomFactor: number): void {
@@ -288,6 +295,7 @@ export class CameraController {
             ? "leading_player_anchor"
             : "none",
       lead: this.getLeadState(),
+      secondary: this.secondaryCameraController.getInfo(),
       followingPlayerId: this.followingPlayerId,
       localPlayerVisible: localPlayerViewportPosition
         ? pointInsideViewport(localPlayerViewportPosition, this.viewportSize)

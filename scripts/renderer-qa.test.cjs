@@ -933,6 +933,26 @@ function assertRendererSnapshot(state) {
   assert.ok(state.renderer.effects.objectCounts.particleAliveBudget <= 96)
   assert.equal(state.renderer.effects.capability.shadersAvailable, true)
   assert.equal(state.renderer.effects.capability.particlesAvailable, true)
+  assert.equal(state.camera.secondary.source, "phaser_camera_manager")
+  assert.ok(state.camera.secondary.totalCameraCount >= 2)
+  const overviewExpected =
+    state.camera.viewportWidth >= 540 && state.camera.viewportHeight >= 360
+  if (overviewExpected) {
+    assert.equal(state.camera.secondary.mode, "main_plus_overview")
+    assert.ok(state.camera.secondary.visibleCameraCount >= 2)
+    assert.ok(
+      state.camera.secondary.secondaryCameras.some(
+        (camera) =>
+          camera.id === "overview-minimap" &&
+          camera.role === "minimap_overview" &&
+          camera.active &&
+          camera.renderTarget === "same_scene_overlay",
+      ),
+      "Expected active overview minimap secondary camera.",
+    )
+  } else {
+    assert.equal(state.camera.secondary.mode, "main_only")
+  }
   assert.equal(state.renderer.mapValidation.valid, true)
   assert.equal(state.renderer.mapValidation.mutationSafe, true)
   assert.equal(state.renderer.performance.runtime.textureCount > 0, true)
@@ -1034,6 +1054,7 @@ function snapshotForReport(label, state) {
         particleAliveBudget:
           state.renderer.effects.objectCounts.particleAliveBudget,
       },
+      cameras: state.camera.secondary,
       mapValidation: state.renderer.mapValidation,
     },
     avatarAtlasImport: {

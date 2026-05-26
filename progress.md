@@ -1276,3 +1276,29 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   develop-web-game client was attempted against `http://127.0.0.1:8787`, but
   still fails before navigation with `ERR_MODULE_NOT_FOUND` because the
   skill-local script cannot resolve `playwright`.
+- Phaser multiple-camera support is now wired through a dedicated
+  `SecondaryCameraController`. It creates an `overview-minimap` Phaser camera
+  beside the main follow camera, uses a same-scene overlay viewport, fits the
+  full room/map on resize or map switch, and disables itself on compact
+  viewports so mobile keeps the canvas clear.
+- Camera telemetry now reports `camera.secondary` with Phaser CameraManager
+  source, `main_only` vs `main_plus_overview` mode, max/total/visible camera
+  counts, overview viewport, world view, zoom, alpha, round-pixel state, render
+  target, and update policy. Renderer QA now records this in the snapshot
+  report.
+- A startup bug was caught during smoke: `render_game_to_text` failed to
+  install because camera telemetry queried `scene.cameras.getTotal()` before
+  Phaser had booted the scene. The secondary camera info path now tolerates the
+  pre-ready phase and reports zero camera counts until the camera manager is
+  available.
+- Verification passed after the secondary-camera pass:
+  `npm --workspace @aedventure/web run build`,
+  `node --check scripts/frontend-smoke.test.cjs`,
+  `node --check scripts/renderer-qa.test.cjs`, `npm run smoke:frontend`,
+  `npm run qa:renderer`, `npm run qa:responsive`, `npm run check`, and
+  `git diff --check`. Latest desktop renderer screenshot was visually inspected
+  and shows the top-right overview camera; latest mobile-narrow responsive
+  screenshot was inspected and correctly has no minimap. The standalone
+  develop-web-game client was attempted against `http://127.0.0.1:8787`, but
+  still fails before navigation with `ERR_MODULE_NOT_FOUND` because the
+  skill-local script cannot resolve `playwright`.

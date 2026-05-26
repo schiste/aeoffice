@@ -984,6 +984,38 @@ function assertCameraStateContract(state) {
   assert.equal(typeof state.camera?.lead?.maxDistancePx, "number")
   assert.equal(typeof state.camera?.lead?.smoothingTimeConstantMs, "number")
   assert.equal(typeof state.camera?.lead?.correctionDampingActive, "boolean")
+  assert.equal(state.camera?.secondary?.source, "phaser_camera_manager")
+  assert.ok(
+    ["main_only", "main_plus_overview"].includes(state.camera?.secondary?.mode),
+    `Expected secondary camera mode, got ${JSON.stringify(state.camera?.secondary)}.`,
+  )
+  assert.equal(typeof state.camera?.secondary?.maxCameraCount, "number")
+  assert.equal(typeof state.camera?.secondary?.totalCameraCount, "number")
+  assert.equal(typeof state.camera?.secondary?.visibleCameraCount, "number")
+  assert.ok(Array.isArray(state.camera?.secondary?.secondaryCameras))
+  const overviewCamera = state.camera?.secondary?.secondaryCameras?.find(
+    (camera) => camera.id === "overview-minimap",
+  )
+  assert.ok(
+    overviewCamera,
+    `Expected overview minimap secondary camera, got ${JSON.stringify(state.camera?.secondary)}.`,
+  )
+  assert.equal(overviewCamera.role, "minimap_overview")
+  assert.equal(typeof overviewCamera.active, "boolean")
+  assert.equal(typeof overviewCamera.visible, "boolean")
+  assert.equal(overviewCamera.renderTarget, "same_scene_overlay")
+  assert.equal(overviewCamera.updatePolicy, "fit_room_on_resize_or_map_switch")
+  assert.equal(typeof overviewCamera.viewport.x, "number")
+  assert.equal(typeof overviewCamera.viewport.y, "number")
+  assert.equal(typeof overviewCamera.viewport.width, "number")
+  assert.equal(typeof overviewCamera.viewport.height, "number")
+  assert.equal(typeof overviewCamera.worldView.x, "number")
+  assert.equal(typeof overviewCamera.worldView.y, "number")
+  assert.equal(typeof overviewCamera.worldView.width, "number")
+  assert.equal(typeof overviewCamera.worldView.height, "number")
+  assert.equal(typeof overviewCamera.zoom, "number")
+  assert.equal(typeof overviewCamera.alpha, "number")
+  assert.equal(typeof overviewCamera.roundPixels, "boolean")
   assert.equal(typeof state.camera?.localPlayerVisible, "boolean")
 }
 
@@ -1140,6 +1172,15 @@ function assertRendererCapabilities(state) {
   assert.equal(state.renderer.effects.capability.contextLost, false)
   assert.equal(state.renderer.effects.capability.shadersAvailable, true)
   assert.equal(state.renderer.effects.capability.particlesAvailable, true)
+  assert.equal(state.camera.secondary.mode, "main_plus_overview")
+  assert.ok(state.camera.secondary.totalCameraCount >= 2)
+  assert.ok(state.camera.secondary.visibleCameraCount >= 2)
+  const overviewCamera = state.camera.secondary.secondaryCameras.find(
+    (camera) => camera.id === "overview-minimap",
+  )
+  assert.ok(overviewCamera?.active)
+  assert.ok(overviewCamera.viewport.width >= 112)
+  assert.ok(overviewCamera.zoom > 0)
   assert.equal(state.renderer.mapValidation.valid, true)
   assert.equal(state.renderer.mapValidation.mutationSafe, true)
   assert.equal(typeof state.renderer.mapValidation.collisionLayerPresent, "boolean")

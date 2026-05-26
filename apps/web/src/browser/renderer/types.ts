@@ -580,6 +580,35 @@ export interface RendererCameraLeadState {
   readonly correctionDampingActive: boolean
 }
 
+export interface RendererSecondaryCameraInfo {
+  readonly id: "overview-minimap"
+  readonly role: "minimap_overview"
+  readonly active: boolean
+  readonly visible: boolean
+  readonly disabledReason?: "not_ready" | "compact_viewport"
+  readonly renderTarget: "same_scene_overlay"
+  readonly updatePolicy: "fit_room_on_resize_or_map_switch"
+  readonly viewport: {
+    readonly x: number
+    readonly y: number
+    readonly width: number
+    readonly height: number
+  }
+  readonly worldView: RendererCameraWorldView
+  readonly zoom: number
+  readonly alpha: number
+  readonly roundPixels: boolean
+}
+
+export interface RendererSecondaryCameraSystemInfo {
+  readonly source: "phaser_camera_manager"
+  readonly mode: "main_only" | "main_plus_overview"
+  readonly maxCameraCount: number
+  readonly totalCameraCount: number
+  readonly visibleCameraCount: number
+  readonly secondaryCameras: readonly RendererSecondaryCameraInfo[]
+}
+
 export interface RendererCameraState {
   readonly mode: RendererCameraMode
   readonly zoomPreset: RendererZoomPresetId
@@ -601,6 +630,7 @@ export interface RendererCameraState {
   readonly followLerp: number
   readonly followAnchor: "leading_player_anchor" | "room_center" | "none"
   readonly lead: RendererCameraLeadState
+  readonly secondary: RendererSecondaryCameraSystemInfo
   readonly followingPlayerId?: string
   readonly localPlayerVisible: boolean
   readonly localPlayerViewportPosition?: Vector2
