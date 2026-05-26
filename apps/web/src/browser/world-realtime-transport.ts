@@ -29,8 +29,23 @@ export interface WorldRealtimeSnapshot {
   readonly snapshotCount: number
   readonly lastSnapshotTick?: number
   readonly lastSnapshotServerTime?: number
+  readonly lastSnapshotReceivedAtMs?: number
+  readonly latestSnapshotAgeMs?: number
+  readonly snapshotCadenceMs?: number
   readonly serverTickMs?: number
+  readonly serverTickHz?: number
+  readonly inputStats?: WorldRealtimeInputStats
   readonly lastError?: string
+}
+
+export interface WorldRealtimeInputStats {
+  readonly authority: "server_authoritative_fixed_tick"
+  readonly inputCoalescing: "latest_intent_per_client_per_tick"
+  readonly queuedClientCount: number
+  readonly processedMoveCount: number
+  readonly droppedMoveCount: number
+  readonly maxQueueDepth: number
+  readonly latestInputAgeMs?: number
 }
 
 export class WorldRealtimeTransport {
@@ -43,7 +58,11 @@ export class WorldRealtimeTransport {
   private snapshotCount = 0
   private lastSnapshotTick?: number
   private lastSnapshotServerTime?: number
+  private lastSnapshotReceivedAtMs?: number
+  private previousSnapshotReceivedAtMs?: number
+  private snapshotCadenceMs?: number
   private serverTickMs?: number
+  private inputStats?: WorldRealtimeInputStats
   private lastError?: string
   private url?: string
 
@@ -130,6 +149,11 @@ export class WorldRealtimeTransport {
   }
 
   snapshot(): WorldRealtimeSnapshot {
+    const latestSnapshotAgeMs =
+      this.lastSnapshotReceivedAtMs === undefined
+        ? undefined
+        : Math.max(0, Math.round(Date.now() - this.lastSnapshotReceivedAtMs))
+
     return {
       status: this.status,
       url: this.url,
@@ -139,8 +163,15 @@ export class WorldRealtimeTransport {
       snapshotCount: this.snapshotCount,
       lastSnapshotTick: this.lastSnapshotTick,
       lastSnapshotServerTime: this.lastSnapshotServerTime,
+      lastSnapshotReceivedAtMs: this.lastSnapshotReceivedAtMs,
+      snapshotCadenceMs: this.snapshotCadenceMs,
       serverTickMs: this.serverTickMs,
+      serverTickHz: this.serverTickMs
+        ? Number((1000 / this.serverTickMs).toFixed(1))
+        : undefined,
+      inputStats: this.inputStats,
       lastError: this.lastError,
+      ...(latestSnapshotAgeMs === undefined ? {} : { latestSnapshotAgeMs }),
     }
   }
 
@@ -162,10 +193,18 @@ export class WorldRealtimeTransport {
       const message = event.message
       if (!isWorldSnapshotMessage(message)) continue
 
+      const receivedAtMs = Date.now()
       this.snapshotCount += 1
       this.lastSnapshotTick = message.tick
       this.lastSnapshotServerTime = message.serverTime
+      this.previousSnapshotReceivedAtMs = this.lastSnapshotReceivedAtMs
+      this.lastSnapshotReceivedAtMs = receivedAtMs
+      this.snapshotCadenceMs =
+        this.previousSnapshotReceivedAtMs === undefined
+          ? undefined
+          : Math.max(0, receivedAtMs - this.previousSnapshotReceivedAtMs)
       this.serverTickMs = message.tickMs
+      this.inputStats = message.inputStats
     }
   }
 }
@@ -175,15 +214,36 @@ function isWorldSnapshotMessage(value: unknown): value is {
   readonly tick: number
   readonly serverTime: number
   readonly tickMs: number
+  readonly inputStats: WorldRealtimeInputStats
 } {
   if (!value || typeof value !== "object") return false
   const record = value as Record<string, unknown>
+  const inputStats = record.inputStats
 
   return (
     record.type === "world_snapshot" &&
     typeof record.tick === "number" &&
     typeof record.serverTime === "number" &&
-    typeof record.tickMs === "number"
+    typeof record.tickMs === "number" &&
+    isWorldRealtimeInputStats(inputStats)
+  )
+}
+
+function isWorldRealtimeInputStats(
+  value: unknown,
+): value is WorldRealtimeInputStats {
+  if (!value || typeof value !== "object") return false
+  const record = value as Record<string, unknown>
+
+  return (
+    record.authority === "server_authoritative_fixed_tick" &&
+    record.inputCoalescing === "latest_intent_per_client_per_tick" &&
+    typeof record.queuedClientCount === "number" &&
+    typeof record.processedMoveCount === "number" &&
+    typeof record.droppedMoveCount === "number" &&
+    typeof record.maxQueueDepth === "number" &&
+    (record.latestInputAgeMs === undefined ||
+      typeof record.latestInputAgeMs === "number")
   )
 }
 

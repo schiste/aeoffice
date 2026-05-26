@@ -292,6 +292,9 @@ export interface RenderedPlayer {
   readonly movementMode?: MovementMode
   readonly cameraMotion?: RendererCameraFollowMotion
   readonly entryAnimation?: "fade" | "none"
+  readonly snapshotTick?: number
+  readonly snapshotServerTime?: number
+  readonly snapshotReceivedAtMs?: number
   readonly local: boolean
   readonly rejected?: boolean
 }
@@ -557,11 +560,16 @@ export interface RendererAvatarAnimationInfo {
 
 export interface RendererRemoteInterpolationInfo {
   readonly mode: "snapshot_buffer"
+  readonly source: "server_snapshot_stream"
   readonly interpolationDelayMs: number
   readonly extrapolationLimitMs: number
   readonly bufferedSnapshotCount: number
+  readonly bufferedWindowMs: number
   readonly renderTimeMs: number
   readonly latestSnapshotAgeMs: number
+  readonly latestSnapshotTick?: number
+  readonly latestSnapshotServerTime?: number
+  readonly latestSnapshotReceivedAtMs?: number
   readonly extrapolating: boolean
   readonly snapping: boolean
   readonly velocity: Vector2

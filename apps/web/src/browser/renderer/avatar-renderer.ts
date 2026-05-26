@@ -81,6 +81,8 @@ interface RemoteAvatarSnapshot {
   readonly direction: Direction
   readonly movementMode: RenderedPlayer["movementMode"]
   readonly receivedAtMs: number
+  readonly snapshotTick?: number
+  readonly snapshotServerTime?: number
 }
 
 const VISUAL_FACING_POSES: Record<AvatarVisualFacing, AvatarPoseState> = {
@@ -368,6 +370,9 @@ class AvatarView {
   private remoteVelocity: Vector2 = { x: 0, y: 0 }
   private remoteRenderTimeMs = 0
   private remoteLatestSnapshotAgeMs = 0
+  private remoteLatestSnapshotTick?: number
+  private remoteLatestSnapshotServerTime?: number
+  private remoteLatestSnapshotReceivedAtMs?: number
   private remoteExtrapolating = false
   private remoteSnapping = false
   private lastPosition: Vector2
@@ -431,9 +436,14 @@ class AvatarView {
           position: player.position,
           direction: player.direction,
           movementMode: player.movementMode ?? "walk",
-          receivedAtMs: scene.time.now - REMOTE_INTERPOLATION_DELAY_MS,
+          receivedAtMs:
+            player.snapshotReceivedAtMs ??
+            scene.time.now - REMOTE_INTERPOLATION_DELAY_MS,
+          snapshotTick: player.snapshotTick,
+          snapshotServerTime: player.snapshotServerTime,
         },
       ]
+      this.observeRemoteSnapshotTiming(player, this.remoteSnapshots[0].receivedAtMs)
     }
     this.visualRoot = scene.add.container(0, 0)
     this.bodyRoot = scene.add.container(0, 0)
@@ -786,8 +796,9 @@ class AvatarView {
   }
 
   private enqueueRemoteSnapshot(player: RenderedPlayer): void {
-    const nowMs = this.scene.time.now
+    const nowMs = player.snapshotReceivedAtMs ?? this.scene.time.now
     const latest = this.remoteSnapshots.at(-1)
+    this.observeRemoteSnapshotTiming(player, nowMs)
 
     if (!latest) {
       this.remoteSnapshots = [
@@ -796,6 +807,8 @@ class AvatarView {
           direction: player.direction,
           movementMode: player.movementMode ?? "walk",
           receivedAtMs: nowMs - REMOTE_INTERPOLATION_DELAY_MS,
+          snapshotTick: player.snapshotTick,
+          snapshotServerTime: player.snapshotServerTime,
         },
       ]
       return
@@ -821,6 +834,8 @@ class AvatarView {
           direction: player.direction,
           movementMode: player.movementMode ?? "walk",
           receivedAtMs: nowMs - REMOTE_INTERPOLATION_DELAY_MS,
+          snapshotTick: player.snapshotTick,
+          snapshotServerTime: player.snapshotServerTime,
         },
       ]
       this.remoteVelocity = { x: 0, y: 0 }
@@ -835,6 +850,8 @@ class AvatarView {
       direction: player.direction,
       movementMode: player.movementMode ?? "walk",
       receivedAtMs: nowMs,
+      snapshotTick: player.snapshotTick,
+      snapshotServerTime: player.snapshotServerTime,
     })
     this.remoteSnapshots.splice(
       0,
@@ -849,7 +866,9 @@ class AvatarView {
     this.remoteRenderTimeMs = Math.round(renderTimeMs)
     this.remoteLatestSnapshotAgeMs = Math.max(
       0,
-      Math.round(nowMs - (this.remoteSnapshots.at(-1)?.receivedAtMs ?? nowMs)),
+      Math.round(
+        nowMs - (this.remoteLatestSnapshotReceivedAtMs ?? nowMs),
+      ),
     )
 
     while (
@@ -908,17 +927,43 @@ class AvatarView {
   }
 
   private remoteInterpolationInfo(): RendererAvatarPlayerInfo["remoteInterpolation"] {
+    const firstSnapshot = this.remoteSnapshots[0]
+    const latestBufferedSnapshot = this.remoteSnapshots.at(-1)
+    const bufferedWindowMs =
+      firstSnapshot && latestBufferedSnapshot
+        ? Math.max(
+            0,
+            Math.round(
+              latestBufferedSnapshot.receivedAtMs - firstSnapshot.receivedAtMs,
+            ),
+          )
+        : 0
+
     return {
       mode: "snapshot_buffer",
+      source: "server_snapshot_stream",
       interpolationDelayMs: REMOTE_INTERPOLATION_DELAY_MS,
       extrapolationLimitMs: REMOTE_EXTRAPOLATION_LIMIT_MS,
       bufferedSnapshotCount: this.remoteSnapshots.length,
+      bufferedWindowMs,
       renderTimeMs: this.remoteRenderTimeMs,
       latestSnapshotAgeMs: this.remoteLatestSnapshotAgeMs,
+      latestSnapshotTick: this.remoteLatestSnapshotTick,
+      latestSnapshotServerTime: this.remoteLatestSnapshotServerTime,
+      latestSnapshotReceivedAtMs: this.remoteLatestSnapshotReceivedAtMs,
       extrapolating: this.remoteExtrapolating,
       snapping: this.remoteSnapping,
       velocity: roundedVector(this.remoteVelocity),
     }
+  }
+
+  private observeRemoteSnapshotTiming(
+    player: RenderedPlayer,
+    receivedAtMs: number,
+  ): void {
+    this.remoteLatestSnapshotTick = player.snapshotTick
+    this.remoteLatestSnapshotServerTime = player.snapshotServerTime
+    this.remoteLatestSnapshotReceivedAtMs = receivedAtMs
   }
 
   private showRejected(direction: Direction): void {

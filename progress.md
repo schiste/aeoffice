@@ -980,3 +980,33 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   visually inspected. The standalone develop-web-game client was attempted
   against the local dev host on port 8108 but still fails before navigation
   because it cannot resolve `playwright` from the skill runtime.
+- Realtime simulation core telemetry is now explicit across protocol, server,
+  client transport, renderer, and `render_game_to_text`. `world_snapshot`
+  messages include fixed-tick authority, latest-intent input coalescing,
+  queued-client count, processed move count, dropped move count, max queue
+  depth, and latest input age. The browser reports snapshot cadence, snapshot
+  age, server tick Hz, and the same input stats.
+- Remote avatar interpolation now carries snapshot tick/server-time/receive-time
+  metadata from the WebSocket snapshot stream into the Phaser avatar buffer.
+  `render_game_to_text.avatars.players[].remoteInterpolation` exposes
+  `source: "server_snapshot_stream"`, buffered window duration, latest snapshot
+  tick/server time, and latest snapshot age so automation can distinguish
+  real snapshot buffering from direct position jumps.
+- Client prediction telemetry now names the actual game-network model:
+  sequence-numbered input history, authoritative player-state/world-snapshot
+  acks, rewind/replay/blend reconciliation, and visual-only correction after
+  replay. `render_game_to_text.movement.simulation` reports server authority,
+  fixed tick, WebSocket intent stream/fallback mode, input coalescing, client
+  reconciliation, and remote snapshot-buffer interpolation.
+- Verification passed after the realtime simulation core slice:
+  `npm --workspace @aedventure/protocol run build`,
+  `npm --workspace @aedventure/world-server run build`,
+  `npm --workspace @aedventure/web run build`,
+  `node apps/world-server/test/authoritative-world.test.js`,
+  `node --check scripts/frontend-smoke.test.cjs`, `git diff --check`,
+  `npm run smoke:frontend`, `npm run qa:renderer`, `npm run qa:responsive`,
+  and `npm run check`. Renderer and responsive desktop/mobile screenshots were
+  visually inspected. The local dev host was restarted on port 8108 with the
+  rebuilt stack. The required standalone develop-web-game client was attempted
+  against `http://127.0.0.1:8108/app`, but it still fails before navigation
+  because the skill runtime cannot resolve `playwright`.

@@ -210,6 +210,15 @@ type ServerMessage =
       readonly tick: number
       readonly tickMs: number
       readonly serverTime: number
+      readonly inputStats: {
+        readonly authority: "server_authoritative_fixed_tick"
+        readonly inputCoalescing: "latest_intent_per_client_per_tick"
+        readonly queuedClientCount: number
+        readonly processedMoveCount: number
+        readonly droppedMoveCount: number
+        readonly maxQueueDepth: number
+        readonly latestInputAgeMs?: number
+      }
       readonly players: readonly {
         readonly playerId: string
         readonly userId?: string
@@ -261,6 +270,9 @@ interface PlayerSnapshot {
   readonly movementMode?: MovementMode
   readonly cameraMotion?: RendererCameraFollowMotion
   readonly rejected?: boolean
+  readonly snapshotTick?: number
+  readonly snapshotServerTime?: number
+  readonly snapshotReceivedAtMs?: number
 }
 
 interface AppState {
@@ -3399,6 +3411,9 @@ function upsertRenderedPlayer(player: PlayerSnapshot): void {
     cameraMotion: local
       ? player.cameraMotion ?? cameraMotionFromSnapshot(clientMotion.snapshot())
       : undefined,
+    snapshotTick: player.snapshotTick,
+    snapshotServerTime: player.snapshotServerTime,
+    snapshotReceivedAtMs: player.snapshotReceivedAtMs,
     local,
     rejected: player.rejected,
   })
@@ -3506,6 +3521,7 @@ function applyRealtimeWorldSnapshot(
   message: Extract<ServerMessage, { type: "world_snapshot" }>,
 ): void {
   const snapshotIds = new Set(message.players.map((player) => player.playerId))
+  const snapshotReceivedAtMs = performance.now()
   state.snapshotPlayerIds = [...snapshotIds]
   state.companion.joined = snapshotIds.has(state.companion.playerId)
 
@@ -3537,6 +3553,9 @@ function applyRealtimeWorldSnapshot(
       position,
       direction: player.direction,
       movementMode: player.movementMode,
+      snapshotTick: message.tick,
+      snapshotServerTime: message.serverTime,
+      snapshotReceivedAtMs,
     })
   }
 
@@ -5666,6 +5685,10 @@ function movementPredictionTextState() {
 
   return {
     mode: "client_prediction_server_reconciliation",
+    reconciliationModel: "rewind_replay_blend",
+    historyModel: "sequence_numbered_input_history",
+    authoritativeSource: "player_state_or_world_snapshot_ack",
+    visualCorrectionModel: "blend_remaining_error_after_replay",
     maxStepMs: CLIENT_PREDICTION_MAX_STEP_MS,
     historyLimit: CLIENT_INPUT_HISTORY_LIMIT,
     collisionBody: {
@@ -5678,6 +5701,8 @@ function movementPredictionTextState() {
     seq: prediction.active?.seq,
     pendingCount: prediction.pending.length,
     pendingSeqs: prediction.pending.map((pending) => pending.seq),
+    historySeqs: prediction.pending.map((pending) => pending.seq),
+    pendingWindowSize: prediction.pending.length,
     direction: prediction.active?.direction,
     movementMode: prediction.active?.movementMode,
     lastSeq: prediction.last?.seq,
@@ -5913,15 +5938,27 @@ function renderDemoToText(): string {
         mode: realtime.status === "open"
           ? "websocket_fixed_tick_snapshot_stream"
           : "http_request_response_fallback",
+        authority: "server_authoritative",
+        serverTickModel: "fixed_tick",
+        inputTransport: realtime.status === "open"
+          ? "websocket_intent_stream"
+          : "http_request_response",
+        inputCoalescing:
+          realtime.inputStats?.inputCoalescing ??
+          "latest_intent_per_client_per_tick",
+        clientReconciliation: "rewind_replay_blend",
+        remoteInterpolation: "snapshot_buffer_delay",
         inputHz: Number((1000 / MOVE_REPEAT_MS).toFixed(1)),
         clientInputMs: MOVE_REPEAT_MS,
         serverTickMs: realtime.serverTickMs,
-        serverHz: realtime.serverTickMs
-          ? Number((1000 / realtime.serverTickMs).toFixed(1))
-          : undefined,
+        serverHz: realtime.serverTickHz,
         snapshotCount: realtime.snapshotCount,
         lastSnapshotTick: realtime.lastSnapshotTick,
         lastSnapshotServerTime: realtime.lastSnapshotServerTime,
+        lastSnapshotReceivedAtMs: realtime.lastSnapshotReceivedAtMs,
+        latestSnapshotAgeMs: realtime.latestSnapshotAgeMs,
+        snapshotCadenceMs: realtime.snapshotCadenceMs,
+        inputStats: realtime.inputStats,
       },
       motion: clientMotionTextState(),
       feel: movementFeelTextState(),

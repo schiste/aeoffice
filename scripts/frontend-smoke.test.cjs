@@ -676,11 +676,49 @@ function assertRenderStateContract(state) {
   assert.equal(typeof state.movement?.realtime?.receivedCount, "number")
   assert.equal(typeof state.movement?.realtime?.fallbackCount, "number")
   assert.equal(typeof state.movement?.realtime?.snapshotCount, "number")
+  if (state.movement?.realtime?.snapshotCount > 0) {
+    assert.equal(typeof state.movement.realtime.serverTickHz, "number")
+    assert.equal(typeof state.movement.realtime.inputStats?.authority, "string")
+    assert.equal(
+      state.movement.realtime.inputStats?.inputCoalescing,
+      "latest_intent_per_client_per_tick",
+    )
+    assert.equal(
+      typeof state.movement.realtime.inputStats?.processedMoveCount,
+      "number",
+    )
+    assert.equal(
+      typeof state.movement.realtime.inputStats?.droppedMoveCount,
+      "number",
+    )
+  }
   assert.equal(typeof state.movement?.simulation?.mode, "string")
+  assert.equal(state.movement?.simulation?.authority, "server_authoritative")
+  assert.equal(state.movement?.simulation?.serverTickModel, "fixed_tick")
+  assert.equal(
+    state.movement?.simulation?.inputCoalescing,
+    "latest_intent_per_client_per_tick",
+  )
+  assert.equal(
+    state.movement?.simulation?.clientReconciliation,
+    "rewind_replay_blend",
+  )
+  assert.equal(
+    state.movement?.simulation?.remoteInterpolation,
+    "snapshot_buffer_delay",
+  )
   assert.equal(typeof state.movement?.simulation?.inputHz, "number")
   assert.equal(typeof state.movement?.simulation?.clientInputMs, "number")
   assert.equal(typeof state.movement?.simulation?.snapshotCount, "number")
   assert.equal(typeof state.movement?.prediction?.lastOutcome, "string")
+  assert.equal(
+    state.movement?.prediction?.reconciliationModel,
+    "rewind_replay_blend",
+  )
+  assert.equal(
+    state.movement?.prediction?.historyModel,
+    "sequence_numbered_input_history",
+  )
   assert.equal(typeof state.movement?.prediction?.totalPredicted, "number")
   assert.equal(typeof state.movement?.prediction?.totalConfirmed, "number")
   assert.equal(typeof state.movement?.prediction?.totalCorrected, "number")
@@ -1858,9 +1896,14 @@ async function assertAvatarSystemSmoke(page) {
       assert.equal(player.remoteInterpolation, undefined)
     } else {
       assert.equal(player.remoteInterpolation.mode, "snapshot_buffer")
+      assert.equal(
+        player.remoteInterpolation.source,
+        "server_snapshot_stream",
+      )
       assert.equal(typeof player.remoteInterpolation.interpolationDelayMs, "number")
       assert.equal(typeof player.remoteInterpolation.extrapolationLimitMs, "number")
       assert.equal(typeof player.remoteInterpolation.bufferedSnapshotCount, "number")
+      assert.equal(typeof player.remoteInterpolation.bufferedWindowMs, "number")
       assert.equal(typeof player.remoteInterpolation.extrapolating, "boolean")
       assert.equal(typeof player.remoteInterpolation.snapping, "boolean")
       assert.equal(typeof player.remoteInterpolation.velocity.x, "number")
@@ -1953,6 +1996,10 @@ async function assertAvatarSystemSmoke(page) {
   assert.ok(
     movingRemote.remoteInterpolation.latestSnapshotAgeMs >= 0,
     `Expected remote snapshot age telemetry, got ${JSON.stringify(movingRemote.remoteInterpolation)}.`,
+  )
+  assert.equal(
+    movingRemote.remoteInterpolation.source,
+    "server_snapshot_stream",
   )
 
   await waitForTextState(

@@ -473,6 +473,15 @@ assert.ok(tickSnapshotEvent)
 assert.equal(tickSnapshotEvent.type, "broadcast")
 assert.equal(tickSnapshotEvent.message.tick, 1)
 assert.equal(tickSnapshotEvent.message.tickMs, 250)
+assert.deepEqual(tickSnapshotEvent.message.inputStats, {
+  authority: "server_authoritative_fixed_tick",
+  inputCoalescing: "latest_intent_per_client_per_tick",
+  queuedClientCount: 1,
+  processedMoveCount: 1,
+  droppedMoveCount: 1,
+  maxQueueDepth: 2,
+  latestInputAgeMs: 130,
+})
 assert.equal(tickSnapshotEvent.message.players.length, 2)
 assert.deepEqual(
   tickSnapshotEvent.message.players.find(

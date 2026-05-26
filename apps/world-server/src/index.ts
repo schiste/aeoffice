@@ -14,6 +14,7 @@ import {
   type PlayerStateMessage,
   type ProtocolErrorMessage,
   type ServerMessage,
+  type WorldSnapshotInputStats,
   type WorldSnapshotMessage,
 } from "@aedventure/protocol"
 import {
@@ -471,6 +472,15 @@ interface QueuedMoveIntent {
   readonly receivedAtMs: number
 }
 
+const EMPTY_WORLD_SNAPSHOT_INPUT_STATS: WorldSnapshotInputStats = {
+  authority: "server_authoritative_fixed_tick",
+  inputCoalescing: "latest_intent_per_client_per_tick",
+  queuedClientCount: 0,
+  processedMoveCount: 0,
+  droppedMoveCount: 0,
+  maxQueueDepth: 0,
+}
+
 export class WorldAdmissionService {
   constructor(
     private readonly world: AuthoritativeWorld,
@@ -650,9 +660,18 @@ export class WorldRoomController {
     this.tickCount += 1
 
     const events: WorldRoomEvent[] = []
+    let queuedClientCount = 0
+    let processedMoveCount = 0
+    let droppedMoveCount = 0
+    let maxQueueDepth = 0
+    let latestInputAgeMs: number | undefined
 
     for (const [clientId, queued] of this.queuedMoveIntents) {
       if (queued.length === 0) continue
+
+      queuedClientCount += 1
+      maxQueueDepth = Math.max(maxQueueDepth, queued.length)
+      droppedMoveCount += Math.max(0, queued.length - 1)
 
       const latest = queued.at(-1)
       this.queuedMoveIntents.set(clientId, [])
@@ -661,6 +680,11 @@ export class WorldRoomController {
       const client = this.clients.get(clientId)
       if (!client) continue
 
+      processedMoveCount += 1
+      latestInputAgeMs = Math.max(
+        latestInputAgeMs ?? 0,
+        Math.max(0, nowMs - latest.receivedAtMs),
+      )
       const response = this.world.handleClientMessage(
         client.playerId,
         latest.message,
@@ -670,9 +694,28 @@ export class WorldRoomController {
     }
 
     if (this.clients.size > 0) {
+      const inputStats: WorldSnapshotInputStats =
+        latestInputAgeMs === undefined
+          ? {
+              authority: "server_authoritative_fixed_tick",
+              inputCoalescing: "latest_intent_per_client_per_tick",
+              queuedClientCount,
+              processedMoveCount,
+              droppedMoveCount,
+              maxQueueDepth,
+            }
+          : {
+              authority: "server_authoritative_fixed_tick",
+              inputCoalescing: "latest_intent_per_client_per_tick",
+              queuedClientCount,
+              processedMoveCount,
+              droppedMoveCount,
+              maxQueueDepth,
+              latestInputAgeMs,
+            }
       events.push({
         type: "broadcast",
-        message: this.snapshotMessage(nowMs),
+        message: this.snapshotMessage(nowMs, inputStats),
       })
     }
 
@@ -704,7 +747,10 @@ export class WorldRoomController {
     }
   }
 
-  private snapshotMessage(nowMs: number): WorldSnapshotMessage {
+  private snapshotMessage(
+    nowMs: number,
+    inputStats: WorldSnapshotInputStats = EMPTY_WORLD_SNAPSHOT_INPUT_STATS,
+  ): WorldSnapshotMessage {
     const players = this.world.listPlayers()
 
     return {
@@ -713,6 +759,7 @@ export class WorldRoomController {
       tick: this.tickCount,
       tickMs: this.world.tickMs(),
       serverTime: nowMs,
+      inputStats,
       players: players.map((player) => ({
         playerId: player.playerId,
         userId: player.userId,

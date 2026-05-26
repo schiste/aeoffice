@@ -66,12 +66,23 @@ export interface WorldSnapshotPlayer {
   readonly movementMode?: MovementMode
 }
 
+export interface WorldSnapshotInputStats {
+  readonly authority: "server_authoritative_fixed_tick"
+  readonly inputCoalescing: "latest_intent_per_client_per_tick"
+  readonly queuedClientCount: number
+  readonly processedMoveCount: number
+  readonly droppedMoveCount: number
+  readonly maxQueueDepth: number
+  readonly latestInputAgeMs?: number
+}
+
 export interface WorldSnapshotMessage {
   readonly type: "world_snapshot"
   readonly roomId: string
   readonly tick: number
   readonly tickMs: number
   readonly serverTime: number
+  readonly inputStats: WorldSnapshotInputStats
   readonly players: readonly WorldSnapshotPlayer[]
 }
 
