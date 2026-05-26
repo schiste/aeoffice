@@ -715,6 +715,7 @@ function assertRenderStateContract(state) {
     }
   }
   assert.equal(typeof state.map?.renderer, "string")
+  assertEngineArchitectureContract(state)
   assert.equal(typeof state.renderer?.requestedRenderer, "string")
   assert.equal(typeof state.renderer?.actualRenderer, "string")
   assert.equal(typeof state.renderer?.webgl?.available, "boolean")
@@ -798,6 +799,34 @@ function assertRenderStateContract(state) {
     "Expected effects.applied.ambientEffects in render_game_to_text.",
   )
   assertCameraStateContract(state)
+}
+
+function assertEngineArchitectureContract(state) {
+  assert.equal(state.engine?.source, "browser_engine_runtime")
+  assert.equal(state.engine?.renderer?.host, "RendererHost")
+  assert.equal(state.engine?.renderer?.scene, "OfficeScene")
+  assert.ok(
+    state.engine?.renderer?.modules?.includes("TilemapRenderer"),
+    `Expected TilemapRenderer module, got ${JSON.stringify(state.engine?.renderer)}.`,
+  )
+  assert.ok(
+    state.engine?.renderer?.modules?.includes("AvatarRenderer"),
+    `Expected AvatarRenderer module, got ${JSON.stringify(state.engine?.renderer)}.`,
+  )
+  assert.equal(state.engine?.controllers?.input, "InputController")
+  assert.equal(state.engine?.controllers?.worldSync, "WorldSyncController")
+  assert.equal(
+    state.engine?.boundaries?.phaserIsolatedBehindRendererHost,
+    true,
+  )
+  assert.equal(
+    state.engine?.boundaries?.inputStateOwnedOutsideDomEvents,
+    true,
+  )
+  assert.equal(
+    state.engine?.boundaries?.realtimeTransportOwnedByWorldSync,
+    true,
+  )
 }
 
 function assertCameraStateContract(state) {

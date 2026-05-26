@@ -38,11 +38,16 @@ import {
   movementCollisionBodySize,
   movementCollisionSlideOptions,
   normalizeMovementFeel,
-  shapeMovementVectorForFeel,
   type MovementFeelTuning,
   type MovementFeelTuningKey,
 } from "./movement-feel"
-import { WorldRealtimeTransport } from "./world-realtime-transport"
+import {
+  InputController,
+  clampMovementComponent,
+  type MovementControlIntent,
+  type MovementIntent,
+} from "./engine/input-controller"
+import { WorldSyncController } from "./engine/world-sync-controller"
 import {
   directionForMovementVector,
   isDirection,
@@ -305,49 +310,12 @@ interface AppState {
   pendingAction: Promise<void>
 }
 
-interface MovementInputState {
-  readonly pressedDirections: Direction[]
-  readonly pressedControls: MovementControlIntent[]
-  readonly joystick: MovementJoystickState
-  pendingIntent?: MovementIntent
-  timerId?: number
-  inFlight: boolean
-  lastRequestedDirection?: Direction
-  runToggled: boolean
-  shiftRunning: boolean
-}
-
-interface MovementIntent {
-  readonly vector: MovementVector
-  readonly direction: Direction
-  readonly movementMode: MovementMode
-}
-
 interface MovementReconciliationResult {
   readonly acknowledged: ClientMovementPrediction
   readonly authoritativePosition: Vector2
   readonly replayTarget: Vector2
   readonly replayCount: number
   readonly rejected: boolean
-}
-
-interface MovementControlIntent {
-  readonly id: number
-  readonly vector: MovementVector
-  readonly direction: Direction
-  readonly source: "dpad"
-  readonly button?: HTMLButtonElement
-}
-
-interface MovementJoystickState {
-  active: boolean
-  pointerId?: number
-  vector: MovementVector
-  direction?: Direction
-  magnitude: number
-  knob: Vector2
-  radiusPx: number
-  deadzonePx: number
 }
 
 interface ChatRecord {
@@ -580,28 +548,13 @@ const state: AppState = {
   lastMovementRejection: undefined,
   pendingAction: Promise.resolve(),
 }
-const movementInput: MovementInputState = {
-  pressedDirections: [],
-  pressedControls: [],
-  joystick: {
-    active: false,
-    pointerId: undefined,
-    vector: { x: 0, y: 0 },
-    direction: undefined,
-    magnitude: 0,
-    knob: { x: 0, y: 0 },
-    radiusPx: JOYSTICK_DEFAULT_RADIUS_PX,
-    deadzonePx: JOYSTICK_DEFAULT_RADIUS_PX * JOYSTICK_DEADZONE_RATIO,
-  },
-  pendingIntent: undefined,
-  timerId: undefined,
-  inFlight: false,
-  lastRequestedDirection: undefined,
-  runToggled: false,
-  shiftRunning: false,
-}
+const inputController = new InputController(state.movementFeel, {
+  joystickDefaultRadiusPx: JOYSTICK_DEFAULT_RADIUS_PX,
+  joystickDeadzoneRatio: JOYSTICK_DEADZONE_RATIO,
+})
+let movementTimerId: number | undefined
 const clientMotion = new ClientMotionController(state.movementFeel)
-const worldRealtime = new WorldRealtimeTransport((events) =>
+const worldSync = new WorldSyncController((events) =>
   applyEvents(events as readonly WorldEvent[]),
 )
 const recentEvents: string[] = []
@@ -744,7 +697,7 @@ elements.leaveMeeting.addEventListener("click", () => queueAction(() => leaveMee
 elements.toggleMic.addEventListener("click", () => toggleMic())
 elements.toggleCamera.addEventListener("click", () => toggleCamera())
 elements.runToggle.addEventListener("click", () => {
-  movementInput.runToggled = !movementInput.runToggled
+  inputController.toggleRun()
   renderMovementModeControl()
   requestMoveFromHeldInput()
 })
@@ -787,8 +740,8 @@ document.addEventListener("keydown", (event) => {
   if (eventTargetConsumesMovementKeys(event.target)) return
 
   if (event.key === "Shift") {
-    if (!movementInput.shiftRunning) {
-      movementInput.shiftRunning = true
+    if (!inputController.snapshot().shiftRunning) {
+      inputController.setShiftRunning(true)
       renderMovementModeControl()
       requestMoveFromHeldInput()
     }
@@ -811,7 +764,7 @@ document.addEventListener("keyup", (event) => {
   if (eventTargetConsumesMovementKeys(event.target)) return
 
   if (event.key === "Shift") {
-    movementInput.shiftRunning = false
+    inputController.setShiftRunning(false)
     renderMovementModeControl()
     requestMoveFromHeldInput()
     return
@@ -915,7 +868,7 @@ async function startDemo(): Promise<void> {
     state.position = playerSnapshotPosition(joined.player)
     state.direction = joined.player.direction ?? "down"
     resetClientMotion(state.position, state.direction)
-    worldRealtime.connect(state.clientId)
+    worldSync.connect(state.clientId)
     upsertRenderedPlayer(joined.player)
     renderPlayers()
     state.joined = true
@@ -1138,12 +1091,12 @@ async function resetDemo(
   state.lastChatBody = undefined
   state.lastMovementRejection = undefined
   state.serverProtocolMismatch = undefined
-  worldRealtime.disconnect()
+  worldSync.disconnect()
   state.players.clear()
   chatMessages.length = 0
   renderChatMessages()
   stopHeldMovement()
-  movementInput.runToggled = false
+  inputController.setRunToggled(false)
   renderMovementModeControl()
   setConnectionStatus("session", "idle", "Disconnected")
   setConnectionStatus("world", "idle", "Outside room")
@@ -1268,7 +1221,7 @@ async function move(
     seq,
   }
 
-  if (worldRealtime.send(state.clientId, message)) {
+  if (worldSync.send(state.clientId, message)) {
     logMovementDebug("realtime-send", `seq=${seq} transport=websocket`)
     return
   }
@@ -1447,28 +1400,28 @@ function installAnalogJoystick(): void {
 
     event.preventDefault()
     elements.joystick.setPointerCapture(event.pointerId)
-    movementInput.joystick.pointerId = event.pointerId
+    inputController.setJoystickPointer(event.pointerId)
     updateJoystickFromPointer(event, "down")
   })
   elements.joystick.addEventListener("pointermove", (event) => {
-    if (movementInput.joystick.pointerId !== event.pointerId) return
+    if (inputController.joystickPointerId() !== event.pointerId) return
 
     event.preventDefault()
     updateJoystickFromPointer(event, "move")
   })
   elements.joystick.addEventListener("pointerup", (event) => {
-    if (movementInput.joystick.pointerId !== event.pointerId) return
+    if (inputController.joystickPointerId() !== event.pointerId) return
 
     event.preventDefault()
     releaseJoystick("up", event.pointerId)
   })
   elements.joystick.addEventListener("pointercancel", (event) => {
-    if (movementInput.joystick.pointerId !== event.pointerId) return
+    if (inputController.joystickPointerId() !== event.pointerId) return
 
     releaseJoystick("cancel", event.pointerId)
   })
   elements.joystick.addEventListener("lostpointercapture", (event) => {
-    if (movementInput.joystick.pointerId !== event.pointerId) return
+    if (inputController.joystickPointerId() !== event.pointerId) return
 
     releaseJoystick("lost", event.pointerId)
   })
@@ -1510,16 +1463,19 @@ function updateJoystickFromPointer(
         }
   const direction =
     vector.x === 0 && vector.y === 0
-      ? movementInput.joystick.direction
+      ? inputController.snapshot().joystick.direction
       : directionForMovementVector(vector)
 
-  movementInput.joystick.active = magnitude > JOYSTICK_MIN_MAGNITUDE
-  movementInput.joystick.vector = vector
-  movementInput.joystick.direction = direction
-  movementInput.joystick.magnitude = Number(magnitude.toFixed(3))
-  movementInput.joystick.knob = knob
-  movementInput.joystick.radiusPx = radiusPx
-  movementInput.joystick.deadzonePx = deadzonePx
+  inputController.updateJoystick({
+    pointerId: event.pointerId,
+    vector,
+    direction,
+    magnitude,
+    knob,
+    radiusPx,
+    deadzonePx,
+    minMagnitude: JOYSTICK_MIN_MAGNITUDE,
+  })
   renderJoystickControl()
   logMovementDebug(
     `joystick-${phase}`,
@@ -1535,12 +1491,7 @@ function updateJoystickFromPointer(
 }
 
 function releaseJoystick(reason: "up" | "cancel" | "lost" | "reset", id?: number): void {
-  const previousVector = movementInput.joystick.vector
-  movementInput.joystick.active = false
-  movementInput.joystick.pointerId = undefined
-  movementInput.joystick.vector = { x: 0, y: 0 }
-  movementInput.joystick.magnitude = 0
-  movementInput.joystick.knob = { x: 0, y: 0 }
+  const previousVector = inputController.releaseJoystick()
   renderJoystickControl()
   logMovementDebug(
     "joystick-release",
@@ -1553,7 +1504,7 @@ function releaseJoystick(reason: "up" | "cancel" | "lost" | "reset", id?: number
 }
 
 function renderJoystickControl(): void {
-  const joystick = movementInput.joystick
+  const joystick = inputController.snapshot().joystick
 
   elements.joystick.dataset.active = joystick.active ? "true" : "false"
   elements.joystickKnob.style.setProperty("--joystick-x", `${joystick.knob.x}px`)
@@ -1591,17 +1542,13 @@ function isControlVectorComponent(value: number): value is -1 | 0 | 1 {
 }
 
 function pressDirection(direction: Direction): void {
-  releaseDirection(direction)
-  movementInput.pressedDirections.push(direction)
+  inputController.pressDirection(direction)
   startHeldMovement()
   requestMoveFromHeldInput()
 }
 
 function releaseDirection(direction: Direction): void {
-  const index = movementInput.pressedDirections.indexOf(direction)
-  if (index !== -1) {
-    movementInput.pressedDirections.splice(index, 1)
-  }
+  inputController.releaseDirection(direction)
 
   if (!hasHeldMovementInput()) {
     stopHeldMovementTimer()
@@ -1609,25 +1556,13 @@ function releaseDirection(direction: Direction): void {
 }
 
 function pressMovementControl(intent: MovementControlIntent): void {
-  releaseMovementControl(intent.id)
-  movementInput.pressedControls.push(intent)
-  if (intent.button) {
-    intent.button.dataset.active = "true"
-  }
+  inputController.pressControl(intent)
   startHeldMovement()
   requestMoveFromHeldInput()
 }
 
 function releaseMovementControl(id: number): void {
-  const index = movementInput.pressedControls.findIndex(
-    (intent) => intent.id === id,
-  )
-  if (index !== -1) {
-    const [intent] = movementInput.pressedControls.splice(index, 1)
-    if (intent?.button) {
-      delete intent.button.dataset.active
-    }
-  }
+  inputController.releaseControl(id)
 
   if (!hasHeldMovementInput()) {
     stopHeldMovementTimer()
@@ -1635,48 +1570,37 @@ function releaseMovementControl(id: number): void {
 }
 
 function startHeldMovement(): void {
-  if (movementInput.timerId !== undefined) return
+  if (movementTimerId !== undefined) return
 
-  movementInput.timerId = window.setInterval(() => {
+  movementTimerId = window.setInterval(() => {
     requestMoveFromHeldInput()
   }, MOVE_REPEAT_MS)
 }
 
 function stopHeldMovement(): void {
-  movementInput.pressedDirections.length = 0
-  movementInput.shiftRunning = false
-  movementInput.pressedControls.forEach((intent) => {
-    if (intent.button) {
-      delete intent.button.dataset.active
-    }
-  })
-  movementInput.pressedControls.length = 0
-  releaseJoystick("reset")
+  inputController.clearHeldInput()
   stopHeldMovementTimer()
+  renderJoystickControl()
   renderMovementModeControl()
 }
 
 function stopHeldMovementTimer(): void {
-  if (movementInput.timerId !== undefined) {
-    window.clearInterval(movementInput.timerId)
-    movementInput.timerId = undefined
+  if (movementTimerId !== undefined) {
+    window.clearInterval(movementTimerId)
+    movementTimerId = undefined
   }
 }
 
 function hasHeldMovementInput(): boolean {
-  return (
-    movementInput.pressedDirections.length > 0 ||
-    movementInput.pressedControls.length > 0 ||
-    activeJoystickIntent() !== undefined
-  )
+  return inputController.hasHeldInput()
 }
 
 function activeHeldDirection(): Direction | undefined {
-  return activeHeldMovementIntent()?.direction
+  return inputController.activeHeldDirection()
 }
 
 function activeMovementMode(): MovementMode {
-  return movementInput.runToggled || movementInput.shiftRunning ? "run" : "walk"
+  return inputController.activeMovementMode()
 }
 
 function renderMovementModeControl(): void {
@@ -1755,6 +1679,7 @@ function applyMovementFeelValue(
 
 function applyMovementFeel(nextFeel: MovementFeelTuning): void {
   state.movementFeel = normalizeMovementFeel(nextFeel)
+  inputController.setFeel(state.movementFeel)
   clientMotion.setFeel(state.movementFeel)
   renderMovementFeelPanel()
   scheduleDevelopmentMovementFeelSync()
@@ -1824,51 +1749,7 @@ function activeHeldMovementIntent():
       readonly movementMode: MovementMode
     }
   | undefined {
-  const pressed = new Set(movementInput.pressedDirections)
-  const joystickIntent = activeJoystickIntent()
-  const controlVector = movementInput.pressedControls.reduce(
-    (result, intent) => ({
-      x: clampMovementComponent(result.x + intent.vector.x),
-      y: clampMovementComponent(result.y + intent.vector.y),
-    }),
-    { x: 0, y: 0 },
-  )
-  const vector = {
-    x: clampMovementComponent(
-      controlVector.x +
-        (joystickIntent?.vector.x ?? 0) +
-        (pressed.has("right") ? 1 : 0) +
-        (pressed.has("left") ? -1 : 0),
-    ),
-    y: clampMovementComponent(
-      controlVector.y +
-        (joystickIntent?.vector.y ?? 0) +
-        (pressed.has("down") ? 1 : 0) +
-        (pressed.has("up") ? -1 : 0),
-    ),
-  }
-
-  if (vector.x === 0 && vector.y === 0) return undefined
-  const shapedVector = shapeMovementVectorForFeel(vector, state.movementFeel)
-  if (shapedVector.x === 0 && shapedVector.y === 0) return undefined
-  const orderedIntents = [
-    ...movementInput.pressedDirections.map((direction) => ({
-      direction,
-      vector: movementVectorForDirection(direction),
-    })),
-    ...movementInput.pressedControls,
-    ...(joystickIntent ? [joystickIntent] : []),
-  ]
-
-  return {
-    vector: shapedVector,
-    rawVector: vector,
-    movementMode: activeMovementMode(),
-    direction:
-      orderedIntents
-        .filter((intent) => vectorIncludesIntent(shapedVector, intent.vector))
-        .at(-1)?.direction ?? directionForMovementVector(shapedVector),
-  }
+  return inputController.activeHeldIntent()
 }
 
 function requestMoveFromHeldInput(): void {
@@ -1877,9 +1758,10 @@ function requestMoveFromHeldInput(): void {
     logMovementDebug("intent", "none")
     return
   }
+  const input = inputController.snapshot()
   logMovementDebug(
     "intent",
-    `vector=${formatMovementVector(intent.rawVector)} shaped=${formatMovementVector(intent.vector)} facing=${intent.direction} mode=${intent.movementMode} keys=${movementInput.pressedDirections.join("+") || "-"} pads=${movementInput.pressedControls.length} joystick=${movementInput.joystick.active ? formatMovementVector(movementInput.joystick.vector) : "-"}`,
+    `vector=${formatMovementVector(intent.rawVector)} shaped=${formatMovementVector(intent.vector)} facing=${intent.direction} mode=${intent.movementMode} keys=${input.pressedDirections.join("+") || "-"} pads=${input.pressedControls.length} joystick=${input.joystick.active ? formatMovementVector(input.joystick.vector) : "-"}`,
   )
   requestMove(intent.vector, intent.direction, intent.movementMode)
 }
@@ -1891,42 +1773,7 @@ function activeJoystickIntent():
       readonly source: "joystick"
     }
   | undefined {
-  const joystick = movementInput.joystick
-
-  if (!joystick.active || joystick.magnitude <= JOYSTICK_MIN_MAGNITUDE) {
-    return undefined
-  }
-  if (joystick.vector.x === 0 && joystick.vector.y === 0) return undefined
-
-  return {
-    vector: joystick.vector,
-    direction: joystick.direction ?? directionForMovementVector(joystick.vector),
-    source: "joystick",
-  }
-}
-
-function vectorIncludesIntent(
-  vector: MovementVector,
-  intentVector: MovementVector,
-): boolean {
-  return (
-    vectorComponentIncludesIntent(vector.x, intentVector.x) &&
-    vectorComponentIncludesIntent(vector.y, intentVector.y) &&
-    (intentVector.x !== 0 || intentVector.y !== 0)
-  )
-}
-
-function vectorComponentIncludesIntent(
-  value: number,
-  intentValue: number,
-): boolean {
-  return intentValue === 0 || Math.sign(value) === Math.sign(intentValue)
-}
-
-function clampMovementComponent(value: number): number {
-  if (value < -1) return -1
-  if (value > 1) return 1
-  return Number(value.toFixed(3))
+  return inputController.activeJoystickIntent()
 }
 
 function requestMove(
@@ -1942,8 +1789,8 @@ function requestMove(
     return
   }
   primeClientMotionIntent({ vector, direction, movementMode })
-  if (worldRealtime.canStream(state.clientId)) {
-    movementInput.lastRequestedDirection = direction
+  if (worldSync.canStream(state.clientId)) {
+    inputController.markRequestStarted(direction)
     void move(vector, direction, movementMode).catch((error: unknown) => {
       recordEvent(`Movement failed: ${technicalErrorDetail(error)}`)
       publishToast(friendlyActionError(error), "error")
@@ -1951,8 +1798,8 @@ function requestMove(
     return
   }
 
-  if (movementInput.inFlight) {
-    movementInput.pendingIntent = { vector, direction, movementMode }
+  if (inputController.isInFlight()) {
+    inputController.queuePendingIntent({ vector, direction, movementMode })
     logMovementDebug(
       "queue",
       `in_flight vector=${formatMovementVector(vector)} facing=${direction} mode=${movementMode}`,
@@ -1960,17 +1807,16 @@ function requestMove(
     return
   }
 
-  movementInput.inFlight = true
-  movementInput.lastRequestedDirection = direction
+  inputController.setInFlight(true)
+  inputController.markRequestStarted(direction)
   void move(vector, direction, movementMode)
     .catch((error: unknown) => {
       recordEvent(`Movement failed: ${technicalErrorDetail(error)}`)
       publishToast(friendlyActionError(error), "error")
     })
     .finally(() => {
-      movementInput.inFlight = false
-      const pendingIntent = movementInput.pendingIntent
-      movementInput.pendingIntent = undefined
+      inputController.setInFlight(false)
+      const pendingIntent = inputController.consumePendingIntent()
       if (pendingIntent) {
         logMovementDebug(
           "dequeue",
@@ -3361,7 +3207,7 @@ function applyMovementRejection(
   const position = { x: message.x, y: message.y }
   const direction =
     message.playerId === state.playerId
-      ? movementInput.lastRequestedDirection ?? state.direction
+      ? inputController.lastDirectionOr(state.direction)
       : message.playerId === state.companion.playerId
         ? state.companion.direction
         : "down"
@@ -4136,7 +3982,7 @@ function recoverFromWorldLoss(reason: string): void {
   state.meetingZoneId = undefined
   state.mediaRequestPending = false
   state.lastMovementRejection = undefined
-  worldRealtime.disconnect()
+  worldSync.disconnect()
   clearMediaSession()
   chatMessages.length = 0
   renderChatMessages()
@@ -5011,7 +4857,7 @@ function movementFeelTextState() {
 }
 
 function joystickTextState() {
-  const joystick = movementInput.joystick
+  const joystick = inputController.snapshot().joystick
 
   return {
     available: true,
@@ -5039,7 +4885,8 @@ function roundedVector(position: Vector2): Vector2 {
 
 function renderDemoToText(): string {
   const overlay = stageOverlayContent()
-  const realtime = worldRealtime.snapshot()
+  const realtime = worldSync.snapshot()
+  const input = inputController.snapshot()
 
   return JSON.stringify({
     coordinateSystem: "pixel origin top-left, x right, y down",
@@ -5110,13 +4957,13 @@ function renderDemoToText(): string {
     movement: {
       heldDirection: activeHeldDirection(),
       heldVector: activeHeldMovementIntent()?.vector,
-      pendingVector: movementInput.pendingIntent?.vector,
-      pendingDirection: movementInput.pendingIntent?.direction,
-      pendingMovementMode: movementInput.pendingIntent?.movementMode,
+      pendingVector: input.pendingIntent?.vector,
+      pendingDirection: input.pendingIntent?.direction,
+      pendingMovementMode: input.pendingIntent?.movementMode,
       movementMode: activeMovementMode(),
-      runToggled: movementInput.runToggled,
-      shiftRunning: movementInput.shiftRunning,
-      inFlight: movementInput.inFlight,
+      runToggled: input.runToggled,
+      shiftRunning: input.shiftRunning,
+      inFlight: input.inFlight,
       lastRejectedReason: state.lastMovementRejection?.reason,
       serverProtocolMismatch: state.serverProtocolMismatch,
       repeatMs: MOVE_REPEAT_MS,
@@ -5183,6 +5030,7 @@ function renderDemoToText(): string {
       })),
     },
     renderer: renderer.getCapabilityInfo(),
+    engine: engineArchitectureTextState(),
     devTools: {
       gated: state.devTools.gated,
       enabled: state.devTools.enabled,
@@ -5274,6 +5122,32 @@ function renderDemoToText(): string {
     ),
     recentEvents: recentEvents.slice(0, 6),
   })
+}
+
+function engineArchitectureTextState() {
+  return {
+    source: "browser_engine_runtime",
+    renderer: {
+      host: "RendererHost",
+      scene: "OfficeScene",
+      modules: [
+        "TilemapRenderer",
+        "ObjectRenderer",
+        "AvatarRenderer",
+        "ZoneRenderer",
+        "CameraController",
+      ],
+    },
+    controllers: {
+      input: "InputController",
+      worldSync: "WorldSyncController",
+    },
+    boundaries: {
+      phaserIsolatedBehindRendererHost: true,
+      inputStateOwnedOutsideDomEvents: true,
+      realtimeTransportOwnedByWorldSync: true,
+    },
+  }
 }
 
 function mustQuery<TElement extends Element>(selector: string): TElement {

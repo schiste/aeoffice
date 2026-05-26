@@ -144,6 +144,12 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   systems: the tuning model owns body radius, analog curve, and corner-slide
   assist, client prediction uses those values, and the development world server
   can receive matching movement tuning through a dev-only route.
+- Renderer/engine separation now has explicit browser-engine controllers:
+  `InputController` owns held keyboard/D-pad/joystick/run state and shaped
+  movement intents, while `WorldSyncController` owns the realtime transport
+  boundary. Existing Phaser modules remain split behind `RendererHost` /
+  `OfficeScene`, and `render_game_to_text.engine` exposes the architecture for
+  automation.
 - Meeting-zone interactions now use the compiled map zones in the browser app:
   the Phaser renderer highlights the active zone, the app exposes Join/Leave
   meeting controls outside the canvas, and media is no longer auto-joined when

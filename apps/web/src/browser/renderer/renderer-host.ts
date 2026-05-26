@@ -309,3 +309,5 @@ export class PhaserOfficeRenderer {
 
   private resolveReady: (scene: OfficeScene) => void = () => undefined
 }
+
+export { PhaserOfficeRenderer as RendererHost }

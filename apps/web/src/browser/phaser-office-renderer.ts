@@ -1,4 +1,4 @@
-export { PhaserOfficeRenderer } from "./renderer/renderer-host"
+export { PhaserOfficeRenderer, RendererHost } from "./renderer/renderer-host"
 export type {
   AvatarEmoteId,
   Direction,
