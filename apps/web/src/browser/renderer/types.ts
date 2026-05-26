@@ -760,6 +760,14 @@ export interface RendererAvatarPlayerInfo {
   readonly labelTextureFilter: "linear"
   readonly labelScreenScale: number
   readonly emoteId?: AvatarEmoteId
+  readonly emoteOverlay: {
+    readonly visible: boolean
+    readonly anchor: "label_top_right"
+    readonly x: number
+    readonly y: number
+    readonly size: number
+    readonly scale: number
+  }
   readonly cosmeticSlots: readonly AvatarCosmeticSlot[]
   readonly cosmetics: Partial<Record<AvatarCosmeticSlot, string>>
 }

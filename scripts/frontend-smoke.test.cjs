@@ -2088,6 +2088,13 @@ async function assertAvatarSystemSmoke(page) {
       `Expected 8-way visual facing state, got ${JSON.stringify(player.animation)}.`,
     )
     assert.equal(typeof player.animation.poseBlendActive, "boolean")
+    assert.equal(player.emoteOverlay.anchor, "label_top_right")
+    assert.equal(player.emoteOverlay.size, 18)
+    assert.equal(typeof player.emoteOverlay.visible, "boolean")
+    assert.ok(
+      player.emoteOverlay.x >= 32 && player.emoteOverlay.y <= -48,
+      `Expected emote overlay to sit above the label edge, got ${JSON.stringify(player.emoteOverlay)}.`,
+    )
     assert.ok(
       player.labelBounds.width * avatarState.camera.effectiveZoom >= 48,
       `Expected readable screen-space label width, got ${player.labelBounds.width} at zoom ${avatarState.camera.effectiveZoom}.`,
@@ -2101,6 +2108,8 @@ async function assertAvatarSystemSmoke(page) {
   assert.equal(localAvatar.interpolationProfile, "local")
   assert.equal(remoteAvatar.interpolationProfile, "remote")
   assert.equal(remoteAvatar.emoteId, "wave")
+  assert.equal(remoteAvatar.emoteOverlay.visible, true)
+  assert.equal(remoteAvatar.emoteOverlay.anchor, "label_top_right")
   await assertNonBlankMapScreenshot(page)
 
   await page.evaluate(async () => {
@@ -2261,7 +2270,9 @@ async function assertAvatarSystemSmoke(page) {
     page,
     (state) =>
       state.avatars.players.find((player) => player.playerId === "avatar-violet")
-        ?.emoteId === "raise_hand",
+        ?.emoteId === "raise_hand" &&
+      state.avatars.players.find((player) => player.playerId === "avatar-violet")
+        ?.emoteOverlay.visible === true,
   )
 
   const gallery = await page.evaluate(async () => {

@@ -160,6 +160,16 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   all passed. The avatar preview gallery screenshot was inspected and shows all
   128 avatar/state/facing combinations. The standalone develop-web-game client
   remains blocked by its skill-local missing `playwright` ESM dependency.
+- Generated placeholder avatar art was polished: fallback sprite frames now draw
+  stronger shadows, feet, arms, jacket seams, hair/ear details, and clearer
+  diagonal face cues, with walk/run-specific stride, squash, lift, and arm
+  swing. Emote bubbles now anchor to the label's top-right edge, scale with the
+  camera-aware label system, and expose overlay geometry in renderer telemetry.
+- Verification passed for the placeholder-art polish: web build,
+  frontend smoke, Phaser renderer QA, responsive QA, and full `npm run check`
+  passed. Fresh desktop/mobile and avatar preview gallery screenshots were
+  inspected. The standalone develop-web-game client still cannot run because
+  its skill-local Playwright dependency is missing.
 - Meeting-zone interactions now use the compiled map zones in the browser app:
   the Phaser renderer highlights the active zone, the app exposes Join/Leave
   meeting controls outside the canvas, and media is no longer auto-joined when

@@ -58,6 +58,8 @@ const LABEL_TEXT_RESOLUTION = 4
 const LABEL_TEXTURE_FILTER = "linear" as const
 const LABEL_SCREEN_SCALE_MIN = 0.72
 const LABEL_SCREEN_SCALE_MAX = 1.08
+const EMOTE_BUBBLE_SIZE = 18
+const EMOTE_LABEL_GAP = 8
 const POSE_BLEND_DURATION_MS = 96
 const TURN_BLEND_DURATION_MS = 138
 const REMOTE_INTERPOLATION_DELAY_MS = 115
@@ -543,9 +545,16 @@ class AvatarView {
     this.labelBack.setStrokeStyle(1, palette.torso, 0.65)
     this.labelTail = scene.add.triangle(0, -21, -4, 0, 4, 0, 0, 5, 0xfffdf7, 0.93)
     this.labelTail.setStrokeStyle(1, palette.torso, 0.55)
-    this.emoteBack = scene.add.ellipse(12, -38, 18, 18, 0xfffdf7, 0.96)
+    this.emoteBack = scene.add.ellipse(
+      0,
+      0,
+      EMOTE_BUBBLE_SIZE,
+      EMOTE_BUBBLE_SIZE,
+      0xfffdf7,
+      0.96,
+    )
     this.emoteBack.setStrokeStyle(1, palette.accent, 0.72)
-    this.emoteText = scene.add.text(12, -39, "", {
+    this.emoteText = scene.add.text(0, 0, "", {
       color: "#20201d",
       fontFamily: "Aptos, Segoe UI, sans-serif",
       fontSize: "13px",
@@ -558,6 +567,7 @@ class AvatarView {
     this.emoteText.setOrigin(0.5, 0.5)
     this.emoteBack.setVisible(false)
     this.emoteText.setVisible(false)
+    this.positionEmoteOverlay()
 
     this.focusTarget.add(this.visualRoot)
     this.bodyRoot.add([
@@ -787,11 +797,10 @@ class AvatarView {
     this.applySmoothTextTexture(this.emoteText)
     this.emoteBack.setAlpha(0.96)
     this.emoteText.setAlpha(1)
-    this.emoteBack.setPosition(12, -38)
-    this.emoteText.setPosition(12, -39)
+    this.positionEmoteOverlay()
     this.emoteTween = this.scene.tweens.add({
       targets: [this.emoteBack, this.emoteText],
-      y: "-=7",
+      y: "-=8",
       alpha: 0,
       duration: emote.durationMs,
       ease: "Sine.easeOut",
@@ -890,6 +899,14 @@ class AvatarView {
       labelTextureFilter: LABEL_TEXTURE_FILTER,
       labelScreenScale: this.currentLabelScale(),
       emoteId: this.currentEmoteId,
+      emoteOverlay: {
+        visible: this.emoteBack.visible,
+        anchor: "label_top_right",
+        x: Math.round(this.emoteBack.x),
+        y: Math.round(this.emoteBack.y),
+        size: EMOTE_BUBBLE_SIZE,
+        scale: Number(this.currentLabelScale().toFixed(2)),
+      },
       cosmeticSlots: this.appearance.cosmeticSlots,
       cosmetics: this.cosmetics,
     }
@@ -1336,6 +1353,7 @@ class AvatarView {
     this.labelShadow.setPosition(1, pose.labelY + 2)
     this.labelBack.setPosition(0, pose.labelY)
     this.labelTail.setPosition(0, pose.labelY + 10)
+    this.positionEmoteOverlay()
     this.applyCameraAwareLabelScale()
   }
 
@@ -1344,6 +1362,7 @@ class AvatarView {
 
     this.labelShadow.setSize(width, 17)
     this.labelBack.setSize(width, 17)
+    this.positionEmoteOverlay()
   }
 
   private startIdleTween(
@@ -1510,8 +1529,18 @@ class AvatarView {
     this.labelShadow.setScale(scale)
     this.labelBack.setScale(scale)
     this.labelTail.setScale(scale)
+    this.emoteBack.setScale(scale)
+    this.emoteText.setScale(scale)
     this.label.setResolution(LABEL_TEXT_RESOLUTION)
     this.emoteText.setResolution(LABEL_TEXT_RESOLUTION)
+  }
+
+  private positionEmoteOverlay(): void {
+    const x = clamp(this.labelWidth / 2 + EMOTE_LABEL_GAP, 32, 78)
+    const y = this.poseState.labelY - EMOTE_BUBBLE_SIZE / 2 - EMOTE_LABEL_GAP - 2
+
+    this.emoteBack.setPosition(x, y)
+    this.emoteText.setPosition(x, y - 1)
   }
 
   private currentLabelScale(): number {
