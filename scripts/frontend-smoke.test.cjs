@@ -1913,6 +1913,10 @@ async function assertAvatarSystemSmoke(page) {
     avatarState.avatars.previewFixtures.length >= 128,
     "Expected avatar preview fixtures to cover avatar/state/visual-facing combinations.",
   )
+  assert.equal(
+    avatarState.devTools.availableFixtureIds.includes("avatar_preview_gallery"),
+    true,
+  )
   for (const facing of [
     "up",
     "upRight",
@@ -2117,6 +2121,83 @@ async function assertAvatarSystemSmoke(page) {
       state.avatars.players.find((player) => player.playerId === "avatar-violet")
         ?.emoteId === "raise_hand",
   )
+
+  const gallery = await page.evaluate(async () => {
+    if (!window.__aedventureRendererTest?.renderAvatarPreviewGallery) {
+      throw new Error("Missing avatar preview gallery test API.")
+    }
+
+    return window.__aedventureRendererTest.renderAvatarPreviewGallery()
+  })
+  await page.evaluate(() => window.advanceTime())
+
+  const galleryState = await waitForTextState(
+    page,
+    (state) =>
+      state.map?.label === "Avatar preview gallery" &&
+      state.avatars.players.length === 128 &&
+      state.avatars.players.some(
+        (player) =>
+          player.animation.action === "run" &&
+          player.animation.visualFacing === "downRight",
+      ) &&
+      state.avatars.players.some(
+        (player) =>
+          player.animation.action === "turn" &&
+          player.animation.visualFacing === "upLeft",
+      ),
+    9000,
+  )
+
+  assert.equal(gallery.rows, 16)
+  assert.equal(gallery.columns, 8)
+  assert.deepEqual(gallery.avatarIds, ["ember", "cobalt", "moss", "violet"])
+  assert.deepEqual(gallery.actions, ["idle", "walk", "run", "turn"])
+  assert.deepEqual(gallery.visualFacings, [
+    "up",
+    "upRight",
+    "right",
+    "downRight",
+    "down",
+    "downLeft",
+    "left",
+    "upLeft",
+  ])
+  assert.equal(gallery.playerIds.length, 128)
+
+  const galleryActions = new Set(
+    galleryState.avatars.players.map((player) => player.animation.action),
+  )
+  const galleryFacings = new Set(
+    galleryState.avatars.players.map((player) => player.animation.visualFacing),
+  )
+
+  assert.deepEqual([...galleryActions].sort(), ["idle", "run", "turn", "walk"])
+  assert.deepEqual([...galleryFacings].sort(), [
+    "down",
+    "downLeft",
+    "downRight",
+    "left",
+    "right",
+    "up",
+    "upLeft",
+    "upRight",
+  ])
+  assert.ok(
+    galleryState.avatars.players.every(
+      (player) =>
+        player.animation.pipeline === "sprite_atlas_metadata" &&
+        player.animation.frameKey.startsWith(
+          player.animation.sprite.framePrefix,
+        ),
+    ),
+    "Expected every preview gallery avatar to render through sprite atlas frames.",
+  )
+  assert.ok(
+    galleryState.renderer.depth.playerCount >= 128,
+    `Expected renderer depth telemetry for all preview avatars, got ${galleryState.renderer.depth.playerCount}.`,
+  )
+  await assertNonBlankMapScreenshot(page)
 }
 
 async function assertZonePresentationSmoke(page) {

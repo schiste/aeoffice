@@ -388,6 +388,7 @@ class AvatarView {
   private appearance: AvatarAppearanceMetadata
   private animation: AvatarAnimationDefinition
   private visualFacing: AvatarVisualFacing
+  private animationPreview: RenderedPlayer["animationPreview"]
   private spriteVisualFacing: AvatarVisualFacing = "down"
   private spriteAnimationKey = ""
   private spriteAnimationStartedAtMs = 0
@@ -437,6 +438,7 @@ class AvatarView {
     this.lastDirection = player.direction
     this.lastMovementMode = player.movementMode ?? "walk"
     this.visualFacing = visualFacingForDirection(player.direction)
+    this.animationPreview = player.animationPreview
     this.poseState = renderedPoseFor(this.animation, this.visualFacing)
     this.cosmetics = player.cosmetics ?? {}
     this.focusTarget = scene.add.container(player.position.x, player.position.y)
@@ -587,19 +589,22 @@ class AvatarView {
     const directionChanged = player.direction !== this.lastDirection
     const movementMode = player.movementMode ?? "walk"
     const movementModeChanged = movementMode !== this.lastMovementMode
-    const nextAction: AvatarAnimationAction = moved
+    const previewAction = player.animationPreview?.action
+    const nextAction: AvatarAnimationAction = previewAction ?? (moved
       ? movementMode
       : directionChanged
         ? "turn"
-        : "idle"
+        : "idle")
     const visualFacingVector = snapshotMoved
       ? snapshotDelta
       : this.remoteVelocity
-    const nextVisualFacing = moved && vectorLength(visualFacingVector) > 0.01
-      ? visualFacingForVector(visualFacingVector)
-      : directionChanged
-        ? visualFacingForDirection(player.direction)
-        : previousVisualFacing
+    const nextVisualFacing =
+      player.animationPreview?.visualFacing ??
+      (moved && vectorLength(visualFacingVector) > 0.01
+        ? visualFacingForVector(visualFacingVector)
+        : directionChanged
+          ? visualFacingForDirection(player.direction)
+          : previousVisualFacing)
     const nextAnimation = avatarAnimationDefinition(
       nextAvatarId,
       player.direction,
@@ -620,6 +625,7 @@ class AvatarView {
     this.appearance = nextAppearance
     this.animation = nextAnimation
     this.visualFacing = nextVisualFacing
+    this.animationPreview = player.animationPreview
     this.interpolationProfile = avatarInterpolationProfile(player.local)
     this.cosmetics = player.cosmetics ?? {}
     if (player.local) {
@@ -656,14 +662,19 @@ class AvatarView {
     this.applyCameraAwareLabelScale()
     this.focusTarget.setDepth(avatarDepth(this.focusTarget.y))
 
-    if (moved) {
+    if (moved || previewAction === "walk" || previewAction === "run") {
       if (player.local) {
         this.moveDirectlyTo(player.position)
-      } else {
+      } else if (moved) {
         this.applyRemoteInterpolation(this.scene.time.now)
       }
       this.startWalkTween(nextAnimation)
-    } else if (directionChanged || identityChanged || movementModeChanged) {
+    } else if (
+      previewAction ||
+      directionChanged ||
+      identityChanged ||
+      movementModeChanged
+    ) {
       this.cameraTarget.setPosition(player.position.x, player.position.y)
       if (nextAction === "turn") {
         this.startTurnTween(nextAnimation)
@@ -1267,9 +1278,13 @@ class AvatarView {
       scaleY: animation.bodyScaleY,
       duration: animation.durationMs,
       yoyo: true,
-      repeat: animation.repeat,
+      repeat: this.animationPreview?.action === animation.action
+        ? -1
+        : animation.repeat,
       ease: "Sine.easeInOut",
       onComplete: () => {
+        if (this.animationPreview?.action === animation.action) return
+
         const idleAnimation = avatarAnimationDefinition(
           this.avatarId,
           this.lastDirection,
@@ -1287,7 +1302,9 @@ class AvatarView {
       scaleY: animation.footScaleY,
       duration: Math.max(80, animation.durationMs - 15),
       yoyo: true,
-      repeat: animation.repeat,
+      repeat: this.animationPreview?.action === animation.action
+        ? -1
+        : animation.repeat,
       ease: "Sine.easeInOut",
     })
   }
@@ -1313,6 +1330,17 @@ class AvatarView {
       repeat: 0,
       ease: "Sine.easeInOut",
       onComplete: () => {
+        if (this.animationPreview?.action === "turn") {
+          this.bodyRoot.setAngle(0)
+          this.restartSpriteAnimation(
+            animation,
+            this.appearance,
+            this.visualFacing,
+          )
+          this.startTurnTween(animation)
+          return
+        }
+
         const idleAnimation = avatarAnimationDefinition(
           this.avatarId,
           this.lastDirection,

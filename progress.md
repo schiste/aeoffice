@@ -1058,3 +1058,24 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   inspected. The required standalone develop-web-game client was attempted
   against `http://127.0.0.1:8108/app`, but still fails before navigation
   because the skill runtime cannot resolve `playwright`.
+- Avatar animation preview now has a dev-only contact-sheet fixture available
+  through `__aedventureRendererTest.renderAvatarPreviewGallery()` and the gated
+  renderer fixture selector (`avatar_preview_gallery`). It renders all 4
+  avatars across idle/walk/run/turn and all 8 visual facings, while preserving
+  4-way server direction mapping through `animationPreview`.
+- The preview gallery is sized to fit inside the current minimum room zoom so
+  all 128 avatar previews, short labels, and edge walls are visible in one
+  renderer screenshot. The fixture is hidden from product UI and only exposed
+  through local automation/devtools.
+- Verification passed after the avatar preview gallery slice:
+  `npm --workspace @aedventure/web run build`,
+  `node --check scripts/frontend-smoke.test.cjs`,
+  `node --check scripts/renderer-qa.test.cjs`, `git diff --check`,
+  `npm run smoke:frontend`, `npm run qa:renderer`, `npm run qa:responsive`,
+  and `npm run check`. The renderer gallery screenshot was inspected at
+  `/var/folders/f2/krjzd4c15nn491pm37zrkp1h0000gn/T/aedventure-renderer-qa/avatar-preview-gallery-canvas.png`
+  and a targeted local screenshot was captured at
+  `/private/tmp/aedventure-avatar-preview-gallery.png`. The required
+  standalone develop-web-game client was attempted against
+  `http://127.0.0.1:8108/app`, but still fails before navigation because the
+  skill runtime cannot resolve `playwright`.

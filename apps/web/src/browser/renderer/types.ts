@@ -317,6 +317,10 @@ export interface RenderedPlayer {
   readonly avatarId?: string
   readonly cosmetics?: Partial<Record<AvatarCosmeticSlot, string>>
   readonly emoteId?: AvatarEmoteId
+  readonly animationPreview?: {
+    readonly action: AvatarAnimationAction
+    readonly visualFacing: AvatarVisualFacing
+  }
   readonly position: Vector2
   readonly direction: Direction
   readonly movementMode?: MovementMode

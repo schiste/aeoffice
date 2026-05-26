@@ -164,6 +164,41 @@ async function verifyRendererRuntime(browser, url, report) {
         depthStats,
       })
     }
+
+    const gallery = await page.evaluate(async () => {
+      if (!window.__aedventureRendererTest?.renderAvatarPreviewGallery) {
+        throw new Error("Missing avatar preview gallery API.")
+      }
+
+      return window.__aedventureRendererTest.renderAvatarPreviewGallery()
+    })
+    await page.evaluate(() => window.advanceTime())
+
+    const galleryState = await waitForTextState(
+      page,
+      (state) =>
+        state.map?.label === "Avatar preview gallery" &&
+        state.avatars.players.length === 128 &&
+        state.renderer.depth.playerCount >= 128 &&
+        state.avatars.players.some(
+          (player) =>
+            player.animation.action === "run" &&
+            player.animation.visualFacing === "downRight",
+        ) &&
+        rendererReadyForQa(state),
+      9000,
+    )
+    assertRendererSnapshot(galleryState)
+    assert.equal(gallery.rows, 16)
+    assert.equal(gallery.columns, 8)
+    assert.deepEqual(gallery.actions, ["idle", "walk", "run", "turn"])
+    assert.equal(gallery.playerIds.length, 128)
+    report.rendererSnapshots.push(
+      snapshotForReport("avatar-preview-gallery", galleryState),
+    )
+    report.screenshots.push(
+      await captureCanvas(page, "avatar-preview-gallery-canvas.png"),
+    )
   } finally {
     assertNoConsoleErrors(page, "desktop renderer runtime")
     await page.close()
@@ -237,7 +272,7 @@ async function verifyDevTools(browser, url, report) {
     assert.equal(initial.devTools.primaryUiControlsExposed, 0)
     assert.equal(initial.devTools.menu.visible, true)
     assert.equal(initial.devTools.menu.overlayControlCount, 7)
-    assert.equal(initial.devTools.menu.fixtureOptionCount, 12)
+    assert.equal(initial.devTools.menu.fixtureOptionCount, 13)
     assert.equal(initial.devTools.menu.selectedFixtureId, "zone_fixture")
     assert.deepEqual(
       initial.devTools.menu.checkedOverlayIds.sort(),
@@ -281,6 +316,11 @@ async function verifyDevTools(browser, url, report) {
     assert.ok(
       initial.devTools.renderer.fixtureSelector.availableFixtureIds.includes(
         "stress_100x80",
+      ),
+    )
+    assert.ok(
+      initial.devTools.renderer.fixtureSelector.availableFixtureIds.includes(
+        "avatar_preview_gallery",
       ),
     )
     assert.deepEqual(

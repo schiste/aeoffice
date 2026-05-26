@@ -1,6 +1,8 @@
 import {
   PhaserOfficeRenderer,
+  type AvatarAnimationAction,
   type AvatarEmoteId,
+  type AvatarVisualFacing,
   type RenderedPlayer,
   type RendererCameraFollowMotion,
   type RendererCameraState,
@@ -94,6 +96,7 @@ type DevToolFixtureId =
   | "depth_table_player_front"
   | "depth_wall_player_behind"
   | "avatar_fixture"
+  | "avatar_preview_gallery"
   | "zone_fixture"
   | "stress_20x15"
   | "stress_50x40"
@@ -413,6 +416,16 @@ interface AvatarFixtureResult {
   readonly directions: readonly Direction[]
 }
 
+interface AvatarPreviewGalleryResult {
+  readonly playerIds: readonly string[]
+  readonly avatarIds: readonly AvatarId[]
+  readonly actions: readonly AvatarAnimationAction[]
+  readonly visualFacings: readonly AvatarVisualFacing[]
+  readonly serverDirections: readonly Direction[]
+  readonly rows: number
+  readonly columns: number
+}
+
 interface ZoneFixtureResult {
   readonly zoneIds: readonly string[]
   readonly zoneTypes: readonly string[]
@@ -513,6 +526,22 @@ const JOYSTICK_DEADZONE_RATIO = 0.18
 const JOYSTICK_DEFAULT_RADIUS_PX = 54
 const JOYSTICK_MIN_MAGNITUDE = 0.08
 const avatarIds: readonly AvatarId[] = ["ember", "cobalt", "moss", "violet"]
+const avatarPreviewActions: readonly AvatarAnimationAction[] = [
+  "idle",
+  "walk",
+  "run",
+  "turn",
+]
+const avatarPreviewFacings: readonly AvatarVisualFacing[] = [
+  "up",
+  "upRight",
+  "right",
+  "downRight",
+  "down",
+  "downLeft",
+  "left",
+  "upLeft",
+]
 const DEV_TOOL_FIXTURES: readonly DevToolFixtureId[] = [
   "lobby",
   "meeting_room",
@@ -522,6 +551,7 @@ const DEV_TOOL_FIXTURES: readonly DevToolFixtureId[] = [
   "depth_table_player_front",
   "depth_wall_player_behind",
   "avatar_fixture",
+  "avatar_preview_gallery",
   "zone_fixture",
   "stress_20x15",
   "stress_50x40",
@@ -2669,6 +2699,45 @@ async function renderAvatarFixtureCaseForSmoke(): Promise<AvatarFixtureResult> {
   }
 }
 
+async function renderAvatarPreviewGalleryForSmoke(): Promise<AvatarPreviewGalleryResult> {
+  const fixtureMap = avatarPreviewGalleryFixtureMap()
+  const players = avatarPreviewGalleryPlayers(fixtureMap)
+
+  worldSync.disconnect()
+  await configureDevWorldGeometry(fixtureMap)
+  applyFixtureMap(fixtureMap, {
+    source: "generated",
+    mapId: "generated",
+    label: "Avatar preview gallery",
+    prompt: "Renderer avatar animation preview gallery",
+    keywords: ["renderer", "avatar", "preview"],
+    validation: validFixtureValidation(fixtureMap),
+  })
+  state.joined = true
+  state.position = players[0].position
+  state.direction = players[0].direction
+  resetClientMotion(state.position, state.direction)
+  setLifecycleStatus("joined", "Avatar preview gallery")
+  state.profile.avatarId = "ember"
+  state.profile.displayName = "Ember idle up"
+  state.players.clear()
+  players.forEach((player) => state.players.set(player.playerId, player))
+  renderPlayers()
+  await renderer.advanceTime()
+  renderer.setCameraMode("fit_room")
+  await renderer.advanceTime()
+
+  return {
+    playerIds: players.map((player) => player.playerId),
+    avatarIds,
+    actions: avatarPreviewActions,
+    visualFacings: avatarPreviewFacings,
+    serverDirections: avatarPreviewFacings.map(serverDirectionForVisualFacing),
+    rows: avatarIds.length * avatarPreviewActions.length,
+    columns: avatarPreviewFacings.length,
+  }
+}
+
 async function moveAvatarFixturePlayerForSmoke(
   playerId: string,
   position: Vector2,
@@ -2863,6 +2932,91 @@ function avatarFixtureMap(): FixtureMap {
       tokens: [floorToken, wallToken, cornerToken],
     },
   }
+}
+
+function avatarPreviewGalleryFixtureMap(): FixtureMap {
+  const width = 31
+  const height = 27
+  const tileSize = starterVisualAssetCatalog.tileSize
+  const floorToken = visualTokenById("floor.soft_carpet")
+  const wallToken = visualTokenById("wall.neutral.straight")
+  const cornerToken = visualTokenById("wall.neutral.corner")
+  const floor = gridOf(width, height, floorToken.provisionalGid)
+  const walls = gridOf(width, height, 0)
+  const objects = gridOf(width, height, 0)
+  const blockedTiles: Vector2[] = []
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const edge = x === 0 || y === 0 || x === width - 1 || y === height - 1
+      if (!edge) continue
+
+      const corner =
+        (x === 0 || x === width - 1) && (y === 0 || y === height - 1)
+      walls[y][x] = corner ? cornerToken.provisionalGid : wallToken.provisionalGid
+      blockedTiles.push({ x, y })
+    }
+  }
+
+  return {
+    definition: {
+      style: "avatar_preview",
+    },
+    compiled: {
+      width,
+      height,
+      tileSize,
+      blockedTiles,
+      layers: {
+        floor: { gids: floor },
+        walls: { gids: walls },
+        objects: { gids: objects },
+      },
+      zones: [],
+    },
+    spawnPoints: [
+      {
+        id: "default",
+        position: tileCenter(3, 2, tileSize),
+      },
+    ],
+    catalog: {
+      tokens: [floorToken, wallToken, cornerToken],
+    },
+  }
+}
+
+function avatarPreviewGalleryPlayers(
+  fixtureMap: FixtureMap,
+): readonly RenderedPlayer[] {
+  const tileSize = fixtureMap.compiled.tileSize
+  const startX = tileSize * 2.5
+  const startY = tileSize * 2.75
+  const columnGap = tileSize * 3.82
+  const rowGap = tileSize * 1.5
+
+  return avatarIds.flatMap((avatarId, avatarIndex) =>
+    avatarPreviewActions.flatMap((action, actionIndex) => {
+      const rowIndex = avatarIndex * avatarPreviewActions.length + actionIndex
+
+      return avatarPreviewFacings.map((visualFacing, facingIndex) => ({
+        playerId: `avatar-preview-${avatarId}-${action}-${visualFacing}`,
+        name: `${avatarInitial(avatarId)} ${avatarActionLabel(action)} ${avatarFacingLabel(visualFacing)}`,
+        avatarId,
+        position: {
+          x: startX + facingIndex * columnGap,
+          y: startY + rowIndex * rowGap,
+        },
+        direction: serverDirectionForVisualFacing(visualFacing),
+        animationPreview: {
+          action,
+          visualFacing,
+        },
+        local: avatarIndex === 0 && actionIndex === 0 && facingIndex === 0,
+        entryAnimation: "none" as const,
+      }))
+    }),
+  )
 }
 
 function zoneFixtureMap(): FixtureMap {
@@ -5189,6 +5343,66 @@ function isAvatarId(value: string | undefined): value is AvatarId {
   return avatarIds.includes(value as AvatarId)
 }
 
+function avatarLabel(avatarId: AvatarId): string {
+  switch (avatarId) {
+    case "ember":
+      return "Ember"
+    case "cobalt":
+      return "Cobalt"
+    case "moss":
+      return "Moss"
+    case "violet":
+      return "Violet"
+  }
+}
+
+function avatarInitial(avatarId: AvatarId): string {
+  return avatarLabel(avatarId)[0] ?? "A"
+}
+
+function avatarActionLabel(action: AvatarAnimationAction): string {
+  switch (action) {
+    case "idle":
+      return "idle"
+    case "walk":
+      return "walk"
+    case "run":
+      return "run"
+    case "turn":
+      return "turn"
+  }
+}
+
+function avatarFacingLabel(visualFacing: AvatarVisualFacing): string {
+  switch (visualFacing) {
+    case "up":
+      return "U"
+    case "upRight":
+      return "UR"
+    case "right":
+      return "R"
+    case "downRight":
+      return "DR"
+    case "down":
+      return "D"
+    case "downLeft":
+      return "DL"
+    case "left":
+      return "L"
+    case "upLeft":
+      return "UL"
+  }
+}
+
+function serverDirectionForVisualFacing(
+  visualFacing: AvatarVisualFacing,
+): Direction {
+  if (visualFacing === "up" || visualFacing === "upLeft") return "up"
+  if (visualFacing === "right" || visualFacing === "upRight") return "right"
+  if (visualFacing === "left" || visualFacing === "downLeft") return "left"
+  return "down"
+}
+
 function fixtureSpawnPosition(fixtureMap: FixtureMap, spawnId: string): Vector2 {
   const spawn = fixtureMap.spawnPoints.find((candidate) => candidate.id === spawnId)
   return spawn ? spawn.position : state.position
@@ -5581,6 +5795,9 @@ async function selectDevFixture(fixtureId: DevToolFixtureId): Promise<void> {
     case "avatar_fixture":
       await renderAvatarFixtureCaseForSmoke()
       break
+    case "avatar_preview_gallery":
+      await renderAvatarPreviewGalleryForSmoke()
+      break
     case "zone_fixture":
       await renderZoneFixtureCaseForSmoke()
       break
@@ -5694,6 +5911,8 @@ function devToolFixtureLabel(fixtureId: DevToolFixtureId): string {
       return "Depth: wall behind"
     case "avatar_fixture":
       return "Avatar fixture"
+    case "avatar_preview_gallery":
+      return "Avatar preview"
     case "zone_fixture":
       return "Zone fixture"
     case "stress_20x15":
@@ -6242,6 +6461,7 @@ declare global {
         caseId: DepthFixtureCaseId,
       ) => Promise<DepthFixtureCaseResult>
       renderAvatarFixtureCase: () => Promise<AvatarFixtureResult>
+      renderAvatarPreviewGallery: () => Promise<AvatarPreviewGalleryResult>
       moveAvatarFixturePlayer: (
         playerId: string,
         position: Vector2,
@@ -6322,6 +6542,7 @@ if (localAutomationHost()) {
     attemptInvalidMap: attemptInvalidMapForSmoke,
     renderDepthFixtureCase: renderDepthFixtureCaseForSmoke,
     renderAvatarFixtureCase: renderAvatarFixtureCaseForSmoke,
+    renderAvatarPreviewGallery: renderAvatarPreviewGalleryForSmoke,
     moveAvatarFixturePlayer: moveAvatarFixturePlayerForSmoke,
     triggerAvatarEmote: async (playerId, emoteId) => {
       renderer.triggerAvatarEmote(playerId, emoteId)

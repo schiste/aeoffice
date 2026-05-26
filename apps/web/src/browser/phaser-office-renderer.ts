@@ -1,6 +1,8 @@
 export { PhaserOfficeRenderer, RendererHost } from "./renderer/renderer-host"
 export type {
+  AvatarAnimationAction,
   AvatarEmoteId,
+  AvatarVisualFacing,
   Direction,
   FixtureMap,
   RenderedPlayer,
