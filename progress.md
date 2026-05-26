@@ -1252,3 +1252,27 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   develop-web-game client was attempted against `http://127.0.0.1:8787`, but
   still fails before navigation with `ERR_MODULE_NOT_FOUND` because the
   skill-local script cannot resolve `playwright`.
+- Phaser particles are now part of the visual-only effects layer. The new
+  `ParticleEffectsPass` creates a reusable soft particle texture and
+  capability-gated emitters for room entry transitions, coffee steam, plant
+  motes, portal shimmer, and meeting-zone activation. Particle effects consume
+  compiled map objects/zones plus renderer zone-interaction state, but they do
+  not affect movement, collision, permissions, media, or server authority.
+- Effects telemetry now reports `animationMode: "ambient_particles"` when
+  particles are active, `deterministic: false` for animated visual state,
+  `capability.particlesAvailable`, active `particleEffects`, per-effect emitter
+  counts, particle texture count, and a bounded `particleAliveBudget`.
+- Particle budgets remain intentionally small. Latest renderer QA reported:
+  lobby `4` emitters / `29` max alive particles, stress map `8` / `46`, and
+  avatar preview `1` / `18`. The stress map also verified
+  `meeting_zone_activation` through zone-interaction state.
+- Verification passed after the particle effects pass:
+  `npm --workspace @aedventure/web run build`,
+  `node --check scripts/frontend-smoke.test.cjs`,
+  `node --check scripts/renderer-qa.test.cjs`, `npm run smoke:frontend`,
+  `npm run qa:renderer`, `npm run qa:responsive`, `npm run check`, and
+  `git diff --check`. Latest renderer desktop/stress screenshots and mobile
+  responsive screenshots were visually inspected. The standalone
+  develop-web-game client was attempted against `http://127.0.0.1:8787`, but
+  still fails before navigation with `ERR_MODULE_NOT_FOUND` because the
+  skill-local script cannot resolve `playwright`.

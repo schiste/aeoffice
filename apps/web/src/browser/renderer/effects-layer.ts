@@ -10,7 +10,14 @@ import type {
   RendererEffectsQuality,
   RendererResolvedEffectsQuality,
   RendererTenantLightingMode,
+  RendererZoneInteractionState,
 } from "./types"
+import {
+  ParticleEffectsPass,
+  disabledParticleAppliedInfo,
+  emptyParticleEffectsCounts,
+  type ParticleEffectsCounts,
+} from "./particle-effects"
 import {
   ROOM_LIGHTING_SHADER_PASS,
   WebglEffectsPass,
@@ -30,6 +37,7 @@ interface EffectsCapability {
   readonly lowCapability: boolean
   readonly filtersAvailable: boolean
   readonly shadersAvailable: boolean
+  readonly particlesAvailable: boolean
   readonly maxTextureSize?: number
 }
 
@@ -40,6 +48,14 @@ interface EffectsObjectCounts {
   shaderPasses: number
   shaderObjects: number
   shaderZoneUniforms: number
+  particleEmitters: number
+  particleTextures: number
+  coffeeSteamEmitters: number
+  plantMoteEmitters: number
+  portalShimmerEmitters: number
+  meetingZoneActivationEmitters: number
+  entryTransitionEmitters: number
+  particleAliveBudget: number
 }
 
 const MIN_EFFECTS_TEXTURE_SIZE = 1024
@@ -51,6 +67,8 @@ export class EffectsLayer {
   private lowCapabilityOverride = false
   private graphics?: Phaser.GameObjects.Graphics
   private readonly webglEffectsPass: WebglEffectsPass
+  private readonly particleEffectsPass: ParticleEffectsPass
+  private particleCounts: ParticleEffectsCounts = emptyParticleEffectsCounts()
   private filterControllers: Phaser.Filters.Controller[] = []
   private lastFixtureMap?: FixtureMap
   private lastBounds?: MapRenderBounds
@@ -64,6 +82,7 @@ export class EffectsLayer {
 
   constructor(private readonly scene: Phaser.Scene) {
     this.webglEffectsPass = new WebglEffectsPass(scene)
+    this.particleEffectsPass = new ParticleEffectsPass(scene)
   }
 
   renderFixtureMap(
@@ -94,11 +113,34 @@ export class EffectsLayer {
   clear(): void {
     this.destroyGraphics()
     this.webglEffectsPass.clear()
+    this.particleEffectsPass.clear()
+    this.particleCounts = emptyParticleEffectsCounts()
     this.destroyFilters()
   }
 
   getInfo(): RendererEffectsInfo {
     return this.info
+  }
+
+  setZoneInteractionState(state: RendererZoneInteractionState): void {
+    const counts = this.particleEffectsPass.setZoneInteractionState(state)
+    if (!counts) return
+
+    this.particleCounts = counts
+    this.info = {
+      ...this.info,
+      deterministic: counts.particleEmitters > 0 ? false : this.info.deterministic,
+      animationMode:
+        counts.particleEmitters > 0 ? "ambient_particles" : this.info.animationMode,
+      applied: {
+        ...this.info.applied,
+        particleEffects: this.particleEffectsPass.effectNames(),
+      },
+      objectCounts: {
+        ...this.info.objectCounts,
+        ...counts,
+      },
+    }
   }
 
   private rebuild(): void {
@@ -129,13 +171,22 @@ export class EffectsLayer {
           tenantLighting: this.tenantLighting,
         })
       : emptyWebglEffectsCounts()
+    this.particleCounts = capability.particlesAvailable
+      ? this.particleEffectsPass.render({
+          fixtureMap,
+          bounds,
+          quality,
+        })
+      : emptyParticleEffectsCounts()
     const counts = this.drawStaticRoomPass(
       fixtureMap,
       bounds,
       quality,
       shaderCounts,
+      this.particleCounts,
     )
     const shaderActive = shaderCounts.shaderPasses > 0
+    const particlesActive = this.particleCounts.particleEmitters > 0
     this.info = {
       source: "renderer_runtime",
       authority: "visual_only",
@@ -146,8 +197,8 @@ export class EffectsLayer {
       },
       enabled: true,
       quality,
-      deterministic: true,
-      animationMode: "static",
+      deterministic: !particlesActive,
+      animationMode: particlesActive ? "ambient_particles" : "static",
       capability,
       applied: {
         webglFilters: appliedFilters,
@@ -163,6 +214,7 @@ export class EffectsLayer {
         floorLighting: shaderActive ? "shader_floor_light_gradient" : "none",
         zoneGlow: shaderActive ? "custom_zone_glow_shader" : "none",
         softShadows: shaderActive ? "shader_vignette_soft_shadow" : "none",
+        particleEffects: this.particleEffectsPass.effectNames(),
         selectionOutlines: "zone_renderer",
         hoverOutlines: "zone_renderer",
         tenantLighting: this.tenantLighting,
@@ -190,12 +242,17 @@ export class EffectsLayer {
       lowCapability,
       filtersAvailable: this.cameraFiltersAvailable(),
       shadersAvailable: this.shaderGameObjectAvailable(webglAvailable),
+      particlesAvailable: this.particlesGameObjectAvailable(webglAvailable),
       maxTextureSize,
     }
   }
 
   private shaderGameObjectAvailable(webglAvailable: boolean): boolean {
     return webglAvailable && typeof this.scene.add.shader === "function"
+  }
+
+  private particlesGameObjectAvailable(webglAvailable: boolean): boolean {
+    return webglAvailable && typeof this.scene.add.particles === "function"
   }
 
   private cameraFiltersAvailable(): boolean {
@@ -259,6 +316,7 @@ export class EffectsLayer {
     bounds: MapRenderBounds,
     quality: RendererResolvedEffectsQuality,
     shaderCounts: WebglEffectsCounts = emptyWebglEffectsCounts(),
+    particleCounts: ParticleEffectsCounts = emptyParticleEffectsCounts(),
   ): EffectsObjectCounts {
     const counts: EffectsObjectCounts = {
       ambientShapes: 0,
@@ -267,6 +325,15 @@ export class EffectsLayer {
       shaderPasses: shaderCounts.shaderPasses,
       shaderObjects: shaderCounts.shaderObjects,
       shaderZoneUniforms: shaderCounts.shaderZoneUniforms,
+      particleEmitters: particleCounts.particleEmitters,
+      particleTextures: particleCounts.particleTextures,
+      coffeeSteamEmitters: particleCounts.coffeeSteamEmitters,
+      plantMoteEmitters: particleCounts.plantMoteEmitters,
+      portalShimmerEmitters: particleCounts.portalShimmerEmitters,
+      meetingZoneActivationEmitters:
+        particleCounts.meetingZoneActivationEmitters,
+      entryTransitionEmitters: particleCounts.entryTransitionEmitters,
+      particleAliveBudget: particleCounts.particleAliveBudget,
     }
     const palette = effectsPalette(fixtureMap.definition.style, this.tenantLighting)
     const graphics = this.scene.add.graphics()
@@ -424,6 +491,7 @@ function disabledEffectsInfo(options: {
     applied: {
       webglFilters: [],
       ...disabledShaderAppliedInfo(),
+      ...disabledParticleAppliedInfo(),
       ambientEffects: [],
       lightPass: "none",
       shadowPass: "none",
@@ -436,6 +504,7 @@ function disabledEffectsInfo(options: {
       lightShapes: 0,
       shadowShapes: 0,
       ...emptyWebglEffectsCounts(),
+      ...emptyParticleEffectsCounts(),
     },
   }
 }
@@ -447,5 +516,6 @@ function emptyCapability(): EffectsCapability {
     lowCapability: true,
     filtersAvailable: false,
     shadersAvailable: false,
+    particlesAvailable: false,
   }
 }

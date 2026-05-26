@@ -920,9 +920,19 @@ function assertRendererSnapshot(state) {
     "custom_room_lighting_shader",
   )
   assert.equal(state.renderer.effects.applied.zoneGlow, "custom_zone_glow_shader")
+  assert.ok(
+    state.renderer.effects.applied.particleEffects.includes(
+      "room_entry_transition",
+    ),
+    "Expected room-entry particles in renderer snapshot.",
+  )
   assert.equal(state.renderer.effects.objectCounts.shaderPasses, 1)
   assert.equal(state.renderer.effects.objectCounts.shaderObjects, 1)
+  assert.ok(state.renderer.effects.objectCounts.particleEmitters >= 1)
+  assert.equal(state.renderer.effects.objectCounts.particleTextures, 1)
+  assert.ok(state.renderer.effects.objectCounts.particleAliveBudget <= 96)
   assert.equal(state.renderer.effects.capability.shadersAvailable, true)
+  assert.equal(state.renderer.effects.capability.particlesAvailable, true)
   assert.equal(state.renderer.mapValidation.valid, true)
   assert.equal(state.renderer.mapValidation.mutationSafe, true)
   assert.equal(state.renderer.performance.runtime.textureCount > 0, true)
@@ -1019,6 +1029,10 @@ function snapshotForReport(label, state) {
           state.renderer.effects.applied.customWebglPipelines,
         shaderPass: state.renderer.effects.applied.shaderPass,
         shaderPasses: state.renderer.effects.objectCounts.shaderPasses,
+        particleEffects: state.renderer.effects.applied.particleEffects,
+        particleEmitters: state.renderer.effects.objectCounts.particleEmitters,
+        particleAliveBudget:
+          state.renderer.effects.objectCounts.particleAliveBudget,
       },
       mapValidation: state.renderer.mapValidation,
     },

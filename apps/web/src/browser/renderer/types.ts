@@ -261,6 +261,12 @@ export interface RendererWorldInteractionInfo {
 export type RendererEffectsQuality = "auto" | "off" | "low" | "premium"
 export type RendererResolvedEffectsQuality = "off" | "low" | "premium"
 export type RendererTenantLightingMode = "day" | "night" | "tenant_theme"
+export type RendererParticleEffectName =
+  | "coffee_steam"
+  | "plant_motes"
+  | "portal_shimmer"
+  | "meeting_zone_activation"
+  | "room_entry_transition"
 
 export type RendererEffectsDisableReason =
   | "forced_off"
@@ -286,7 +292,7 @@ export interface RendererEffectsInfo {
   readonly enabled: boolean
   readonly quality: RendererResolvedEffectsQuality
   readonly deterministic: boolean
-  readonly animationMode: "static"
+  readonly animationMode: "static" | "ambient_particles"
   readonly disabledReason?: RendererEffectsDisableReason
   readonly capability: {
     readonly webglAvailable: boolean
@@ -294,6 +300,7 @@ export interface RendererEffectsInfo {
     readonly lowCapability: boolean
     readonly filtersAvailable: boolean
     readonly shadersAvailable: boolean
+    readonly particlesAvailable: boolean
     readonly maxTextureSize?: number
   }
   readonly applied: {
@@ -306,6 +313,7 @@ export interface RendererEffectsInfo {
     readonly floorLighting: "none" | "shader_floor_light_gradient"
     readonly zoneGlow: "none" | "custom_zone_glow_shader"
     readonly softShadows: "none" | "shader_vignette_soft_shadow"
+    readonly particleEffects: readonly RendererParticleEffectName[]
     readonly selectionOutlines: "zone_renderer" | "custom_shader_ready"
     readonly hoverOutlines: "zone_renderer" | "custom_shader_ready"
     readonly tenantLighting: RendererTenantLightingMode
@@ -317,6 +325,14 @@ export interface RendererEffectsInfo {
     readonly shaderPasses: number
     readonly shaderObjects: number
     readonly shaderZoneUniforms: number
+    readonly particleEmitters: number
+    readonly particleTextures: number
+    readonly coffeeSteamEmitters: number
+    readonly plantMoteEmitters: number
+    readonly portalShimmerEmitters: number
+    readonly meetingZoneActivationEmitters: number
+    readonly entryTransitionEmitters: number
+    readonly particleAliveBudget: number
   }
 }
 

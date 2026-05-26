@@ -281,6 +281,7 @@ export class OfficeScene extends Phaser.Scene {
 
   setZoneInteractionState(state: RendererZoneInteractionState): void {
     this.zoneRenderer.setInteractionState(state)
+    this.effectsLayer.setZoneInteractionState(state)
   }
 
   setWorldInteractions(info: RendererWorldInteractionInfo): void {

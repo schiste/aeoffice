@@ -896,8 +896,11 @@ function assertRenderStateContract(state) {
   assert.equal(state.effects?.source, "renderer_runtime")
   assert.equal(state.effects?.authority, "visual_only")
   assert.equal(typeof state.effects?.enabled, "boolean")
-  assert.equal(state.effects?.deterministic, true)
-  assert.equal(state.effects?.animationMode, "static")
+  assert.equal(typeof state.effects?.deterministic, "boolean")
+  assert.ok(
+    ["static", "ambient_particles"].includes(state.effects?.animationMode),
+    `Expected known effects animation mode, got ${state.effects?.animationMode}.`,
+  )
   assert.ok(
     Array.isArray(state.effects?.applied?.webglFilters),
     "Expected effects.applied.webglFilters in render_game_to_text.",
@@ -909,6 +912,10 @@ function assertRenderStateContract(state) {
   assert.ok(
     Array.isArray(state.effects?.applied?.ambientEffects),
     "Expected effects.applied.ambientEffects in render_game_to_text.",
+  )
+  assert.ok(
+    Array.isArray(state.effects?.applied?.particleEffects),
+    "Expected effects.applied.particleEffects in render_game_to_text.",
   )
   assertCameraStateContract(state)
 }
@@ -1094,7 +1101,8 @@ function assertRendererCapabilities(state) {
   assert.equal(state.renderer.tilemap.labelLayerMode, "display_objects")
   assert.equal(state.renderer.effects.source, "renderer_runtime")
   assert.equal(state.renderer.effects.authority, "visual_only")
-  assert.equal(state.renderer.effects.deterministic, true)
+  assert.equal(state.renderer.effects.deterministic, false)
+  assert.equal(state.renderer.effects.animationMode, "ambient_particles")
   assert.equal(state.renderer.effects.enabled, true)
   assert.equal(state.renderer.effects.quality, "premium")
   assert.equal(state.renderer.effects.applied.selectionOutlines, "zone_renderer")
@@ -1119,12 +1127,19 @@ function assertRendererCapabilities(state) {
     "shader_vignette_soft_shadow",
   )
   assert.ok(
+    state.renderer.effects.applied.particleEffects.includes(
+      "room_entry_transition",
+    ),
+    "Expected room-entry particle transition.",
+  )
+  assert.ok(
     state.renderer.effects.applied.ambientEffects.includes("ambient_tint"),
     "Expected deterministic ambient tint effect.",
   )
   assert.equal(state.renderer.effects.capability.webglAvailable, true)
   assert.equal(state.renderer.effects.capability.contextLost, false)
   assert.equal(state.renderer.effects.capability.shadersAvailable, true)
+  assert.equal(state.renderer.effects.capability.particlesAvailable, true)
   assert.equal(state.renderer.mapValidation.valid, true)
   assert.equal(state.renderer.mapValidation.mutationSafe, true)
   assert.equal(typeof state.renderer.mapValidation.collisionLayerPresent, "boolean")
@@ -1796,8 +1811,8 @@ async function assertEffectsLayerSmoke(page) {
   assert.equal(baseline.effects.authority, "visual_only")
   assert.equal(baseline.effects.enabled, true)
   assert.equal(baseline.effects.quality, "premium")
-  assert.equal(baseline.effects.deterministic, true)
-  assert.equal(baseline.effects.animationMode, "static")
+  assert.equal(baseline.effects.deterministic, false)
+  assert.equal(baseline.effects.animationMode, "ambient_particles")
   assert.equal(baseline.effects.applied.lightPass, "static_room_lights")
   assert.equal(baseline.effects.applied.shadowPass, "static_corner_shadows")
   assert.ok(
@@ -1819,6 +1834,15 @@ async function assertEffectsLayerSmoke(page) {
     baseline.effects.applied.softShadows,
     "shader_vignette_soft_shadow",
   )
+  assert.ok(
+    baseline.effects.applied.particleEffects.includes("room_entry_transition"),
+    "Expected particle-backed room entry transition.",
+  )
+  assert.ok(
+    baseline.effects.applied.particleEffects.includes("plant_motes") ||
+      baseline.effects.applied.particleEffects.includes("coffee_steam"),
+    "Expected object-driven ambient particles.",
+  )
   assert.equal(baseline.effects.applied.selectionOutlines, "zone_renderer")
   assert.equal(baseline.effects.applied.hoverOutlines, "zone_renderer")
   assert.equal(baseline.effects.applied.tenantLighting, "day")
@@ -1839,6 +1863,21 @@ async function assertEffectsLayerSmoke(page) {
   assert.ok(
     baseline.effects.objectCounts.shaderZoneUniforms >= 1,
     "Expected zone uniforms to feed shader zone glow.",
+  )
+  assert.ok(
+    baseline.effects.objectCounts.particleEmitters >= 2,
+    "Expected ambient particle emitters.",
+  )
+  assert.equal(baseline.effects.objectCounts.particleTextures, 1)
+  assert.equal(baseline.effects.objectCounts.entryTransitionEmitters, 1)
+  assert.ok(
+    baseline.effects.objectCounts.plantMoteEmitters >= 1 ||
+      baseline.effects.objectCounts.coffeeSteamEmitters >= 1,
+    "Expected at least one object ambience emitter.",
+  )
+  assert.ok(
+    baseline.effects.objectCounts.particleAliveBudget <= 96,
+    `Expected bounded particle budget, got ${baseline.effects.objectCounts.particleAliveBudget}.`,
   )
   if (baseline.effects.capability.filtersAvailable) {
     assert.ok(
@@ -1879,8 +1918,10 @@ async function assertEffectsLayerSmoke(page) {
   )
   assert.equal(lowCapability.effects.objectCounts.ambientShapes, 0)
   assert.equal(lowCapability.effects.objectCounts.shaderPasses, 0)
+  assert.equal(lowCapability.effects.objectCounts.particleEmitters, 0)
   assert.deepEqual(lowCapability.effects.applied.webglFilters, [])
   assert.deepEqual(lowCapability.effects.applied.customWebglPipelines, [])
+  assert.deepEqual(lowCapability.effects.applied.particleEffects, [])
   await assertNonBlankMapScreenshot(page)
 
   await page.evaluate(async () => {
@@ -1898,7 +1939,8 @@ async function assertEffectsLayerSmoke(page) {
       state.effects.applied.tenantLighting === "night" &&
       state.renderer.effects.applied.tenantLighting === "night",
   )
-  assert.equal(night.effects.deterministic, true)
+  assert.equal(night.effects.deterministic, false)
+  assert.equal(night.effects.animationMode, "ambient_particles")
   await assertNonBlankMapScreenshot(page)
 
   await page.evaluate(async () => {
