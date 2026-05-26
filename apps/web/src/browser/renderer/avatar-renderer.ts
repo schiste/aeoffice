@@ -1,11 +1,14 @@
 import Phaser from "phaser"
 
 import {
+  avatarAnimationPreviewFixtures,
   avatarAnimationDefinition,
   avatarAnimationKeys,
+  avatarAnimationStates,
   avatarAppearance,
   avatarEmoteDefinition,
   avatarInterpolationProfile,
+  avatarSpriteAtlasMetadata,
   AVATAR_COSMETIC_SLOTS,
   AVATAR_EMOTE_IDS,
   AVATAR_IDS,
@@ -295,8 +298,12 @@ export class AvatarRenderer {
     return {
       source: "renderer_runtime",
       availableAvatarIds: AVATAR_IDS,
+      spriteAtlas: avatarSpriteAtlasMetadata(),
+      animationStates: avatarAnimationStates(),
       animationKeys: avatarAnimationKeys(),
       animationCount: avatarAnimationKeys().length,
+      previewFixtures: avatarAnimationPreviewFixtures(),
+      visualDirectionModel: "server_4_way_visual_8_way",
       emoteIds: AVATAR_EMOTE_IDS,
       interpolationProfiles: ["local", "remote"],
       cosmeticSlots: AVATAR_COSMETIC_SLOTS,
@@ -726,9 +733,12 @@ class AvatarView {
       animation: {
         key: this.animation.key,
         action: this.animation.action,
+        state: this.animation.action,
         direction: this.animation.direction,
+        serverDirection: this.animation.direction,
         visualFacing: this.visualFacing,
         durationMs: this.animation.durationMs,
+        sprite: this.animation.sprite,
         poseBlendActive: this.poseTween?.isPlaying() ?? false,
       },
       interpolationProfile: this.interpolationProfile.id,

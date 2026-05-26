@@ -2,8 +2,12 @@ import type {
   AvatarAnimationAction,
   AvatarCosmeticSlot,
   AvatarEmoteId,
+  AvatarVisualFacing,
   Direction,
   RenderedPlayer,
+  RendererAvatarAnimationPreviewFixture,
+  RendererAvatarAnimationSpriteInfo,
+  RendererAvatarSpriteAtlasInfo,
 } from "./types"
 
 export interface AvatarPalette {
@@ -41,6 +45,7 @@ export interface AvatarAnimationDefinition {
   readonly direction: Direction
   readonly durationMs: number
   readonly repeat: number
+  readonly sprite: RendererAvatarAnimationSpriteInfo
   readonly bodyScaleX: number
   readonly bodyScaleY: number
   readonly footScaleX: number
@@ -78,6 +83,41 @@ export const AVATAR_EMOTE_IDS: readonly AvatarEmoteId[] = [
   "raise_hand",
   "focus",
 ]
+
+export const AVATAR_ANIMATION_STATES: readonly AvatarAnimationAction[] = [
+  "idle",
+  "walk",
+  "run",
+  "turn",
+]
+
+export const AVATAR_VISUAL_FACING_DIRECTIONS: readonly AvatarVisualFacing[] = [
+  "up",
+  "upRight",
+  "right",
+  "downRight",
+  "down",
+  "downLeft",
+  "left",
+  "upLeft",
+]
+
+const AVATAR_SPRITE_ATLAS: RendererAvatarSpriteAtlasInfo = {
+  source: "runtime_generated_avatar_parts",
+  atlasId: "internal-avatar-procedural-v1",
+  renderMode: "procedural_proxy",
+  frameWidth: 32,
+  frameHeight: 42,
+  exportScale: 2,
+  anchor: {
+    x: 0.5,
+    y: 0.86,
+  },
+  serverDirectionModel: "4_way",
+  visualDirectionModel: "8_way",
+  supportedStates: AVATAR_ANIMATION_STATES,
+  cosmeticSlots: AVATAR_COSMETIC_SLOTS,
+}
 
 const AVATAR_APPEARANCES: Record<string, AvatarAppearanceMetadata> = {
   ember: {
@@ -222,6 +262,7 @@ const AVATAR_EMOTES: Record<AvatarEmoteId, AvatarEmoteDefinition> = {
 }
 
 const ANIMATION_REGISTRY = buildAnimationRegistry()
+const ANIMATION_PREVIEW_FIXTURES = buildAnimationPreviewFixtures()
 
 export function avatarAppearance(avatarId: string): AvatarAppearanceMetadata {
   return AVATAR_APPEARANCES[resolveAvatarId(avatarId)]
@@ -254,6 +295,18 @@ export function avatarAnimationKeys(): readonly string[] {
   return [...ANIMATION_REGISTRY.keys()]
 }
 
+export function avatarAnimationStates(): readonly AvatarAnimationAction[] {
+  return AVATAR_ANIMATION_STATES
+}
+
+export function avatarSpriteAtlasMetadata(): RendererAvatarSpriteAtlasInfo {
+  return AVATAR_SPRITE_ATLAS
+}
+
+export function avatarAnimationPreviewFixtures(): readonly RendererAvatarAnimationPreviewFixture[] {
+  return ANIMATION_PREVIEW_FIXTURES
+}
+
 export function resolveAvatarId(avatarId: string | undefined): string {
   return avatarId && AVATAR_APPEARANCES[avatarId] ? avatarId : "ember"
 }
@@ -264,11 +317,10 @@ export function fallbackAvatarId(player: RenderedPlayer): string {
 
 function buildAnimationRegistry(): Map<string, AvatarAnimationDefinition> {
   const registry = new Map<string, AvatarAnimationDefinition>()
-  const actions: readonly AvatarAnimationAction[] = ["idle", "walk", "run", "turn"]
   const directions: readonly Direction[] = ["up", "down", "left", "right"]
 
   AVATAR_IDS.forEach((avatarId) => {
-    actions.forEach((action) => {
+    AVATAR_ANIMATION_STATES.forEach((action) => {
       directions.forEach((direction) => {
         registry.set(animationKey(avatarId, action, direction), {
           key: animationKey(avatarId, action, direction),
@@ -277,6 +329,7 @@ function buildAnimationRegistry(): Map<string, AvatarAnimationDefinition> {
           direction,
           durationMs: animationDurationMs(action),
           repeat: action === "idle" ? -1 : action === "turn" ? 0 : 2,
+          sprite: animationSpriteMetadata(avatarId, action, direction),
           bodyScaleX:
             action === "idle"
               ? 1
@@ -318,11 +371,80 @@ function buildAnimationRegistry(): Map<string, AvatarAnimationDefinition> {
   return registry
 }
 
+function buildAnimationPreviewFixtures(): RendererAvatarAnimationPreviewFixture[] {
+  return AVATAR_IDS.flatMap((avatarId) =>
+    AVATAR_ANIMATION_STATES.flatMap((action) =>
+      AVATAR_VISUAL_FACING_DIRECTIONS.map((visualFacing) => {
+        const serverDirection = serverDirectionForVisualFacing(visualFacing)
+        const definition = avatarAnimationDefinition(
+          avatarId,
+          serverDirection,
+          action,
+        )
+
+        return {
+          id: `${avatarId}.${action}.${visualFacing}`,
+          avatarId,
+          action,
+          serverDirection,
+          visualFacing,
+          animationKey: definition.key,
+          frameKeys: definition.sprite.frameKeys,
+        }
+      }),
+    ),
+  )
+}
+
+function animationSpriteMetadata(
+  avatarId: string,
+  action: AvatarAnimationAction,
+  direction: Direction,
+): RendererAvatarAnimationSpriteInfo {
+  const framePrefix = `${AVATAR_SPRITE_ATLAS.atlasId}/${resolveAvatarId(avatarId)}/${action}/${direction}`
+  const frameCount = animationFrameCount(action)
+
+  return {
+    atlasId: AVATAR_SPRITE_ATLAS.atlasId,
+    renderMode: AVATAR_SPRITE_ATLAS.renderMode,
+    framePrefix,
+    frameKeys: Array.from(
+      { length: frameCount },
+      (_, index) => `${framePrefix}/${String(index).padStart(2, "0")}`,
+    ),
+    frameCount,
+    frameRate: animationFrameRate(action),
+    anchor: AVATAR_SPRITE_ATLAS.anchor,
+  }
+}
+
+function animationFrameCount(action: AvatarAnimationAction): number {
+  if (action === "run") return 8
+  if (action === "walk") return 6
+  return 4
+}
+
+function animationFrameRate(action: AvatarAnimationAction): number {
+  if (action === "run") return 12
+  if (action === "walk") return 9
+  if (action === "turn") return 8
+  return 2
+}
+
 function animationDurationMs(action: AvatarAnimationAction): number {
   if (action === "run") return 82
   if (action === "walk") return 105
   if (action === "turn") return 145
   return 1100
+}
+
+function serverDirectionForVisualFacing(
+  visualFacing: AvatarVisualFacing,
+): Direction {
+  if (visualFacing === "up" || visualFacing === "upLeft") return "up"
+  if (visualFacing === "right" || visualFacing === "upRight") return "right"
+  if (visualFacing === "left" || visualFacing === "downLeft") return "left"
+  return "down"
 }
 
 function animationKey(

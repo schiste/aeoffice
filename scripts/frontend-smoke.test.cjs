@@ -775,6 +775,21 @@ function assertRenderStateContract(state) {
     Array.isArray(state.avatars?.animationKeys),
     "Expected avatars.animationKeys in render_game_to_text.",
   )
+  assert.equal(state.avatars?.spriteAtlas?.source, "runtime_generated_avatar_parts")
+  assert.equal(state.avatars?.spriteAtlas?.serverDirectionModel, "4_way")
+  assert.equal(state.avatars?.spriteAtlas?.visualDirectionModel, "8_way")
+  assert.ok(
+    Array.isArray(state.avatars?.spriteAtlas?.supportedStates),
+    "Expected avatars.spriteAtlas.supportedStates in render_game_to_text.",
+  )
+  assert.ok(
+    Array.isArray(state.avatars?.animationStates),
+    "Expected avatars.animationStates in render_game_to_text.",
+  )
+  assert.ok(
+    Array.isArray(state.avatars?.previewFixtures),
+    "Expected avatars.previewFixtures in render_game_to_text.",
+  )
   assert.ok(
     Array.isArray(state.avatars?.players),
     "Expected avatars.players in render_game_to_text.",
@@ -1723,6 +1738,39 @@ async function assertAvatarSystemSmoke(page) {
     "violet",
   ])
   assert.equal(avatarState.avatars.animationCount, 64)
+  assert.equal(avatarState.avatars.spriteAtlas.atlasId, "internal-avatar-procedural-v1")
+  assert.equal(avatarState.avatars.spriteAtlas.renderMode, "procedural_proxy")
+  assert.deepEqual(avatarState.avatars.animationStates, [
+    "idle",
+    "walk",
+    "run",
+    "turn",
+  ])
+  assert.equal(
+    avatarState.avatars.visualDirectionModel,
+    "server_4_way_visual_8_way",
+  )
+  assert.ok(
+    avatarState.avatars.previewFixtures.length >= 128,
+    "Expected avatar preview fixtures to cover avatar/state/visual-facing combinations.",
+  )
+  for (const facing of [
+    "up",
+    "upRight",
+    "right",
+    "downRight",
+    "down",
+    "downLeft",
+    "left",
+    "upLeft",
+  ]) {
+    assert.ok(
+      avatarState.avatars.previewFixtures.some(
+        (fixture) => fixture.visualFacing === facing,
+      ),
+      `Expected avatar preview fixture for visual facing ${facing}.`,
+    )
+  }
   assert.deepEqual(avatarState.avatars.interpolationProfiles, ["local", "remote"])
   assert.deepEqual(avatarState.avatars.emoteIds, ["wave", "raise_hand", "focus"])
   assert.deepEqual(fixture.avatarIds, ["ember", "cobalt", "moss", "violet"])
@@ -1766,7 +1814,19 @@ async function assertAvatarSystemSmoke(page) {
       assert.equal(typeof player.remoteInterpolation.velocity.y, "number")
     }
     assert.equal(player.animation.action, "idle")
+    assert.equal(player.animation.state, "idle")
+    assert.equal(player.animation.direction, player.animation.serverDirection)
     assert.match(player.animation.key, new RegExp(`^${avatarId}_idle_`))
+    assert.equal(player.animation.sprite.atlasId, "internal-avatar-procedural-v1")
+    assert.equal(player.animation.sprite.renderMode, "procedural_proxy")
+    assert.equal(player.animation.sprite.frameCount, 4)
+    assert.equal(player.animation.sprite.frameRate, 2)
+    assert.ok(
+      player.animation.sprite.frameKeys.every((key) =>
+        key.startsWith(player.animation.sprite.framePrefix),
+      ),
+      `Expected stable sprite frame keys, got ${JSON.stringify(player.animation.sprite)}.`,
+    )
     assert.ok(
       [
         "up",

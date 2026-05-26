@@ -842,3 +842,21 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   Desktop and mobile QA screenshots were visually inspected. The standalone
   develop-web-game client still fails before navigation because it cannot
   resolve `playwright` from the skill runtime.
+- Real avatar animation metadata is now explicit in the renderer contract.
+  The avatar registry exposes the supported states (`idle`, `walk`, `run`,
+  `turn`), the 4-way server / 8-way visual-facing model, procedural atlas
+  metadata, per-animation frame keys, frame counts, frame rates, anchors, and
+  preview fixtures covering avatar/state/visual-facing combinations.
+- `render_game_to_text.avatars` now reports the sprite atlas contract,
+  animation states, visual direction model, preview fixtures, and per-player
+  sprite frame metadata. The current art path is intentionally labeled
+  `procedural_proxy` so the later bitmap-atlas replacement can be verified
+  without pretending placeholder procedural parts are final avatar art.
+- Verification passed after the avatar animation metadata pass:
+  `npm --workspace @aedventure/web run build`,
+  `node --check scripts/frontend-smoke.test.cjs`, `npm run smoke:frontend`,
+  `npm run qa:renderer`, `npm run qa:responsive`, and `npm run check`.
+  Desktop/mobile renderer and responsive screenshots were visually inspected.
+  The standalone develop-web-game client was attempted against a local Vite
+  server but still fails before navigation because it cannot resolve
+  `playwright` from the skill runtime.

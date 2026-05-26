@@ -273,6 +273,47 @@ export type AvatarCosmeticSlot =
   | "accessory"
   | "badge"
 
+export type RendererAvatarRenderMode = "procedural_proxy" | "sprite_atlas"
+
+export interface RendererAvatarSpriteAnchor {
+  readonly x: number
+  readonly y: number
+}
+
+export interface RendererAvatarSpriteAtlasInfo {
+  readonly source: "runtime_generated_avatar_parts"
+  readonly atlasId: string
+  readonly renderMode: RendererAvatarRenderMode
+  readonly frameWidth: number
+  readonly frameHeight: number
+  readonly exportScale: number
+  readonly anchor: RendererAvatarSpriteAnchor
+  readonly serverDirectionModel: "4_way"
+  readonly visualDirectionModel: "8_way"
+  readonly supportedStates: readonly AvatarAnimationAction[]
+  readonly cosmeticSlots: readonly AvatarCosmeticSlot[]
+}
+
+export interface RendererAvatarAnimationSpriteInfo {
+  readonly atlasId: string
+  readonly renderMode: RendererAvatarRenderMode
+  readonly framePrefix: string
+  readonly frameKeys: readonly string[]
+  readonly frameCount: number
+  readonly frameRate: number
+  readonly anchor: RendererAvatarSpriteAnchor
+}
+
+export interface RendererAvatarAnimationPreviewFixture {
+  readonly id: string
+  readonly avatarId: string
+  readonly action: AvatarAnimationAction
+  readonly serverDirection: Direction
+  readonly visualFacing: AvatarVisualFacing
+  readonly animationKey: string
+  readonly frameKeys: readonly string[]
+}
+
 export interface RendererViewportState {
   readonly viewportWidth: number
   readonly viewportHeight: number
@@ -446,9 +487,12 @@ export interface RendererObjectPoolInfo {
 export interface RendererAvatarAnimationInfo {
   readonly key: string
   readonly action: AvatarAnimationAction
+  readonly state: AvatarAnimationAction
   readonly direction: Direction
+  readonly serverDirection: Direction
   readonly visualFacing: AvatarVisualFacing
   readonly durationMs: number
+  readonly sprite: RendererAvatarAnimationSpriteInfo
   readonly poseBlendActive: boolean
 }
 
@@ -499,8 +543,12 @@ export interface RendererAvatarPlayerInfo {
 export interface RendererAvatarInfo {
   readonly source: "renderer_runtime"
   readonly availableAvatarIds: readonly string[]
+  readonly spriteAtlas: RendererAvatarSpriteAtlasInfo
+  readonly animationStates: readonly AvatarAnimationAction[]
   readonly animationKeys: readonly string[]
   readonly animationCount: number
+  readonly previewFixtures: readonly RendererAvatarAnimationPreviewFixture[]
+  readonly visualDirectionModel: "server_4_way_visual_8_way"
   readonly emoteIds: readonly AvatarEmoteId[]
   readonly interpolationProfiles: readonly ("local" | "remote")[]
   readonly cosmeticSlots: readonly AvatarCosmeticSlot[]
