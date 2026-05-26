@@ -1039,3 +1039,22 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   standalone develop-web-game client was attempted again against
   `http://127.0.0.1:8108/app`, but still fails before navigation because the
   skill runtime cannot resolve `playwright`.
+- Avatar animation now runs through a sprite-atlas metadata pipeline instead
+  of the previous procedural-proxy contract. The renderer exposes atlas schema
+  version, stable `avatar/action/server-direction/frame` keys, generated frame
+  texture source, per-state frame counts/rates/loop/blend metadata, turn
+  blending, emote hooks, and label visibility rules through
+  `render_game_to_text.avatars`.
+- Phaser avatar rendering now swaps generated frame textures by atlas frame
+  key while keeping the old procedural body parts hidden as a temporary
+  fallback scaffold. The current frame key/index/rate/duration/loop/blend
+  state is reported per player, with 4-way authoritative server direction and
+  8-way visual facing preserved.
+- Verification passed after the avatar sprite-atlas pipeline slice:
+  `npm --workspace @aedventure/web run build`,
+  `node --check scripts/frontend-smoke.test.cjs`, `git diff --check`,
+  `npm run smoke:frontend`, `npm run qa:renderer`, `npm run qa:responsive`,
+  and `npm run check`. Renderer and responsive screenshots were visually
+  inspected. The required standalone develop-web-game client was attempted
+  against `http://127.0.0.1:8108/app`, but still fails before navigation
+  because the skill runtime cannot resolve `playwright`.

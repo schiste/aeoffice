@@ -826,7 +826,8 @@ function assertRenderStateContract(state) {
     Array.isArray(state.avatars?.animationKeys),
     "Expected avatars.animationKeys in render_game_to_text.",
   )
-  assert.equal(state.avatars?.spriteAtlas?.source, "runtime_generated_avatar_parts")
+  assert.equal(state.avatars?.spriteAtlas?.source, "runtime_generated_sprite_atlas")
+  assert.equal(state.avatars?.animationPipeline?.source, "sprite_atlas_metadata")
   assert.equal(state.avatars?.spriteAtlas?.serverDirectionModel, "4_way")
   assert.equal(state.avatars?.spriteAtlas?.visualDirectionModel, "8_way")
   assert.ok(
@@ -1851,8 +1852,53 @@ async function assertAvatarSystemSmoke(page) {
     "violet",
   ])
   assert.equal(avatarState.avatars.animationCount, 64)
-  assert.equal(avatarState.avatars.spriteAtlas.atlasId, "internal-avatar-procedural-v1")
-  assert.equal(avatarState.avatars.spriteAtlas.renderMode, "procedural_proxy")
+  assert.equal(avatarState.avatars.spriteAtlas.atlasId, "internal-avatar-atlas-v1")
+  assert.equal(avatarState.avatars.spriteAtlas.renderMode, "sprite_atlas")
+  assert.equal(avatarState.avatars.spriteAtlas.schemaVersion, 1)
+  assert.equal(avatarState.avatars.spriteAtlas.frameCount, 352)
+  assert.equal(
+    avatarState.avatars.spriteAtlas.frameKeyStrategy,
+    "avatar_action_server_direction_frame",
+  )
+  assert.equal(
+    avatarState.avatars.spriteAtlas.generatedTextureSource,
+    "runtime_canvas_sprite_frames",
+  )
+  assert.equal(
+    avatarState.avatars.animationPipeline.renderer,
+    "phaser_image_frame_swap",
+  )
+  assert.equal(
+    avatarState.avatars.animationPipeline.turnBlending,
+    "pose_blend",
+  )
+  assert.equal(
+    avatarState.avatars.animationPipeline.emoteHooks,
+    "renderer_emote_registry",
+  )
+  assert.equal(
+    avatarState.avatars.labelVisibilityRules,
+    "local_always_remote_overlap_suppressed",
+  )
+  assert.equal(avatarState.avatars.emoteHooks, "renderer_emote_registry")
+  assert.equal(
+    avatarState.avatars.animationPipeline.labelVisibilityRules,
+    "local_always_remote_overlap_suppressed",
+  )
+  assert.deepEqual(
+    avatarState.avatars.spriteAtlas.stateDefinitions.map((state) => [
+      state.action,
+      state.frameCount,
+      state.frameRate,
+      state.loop,
+    ]),
+    [
+      ["idle", 4, 2, true],
+      ["walk", 6, 9, true],
+      ["run", 8, 12, true],
+      ["turn", 4, 8, false],
+    ],
+  )
   assert.deepEqual(avatarState.avatars.animationStates, [
     "idle",
     "walk",
@@ -1901,6 +1947,7 @@ async function assertAvatarSystemSmoke(page) {
     assert.ok(player, `Expected ${avatarId} avatar render state.`)
     assert.equal(player.labelVisible, true)
     assert.equal(player.labelVisibilityReason, "visible")
+    assert.equal(player.labelPolicy, "local_always_remote_overlap_suppressed")
     assert.equal(player.labelResolution, 4)
     assert.equal(player.labelTextureFilter, "linear")
     assert.ok(
@@ -1933,17 +1980,33 @@ async function assertAvatarSystemSmoke(page) {
     }
     assert.equal(player.animation.action, "idle")
     assert.equal(player.animation.state, "idle")
+    assert.equal(player.animation.pipeline, "sprite_atlas_metadata")
     assert.equal(player.animation.direction, player.animation.serverDirection)
     assert.match(player.animation.key, new RegExp(`^${avatarId}_idle_`))
-    assert.equal(player.animation.sprite.atlasId, "internal-avatar-procedural-v1")
-    assert.equal(player.animation.sprite.renderMode, "procedural_proxy")
+    assert.equal(player.animation.sprite.atlasId, "internal-avatar-atlas-v1")
+    assert.equal(player.animation.sprite.renderMode, "sprite_atlas")
     assert.equal(player.animation.sprite.frameCount, 4)
     assert.equal(player.animation.sprite.frameRate, 2)
+    assert.equal(player.animation.sprite.frameDurationMs, 500)
+    assert.equal(player.animation.sprite.loop, true)
+    assert.equal(player.animation.sprite.blendDurationMs, 96)
+    assert.equal(player.animation.frameRate, 2)
+    assert.equal(player.animation.frameDurationMs, 500)
+    assert.equal(player.animation.loop, true)
+    assert.equal(typeof player.animation.frameIndex, "number")
+    assert.ok(
+      player.animation.frameKey.startsWith(player.animation.sprite.framePrefix),
+      `Expected current frame key to use sprite prefix, got ${JSON.stringify(player.animation)}.`,
+    )
     assert.ok(
       player.animation.sprite.frameKeys.every((key) =>
         key.startsWith(player.animation.sprite.framePrefix),
       ),
       `Expected stable sprite frame keys, got ${JSON.stringify(player.animation.sprite)}.`,
+    )
+    assert.deepEqual(
+      player.animation.sprite.textureKeys,
+      player.animation.sprite.frameKeys,
     )
     assert.ok(
       [

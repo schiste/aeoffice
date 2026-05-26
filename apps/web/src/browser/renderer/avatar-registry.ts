@@ -6,7 +6,9 @@ import type {
   Direction,
   RenderedPlayer,
   RendererAvatarAnimationPreviewFixture,
+  RendererAvatarAnimationPipelineInfo,
   RendererAvatarAnimationSpriteInfo,
+  RendererAvatarAnimationStateDefinition,
   RendererAvatarSpriteAtlasInfo,
 } from "./types"
 
@@ -91,6 +93,50 @@ export const AVATAR_ANIMATION_STATES: readonly AvatarAnimationAction[] = [
   "turn",
 ]
 
+export const AVATAR_ANIMATION_STATE_DEFINITIONS: readonly RendererAvatarAnimationStateDefinition[] =
+  [
+    {
+      action: "idle",
+      frameCount: 4,
+      frameRate: 2,
+      frameDurationMs: 500,
+      durationMs: 1100,
+      loop: true,
+      repeat: -1,
+      blendDurationMs: 96,
+    },
+    {
+      action: "walk",
+      frameCount: 6,
+      frameRate: 9,
+      frameDurationMs: 111,
+      durationMs: 105,
+      loop: true,
+      repeat: 2,
+      blendDurationMs: 96,
+    },
+    {
+      action: "run",
+      frameCount: 8,
+      frameRate: 12,
+      frameDurationMs: 83,
+      durationMs: 82,
+      loop: true,
+      repeat: 2,
+      blendDurationMs: 72,
+    },
+    {
+      action: "turn",
+      frameCount: 4,
+      frameRate: 8,
+      frameDurationMs: 125,
+      durationMs: 145,
+      loop: false,
+      repeat: 0,
+      blendDurationMs: 138,
+    },
+  ]
+
 export const AVATAR_VISUAL_FACING_DIRECTIONS: readonly AvatarVisualFacing[] = [
   "up",
   "upRight",
@@ -103,19 +149,27 @@ export const AVATAR_VISUAL_FACING_DIRECTIONS: readonly AvatarVisualFacing[] = [
 ]
 
 const AVATAR_SPRITE_ATLAS: RendererAvatarSpriteAtlasInfo = {
-  source: "runtime_generated_avatar_parts",
-  atlasId: "internal-avatar-procedural-v1",
-  renderMode: "procedural_proxy",
+  source: "runtime_generated_sprite_atlas",
+  schemaVersion: 1,
+  atlasId: "internal-avatar-atlas-v1",
+  textureKey: "internal-avatar-atlas-v1-runtime-generated",
+  renderMode: "sprite_atlas",
   frameWidth: 32,
   frameHeight: 42,
+  frameCount: avatarAtlasFrameCount(),
   exportScale: 2,
   anchor: {
     x: 0.5,
     y: 0.86,
   },
+  frameKeyStrategy: "avatar_action_server_direction_frame",
   serverDirectionModel: "4_way",
   visualDirectionModel: "8_way",
+  serverDirectionCount: 4,
+  visualFacingCount: 8,
   supportedStates: AVATAR_ANIMATION_STATES,
+  stateDefinitions: AVATAR_ANIMATION_STATE_DEFINITIONS,
+  generatedTextureSource: "runtime_canvas_sprite_frames",
   cosmeticSlots: AVATAR_COSMETIC_SLOTS,
 }
 
@@ -303,6 +357,22 @@ export function avatarSpriteAtlasMetadata(): RendererAvatarSpriteAtlasInfo {
   return AVATAR_SPRITE_ATLAS
 }
 
+export function avatarAnimationPipelineMetadata(): RendererAvatarAnimationPipelineInfo {
+  return {
+    source: "sprite_atlas_metadata",
+    atlasId: AVATAR_SPRITE_ATLAS.atlasId,
+    renderer: "phaser_image_frame_swap",
+    frameKeyStrategy: AVATAR_SPRITE_ATLAS.frameKeyStrategy,
+    generatedTextureSource: AVATAR_SPRITE_ATLAS.generatedTextureSource,
+    serverDirectionModel: AVATAR_SPRITE_ATLAS.serverDirectionModel,
+    visualDirectionModel: AVATAR_SPRITE_ATLAS.visualDirectionModel,
+    turnBlending: "pose_blend",
+    emoteHooks: "renderer_emote_registry",
+    labelVisibilityRules: "local_always_remote_overlap_suppressed",
+    stateDefinitions: AVATAR_ANIMATION_STATE_DEFINITIONS,
+  }
+}
+
 export function avatarAnimationPreviewFixtures(): readonly RendererAvatarAnimationPreviewFixture[] {
   return ANIMATION_PREVIEW_FIXTURES
 }
@@ -327,8 +397,8 @@ function buildAnimationRegistry(): Map<string, AvatarAnimationDefinition> {
           avatarId,
           action,
           direction,
-          durationMs: animationDurationMs(action),
-          repeat: action === "idle" ? -1 : action === "turn" ? 0 : 2,
+          durationMs: animationStateDefinition(action).durationMs,
+          repeat: animationStateDefinition(action).repeat,
           sprite: animationSpriteMetadata(avatarId, action, direction),
           bodyScaleX:
             action === "idle"
@@ -401,41 +471,45 @@ function animationSpriteMetadata(
   action: AvatarAnimationAction,
   direction: Direction,
 ): RendererAvatarAnimationSpriteInfo {
-  const framePrefix = `${AVATAR_SPRITE_ATLAS.atlasId}/${resolveAvatarId(avatarId)}/${action}/${direction}`
-  const frameCount = animationFrameCount(action)
+  const state = animationStateDefinition(action)
+  const framePrefix = `${AVATAR_SPRITE_ATLAS.atlasId}/frames/${resolveAvatarId(avatarId)}/${action}/${direction}`
+  const frameKeys = Array.from(
+    { length: state.frameCount },
+    (_, index) => `${framePrefix}/${String(index).padStart(2, "0")}`,
+  )
 
   return {
     atlasId: AVATAR_SPRITE_ATLAS.atlasId,
     renderMode: AVATAR_SPRITE_ATLAS.renderMode,
     framePrefix,
-    frameKeys: Array.from(
-      { length: frameCount },
-      (_, index) => `${framePrefix}/${String(index).padStart(2, "0")}`,
-    ),
-    frameCount,
-    frameRate: animationFrameRate(action),
+    frameKeys,
+    textureKeys: frameKeys,
+    frameCount: state.frameCount,
+    frameRate: state.frameRate,
+    frameDurationMs: state.frameDurationMs,
+    loop: state.loop,
+    blendDurationMs: state.blendDurationMs,
     anchor: AVATAR_SPRITE_ATLAS.anchor,
   }
 }
 
-function animationFrameCount(action: AvatarAnimationAction): number {
-  if (action === "run") return 8
-  if (action === "walk") return 6
-  return 4
+function animationStateDefinition(
+  action: AvatarAnimationAction,
+): RendererAvatarAnimationStateDefinition {
+  return AVATAR_ANIMATION_STATE_DEFINITIONS.find(
+    (definition) => definition.action === action,
+  )!
 }
 
-function animationFrameRate(action: AvatarAnimationAction): number {
-  if (action === "run") return 12
-  if (action === "walk") return 9
-  if (action === "turn") return 8
-  return 2
-}
+function avatarAtlasFrameCount(): number {
+  const serverDirectionCount = 4
 
-function animationDurationMs(action: AvatarAnimationAction): number {
-  if (action === "run") return 82
-  if (action === "walk") return 105
-  if (action === "turn") return 145
-  return 1100
+  return AVATAR_IDS.length *
+    serverDirectionCount *
+    AVATAR_ANIMATION_STATE_DEFINITIONS.reduce(
+      (total, definition) => total + definition.frameCount,
+      0,
+    )
 }
 
 function serverDirectionForVisualFacing(

@@ -351,6 +351,9 @@ export type AvatarCosmeticSlot =
   | "badge"
 
 export type RendererAvatarRenderMode = "procedural_proxy" | "sprite_atlas"
+export type RendererAvatarAtlasSource =
+  | "runtime_generated_avatar_parts"
+  | "runtime_generated_sprite_atlas"
 
 export interface RendererAvatarSpriteAnchor {
   readonly x: number
@@ -358,17 +361,50 @@ export interface RendererAvatarSpriteAnchor {
 }
 
 export interface RendererAvatarSpriteAtlasInfo {
-  readonly source: "runtime_generated_avatar_parts"
+  readonly source: RendererAvatarAtlasSource
+  readonly schemaVersion: number
   readonly atlasId: string
+  readonly textureKey: string
   readonly renderMode: RendererAvatarRenderMode
   readonly frameWidth: number
   readonly frameHeight: number
+  readonly frameCount: number
   readonly exportScale: number
   readonly anchor: RendererAvatarSpriteAnchor
+  readonly frameKeyStrategy: "avatar_action_server_direction_frame"
   readonly serverDirectionModel: "4_way"
   readonly visualDirectionModel: "8_way"
+  readonly serverDirectionCount: 4
+  readonly visualFacingCount: 8
   readonly supportedStates: readonly AvatarAnimationAction[]
+  readonly stateDefinitions: readonly RendererAvatarAnimationStateDefinition[]
+  readonly generatedTextureSource: "runtime_canvas_sprite_frames"
   readonly cosmeticSlots: readonly AvatarCosmeticSlot[]
+}
+
+export interface RendererAvatarAnimationStateDefinition {
+  readonly action: AvatarAnimationAction
+  readonly frameCount: number
+  readonly frameRate: number
+  readonly frameDurationMs: number
+  readonly durationMs: number
+  readonly loop: boolean
+  readonly repeat: number
+  readonly blendDurationMs: number
+}
+
+export interface RendererAvatarAnimationPipelineInfo {
+  readonly source: "sprite_atlas_metadata"
+  readonly atlasId: string
+  readonly renderer: "phaser_image_frame_swap"
+  readonly frameKeyStrategy: "avatar_action_server_direction_frame"
+  readonly generatedTextureSource: "runtime_canvas_sprite_frames"
+  readonly serverDirectionModel: "4_way"
+  readonly visualDirectionModel: "8_way"
+  readonly turnBlending: "pose_blend"
+  readonly emoteHooks: "renderer_emote_registry"
+  readonly labelVisibilityRules: "local_always_remote_overlap_suppressed"
+  readonly stateDefinitions: readonly RendererAvatarAnimationStateDefinition[]
 }
 
 export interface RendererAvatarAnimationSpriteInfo {
@@ -376,8 +412,12 @@ export interface RendererAvatarAnimationSpriteInfo {
   readonly renderMode: RendererAvatarRenderMode
   readonly framePrefix: string
   readonly frameKeys: readonly string[]
+  readonly textureKeys: readonly string[]
   readonly frameCount: number
   readonly frameRate: number
+  readonly frameDurationMs: number
+  readonly loop: boolean
+  readonly blendDurationMs: number
   readonly anchor: RendererAvatarSpriteAnchor
 }
 
@@ -577,6 +617,7 @@ export interface RendererObjectPoolInfo {
 }
 
 export interface RendererAvatarAnimationInfo {
+  readonly pipeline: "sprite_atlas_metadata"
   readonly key: string
   readonly action: AvatarAnimationAction
   readonly state: AvatarAnimationAction
@@ -585,6 +626,12 @@ export interface RendererAvatarAnimationInfo {
   readonly visualFacing: AvatarVisualFacing
   readonly durationMs: number
   readonly sprite: RendererAvatarAnimationSpriteInfo
+  readonly frameIndex: number
+  readonly frameKey: string
+  readonly frameRate: number
+  readonly frameDurationMs: number
+  readonly loop: boolean
+  readonly blendDurationMs: number
   readonly poseBlendActive: boolean
 }
 
@@ -628,6 +675,7 @@ export interface RendererAvatarPlayerInfo {
   }
   readonly labelVisible: boolean
   readonly labelVisibilityReason: "visible" | "overlap_suppressed"
+  readonly labelPolicy: "local_always_remote_overlap_suppressed"
   readonly labelBounds: RendererDepthPlacementBounds
   readonly labelResolution: number
   readonly labelTextureFilter: "linear"
@@ -641,11 +689,14 @@ export interface RendererAvatarInfo {
   readonly source: "renderer_runtime"
   readonly availableAvatarIds: readonly string[]
   readonly spriteAtlas: RendererAvatarSpriteAtlasInfo
+  readonly animationPipeline: RendererAvatarAnimationPipelineInfo
   readonly animationStates: readonly AvatarAnimationAction[]
   readonly animationKeys: readonly string[]
   readonly animationCount: number
   readonly previewFixtures: readonly RendererAvatarAnimationPreviewFixture[]
   readonly visualDirectionModel: "server_4_way_visual_8_way"
+  readonly labelVisibilityRules: "local_always_remote_overlap_suppressed"
+  readonly emoteHooks: "renderer_emote_registry"
   readonly emoteIds: readonly AvatarEmoteId[]
   readonly interpolationProfiles: readonly ("local" | "remote")[]
   readonly cosmeticSlots: readonly AvatarCosmeticSlot[]

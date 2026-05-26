@@ -1,6 +1,7 @@
 import Phaser from "phaser"
 
 import {
+  avatarAnimationPipelineMetadata,
   avatarAnimationPreviewFixtures,
   avatarAnimationDefinition,
   avatarAnimationKeys,
@@ -18,6 +19,7 @@ import {
   type AvatarAppearanceMetadata,
   type AvatarInterpolationProfile,
 } from "./avatar-registry"
+import { ensureAvatarSpriteFrameTexture } from "./avatar-sprite-atlas"
 import {
   AVATAR_HEIGHT,
   AVATAR_WIDTH,
@@ -301,11 +303,14 @@ export class AvatarRenderer {
       source: "renderer_runtime",
       availableAvatarIds: AVATAR_IDS,
       spriteAtlas: avatarSpriteAtlasMetadata(),
+      animationPipeline: avatarAnimationPipelineMetadata(),
       animationStates: avatarAnimationStates(),
       animationKeys: avatarAnimationKeys(),
       animationCount: avatarAnimationKeys().length,
       previewFixtures: avatarAnimationPreviewFixtures(),
       visualDirectionModel: "server_4_way_visual_8_way",
+      labelVisibilityRules: "local_always_remote_overlap_suppressed",
+      emoteHooks: "renderer_emote_registry",
       emoteIds: AVATAR_EMOTE_IDS,
       interpolationProfiles: ["local", "remote"],
       cosmeticSlots: AVATAR_COSMETIC_SLOTS,
@@ -345,6 +350,7 @@ class AvatarView {
   private readonly bodyRoot: Phaser.GameObjects.Container
   private readonly shadow: Phaser.GameObjects.Ellipse
   private readonly impactRing: Phaser.GameObjects.Ellipse
+  private readonly sprite: Phaser.GameObjects.Image
   private readonly leftFoot: Phaser.GameObjects.Ellipse
   private readonly rightFoot: Phaser.GameObjects.Ellipse
   private readonly torso: Phaser.GameObjects.Ellipse
@@ -382,6 +388,11 @@ class AvatarView {
   private appearance: AvatarAppearanceMetadata
   private animation: AvatarAnimationDefinition
   private visualFacing: AvatarVisualFacing
+  private spriteVisualFacing: AvatarVisualFacing = "down"
+  private spriteAnimationKey = ""
+  private spriteAnimationStartedAtMs = 0
+  private spriteFrameIndex = 0
+  private spriteFrameKey = ""
   private poseState: AvatarPoseState
   private interpolationProfile: AvatarInterpolationProfile
   private currentEmoteId?: AvatarEmoteId
@@ -460,6 +471,27 @@ class AvatarView {
     this.impactRing = scene.add.ellipse(0, 13, 22, 10, 0xffd166, 0)
     this.impactRing.setStrokeStyle(2, 0xffd166, 0)
     this.impactRing.setVisible(false)
+    this.spriteFrameKey = ensureAvatarSpriteFrameTexture(
+      scene,
+      this.animation,
+      this.appearance,
+      this.visualFacing,
+      0,
+    )
+    this.sprite = scene.add.image(0, 15, this.spriteFrameKey)
+    this.sprite.setOrigin(
+      this.animation.sprite.anchor.x,
+      this.animation.sprite.anchor.y,
+    )
+    this.sprite.setDisplaySize(
+      avatarSpriteAtlasMetadata().frameWidth,
+      avatarSpriteAtlasMetadata().frameHeight,
+    )
+    this.sprite.setName(`avatar-frame:${player.playerId}`)
+    this.sprite.setVertexRoundMode("off")
+    this.spriteAnimationKey = this.animation.key
+    this.spriteVisualFacing = this.visualFacing
+    this.spriteAnimationStartedAtMs = scene.time.now
     this.leftFoot = scene.add.ellipse(-5, 12, 7, 5, palette.torsoDark, 1)
     this.rightFoot = scene.add.ellipse(5, 12, 7, 5, palette.torsoDark, 1)
     this.torso = scene.add.ellipse(0, 2, AVATAR_WIDTH, AVATAR_HEIGHT, palette.torso, 1)
@@ -503,6 +535,7 @@ class AvatarView {
     this.bodyRoot.add([
       this.shadow,
       this.impactRing,
+      this.sprite,
       this.leftFoot,
       this.rightFoot,
       this.torso,
@@ -510,6 +543,7 @@ class AvatarView {
       this.hair,
       this.facing,
     ])
+    this.hideProceduralBodyParts()
     this.visualRoot.add([
       this.bodyRoot,
       this.labelShadow,
@@ -615,6 +649,9 @@ class AvatarView {
           ),
         )
       }
+      this.restartSpriteAnimation(nextAnimation, nextAppearance, nextVisualFacing)
+    } else {
+      this.applySpriteFrame()
     }
     this.applyCameraAwareLabelScale()
     this.focusTarget.setDepth(avatarDepth(this.focusTarget.y))
@@ -656,6 +693,7 @@ class AvatarView {
     if (!this.playerLocal) {
       this.applyRemoteInterpolation(this.scene.time.now)
     }
+    this.applySpriteFrame()
     this.applyCameraAwareLabelScale()
     this.focusTarget.setDepth(avatarDepth(this.focusTarget.y))
   }
@@ -741,6 +779,7 @@ class AvatarView {
       },
       targetPosition: this.lastPosition,
       animation: {
+        pipeline: "sprite_atlas_metadata",
         key: this.animation.key,
         action: this.animation.action,
         state: this.animation.action,
@@ -749,6 +788,12 @@ class AvatarView {
         visualFacing: this.visualFacing,
         durationMs: this.animation.durationMs,
         sprite: this.animation.sprite,
+        frameIndex: this.spriteFrameIndex,
+        frameKey: this.spriteFrameKey,
+        frameRate: this.animation.sprite.frameRate,
+        frameDurationMs: this.animation.sprite.frameDurationMs,
+        loop: this.animation.sprite.loop,
+        blendDurationMs: this.animation.sprite.blendDurationMs,
         poseBlendActive: this.poseTween?.isPlaying() ?? false,
       },
       interpolationProfile: this.interpolationProfile.id,
@@ -765,6 +810,7 @@ class AvatarView {
       },
       labelVisible: this.labelIsVisible,
       labelVisibilityReason: this.labelReason,
+      labelPolicy: "local_always_remote_overlap_suppressed",
       labelBounds: this.currentLabelBounds(),
       labelResolution: LABEL_TEXT_RESOLUTION,
       labelTextureFilter: LABEL_TEXTURE_FILTER,
@@ -1024,6 +1070,77 @@ class AvatarView {
     this.labelBack.setStrokeStyle(1, palette.torso, 0.65)
     this.labelTail.setStrokeStyle(1, palette.torso, 0.55)
     this.emoteBack.setStrokeStyle(1, palette.accent, 0.72)
+  }
+
+  private hideProceduralBodyParts(): void {
+    const proceduralParts = [
+      this.leftFoot,
+      this.rightFoot,
+      this.torso,
+      this.head,
+      this.hair,
+      this.facing,
+    ]
+
+    proceduralParts.forEach((part) => part.setVisible(false))
+  }
+
+  private restartSpriteAnimation(
+    animation: AvatarAnimationDefinition,
+    appearance: AvatarAppearanceMetadata,
+    visualFacing: AvatarVisualFacing,
+  ): void {
+    this.spriteAnimationKey = animation.key
+    this.spriteVisualFacing = visualFacing
+    this.spriteAnimationStartedAtMs = this.scene.time.now
+    this.applySpriteFrame(true, animation, appearance, visualFacing)
+  }
+
+  private applySpriteFrame(
+    force = false,
+    animation = this.animation,
+    appearance = this.appearance,
+    visualFacing = this.visualFacing,
+  ): void {
+    if (
+      this.spriteAnimationKey !== animation.key ||
+      this.spriteVisualFacing !== visualFacing
+    ) {
+      this.spriteAnimationKey = animation.key
+      this.spriteVisualFacing = visualFacing
+      this.spriteAnimationStartedAtMs = this.scene.time.now
+      force = true
+    }
+
+    const elapsedMs = Math.max(
+      0,
+      this.scene.time.now - this.spriteAnimationStartedAtMs,
+    )
+    const rawFrameIndex = Math.floor(elapsedMs / animation.sprite.frameDurationMs)
+    const frameIndex = animation.sprite.loop
+      ? rawFrameIndex % animation.sprite.frameCount
+      : clamp(rawFrameIndex, 0, animation.sprite.frameCount - 1)
+    const frameKey = ensureAvatarSpriteFrameTexture(
+      this.scene,
+      animation,
+      appearance,
+      visualFacing,
+      frameIndex,
+    )
+
+    this.spriteFrameIndex = frameIndex
+    this.spriteFrameKey = frameKey
+    if (force || this.sprite.texture.key !== frameKey) {
+      this.sprite.setTexture(frameKey)
+      this.sprite.setOrigin(
+        animation.sprite.anchor.x,
+        animation.sprite.anchor.y,
+      )
+      this.sprite.setDisplaySize(
+        avatarSpriteAtlasMetadata().frameWidth,
+        avatarSpriteAtlasMetadata().frameHeight,
+      )
+    }
   }
 
   private applyAnimationPose(
