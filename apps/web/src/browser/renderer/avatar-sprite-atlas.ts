@@ -1,6 +1,13 @@
 import Phaser from "phaser"
 
 import {
+  createAvatarAtlasManifestLookup,
+  resolveAvatarFrameTexture,
+  type AvatarAtlasManifest,
+  type AvatarAtlasManifestLookup,
+  type ResolvedAvatarFrameTexture,
+} from "./avatar-atlas-manifest"
+import {
   avatarSpriteAtlasMetadata,
   type AvatarAnimationDefinition,
   type AvatarAppearanceMetadata,
@@ -13,17 +20,40 @@ interface FacingVector {
   readonly side: -1 | 0 | 1
 }
 
+let activeAvatarAtlasLookup: AvatarAtlasManifestLookup | undefined
+
+export function setAvatarSpriteAtlasManifest(
+  manifest: AvatarAtlasManifest | undefined,
+): void {
+  activeAvatarAtlasLookup = manifest
+    ? createAvatarAtlasManifestLookup(manifest)
+    : undefined
+}
+
 export function ensureAvatarSpriteFrameTexture(
   scene: Phaser.Scene,
   animation: AvatarAnimationDefinition,
   appearance: AvatarAppearanceMetadata,
   visualFacing: AvatarVisualFacing,
   frameIndex: number,
-): string {
-  const frameKey = animation.sprite.frameKeys[frameIndex] ??
+): ResolvedAvatarFrameTexture {
+  const semanticFrameKey = animation.sprite.frameKeys[frameIndex] ??
     animation.sprite.frameKeys[0]
+  const resolved = resolveAvatarFrameTexture({
+    semanticFrameKey,
+    visualFacing,
+    lookup: activeAvatarAtlasLookup,
+  })
 
-  if (scene.textures.exists(frameKey)) return frameKey
+  if (resolved.source === "real_atlas" && scene.textures.exists(resolved.textureKey)) {
+    return resolved
+  }
+
+  const fallback = resolved.source === "real_atlas"
+    ? resolveAvatarFrameTexture({ semanticFrameKey, visualFacing })
+    : resolved
+
+  if (scene.textures.exists(fallback.textureKey)) return fallback
 
   const atlas = avatarSpriteAtlasMetadata()
   const canvas = document.createElement("canvas")
@@ -33,7 +63,9 @@ export function ensureAvatarSpriteFrameTexture(
   const context = canvas.getContext("2d")
 
   if (!context) {
-    throw new Error(`Unable to create avatar frame texture ${frameKey}.`)
+    throw new Error(
+      `Unable to create avatar frame texture ${fallback.textureKey}.`,
+    )
   }
 
   context.imageSmoothingEnabled = true
@@ -48,10 +80,10 @@ export function ensureAvatarSpriteFrameTexture(
     atlas.frameHeight,
   )
 
-  scene.textures.addCanvas(frameKey, canvas)
-  scene.textures.get(frameKey).setFilter(Phaser.Textures.FilterMode.LINEAR)
+  scene.textures.addCanvas(fallback.textureKey, canvas)
+  scene.textures.get(fallback.textureKey).setFilter(Phaser.Textures.FilterMode.LINEAR)
 
-  return frameKey
+  return fallback
 }
 
 function drawAvatarFrame(

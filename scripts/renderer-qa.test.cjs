@@ -623,6 +623,12 @@ function assertRendererSnapshot(state) {
   assert.equal(state.renderer.performance.runtime.displayObjectCount > 0, true)
   assert.equal(typeof state.renderer.depth.objectCount, "number")
   assert.equal(typeof state.renderer.depth.playerCount, "number")
+  assert.equal(state.avatars.spriteAtlas.atlasImport.source, "avatar_atlas_manifest")
+  assert.equal(
+    state.avatars.spriteAtlas.atlasImport.activeSource,
+    "runtime_generated_fallback",
+  )
+  assert.equal(state.avatars.spriteAtlas.atlasImport.contractValidated, true)
   assertRendererPerformance(state.renderer.performance)
 }
 
@@ -697,6 +703,14 @@ function snapshotForReport(label, state) {
         mapSwitchCount: state.renderer.performance.lifecycle.mapSwitchCount,
       },
       mapValidation: state.renderer.mapValidation,
+    },
+    avatarAtlasImport: {
+      manifestPath: state.avatars.spriteAtlas.atlasImport.manifestPath,
+      imagePath: state.avatars.spriteAtlas.atlasImport.imagePath,
+      activeSource: state.avatars.spriteAtlas.atlasImport.activeSource,
+      fallbackActive: state.avatars.spriteAtlas.atlasImport.fallbackActive,
+      expectedFrameCount:
+        state.avatars.spriteAtlas.atlasImport.expectedFrameCount,
     },
   }
 }

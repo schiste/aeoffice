@@ -828,6 +828,11 @@ function assertRenderStateContract(state) {
   )
   assert.equal(state.avatars?.spriteAtlas?.source, "runtime_generated_sprite_atlas")
   assert.equal(state.avatars?.animationPipeline?.source, "sprite_atlas_metadata")
+  assert.equal(state.avatars?.spriteAtlas?.atlasImport?.source, "avatar_atlas_manifest")
+  assert.equal(
+    state.avatars?.spriteAtlas?.atlasImport?.activeSource,
+    "runtime_generated_fallback",
+  )
   assert.equal(state.avatars?.spriteAtlas?.serverDirectionModel, "4_way")
   assert.equal(state.avatars?.spriteAtlas?.visualDirectionModel, "8_way")
   assert.ok(
@@ -1857,6 +1862,53 @@ async function assertAvatarSystemSmoke(page) {
   assert.equal(avatarState.avatars.spriteAtlas.schemaVersion, 1)
   assert.equal(avatarState.avatars.spriteAtlas.frameCount, 352)
   assert.equal(
+    avatarState.avatars.spriteAtlas.atlasImport.source,
+    "avatar_atlas_manifest",
+  )
+  assert.equal(
+    avatarState.avatars.spriteAtlas.atlasImport.requestedAtlasId,
+    "internal-avatar-atlas-v1",
+  )
+  assert.equal(
+    avatarState.avatars.spriteAtlas.atlasImport.manifestPath,
+    "/assets/avatar-atlases/internal-avatar-atlas-v1/manifest.json",
+  )
+  assert.equal(
+    avatarState.avatars.spriteAtlas.atlasImport.imagePath,
+    "/assets/avatar-atlases/internal-avatar-atlas-v1/atlas.png",
+  )
+  assert.equal(avatarState.avatars.spriteAtlas.atlasImport.manifestLoaded, false)
+  assert.equal(avatarState.avatars.spriteAtlas.atlasImport.imageLoaded, false)
+  assert.equal(avatarState.avatars.spriteAtlas.atlasImport.manifestValidated, false)
+  assert.equal(avatarState.avatars.spriteAtlas.atlasImport.contractValidated, true)
+  assert.equal(
+    avatarState.avatars.spriteAtlas.atlasImport.activeSource,
+    "runtime_generated_fallback",
+  )
+  assert.equal(avatarState.avatars.spriteAtlas.atlasImport.fallbackActive, true)
+  assert.equal(avatarState.avatars.spriteAtlas.atlasImport.expectedFrameCount, 352)
+  assert.equal(avatarState.avatars.spriteAtlas.atlasImport.manifestFrameCount, 0)
+  assert.equal(
+    avatarState.avatars.spriteAtlas.atlasImport.runtimeFallbackFrameCount,
+    352,
+  )
+  assert.equal(avatarState.avatars.spriteAtlas.atlasImport.missingFrameCount, 0)
+  assert.deepEqual(avatarState.avatars.spriteAtlas.atlasImport.validationErrors, [])
+  assert.equal(
+    avatarState.avatars.spriteAtlas.atlasImport.runtimeFallbackTextureKeyStrategy,
+    "semantic_frame_visual_facing_generated_texture",
+  )
+  assert.ok(
+    avatarState.avatars.spriteAtlas.atlasImport.semanticFrameKeyExample.startsWith(
+      "internal-avatar-atlas-v1/frames/ember/idle/up/",
+    ),
+    `Expected stable atlas frame key example, got ${avatarState.avatars.spriteAtlas.atlasImport.semanticFrameKeyExample}.`,
+  )
+  assert.deepEqual(
+    avatarState.avatars.animationPipeline.atlasImport,
+    avatarState.avatars.spriteAtlas.atlasImport,
+  )
+  assert.equal(
     avatarState.avatars.spriteAtlas.frameKeyStrategy,
     "avatar_action_server_direction_frame",
   )
@@ -2002,10 +2054,16 @@ async function assertAvatarSystemSmoke(page) {
     assert.equal(typeof player.animation.transition.restartedSpriteClock, "boolean")
     assert.equal(typeof player.animation.transition.turnHoldActive, "boolean")
     assert.equal(typeof player.animation.frameIndex, "number")
+    assert.equal(player.animation.frameSource, "runtime_generated_fallback")
     assert.ok(
       player.animation.frameKey.startsWith(player.animation.sprite.framePrefix),
       `Expected current frame key to use sprite prefix, got ${JSON.stringify(player.animation)}.`,
     )
+    assert.equal(
+      player.animation.textureKey,
+      `${player.animation.frameKey}::generated::${player.animation.visualFacing}`,
+    )
+    assert.equal(player.animation.textureFrame, undefined)
     assert.ok(
       player.animation.sprite.frameKeys.every((key) =>
         key.startsWith(player.animation.sprite.framePrefix),
@@ -2271,11 +2329,20 @@ async function assertAvatarSystemSmoke(page) {
     galleryState.avatars.players.every(
       (player) =>
         player.animation.pipeline === "sprite_atlas_metadata" &&
+        player.animation.frameSource === "runtime_generated_fallback" &&
         player.animation.frameKey.startsWith(
           player.animation.sprite.framePrefix,
-        ),
+        ) &&
+        player.animation.textureKey ===
+          `${player.animation.frameKey}::generated::${player.animation.visualFacing}`,
     ),
     "Expected every preview gallery avatar to render through sprite atlas frames.",
+  )
+  assert.equal(
+    new Set(galleryState.avatars.players.map((player) => player.animation.textureKey))
+      .size,
+    galleryState.avatars.players.length,
+    "Expected generated fallback avatar textures to be unique per visual facing.",
   )
   assert.ok(
     galleryState.renderer.depth.playerCount >= 128,

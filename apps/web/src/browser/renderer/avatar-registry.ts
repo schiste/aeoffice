@@ -4,6 +4,7 @@ import type {
   AvatarEmoteId,
   AvatarVisualFacing,
   Direction,
+  RendererAvatarAtlasFrameEntry,
   RenderedPlayer,
   RendererAvatarAnimationPreviewFixture,
   RendererAvatarAnimationPipelineInfo,
@@ -11,6 +12,11 @@ import type {
   RendererAvatarAnimationStateDefinition,
   RendererAvatarSpriteAtlasInfo,
 } from "./types"
+import {
+  avatarSemanticFrameKey,
+  buildAvatarAtlasImportInfo,
+  buildExpectedAvatarAtlasFrameEntries,
+} from "./avatar-atlas-manifest"
 
 export interface AvatarPalette {
   readonly torso: number
@@ -148,15 +154,35 @@ export const AVATAR_VISUAL_FACING_DIRECTIONS: readonly AvatarVisualFacing[] = [
   "upLeft",
 ]
 
+const AVATAR_SPRITE_ATLAS_ID = "internal-avatar-atlas-v1"
+const AVATAR_SERVER_DIRECTIONS: readonly Direction[] = [
+  "up",
+  "down",
+  "left",
+  "right",
+]
+const AVATAR_ATLAS_EXPECTED_FRAMES: readonly RendererAvatarAtlasFrameEntry[] =
+  buildExpectedAvatarAtlasFrameEntries({
+    atlasId: AVATAR_SPRITE_ATLAS_ID,
+    avatarIds: AVATAR_IDS,
+    directions: AVATAR_SERVER_DIRECTIONS,
+    stateDefinitions: AVATAR_ANIMATION_STATE_DEFINITIONS,
+  })
+const AVATAR_ATLAS_IMPORT = buildAvatarAtlasImportInfo({
+  atlasId: AVATAR_SPRITE_ATLAS_ID,
+  supportedStates: AVATAR_ANIMATION_STATES,
+  expectedFrameEntries: AVATAR_ATLAS_EXPECTED_FRAMES,
+})
+
 const AVATAR_SPRITE_ATLAS: RendererAvatarSpriteAtlasInfo = {
   source: "runtime_generated_sprite_atlas",
   schemaVersion: 1,
-  atlasId: "internal-avatar-atlas-v1",
+  atlasId: AVATAR_SPRITE_ATLAS_ID,
   textureKey: "internal-avatar-atlas-v1-runtime-generated",
   renderMode: "sprite_atlas",
   frameWidth: 32,
   frameHeight: 42,
-  frameCount: avatarAtlasFrameCount(),
+  frameCount: AVATAR_ATLAS_EXPECTED_FRAMES.length,
   exportScale: 2,
   anchor: {
     x: 0.5,
@@ -170,6 +196,7 @@ const AVATAR_SPRITE_ATLAS: RendererAvatarSpriteAtlasInfo = {
   supportedStates: AVATAR_ANIMATION_STATES,
   stateDefinitions: AVATAR_ANIMATION_STATE_DEFINITIONS,
   generatedTextureSource: "runtime_canvas_sprite_frames",
+  atlasImport: AVATAR_ATLAS_IMPORT,
   cosmeticSlots: AVATAR_COSMETIC_SLOTS,
 }
 
@@ -364,6 +391,7 @@ export function avatarAnimationPipelineMetadata(): RendererAvatarAnimationPipeli
     renderer: "phaser_image_frame_swap",
     frameKeyStrategy: AVATAR_SPRITE_ATLAS.frameKeyStrategy,
     generatedTextureSource: AVATAR_SPRITE_ATLAS.generatedTextureSource,
+    atlasImport: AVATAR_SPRITE_ATLAS.atlasImport,
     serverDirectionModel: AVATAR_SPRITE_ATLAS.serverDirectionModel,
     visualDirectionModel: AVATAR_SPRITE_ATLAS.visualDirectionModel,
     turnBlending: "pose_blend",
@@ -387,11 +415,10 @@ export function fallbackAvatarId(player: RenderedPlayer): string {
 
 function buildAnimationRegistry(): Map<string, AvatarAnimationDefinition> {
   const registry = new Map<string, AvatarAnimationDefinition>()
-  const directions: readonly Direction[] = ["up", "down", "left", "right"]
 
   AVATAR_IDS.forEach((avatarId) => {
     AVATAR_ANIMATION_STATES.forEach((action) => {
-      directions.forEach((direction) => {
+      AVATAR_SERVER_DIRECTIONS.forEach((direction) => {
         registry.set(animationKey(avatarId, action, direction), {
           key: animationKey(avatarId, action, direction),
           avatarId,
@@ -472,10 +499,18 @@ function animationSpriteMetadata(
   direction: Direction,
 ): RendererAvatarAnimationSpriteInfo {
   const state = animationStateDefinition(action)
-  const framePrefix = `${AVATAR_SPRITE_ATLAS.atlasId}/frames/${resolveAvatarId(avatarId)}/${action}/${direction}`
+  const resolvedAvatarId = resolveAvatarId(avatarId)
+  const framePrefix = `${AVATAR_SPRITE_ATLAS.atlasId}/frames/${resolvedAvatarId}/${action}/${direction}`
   const frameKeys = Array.from(
     { length: state.frameCount },
-    (_, index) => `${framePrefix}/${String(index).padStart(2, "0")}`,
+    (_, frameIndex) =>
+      avatarSemanticFrameKey({
+        atlasId: AVATAR_SPRITE_ATLAS.atlasId,
+        avatarId: resolvedAvatarId,
+        action,
+        direction,
+        frameIndex,
+      }),
   )
 
   return {
@@ -499,17 +534,6 @@ function animationStateDefinition(
   return AVATAR_ANIMATION_STATE_DEFINITIONS.find(
     (definition) => definition.action === action,
   )!
-}
-
-function avatarAtlasFrameCount(): number {
-  const serverDirectionCount = 4
-
-  return AVATAR_IDS.length *
-    serverDirectionCount *
-    AVATAR_ANIMATION_STATE_DEFINITIONS.reduce(
-      (total, definition) => total + definition.frameCount,
-      0,
-    )
 }
 
 function serverDirectionForVisualFacing(

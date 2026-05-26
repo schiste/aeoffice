@@ -150,6 +150,16 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   boundary. Existing Phaser modules remain split behind `RendererHost` /
   `OfficeScene`, and `render_game_to_text.engine` exposes the architecture for
   automation.
+- Avatar sprite art now has a real atlas import path: the renderer owns a
+  manifest schema, expected semantic frame keys, a manifest validator, and
+  render telemetry for `/assets/avatar-atlases/internal-avatar-atlas-v1`.
+  Runtime-generated avatar frames remain the active fallback and now use
+  per-visual-facing texture keys so diagonal preview frames do not collide.
+- Verification passed for the avatar atlas import path: web build,
+  frontend smoke, Phaser renderer QA, responsive QA, and full `npm run check`
+  all passed. The avatar preview gallery screenshot was inspected and shows all
+  128 avatar/state/facing combinations. The standalone develop-web-game client
+  remains blocked by its skill-local missing `playwright` ESM dependency.
 - Meeting-zone interactions now use the compiled map zones in the browser app:
   the Phaser renderer highlights the active zone, the app exposes Join/Leave
   meeting controls outside the canvas, and media is no longer auto-joined when

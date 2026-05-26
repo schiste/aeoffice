@@ -40,6 +40,7 @@ import type {
   Direction,
   RenderedPlayer,
   RendererAvatarInfo,
+  RendererAvatarFrameSource,
   RendererCameraFollowMotion,
   RendererAvatarPlayerInfo,
   RendererDepthPlacementBounds,
@@ -400,6 +401,10 @@ class AvatarView {
   private spriteAnimationStartedAtMs = 0
   private spriteFrameIndex = 0
   private spriteFrameKey = ""
+  private spriteTextureKey = ""
+  private spriteTextureFrame: string | undefined
+  private spriteFrameSource: RendererAvatarFrameSource =
+    "runtime_generated_fallback"
   private turnHoldUntilMs = 0
   private transitionFrom: AvatarAnimationAction = "idle"
   private transitionTo: AvatarAnimationAction = "idle"
@@ -485,14 +490,23 @@ class AvatarView {
     this.impactRing = scene.add.ellipse(0, 13, 22, 10, 0xffd166, 0)
     this.impactRing.setStrokeStyle(2, 0xffd166, 0)
     this.impactRing.setVisible(false)
-    this.spriteFrameKey = ensureAvatarSpriteFrameTexture(
+    const initialSpriteFrame = ensureAvatarSpriteFrameTexture(
       scene,
       this.animation,
       this.appearance,
       this.visualFacing,
       0,
     )
-    this.sprite = scene.add.image(0, 15, this.spriteFrameKey)
+    this.spriteFrameKey = initialSpriteFrame.semanticFrameKey
+    this.spriteTextureKey = initialSpriteFrame.textureKey
+    this.spriteTextureFrame = initialSpriteFrame.textureFrame
+    this.spriteFrameSource = initialSpriteFrame.source
+    this.sprite = scene.add.image(
+      0,
+      15,
+      this.spriteTextureKey,
+      this.spriteTextureFrame,
+    )
     this.sprite.setOrigin(
       this.animation.sprite.anchor.x,
       this.animation.sprite.anchor.y,
@@ -839,6 +853,9 @@ class AvatarView {
         sprite: this.animation.sprite,
         frameIndex: this.spriteFrameIndex,
         frameKey: this.spriteFrameKey,
+        textureKey: this.spriteTextureKey,
+        textureFrame: this.spriteTextureFrame,
+        frameSource: this.spriteFrameSource,
         frameRate: this.animation.sprite.frameRate,
         frameDurationMs: this.animation.sprite.frameDurationMs,
         loop: this.animation.sprite.loop,
@@ -1227,18 +1244,24 @@ class AvatarView {
     const frameIndex = animation.sprite.loop
       ? rawFrameIndex % animation.sprite.frameCount
       : clamp(rawFrameIndex, 0, animation.sprite.frameCount - 1)
-    const frameKey = ensureAvatarSpriteFrameTexture(
+    const frame = ensureAvatarSpriteFrameTexture(
       this.scene,
       animation,
       appearance,
       visualFacing,
       frameIndex,
     )
+    const textureChanged =
+      this.spriteTextureKey !== frame.textureKey ||
+      this.spriteTextureFrame !== frame.textureFrame
 
     this.spriteFrameIndex = frameIndex
-    this.spriteFrameKey = frameKey
-    if (force || this.sprite.texture.key !== frameKey) {
-      this.sprite.setTexture(frameKey)
+    this.spriteFrameKey = frame.semanticFrameKey
+    this.spriteTextureKey = frame.textureKey
+    this.spriteTextureFrame = frame.textureFrame
+    this.spriteFrameSource = frame.source
+    if (force || textureChanged) {
+      this.sprite.setTexture(frame.textureKey, frame.textureFrame)
       this.sprite.setOrigin(
         animation.sprite.anchor.x,
         animation.sprite.anchor.y,

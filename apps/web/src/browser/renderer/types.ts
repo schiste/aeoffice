@@ -373,10 +373,57 @@ export type RendererAvatarRenderMode = "procedural_proxy" | "sprite_atlas"
 export type RendererAvatarAtlasSource =
   | "runtime_generated_avatar_parts"
   | "runtime_generated_sprite_atlas"
+  | "real_sprite_atlas"
+
+export type RendererAvatarFrameSource =
+  | "real_atlas"
+  | "runtime_generated_fallback"
 
 export interface RendererAvatarSpriteAnchor {
   readonly x: number
   readonly y: number
+}
+
+export interface RendererAvatarAtlasFrameRect {
+  readonly x: number
+  readonly y: number
+  readonly width: number
+  readonly height: number
+}
+
+export interface RendererAvatarAtlasFrameEntry {
+  readonly semanticFrameKey: string
+  readonly atlasFrameKey: string
+  readonly avatarId: string
+  readonly action: AvatarAnimationAction
+  readonly direction: Direction
+  readonly frameIndex: number
+  readonly rect?: RendererAvatarAtlasFrameRect
+  readonly anchor?: RendererAvatarSpriteAnchor
+}
+
+export interface RendererAvatarAtlasImportInfo {
+  readonly source: "avatar_atlas_manifest"
+  readonly schemaVersion: 1
+  readonly manifestPath: string
+  readonly imagePath: string
+  readonly requestedAtlasId: string
+  readonly manifestLoaded: boolean
+  readonly imageLoaded: boolean
+  readonly manifestValidated: boolean
+  readonly contractValidated: boolean
+  readonly activeSource: RendererAvatarFrameSource
+  readonly fallbackActive: boolean
+  readonly frameKeyStrategy: "avatar_action_server_direction_frame"
+  readonly runtimeFallbackTextureKeyStrategy:
+    "semantic_frame_visual_facing_generated_texture"
+  readonly expectedFrameCount: number
+  readonly manifestFrameCount: number
+  readonly runtimeFallbackFrameCount: number
+  readonly missingFrameCount: number
+  readonly validationErrors: readonly string[]
+  readonly semanticFrameKeyExample: string
+  readonly supportedStates: readonly AvatarAnimationAction[]
 }
 
 export interface RendererAvatarSpriteAtlasInfo {
@@ -398,6 +445,7 @@ export interface RendererAvatarSpriteAtlasInfo {
   readonly supportedStates: readonly AvatarAnimationAction[]
   readonly stateDefinitions: readonly RendererAvatarAnimationStateDefinition[]
   readonly generatedTextureSource: "runtime_canvas_sprite_frames"
+  readonly atlasImport: RendererAvatarAtlasImportInfo
   readonly cosmeticSlots: readonly AvatarCosmeticSlot[]
 }
 
@@ -418,6 +466,7 @@ export interface RendererAvatarAnimationPipelineInfo {
   readonly renderer: "phaser_image_frame_swap"
   readonly frameKeyStrategy: "avatar_action_server_direction_frame"
   readonly generatedTextureSource: "runtime_canvas_sprite_frames"
+  readonly atlasImport: RendererAvatarAtlasImportInfo
   readonly serverDirectionModel: "4_way"
   readonly visualDirectionModel: "8_way"
   readonly turnBlending: "pose_blend"
@@ -647,6 +696,9 @@ export interface RendererAvatarAnimationInfo {
   readonly sprite: RendererAvatarAnimationSpriteInfo
   readonly frameIndex: number
   readonly frameKey: string
+  readonly textureKey: string
+  readonly textureFrame?: string
+  readonly frameSource: RendererAvatarFrameSource
   readonly frameRate: number
   readonly frameDurationMs: number
   readonly loop: boolean
