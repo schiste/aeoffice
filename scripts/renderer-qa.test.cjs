@@ -235,6 +235,22 @@ async function verifyDevTools(browser, url, report) {
     )
 
     assert.equal(initial.devTools.primaryUiControlsExposed, 0)
+    assert.equal(initial.devTools.menu.visible, true)
+    assert.equal(initial.devTools.menu.overlayControlCount, 7)
+    assert.equal(initial.devTools.menu.fixtureOptionCount, 12)
+    assert.equal(initial.devTools.menu.selectedFixtureId, "zone_fixture")
+    assert.deepEqual(
+      initial.devTools.menu.checkedOverlayIds.sort(),
+      [
+        "camera",
+        "collision",
+        "depth",
+        "grid",
+        "objectFootprints",
+        "spriteBounds",
+        "zones",
+      ].sort(),
+    )
     assert.equal(initial.devTools.feelPanel.visible, true)
     assert.equal(initial.devTools.feelPanel.controlCount, 13)
     assert.equal(initial.movement.feel.panelVisible, true)
@@ -331,13 +347,29 @@ async function verifyDevTools(browser, url, report) {
       page,
       (state) =>
         state.devTools?.overlays?.collision === false &&
-        state.devTools.renderer?.overlays?.collision === false,
+        state.devTools.renderer?.overlays?.collision === false &&
+        !state.devTools.menu.checkedOverlayIds.includes("collision"),
     )
     assert.equal(collisionOff.devTools.enabled, true)
     report.devTools.push({
       label: "keyboard-collision-toggle",
       activeFixtureId: collisionOff.devTools.activeFixtureId,
       overlays: collisionOff.devTools.overlays,
+    })
+
+    await page.locator('[data-dev-overlay-control="objectFootprints"]').uncheck()
+    const footprintOff = await waitForTextState(
+      page,
+      (state) =>
+        state.devTools?.overlays?.objectFootprints === false &&
+        state.devTools.renderer?.overlays?.objectFootprints === false &&
+        !state.devTools.menu.checkedOverlayIds.includes("objectFootprints"),
+    )
+    assert.equal(footprintOff.devTools.menu.visible, true)
+    report.devTools.push({
+      label: "menu-object-footprint-toggle",
+      overlays: footprintOff.devTools.overlays,
+      checkedOverlayIds: footprintOff.devTools.menu.checkedOverlayIds,
     })
 
     await page.keyboard.press("Alt+Shift+F")

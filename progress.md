@@ -947,3 +947,19 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   develop-web-game client was attempted against the local dev host but still
   fails before navigation because it cannot resolve `playwright` from the skill
   runtime.
+- A gated renderer dev menu now appears inside the map stage when `devtools=1`
+  is active on a local host. It lists all overlay toggles, shows the current
+  devtools status, and exposes the fixture selector without adding any
+  product-facing dev controls.
+- The menu writes back through the same devtools state used by query params,
+  keyboard shortcuts, and the local automation API. Renderer QA now verifies
+  that menu checkboxes, app state, and renderer overlay state stay synchronized,
+  including a UI toggle for object footprints.
+- Verification passed after the devtools menu slice:
+  `node --check scripts/renderer-qa.test.cjs`,
+  `npm --workspace @aedventure/web run build`, `npm run qa:renderer`,
+  `npm run smoke:frontend`, `npm run qa:responsive`, `npm run check`, and
+  `git diff --check`. The devtools-page, devtools-zone, desktop, and mobile
+  screenshots were visually inspected. The standalone develop-web-game client
+  was attempted against the local dev host on port 8108 but still fails before
+  navigation because it cannot resolve `playwright` from the skill runtime.

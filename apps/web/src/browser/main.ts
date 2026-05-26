@@ -518,6 +518,15 @@ const DEV_TOOL_OVERLAY_IDS: readonly RendererDevToolOverlayId[] = [
   "spriteBounds",
   "camera",
 ]
+const DEV_TOOL_OVERLAY_LABELS: Record<RendererDevToolOverlayId, string> = {
+  grid: "Grid",
+  collision: "Collision",
+  zones: "Zone bounds",
+  depth: "Depth anchors",
+  objectFootprints: "Object footprints",
+  spriteBounds: "Sprite bounds",
+  camera: "Camera info",
+}
 const WORLD_INTERACTION_OBJECT_RADIUS_TILES = 1.35
 
 const state: AppState = {
@@ -675,6 +684,12 @@ const elements = {
   movementFeelSummary: mustQuery<HTMLElement>("#movement-feel-summary"),
   movementFeelControls: mustQuery<HTMLElement>("#movement-feel-controls"),
   movementFeelReset: mustQuery<HTMLButtonElement>("#movement-feel-reset"),
+  rendererDevMenu: mustQuery<HTMLElement>("#renderer-dev-menu"),
+  rendererDevMenuStatus: mustQuery<HTMLElement>("#renderer-dev-menu-status"),
+  rendererDevOverlayControls: mustQuery<HTMLElement>(
+    "#renderer-dev-overlay-controls",
+  ),
+  rendererDevFixture: mustQuery<HTMLSelectElement>("#renderer-dev-fixture"),
   mobileCollapsibleSections: [
     ...document.querySelectorAll<HTMLDetailsElement>("[data-mobile-collapsible]"),
   ],
@@ -683,6 +698,7 @@ const renderer = new PhaserOfficeRenderer(elements.map)
 const mobileLayoutQuery = window.matchMedia(MOBILE_LAYOUT_QUERY)
 syncRendererDevTools()
 installDevToolsKeyboardShortcuts()
+installRendererDevMenu()
 
 elements.start.addEventListener("click", () => queueAction(() => startDemo()))
 elements.reset.addEventListener("click", () => queueAction(() => resetDemo()))
@@ -5244,6 +5260,78 @@ function syncRendererDevTools(): void {
       availableFixtureIds: DEV_TOOL_FIXTURES,
     },
   })
+  renderRendererDevMenu()
+}
+
+function installRendererDevMenu(): void {
+  elements.rendererDevMenu.hidden = !state.devTools.gated
+  if (!state.devTools.gated) return
+
+  elements.rendererDevOverlayControls.replaceChildren(
+    ...DEV_TOOL_OVERLAY_IDS.map(createRendererDevOverlayToggle),
+  )
+  elements.rendererDevFixture.replaceChildren(
+    ...DEV_TOOL_FIXTURES.map(createRendererDevFixtureOption),
+  )
+  elements.rendererDevOverlayControls.addEventListener("change", (event) => {
+    const input = event.target
+    if (!(input instanceof HTMLInputElement)) return
+
+    const overlayId = devToolOverlayFromString(input.dataset.devOverlayId)
+    if (!overlayId) return
+
+    setDevToolOverlay(overlayId, input.checked)
+  })
+  elements.rendererDevFixture.addEventListener("change", () => {
+    const fixtureId = devToolFixtureFromParam(elements.rendererDevFixture.value)
+    if (!fixtureId) return
+
+    queueAction(() => selectDevFixture(fixtureId))
+  })
+  renderRendererDevMenu()
+}
+
+function createRendererDevOverlayToggle(
+  overlayId: RendererDevToolOverlayId,
+): HTMLElement {
+  const label = document.createElement("label")
+  label.className = "renderer-dev-overlay-toggle"
+
+  const input = document.createElement("input")
+  input.type = "checkbox"
+  input.dataset.devOverlayId = overlayId
+  input.dataset.devOverlayControl = overlayId
+
+  const text = document.createElement("span")
+  text.textContent = DEV_TOOL_OVERLAY_LABELS[overlayId]
+
+  label.append(input, text)
+  return label
+}
+
+function createRendererDevFixtureOption(fixtureId: DevToolFixtureId): HTMLOptionElement {
+  const option = document.createElement("option")
+  option.value = fixtureId
+  option.textContent = devToolFixtureLabel(fixtureId)
+  return option
+}
+
+function renderRendererDevMenu(): void {
+  elements.rendererDevMenu.hidden = !state.devTools.gated
+  if (!state.devTools.gated) return
+
+  elements.rendererDevMenuStatus.textContent = state.devTools.enabled
+    ? "Overlays on"
+    : "Overlays paused"
+  DEV_TOOL_OVERLAY_IDS.forEach((overlayId) => {
+    const input = elements.rendererDevOverlayControls.querySelector<HTMLInputElement>(
+      `[data-dev-overlay-control="${overlayId}"]`,
+    )
+    if (input) {
+      input.checked = state.devTools.overlays[overlayId]
+    }
+  })
+  elements.rendererDevFixture.value = state.devTools.activeFixtureId ?? "lobby"
 }
 
 function installDevToolsKeyboardShortcuts(): void {
@@ -5303,12 +5391,19 @@ function installDevToolsKeyboardShortcuts(): void {
 }
 
 function toggleDevToolOverlay(overlayId: RendererDevToolOverlayId): void {
+  setDevToolOverlay(overlayId, !state.devTools.overlays[overlayId])
+}
+
+function setDevToolOverlay(
+  overlayId: RendererDevToolOverlayId,
+  enabled: boolean,
+): void {
   state.devTools.enabled = true
   state.devTools.overlays = {
     ...state.devTools.overlays,
-    [overlayId]: !state.devTools.overlays[overlayId],
+    [overlayId]: enabled,
   }
-  state.devTools.lastAction = `${state.devTools.overlays[overlayId] ? "Enabled" : "Disabled"} ${overlayId} overlay`
+  state.devTools.lastAction = `${enabled ? "Enabled" : "Disabled"} ${overlayId} overlay`
   syncRendererDevTools()
 }
 
@@ -5444,6 +5539,44 @@ function devToolFixtureFromParam(value: string | null): DevToolFixtureId | undef
   return DEV_TOOL_FIXTURES.includes(value as DevToolFixtureId)
     ? (value as DevToolFixtureId)
     : undefined
+}
+
+function devToolOverlayFromString(
+  value: string | undefined,
+): RendererDevToolOverlayId | undefined {
+  if (!value) return undefined
+  return DEV_TOOL_OVERLAY_IDS.includes(value as RendererDevToolOverlayId)
+    ? (value as RendererDevToolOverlayId)
+    : undefined
+}
+
+function devToolFixtureLabel(fixtureId: DevToolFixtureId): string {
+  switch (fixtureId) {
+    case "lobby":
+      return "Lobby"
+    case "meeting_room":
+      return "Meeting room"
+    case "lounge_cafe":
+      return "Lounge/cafe"
+    case "generated":
+      return "Generated room"
+    case "depth_table_player_behind":
+      return "Depth: table behind"
+    case "depth_table_player_front":
+      return "Depth: table front"
+    case "depth_wall_player_behind":
+      return "Depth: wall behind"
+    case "avatar_fixture":
+      return "Avatar fixture"
+    case "zone_fixture":
+      return "Zone fixture"
+    case "stress_20x15":
+      return "Stress 20x15"
+    case "stress_50x40":
+      return "Stress 50x40"
+    case "stress_100x80":
+      return "Stress 100x80"
+  }
 }
 
 function directionForKey(key: string): Direction | undefined {
@@ -5784,6 +5917,21 @@ function renderDemoToText(): string {
           "[data-feel-control]",
         ).length,
       },
+      menu: {
+        visible: !elements.rendererDevMenu.hidden,
+        status: elements.rendererDevMenuStatus.textContent,
+        overlayControlCount: elements.rendererDevOverlayControls.querySelectorAll(
+          "[data-dev-overlay-control]",
+        ).length,
+        checkedOverlayIds: [
+          ...elements.rendererDevOverlayControls.querySelectorAll<HTMLInputElement>(
+            "[data-dev-overlay-control]:checked",
+          ),
+        ].map((input) => input.dataset.devOverlayId),
+        fixtureSelectorVisible: !elements.rendererDevFixture.hidden,
+        fixtureOptionCount: elements.rendererDevFixture.options.length,
+        selectedFixtureId: elements.rendererDevFixture.value,
+      },
       renderer: renderer.getDevToolsInfo(),
       primaryUiControlsExposed: document.querySelectorAll("[data-devtools-control]")
         .length,
@@ -5963,13 +6111,7 @@ if (localAutomationHost()) {
       if (!state.devTools.gated || !DEV_TOOL_OVERLAY_IDS.includes(overlayId)) {
         return
       }
-      state.devTools.enabled = true
-      state.devTools.overlays = {
-        ...state.devTools.overlays,
-        [overlayId]: enabled,
-      }
-      state.devTools.lastAction = `${enabled ? "Enabled" : "Disabled"} ${overlayId} overlay`
-      syncRendererDevTools()
+      setDevToolOverlay(overlayId, enabled)
       await renderer.advanceTime()
     },
     selectFixture: async (fixtureId) => {

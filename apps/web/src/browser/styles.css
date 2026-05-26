@@ -769,6 +769,97 @@ h1 {
   background: rgba(248, 223, 218, 0.95);
 }
 
+.renderer-dev-menu {
+  position: absolute;
+  z-index: 9;
+  top: var(--space-3);
+  left: var(--space-3);
+  display: grid;
+  width: min(300px, calc(100% - var(--space-6)));
+  max-height: calc(100% - var(--space-6));
+  gap: var(--space-2);
+  overflow: auto;
+  border: 1px solid rgba(15, 23, 42, 0.18);
+  border-radius: var(--radius-md);
+  background: rgba(255, 253, 247, 0.94);
+  box-shadow: 0 16px 32px rgba(34, 45, 42, 0.22);
+  padding: var(--space-3);
+}
+
+.renderer-dev-menu[hidden] {
+  display: none;
+}
+
+.renderer-dev-menu-header,
+.renderer-dev-fixture-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.renderer-dev-menu-header span,
+.renderer-dev-fixture-field span {
+  color: var(--ink-soft);
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.renderer-dev-menu-header strong {
+  color: var(--brand-strong);
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.renderer-dev-overlay-controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.renderer-dev-overlay-toggle {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid rgba(34, 45, 42, 0.1);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.58);
+  padding: 6px 7px;
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.18;
+}
+
+.renderer-dev-overlay-toggle input {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  accent-color: var(--brand);
+}
+
+.renderer-dev-overlay-toggle span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.renderer-dev-fixture-field {
+  border-top: 1px solid rgba(34, 45, 42, 0.1);
+  padding-top: var(--space-2);
+}
+
+.renderer-dev-fixture-field select {
+  min-width: 0;
+  max-width: 178px;
+  min-height: 30px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-weight: 800;
+}
+
 .phaser-world-host canvas {
   display: block;
   width: 100%;
