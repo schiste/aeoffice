@@ -1,11 +1,12 @@
 import Phaser from "phaser"
 
 import { ZONE_LABEL_DEPTH } from "./constants"
-import { clamp, roundTo } from "./math"
 import {
-  applyCrispWorldText,
-  WORLD_TEXT_RESOLUTION,
-} from "./text-rendering"
+  interactionMarkerPosition,
+  interactionMarkerScreenScale,
+  interactionStyle,
+  visibleInteractionMarkerCandidates,
+} from "./world-interaction-presentation"
 import type {
   RendererWorldInteractionCandidate,
   RendererWorldInteractionInfo,
@@ -16,15 +17,7 @@ interface InteractionMarkerView {
   readonly container: Phaser.GameObjects.Container
   readonly halo: Phaser.GameObjects.Ellipse
   readonly selectionRing: Phaser.GameObjects.Ellipse
-  readonly promptBack: Phaser.GameObjects.Rectangle
-  readonly promptText: Phaser.GameObjects.Text
-  readonly keyBack: Phaser.GameObjects.Rectangle
-  readonly keyText: Phaser.GameObjects.Text
 }
-
-const MARKER_SCREEN_SCALE_MIN = 0.72
-const MARKER_SCREEN_SCALE_MAX = 1.18
-const MARKER_TEXT_RESOLUTION = WORLD_TEXT_RESOLUTION
 
 type InteractionActivationHandler = (candidateId: string) => void
 
@@ -48,7 +41,7 @@ export class InteractionRenderer {
       this.hoveredCandidateId,
       this.selectedCandidateId,
     )
-    visibleMarkerCandidates(this.info)
+    visibleInteractionMarkerCandidates(this.info)
       .forEach((candidate) => this.createActionMarker(candidate))
     this.refreshMarkerStates()
     this.refreshFrame()
@@ -69,17 +62,14 @@ export class InteractionRenderer {
 
   refreshFrame(): void {
     const zoom = this.scene.cameras.main.zoom || 1
-    const scale = roundTo(
-      clamp(1 / zoom, MARKER_SCREEN_SCALE_MIN, MARKER_SCREEN_SCALE_MAX),
-      2,
-    )
+    const scale = interactionMarkerScreenScale(zoom)
 
     this.markers.forEach((marker) => marker.container.setScale(scale))
   }
 
   private createActionMarker(candidate: RendererWorldInteractionCandidate): void {
     const style = interactionStyle(candidate)
-    const position = markerPosition(candidate)
+    const position = interactionMarkerPosition(candidate)
     const container = this.scene.add.container(position.x, position.y)
 
     container.setDepth(ZONE_LABEL_DEPTH + 12)
@@ -113,50 +103,6 @@ export class InteractionRenderer {
 
     const actionDot = this.scene.add.ellipse(0, -1, 8, 8, style.color, 0.9)
     const stem = this.scene.add.rectangle(0, 7, 2, 6, style.color, 0.72)
-    const glyph = this.scene.add.text(0, -1, style.glyph, {
-      color: "#fffdf7",
-      fontFamily: "Aptos, Segoe UI, sans-serif",
-      fontSize: "7px",
-      fontStyle: "900",
-      align: "center",
-      resolution: MARKER_TEXT_RESOLUTION,
-    })
-    applyCrispWorldText(glyph)
-    glyph.setOrigin(0.5, 0.5)
-
-    const keyBack = this.scene.add.rectangle(-25, -19, 17, 15, 0x20201d, 0.88)
-    keyBack.setStrokeStyle(1, 0xfffdf7, 0.62)
-    const keyText = this.scene.add.text(-25, -20, "E", {
-      color: "#fffdf7",
-      fontFamily: "Aptos, Segoe UI, sans-serif",
-      fontSize: "9px",
-      fontStyle: "900",
-      align: "center",
-      resolution: MARKER_TEXT_RESOLUTION,
-    })
-    applyCrispWorldText(keyText)
-    keyText.setOrigin(0.5, 0.5)
-
-    const promptLabel = markerPromptLabel(candidate)
-    const promptBack = this.scene.add.rectangle(
-      0,
-      24,
-      clamp(promptLabel.length * 5.9 + 16, 44, 104),
-      17,
-      0xfffdf7,
-      0.94,
-    )
-    promptBack.setStrokeStyle(1, style.color, 0.52)
-    const promptText = this.scene.add.text(0, 23, promptLabel, {
-      color: style.textColor,
-      fontFamily: "Aptos, Segoe UI, sans-serif",
-      fontSize: "8px",
-      fontStyle: "850",
-      align: "center",
-      resolution: MARKER_TEXT_RESOLUTION,
-    })
-    applyCrispWorldText(promptText)
-    promptText.setOrigin(0.5, 0.5)
 
     container.add([
       halo,
@@ -164,11 +110,6 @@ export class InteractionRenderer {
       pin,
       stem,
       actionDot,
-      glyph,
-      keyBack,
-      keyText,
-      promptBack,
-      promptText,
     ])
     this.scene.tweens.add({
       targets: halo,
@@ -185,10 +126,6 @@ export class InteractionRenderer {
       container,
       halo,
       selectionRing,
-      promptBack,
-      promptText,
-      keyBack,
-      keyText,
     })
   }
 
@@ -222,71 +159,7 @@ export class InteractionRenderer {
       marker.selectionRing.setVisible(active)
       marker.selectionRing.setStrokeStyle(2, 0xfffdf7, active ? 0.88 : 0)
       marker.halo.setAlpha(active ? 0.26 : 0.14)
-      marker.promptBack.setAlpha(active ? 1 : 0.94)
-      marker.promptText.setAlpha(active ? 1 : 0.94)
-      marker.keyBack.setAlpha(active ? 0.96 : 0.88)
-      marker.keyText.setAlpha(active ? 1 : 0.94)
     })
-  }
-}
-
-function interactionStyle(candidate: RendererWorldInteractionCandidate): {
-  readonly color: number
-  readonly textColor: string
-  readonly glyph: string
-} {
-  switch (candidate.action) {
-    case "join_meeting":
-      return { color: 0x2f8f63, textColor: "#0f4f38", glyph: "CALL" }
-    case "enter_private":
-      return { color: 0x755aa5, textColor: "#44305f", glyph: "LOCK" }
-    case "enter_portal":
-      return { color: 0x316f9f, textColor: "#1d4260", glyph: "GO" }
-    case "open_door":
-      return { color: 0x316f9f, textColor: "#1d4260", glyph: "DOOR" }
-    case "use_object":
-      return candidate.serverPermitted
-        ? { color: 0x2f8f63, textColor: "#0f4f38", glyph: "USE" }
-        : { color: 0xa66f19, textColor: "#6b440d", glyph: "..." }
-  }
-}
-
-function markerPosition(candidate: RendererWorldInteractionCandidate): {
-  readonly x: number
-  readonly y: number
-} {
-  const centerX = candidate.bounds.x + candidate.bounds.width / 2
-  const centerY = candidate.bounds.y + candidate.bounds.height / 2
-
-  if (candidate.kind === "zone") {
-    return {
-      x: candidate.action === "enter_portal"
-        ? candidate.bounds.x + candidate.bounds.width + 18
-        : candidate.bounds.x + candidate.bounds.width - 18,
-      y: centerY,
-    }
-  }
-
-  return {
-    x: centerX,
-    y: candidate.bounds.y - 9,
-  }
-}
-
-function markerPromptLabel(candidate: RendererWorldInteractionCandidate): string {
-  if (candidate.permission === "pending") return "Checking"
-  if (!candidate.serverPermitted) return "Locked"
-  switch (candidate.action) {
-    case "join_meeting":
-      return "Join call"
-    case "enter_private":
-      return "Private"
-    case "enter_portal":
-      return "Enter"
-    case "open_door":
-      return "Open door"
-    case "use_object":
-      return candidate.label
   }
 }
 
@@ -374,47 +247,6 @@ function candidateSelectable(
           candidate.active &&
           candidate.markerVisible,
       ),
-  )
-}
-
-function visibleMarkerCandidates(
-  info: RendererWorldInteractionInfo,
-): readonly RendererWorldInteractionCandidate[] {
-  const primary = info.primaryCandidateId
-    ? info.candidates.find((candidate) => candidate.id === info.primaryCandidateId)
-    : undefined
-  const candidates = info.candidates.filter(
-    (candidate) => candidate.active && candidate.markerVisible,
-  )
-
-  if (!primary) return candidates
-
-  return candidates.filter(
-    (candidate) =>
-      candidate.id === primary.id ||
-      !isOverlappingDoorPortalMarker(candidate, primary),
-  )
-}
-
-function isOverlappingDoorPortalMarker(
-  candidate: RendererWorldInteractionCandidate,
-  primary: RendererWorldInteractionCandidate,
-): boolean {
-  if (candidate.id === primary.id) return false
-  const portalAndDoor =
-    [candidate.action, primary.action].includes("enter_portal") &&
-    [candidate.action, primary.action].includes("open_door")
-
-  return portalAndDoor && distanceBetweenBounds(candidate.bounds, primary.bounds) < 54
-}
-
-function distanceBetweenBounds(
-  first: RendererWorldInteractionCandidate["bounds"],
-  second: RendererWorldInteractionCandidate["bounds"],
-): number {
-  return Math.hypot(
-    first.x + first.width / 2 - (second.x + second.width / 2),
-    first.y + first.height / 2 - (second.y + second.height / 2),
   )
 }
 

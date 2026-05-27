@@ -948,6 +948,82 @@ h1 {
   display: none;
 }
 
+.world-dom-emote-label {
+  --world-emote-size: 18px;
+  --world-label-accent: #23665a;
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: grid;
+  width: var(--world-emote-size);
+  height: var(--world-emote-size);
+  place-items: center;
+  color: #20201d;
+  font-family: Aptos, "Source Sans 3", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1;
+  pointer-events: none;
+  text-align: center;
+  text-rendering: optimizeLegibility;
+  transform: none;
+  user-select: none;
+  will-change: left, top, opacity;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.world-dom-interaction-key,
+.world-dom-interaction-prompt {
+  --world-label-accent: #23665a;
+  position: absolute;
+  left: 0;
+  top: 0;
+  border: 1px solid color-mix(in srgb, var(--world-label-accent), transparent 34%);
+  font-family: Aptos, "Source Sans 3", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  pointer-events: none;
+  text-align: center;
+  text-rendering: optimizeLegibility;
+  transform: none;
+  user-select: none;
+  will-change: left, top, opacity;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.world-dom-interaction-key {
+  min-width: 18px;
+  padding: 1px 5px 2px;
+  border-color: rgba(255, 253, 247, 0.62);
+  border-radius: 2px;
+  background: rgba(32, 32, 29, 0.9);
+  color: #fffdf7;
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 13px;
+}
+
+.world-dom-interaction-prompt {
+  min-width: 48px;
+  max-width: 124px;
+  padding: 2px 8px 3px;
+  border-radius: 2px;
+  background: rgba(255, 253, 247, 0.96);
+  box-shadow: 0 1px 0 rgba(32, 32, 29, 0.12);
+  color: color-mix(in srgb, var(--world-label-accent), #20201d 18%);
+  font-size: 10px;
+  font-weight: 850;
+  line-height: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.world-dom-interaction-key.is-active,
+.world-dom-interaction-prompt.is-active {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--world-label-accent), transparent 78%);
+}
+
 .map[data-transition="switching"] canvas {
   opacity: 0.2;
   transform: scale(0.985);

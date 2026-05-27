@@ -1201,6 +1201,7 @@ export interface RendererAvatarPlayerInfo {
     readonly y: number
     readonly size: number
     readonly scale: number
+    readonly opacity: number
   }
   readonly cosmeticSlots: readonly AvatarCosmeticSlot[]
   readonly cosmetics: Partial<Record<AvatarCosmeticSlot, string>>

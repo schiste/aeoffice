@@ -687,6 +687,14 @@ async function verifyDevTools(browser, url, report) {
     assert.equal(initial.movement.prediction.collisionBody.radiusPx, 7.5)
     assert.equal(initial.zones.debugOverlayEnabled, true)
     assert.equal(initial.renderer.depth.debugOverlayEnabled, true)
+    report.textLabels.push(
+      await assertDomInteractionLabels(
+        page,
+        initial,
+        "devtools-zone-interaction",
+        "Join call",
+      ),
+    )
     assert.ok(initial.devTools.renderer.overlayObjectCounts.gridLineCount > 0)
     assert.ok(initial.devTools.renderer.overlayObjectCounts.blockedTileCount > 0)
     assert.ok(initial.devTools.renderer.overlayObjectCounts.zoneBoundsCount > 0)
@@ -996,6 +1004,81 @@ async function assertDomAvatarLabels(page, state, label) {
     avatarFontSizePx: visibleAvatarLabels[0].fontSizePx,
     zoneFontSizePx: visibleZoneLabels[0]?.fontSizePx,
     textRendering: visibleDomLabels[0].textRendering,
+    wholePixelPositioning: true,
+    transformScaled: false,
+  }
+}
+
+async function assertDomInteractionLabels(page, state, label, expectedPrompt) {
+  assert.ok(
+    state.worldInteractions.activeCandidateIds.length >= 1,
+    `${label}: expected at least one active world interaction candidate.`,
+  )
+
+  await page.waitForFunction(
+    (prompt) =>
+      [...document.querySelectorAll(".world-dom-interaction-prompt")].some(
+        (node) => node.textContent === prompt,
+      ),
+    expectedPrompt,
+    { timeout: 5000 },
+  )
+
+  const dom = await page.evaluate((prompt) => {
+    const readNodes = (selector) =>
+      [...document.querySelectorAll(selector)].map((element) => {
+        const rect = element.getBoundingClientRect()
+        const style = window.getComputedStyle(element)
+
+        return {
+          text: element.textContent,
+          leftPx: Number.parseFloat(style.left || "0"),
+          topPx: Number.parseFloat(style.top || "0"),
+          transform: style.transform,
+          fontSizePx: Number.parseFloat(style.fontSize || "0"),
+          lineHeightPx: Number.parseFloat(style.lineHeight || "0"),
+          width: rect.width,
+          height: rect.height,
+          opacity: Number.parseFloat(style.opacity || "0"),
+        }
+      })
+
+    return {
+      prompt: readNodes(".world-dom-interaction-prompt").find(
+        (node) => node.text === prompt,
+      ),
+      key: readNodes(".world-dom-interaction-key").find(
+        (node) => node.text === "E",
+      ),
+    }
+  }, expectedPrompt)
+
+  assert.ok(dom.prompt, `${label}: expected DOM interaction prompt ${expectedPrompt}.`)
+  assert.ok(dom.key, `${label}: expected DOM interaction key label E.`)
+
+  for (const node of [dom.prompt, dom.key]) {
+    assert.equal(node.transform, "none", `${label}: interaction text should not be transform-scaled.`)
+    assert.ok(
+      Number.isInteger(node.leftPx) && Number.isInteger(node.topPx),
+      `${label}: interaction text should be positioned on whole CSS pixels.`,
+    )
+    assert.ok(
+      node.fontSizePx >= 10 && node.lineHeightPx >= node.fontSizePx,
+      `${label}: interaction text should use readable native font metrics.`,
+    )
+    assert.ok(
+      node.width >= 16 && node.height >= 13 && node.opacity > 0,
+      `${label}: interaction text should have visible DOM bounds.`,
+    )
+  }
+
+  return {
+    label,
+    backend: "dom_overlay",
+    prompt: expectedPrompt,
+    key: "E",
+    promptFontSizePx: dom.prompt.fontSizePx,
+    keyFontSizePx: dom.key.fontSizePx,
     wholePixelPositioning: true,
     transformScaled: false,
   }

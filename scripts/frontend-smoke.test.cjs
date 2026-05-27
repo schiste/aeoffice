@@ -1913,6 +1913,108 @@ async function assertNonBlankMapScreenshot(page) {
   )
 }
 
+async function assertDomInteractionText(page, expectedPrompt) {
+  await page.waitForFunction(
+    (prompt) =>
+      [...document.querySelectorAll(".world-dom-interaction-prompt")].some(
+        (node) => node.textContent === prompt,
+      ),
+    expectedPrompt,
+    { timeout: 5000 },
+  )
+
+  const snapshot = await page.evaluate((prompt) => {
+    const nodeInfo = (selector, expectedText) =>
+      [...document.querySelectorAll(selector)]
+        .map((element) => {
+          const rect = element.getBoundingClientRect()
+          const style = window.getComputedStyle(element)
+
+          return {
+            text: element.textContent,
+            leftPx: Number.parseFloat(style.left || "0"),
+            topPx: Number.parseFloat(style.top || "0"),
+            transform: style.transform,
+            fontSizePx: Number.parseFloat(style.fontSize || "0"),
+            lineHeightPx: Number.parseFloat(style.lineHeight || "0"),
+            width: rect.width,
+            height: rect.height,
+          }
+        })
+        .find((entry) => entry.text === expectedText)
+
+    return {
+      prompt: nodeInfo(".world-dom-interaction-prompt", prompt),
+      key: nodeInfo(".world-dom-interaction-key", "E"),
+    }
+  }, expectedPrompt)
+
+  assert.ok(snapshot.prompt, `Expected DOM interaction prompt ${expectedPrompt}.`)
+  assert.ok(snapshot.key, "Expected DOM interaction key label E.")
+  for (const node of [snapshot.prompt, snapshot.key]) {
+    assert.equal(node.transform, "none")
+    assert.ok(
+      Number.isInteger(node.leftPx) && Number.isInteger(node.topPx),
+      `Expected whole-pixel DOM interaction text placement, got ${JSON.stringify(node)}.`,
+    )
+    assert.ok(
+      node.fontSizePx >= 10 && node.lineHeightPx >= node.fontSizePx,
+      `Expected readable DOM interaction text metrics, got ${JSON.stringify(node)}.`,
+    )
+    assert.ok(
+      node.width >= 16 && node.height >= 13,
+      `Expected measurable DOM interaction text bounds, got ${JSON.stringify(node)}.`,
+    )
+  }
+}
+
+async function assertDomEmoteText(page, expectedGlyph) {
+  await page.waitForFunction(
+    (glyph) =>
+      [...document.querySelectorAll(".world-dom-emote-label")].some(
+        (node) => node.textContent === glyph,
+      ),
+    expectedGlyph,
+    { timeout: 5000 },
+  )
+
+  const snapshot = await page.evaluate((glyph) =>
+    [...document.querySelectorAll(".world-dom-emote-label")]
+      .map((element) => {
+        const rect = element.getBoundingClientRect()
+        const style = window.getComputedStyle(element)
+
+        return {
+          text: element.textContent,
+          leftPx: Number.parseFloat(style.left || "0"),
+          topPx: Number.parseFloat(style.top || "0"),
+          transform: style.transform,
+          fontSizePx: Number.parseFloat(style.fontSize || "0"),
+          lineHeightPx: Number.parseFloat(style.lineHeight || "0"),
+          width: rect.width,
+          height: rect.height,
+          opacity: Number.parseFloat(style.opacity || "0"),
+        }
+      })
+      .find((entry) => entry.text === glyph),
+  expectedGlyph)
+
+  assert.ok(snapshot, `Expected DOM emote glyph ${expectedGlyph}.`)
+  assert.equal(snapshot.transform, "none")
+  assert.ok(
+    Number.isInteger(snapshot.leftPx) && Number.isInteger(snapshot.topPx),
+    `Expected whole-pixel DOM emote placement, got ${JSON.stringify(snapshot)}.`,
+  )
+  assert.ok(
+    snapshot.fontSizePx >= 13 && snapshot.lineHeightPx >= 13,
+    `Expected readable DOM emote metrics, got ${JSON.stringify(snapshot)}.`,
+  )
+  assert.ok(
+    snapshot.width >= 16 && snapshot.height >= 16 && snapshot.opacity > 0,
+    `Expected visible DOM emote bounds, got ${JSON.stringify(snapshot)}.`,
+  )
+}
+
 async function assertWebGLContextRecovery(page) {
   const before = await renderGameToText(page)
   assertRendererCapabilities(before)
@@ -2633,6 +2735,7 @@ async function assertAvatarSystemSmoke(page) {
     assert.equal(player.emoteOverlay.anchor, "label_top_right")
     assert.equal(player.emoteOverlay.size, 18)
     assert.equal(typeof player.emoteOverlay.visible, "boolean")
+    assert.equal(typeof player.emoteOverlay.opacity, "number")
     assert.ok(
       player.emoteOverlay.x >= 32 && player.emoteOverlay.y <= -48,
       `Expected emote overlay to sit above the label edge, got ${JSON.stringify(player.emoteOverlay)}.`,
@@ -2816,6 +2919,7 @@ async function assertAvatarSystemSmoke(page) {
       state.avatars.players.find((player) => player.playerId === "avatar-violet")
         ?.emoteOverlay.visible === true,
   )
+  await assertDomEmoteText(page, "?")
 
   const gallery = await page.evaluate(async () => {
     if (!window.__aedventureRendererTest?.renderAvatarPreviewGallery) {
@@ -2976,6 +3080,7 @@ async function assertZonePresentationSmoke(page) {
     zoneState.worldInteractions.primaryCandidateId,
     "zone:meeting-zone:join_meeting",
   )
+  await assertDomInteractionText(page, "Join call")
   assert.equal(zoneState.meeting.panelState, "available")
   assert.equal(zoneState.meeting.joinDisabled, false)
   assert.ok(
@@ -3036,6 +3141,7 @@ async function assertZonePresentationSmoke(page) {
     privateZone.zones.zones.find((zone) => zone.id === "private-zone").label,
     "Private access",
   )
+  await assertDomInteractionText(page, "Private")
 
   await page.evaluate(async () => {
     await window.__aedventureRendererTest.moveLocalPlayer({ x: 112, y: 208 })
@@ -3071,6 +3177,7 @@ async function assertZonePresentationSmoke(page) {
     ),
     "Expected a tappable door/object marker when portal area is active.",
   )
+  await assertDomInteractionText(page, "Enter")
 }
 
 async function assertDepthSortingSmoke(page) {

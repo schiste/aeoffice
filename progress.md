@@ -197,6 +197,18 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   Desktop and mobile renderer screenshots were inspected and still show crisp
   avatar/zone labels. The standalone develop-web-game client remains blocked by
   the same skill-local missing `playwright` dependency.
+- Remaining product-facing world text was moved off canvas where it mattered:
+  interaction marker prompt text, the `E` hotkey badge, and emote glyphs now
+  render through the DOM world overlay. Phaser still owns the marker geometry,
+  hit areas, emote bubble background, and server-permitted interaction state.
+  Shared marker positioning lives in `world-interaction-presentation.ts`, so the
+  Phaser marker and DOM text use the same candidate filtering and coordinates.
+- QA now asserts DOM interaction prompts/hotkeys and DOM emote glyphs use native
+  font metrics, whole-pixel placement, and no transform scaling. Verification
+  passed with `npm --workspace @aedventure/web run build`, `npm run
+  smoke:frontend`, `npm run qa:renderer`, `npm run qa:responsive`, `npm run
+  check`, and `git diff --check`. The standalone develop-web-game client was
+  retried and remains blocked by the skill-local missing `playwright` import.
 - Meeting-zone interactions now use the compiled map zones in the browser app:
   the Phaser renderer highlights the active zone, the app exposes Join/Leave
   meeting controls outside the canvas, and media is no longer auto-joined when

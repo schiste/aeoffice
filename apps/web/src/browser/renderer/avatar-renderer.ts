@@ -825,9 +825,9 @@ class AvatarView {
     this.currentEmoteId = emote.id
     this.emoteTween?.stop()
     this.emoteBack.setVisible(true)
-    this.emoteText.setVisible(true)
     this.emoteText.setText(emote.glyph)
     applyCrispWorldText(this.emoteText)
+    this.emoteText.setVisible(false)
     this.emoteBack.setAlpha(0.96)
     this.emoteText.setAlpha(1)
     this.positionEmoteOverlay()
@@ -977,6 +977,7 @@ class AvatarView {
         y: Math.round(this.emoteBack.y),
         size: EMOTE_BUBBLE_SIZE,
         scale: Number(this.currentLabelScale().toFixed(2)),
+        opacity: Number(this.emoteBack.alpha.toFixed(2)),
       },
       cosmeticSlots: this.appearance.cosmeticSlots,
       cosmetics: this.cosmetics,
