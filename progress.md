@@ -1449,3 +1449,36 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   against `http://127.0.0.1:8787/app`, but still fails before navigation with
   `ERR_MODULE_NOT_FOUND` because the skill-local script cannot resolve
   `playwright`.
+- Phaser world UI audio now lives in `WorldAudioSystem`. It uses Phaser's
+  sound manager for generated lightweight WAV cues while keeping call media,
+  LiveKit, and meeting permissions outside Phaser. The first cue set covers
+  footsteps, doors/portals becoming available, zone enter, blocked movement,
+  chat notification, and map transition feedback.
+- Audio playback is event-driven from renderer/world state: local player step
+  distance and run throttle, server-rejected movement, active zone changes,
+  server-permitted door/portal candidates, chat delivery, and map render
+  transitions. Autoplay lock is treated as a normal browser state, so the
+  renderer records attempts instead of surfacing raw technical errors.
+- `render_game_to_text.audio` and `render_game_to_text.renderer.audio` now
+  report source, world-UI-only authority, sound manager state, generated and
+  decoded cue IDs, event bindings, play counts, autoplay policy, concurrent
+  sound cap, and the explicit media-routing boundary.
+- The engine architecture contract now names `WorldAudioSystem` and the
+  `phaserAudioIsWorldUiOnly` boundary. Frontend smoke and renderer QA assert
+  the audio contract so future media/call work cannot accidentally move into
+  Phaser.
+- Renderer QA latest audio report: 6 generated cues, 6 decoded cues, 0 failed
+  cues, 2 cue attempts before browser audio unlock, `map_transition` and
+  `zone_enter` attempt telemetry, and media routing still marked
+  `livekit_or_browser_media`. Latest desktop lobby, mobile responsive, and
+  desktop joined screenshots were visually inspected and remained
+  nonblank/readable.
+- Verification passed after the audio-system pass:
+  `node --check scripts/frontend-smoke.test.cjs`,
+  `node --check scripts/renderer-qa.test.cjs`,
+  `npm --workspace @aedventure/web run build`, `npm run smoke:frontend`,
+  `npm run qa:renderer`, `npm run qa:responsive`, `npm run check`, and
+  `git diff --check`. The standalone develop-web-game client was attempted
+  against `http://127.0.0.1:8787/app`, but still fails before navigation with
+  `ERR_MODULE_NOT_FOUND` because the skill-local script cannot resolve
+  `playwright`.

@@ -24,6 +24,8 @@ import type {
   FixtureMap,
   RenderedPlayer,
   RendererAvatarInfo,
+  RendererAudioCueId,
+  RendererAudioInfo,
   RendererCameraMode,
   RendererCameraState,
   RendererCapabilityInfo,
@@ -214,8 +216,16 @@ export class PhaserOfficeRenderer {
     this.scene.triggerAvatarEmote(playerId, emoteId)
   }
 
+  playWorldAudioCue(cueId: RendererAudioCueId): void {
+    this.scene.playWorldAudioCue(cueId)
+  }
+
   getAvatarInfo(): RendererAvatarInfo {
     return this.scene.getAvatarInfo()
+  }
+
+  getAudioInfo(): RendererAudioInfo {
+    return this.scene.getAudioInfo()
   }
 
   setZoneDebugOverlayEnabled(enabled: boolean): void {
@@ -273,6 +283,7 @@ export class PhaserOfficeRenderer {
       this.sceneManager.getInfo(this.game),
       this.scene.getAdvancedInputInfo(),
       this.scene.getPhysicsInfo(),
+      this.scene.getAudioInfo(),
       this.scene.getDepthEffectsInfo(),
       this.scene.getDepthInfo(),
       this.scene.getEffectsInfo(),

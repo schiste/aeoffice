@@ -7,6 +7,7 @@ import {
 import type {
   RendererAdvancedInputInfo,
   RendererAssetPipelineInfo,
+  RendererAudioInfo,
   RendererCapabilityInfo,
   RendererDepthEffectsInfo,
   RendererDepthInfo,
@@ -42,6 +43,7 @@ export class RendererCapabilityReporter {
     scenes: RendererSceneManagerInfo,
     input: RendererAdvancedInputInfo,
     physics: RendererPhysicsInfo,
+    audio: RendererAudioInfo,
     depthEffects: RendererDepthEffectsInfo,
     depth: RendererDepthInfo,
     effects: RendererEffectsInfo,
@@ -84,6 +86,7 @@ export class RendererCapabilityReporter {
       scenes,
       input,
       physics,
+      audio,
       depthEffects,
       depth,
       tilemap,

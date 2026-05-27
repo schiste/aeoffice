@@ -34,6 +34,7 @@ import {
   TilemapFeatureSystem,
   emptyTilemapFeatureInfo,
 } from "./tilemap-feature-system"
+import { WorldAudioSystem } from "./world-audio-system"
 import { ZoneRenderer } from "./zone-renderer"
 import type {
   FixtureMap,
@@ -41,6 +42,8 @@ import type {
   RenderedPlayer,
   RendererAvatarInfo,
   RendererAdvancedInputInfo,
+  RendererAudioCueId,
+  RendererAudioInfo,
   RendererAssetPackInfo,
   RendererAssetPipelineInfo,
   RendererCameraMode,
@@ -76,6 +79,7 @@ export class OfficeScene extends Phaser.Scene {
   private readonly effectsLayer: EffectsLayer
   private readonly staticLayerBaker: StaticLayerBaker
   private readonly tilemapFeatureSystem: TilemapFeatureSystem
+  private readonly worldAudioSystem: WorldAudioSystem
   private readonly depthDebugOverlay: DepthDebugOverlay
   private readonly devToolsOverlay: DevToolsOverlay
   private readonly telemetry = new RendererTelemetry()
@@ -111,6 +115,7 @@ export class OfficeScene extends Phaser.Scene {
     this.effectsLayer = new EffectsLayer(this)
     this.staticLayerBaker = new StaticLayerBaker(this)
     this.tilemapFeatureSystem = new TilemapFeatureSystem(this)
+    this.worldAudioSystem = new WorldAudioSystem(this)
     this.depthDebugOverlay = new DepthDebugOverlay(this)
     this.devToolsOverlay = new DevToolsOverlay(this)
     this.assetPackLoader = new RendererAssetPackLoader(
@@ -139,6 +144,7 @@ export class OfficeScene extends Phaser.Scene {
       onHoveredZoneChange: (zoneId) => this.zoneRenderer.setHoveredZoneId(zoneId),
     })
     this.physicsAffordanceSystem.bind()
+    this.worldAudioSystem.initialize()
     this.syncDevToolOverlays()
     this.events.on(Phaser.Scenes.Events.UPDATE, (_time: number, delta: number) => {
       this.updateFrame(delta)
@@ -174,6 +180,7 @@ export class OfficeScene extends Phaser.Scene {
     this.effectsLayer.clear()
     this.staticLayerBaker.clear()
     this.tilemapFeatureSystem.clear()
+    this.worldAudioSystem.resetWorldState()
     this.depthDebugOverlay.clear()
     this.devToolsOverlay.clear()
     this.objectRenderer.releaseActiveSprites()
@@ -292,12 +299,14 @@ export class OfficeScene extends Phaser.Scene {
       players,
       this.cameraController.getViewportState(),
     )
+    this.worldAudioSystem.noteMapRendered()
     this.mapRenderCount += 1
     this.lastMapRenderDurationMs = performance.now() - renderStartedAt
   }
 
   updatePlayers(players: readonly RenderedPlayer[]): void {
     const followTarget = this.avatarRenderer.updatePlayers(players)
+    this.worldAudioSystem.observePlayers(players)
     this.physicsAffordanceSystem.updatePlayers(players)
     this.cameraController.follow(followTarget)
     this.cameraController.updateFrame(1000 / 60)
@@ -340,10 +349,12 @@ export class OfficeScene extends Phaser.Scene {
     this.zoneRenderer.setInteractionState(state)
     this.advancedInputPlugin.setZones(this.zoneRenderer.getZoneInfo().zones)
     this.effectsLayer.setZoneInteractionState(state)
+    this.worldAudioSystem.observeZoneInteractionState(state)
   }
 
   setWorldInteractions(info: RendererWorldInteractionInfo): void {
     this.interactionRenderer.render(info)
+    this.worldAudioSystem.observeWorldInteractions(info)
   }
 
   setWorldInteractionActivationHandler(
@@ -380,6 +391,10 @@ export class OfficeScene extends Phaser.Scene {
     this.avatarRenderer.triggerEmote(playerId, emoteId)
   }
 
+  playWorldAudioCue(cueId: RendererAudioCueId): void {
+    this.worldAudioSystem.playCue(cueId)
+  }
+
   getViewportState(): RendererViewportState {
     return this.cameraController.getViewportState()
   }
@@ -398,6 +413,10 @@ export class OfficeScene extends Phaser.Scene {
 
   getAdvancedInputInfo(): RendererAdvancedInputInfo {
     return this.advancedInputPlugin.getInfo()
+  }
+
+  getAudioInfo(): RendererAudioInfo {
+    return this.worldAudioSystem.getInfo()
   }
 
   getPhysicsInfo(): RendererPhysicsInfo {

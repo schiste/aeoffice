@@ -7,6 +7,8 @@ export type {
   FixtureMap,
   RenderedPlayer,
   RendererAvatarInfo,
+  RendererAudioCueId,
+  RendererAudioInfo,
   RendererCameraFollowMotion,
   RendererCameraMode,
   RendererCameraState,

@@ -5135,6 +5135,7 @@ function setConnectionStatus(
 }
 
 function addChatMessage(body: string, recipientCount: number): void {
+  renderer.playWorldAudioCue("chat_notification")
   chatMessages.unshift({
     id: `chat-${Date.now()}-${chatMessages.length}`,
     body,
@@ -6333,6 +6334,7 @@ function renderDemoToText(): string {
         .length,
     },
     effects: renderer.getEffectsInfo(),
+    audio: renderer.getAudioInfo(),
     mapValidation: renderer.getMapValidationInfo(),
     performance: renderer.getPerformanceInfo(),
     avatars: renderer.getAvatarInfo(),
@@ -6434,6 +6436,7 @@ function engineArchitectureTextState() {
         "PhysicsAffordanceSystem",
         "DepthEffectsLayer",
         "TilemapFeatureSystem",
+        "WorldAudioSystem",
         "CameraController",
         "DevToolsOverlay",
       ],
@@ -6450,6 +6453,7 @@ function engineArchitectureTextState() {
       phaserPhysicsIsVisualOnly: true,
       phaserDepthEffectsAreVisualOnly: true,
       phaserTilemapFeaturesAreRendererOnly: true,
+      phaserAudioIsWorldUiOnly: true,
       inputStateOwnedOutsideDomEvents: true,
       realtimeTransportOwnedByWorldSync: true,
       worldActionsRequireServerPermission: true,

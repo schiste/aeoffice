@@ -919,6 +919,8 @@ function assertRenderStateContract(state) {
     Array.isArray(state.effects?.applied?.particleEffects),
     "Expected effects.applied.particleEffects in render_game_to_text.",
   )
+  assertAudioContract(state.audio)
+  assertAudioContract(state.renderer?.audio)
   assertCameraStateContract(state)
 }
 
@@ -959,6 +961,10 @@ function assertEngineArchitectureContract(state) {
     state.engine?.renderer?.modules?.includes("TilemapFeatureSystem"),
     `Expected TilemapFeatureSystem module, got ${JSON.stringify(state.engine?.renderer)}.`,
   )
+  assert.ok(
+    state.engine?.renderer?.modules?.includes("WorldAudioSystem"),
+    `Expected WorldAudioSystem module, got ${JSON.stringify(state.engine?.renderer)}.`,
+  )
   assert.equal(state.engine?.controllers?.input, "InputController")
   assert.equal(state.engine?.controllers?.worldSync, "WorldSyncController")
   assert.equal(
@@ -973,6 +979,7 @@ function assertEngineArchitectureContract(state) {
     state.engine?.boundaries?.phaserTilemapFeaturesAreRendererOnly,
     true,
   )
+  assert.equal(state.engine?.boundaries?.phaserAudioIsWorldUiOnly, true)
   assert.equal(
     state.engine?.boundaries?.inputStateOwnedOutsideDomEvents,
     true,
@@ -1375,6 +1382,7 @@ function assertRendererCapabilities(state) {
   assert.equal(state.renderer.effects.capability.contextLost, false)
   assert.equal(state.renderer.effects.capability.shadersAvailable, true)
   assert.equal(state.renderer.effects.capability.particlesAvailable, true)
+  assertAudioContract(state.renderer.audio)
   assert.equal(state.camera.secondary.mode, "main_plus_overview")
   assert.ok(state.camera.secondary.totalCameraCount >= 2)
   assert.ok(state.camera.secondary.visibleCameraCount >= 2)
@@ -1473,6 +1481,61 @@ function assertRendererCapabilities(state) {
     state.camera.effectiveZoom >= 0.75,
     `Expected usable camera zoom, got ${state.camera.effectiveZoom}.`,
   )
+}
+
+function assertAudioContract(audio) {
+  assert.equal(audio?.source, "phaser_sound_manager")
+  assert.equal(audio?.authority, "world_ui_audio_only")
+  assert.equal(audio?.enabled, true)
+  assert.ok(
+    ["web_audio", "html5_audio", "no_audio", "unknown"].includes(
+      audio.manager?.type,
+    ),
+    `Expected known Phaser sound manager type, got ${audio?.manager?.type}.`,
+  )
+  assert.equal(typeof audio.manager.locked, "boolean")
+  assert.equal(typeof audio.manager.muted, "boolean")
+  assert.equal(typeof audio.manager.volume, "number")
+  assert.equal(typeof audio.manager.pauseOnBlur, "boolean")
+  assert.equal(audio.assets.strategy, "generated_wav_data_uri")
+  assert.equal(audio.assets.registeredCueCount, 6)
+  assert.equal(typeof audio.assets.decodedCueCount, "number")
+  assert.equal(typeof audio.assets.pendingCueCount, "number")
+  assert.equal(typeof audio.assets.failedCueCount, "number")
+  assert.deepEqual(audio.assets.generatedCueIds, [
+    "footstep",
+    "door_open",
+    "zone_enter",
+    "blocked_movement",
+    "chat_notification",
+    "map_transition",
+  ])
+  assert.deepEqual(audio.cues.supportedCueIds, audio.assets.generatedCueIds)
+  assert.deepEqual(audio.cues.eventBindings, [
+    "local_player_step",
+    "portal_or_door_available",
+    "zone_entered",
+    "movement_rejected",
+    "chat_delivered",
+    "map_rendered",
+  ])
+  audio.assets.generatedCueIds.forEach((cueId) => {
+    assert.equal(
+      typeof audio.cues.playCountByCue[cueId],
+      "number",
+      `Expected play telemetry for cue ${cueId}.`,
+    )
+  })
+  assert.equal(typeof audio.cues.attemptedPlayCount, "number")
+  assert.equal(typeof audio.cues.successfulPlayCount, "number")
+  assert.equal(typeof audio.cues.blockedByLockCount, "number")
+  assert.equal(typeof audio.cues.skippedUnavailableCount, "number")
+  assert.equal(audio.routing.mediaHandledOutsidePhaser, true)
+  assert.equal(audio.routing.mediaLayer, "livekit_or_browser_media")
+  assert.equal(audio.routing.spatialWorldUiOnly, true)
+  assert.equal(audio.policy.autoplay, "play_after_unlock_else_track_attempt")
+  assert.equal(typeof audio.policy.footstepThrottleMs, "number")
+  assert.equal(audio.policy.maxConcurrentUiSounds, 6)
 }
 
 function assertRendererPerformance(performance) {

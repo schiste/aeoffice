@@ -390,6 +390,65 @@ export interface RendererPhysicsInfo {
   }
 }
 
+export type RendererAudioCueId =
+  | "footstep"
+  | "door_open"
+  | "zone_enter"
+  | "blocked_movement"
+  | "chat_notification"
+  | "map_transition"
+
+export type RendererAudioEventBinding =
+  | "local_player_step"
+  | "portal_or_door_available"
+  | "zone_entered"
+  | "movement_rejected"
+  | "chat_delivered"
+  | "map_rendered"
+
+export interface RendererAudioInfo {
+  readonly source: "phaser_sound_manager"
+  readonly authority: "world_ui_audio_only"
+  readonly enabled: boolean
+  readonly manager: {
+    readonly type: "web_audio" | "html5_audio" | "no_audio" | "unknown"
+    readonly locked: boolean
+    readonly muted: boolean
+    readonly volume: number
+    readonly pauseOnBlur: boolean
+  }
+  readonly assets: {
+    readonly strategy: "generated_wav_data_uri"
+    readonly registeredCueCount: number
+    readonly decodedCueCount: number
+    readonly pendingCueCount: number
+    readonly failedCueCount: number
+    readonly generatedCueIds: readonly RendererAudioCueId[]
+    readonly decodedCueIds: readonly RendererAudioCueId[]
+  }
+  readonly cues: {
+    readonly supportedCueIds: readonly RendererAudioCueId[]
+    readonly eventBindings: readonly RendererAudioEventBinding[]
+    readonly playCountByCue: Readonly<Record<RendererAudioCueId, number>>
+    readonly attemptedPlayCount: number
+    readonly successfulPlayCount: number
+    readonly blockedByLockCount: number
+    readonly skippedUnavailableCount: number
+    readonly lastCueId?: RendererAudioCueId
+    readonly lastCueAtMs?: number
+  }
+  readonly routing: {
+    readonly mediaHandledOutsidePhaser: true
+    readonly mediaLayer: "livekit_or_browser_media"
+    readonly spatialWorldUiOnly: true
+  }
+  readonly policy: {
+    readonly autoplay: "play_after_unlock_else_track_attempt"
+    readonly footstepThrottleMs: number
+    readonly maxConcurrentUiSounds: number
+  }
+}
+
 export type RendererDepthEffectFeature =
   | "geometry_masks"
   | "foreground_blend_modes"
@@ -1196,6 +1255,7 @@ export interface RendererCapabilityInfo {
   readonly scenes: RendererSceneManagerInfo
   readonly input: RendererAdvancedInputInfo
   readonly physics: RendererPhysicsInfo
+  readonly audio: RendererAudioInfo
   readonly depthEffects: RendererDepthEffectsInfo
   readonly depth: RendererDepthInfo
   readonly tilemap: RendererTilemapInfo
