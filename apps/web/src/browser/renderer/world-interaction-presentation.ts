@@ -22,20 +22,57 @@ export function interactionStyle(candidate: RendererWorldInteractionCandidate): 
   readonly color: number
   readonly textColor: string
   readonly glyph: string
+  readonly tone:
+    | "meeting"
+    | "private"
+    | "portal"
+    | "door"
+    | "object"
+    | "locked"
 } {
   switch (candidate.action) {
     case "join_meeting":
-      return { color: 0x2f8f63, textColor: "#0f4f38", glyph: "CALL" }
+      return {
+        color: 0x2f8f63,
+        textColor: "#0f4f38",
+        glyph: "Call",
+        tone: "meeting",
+      }
     case "enter_private":
-      return { color: 0x755aa5, textColor: "#44305f", glyph: "LOCK" }
+      return {
+        color: 0x755aa5,
+        textColor: "#44305f",
+        glyph: "Private",
+        tone: "private",
+      }
     case "enter_portal":
-      return { color: 0x316f9f, textColor: "#1d4260", glyph: "GO" }
+      return {
+        color: 0x316f9f,
+        textColor: "#1d4260",
+        glyph: "Go",
+        tone: "portal",
+      }
     case "open_door":
-      return { color: 0x316f9f, textColor: "#1d4260", glyph: "DOOR" }
+      return {
+        color: 0x316f9f,
+        textColor: "#1d4260",
+        glyph: "Door",
+        tone: "door",
+      }
     case "use_object":
       return candidate.serverPermitted
-        ? { color: 0x2f8f63, textColor: "#0f4f38", glyph: "USE" }
-        : { color: 0xa66f19, textColor: "#6b440d", glyph: "..." }
+        ? {
+            color: 0x2f8f63,
+            textColor: "#0f4f38",
+            glyph: "Use",
+            tone: "object",
+          }
+        : {
+            color: 0xa66f19,
+            textColor: "#6b440d",
+            glyph: "Locked",
+            tone: "locked",
+          }
   }
 }
 
@@ -80,6 +117,14 @@ export function interactionPromptLabel(
     case "use_object":
       return candidate.label
   }
+}
+
+export function interactionAffordanceLabel(
+  candidate: RendererWorldInteractionCandidate,
+): "Checking" | "Locked" | "E / Tap" {
+  if (candidate.permission === "pending") return "Checking"
+  if (!candidate.serverPermitted) return "Locked"
+  return "E / Tap"
 }
 
 export function visibleInteractionMarkerCandidates(

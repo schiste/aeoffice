@@ -2,6 +2,7 @@ import { clamp } from "./math"
 import type { OfficeScene } from "./office-scene"
 import { avatarEmoteDefinition } from "./avatar-registry"
 import {
+  interactionAffordanceLabel,
   interactionMarkerPosition,
   interactionMarkerScreenScale,
   interactionPromptLabel,
@@ -15,7 +16,9 @@ import type {
 } from "./types"
 
 interface InteractionLabelNodes {
-  readonly key: HTMLDivElement
+  readonly card: HTMLDivElement
+  readonly key: HTMLSpanElement
+  readonly kind: HTMLSpanElement
   readonly prompt: HTMLDivElement
 }
 
@@ -166,8 +169,12 @@ export class DomWorldOverlayRenderer {
 
   private renderZoneLabels(): void {
     const visibleZoneIds = new Set<string>()
+    const suppressedZoneLabelIds = activeInteractionZoneIds(
+      this.scene.getWorldInteractionInfo(),
+    )
 
     this.scene.getZoneInfo().zones.forEach((zone) => {
+      if (suppressedZoneLabelIds.has(zone.id)) return
       if (!zone.labelVisible) return
       visibleZoneIds.add(zone.id)
       this.renderZoneLabel(zone)
@@ -242,8 +249,7 @@ export class DomWorldOverlayRenderer {
 
     this.interactionLabelNodes.forEach((nodes, candidateId) => {
       if (visibleCandidateIds.has(candidateId)) return
-      nodes.key.remove()
-      nodes.prompt.remove()
+      nodes.card.remove()
       this.interactionLabelNodes.delete(candidateId)
     })
   }
@@ -259,21 +265,17 @@ export class DomWorldOverlayRenderer {
       interactionMarkerPosition(candidate),
     )
 
-    nodes.key.classList.toggle("is-active", state.active)
-    nodes.prompt.classList.toggle("is-active", state.active)
-    nodes.key.style.setProperty("--world-label-accent", cssHex(style.color))
-    nodes.prompt.style.setProperty("--world-label-accent", cssHex(style.color))
-    nodes.prompt.style.color = style.textColor
-    nodes.key.textContent = "E"
+    nodes.card.classList.toggle("is-active", state.active)
+    nodes.card.dataset.actionTone = style.tone
+    nodes.card.style.setProperty("--world-label-accent", cssHex(style.color))
+    nodes.card.style.color = style.textColor
+    nodes.key.textContent = interactionAffordanceLabel(candidate)
+    nodes.kind.textContent = style.glyph
     nodes.prompt.textContent = interactionPromptLabel(candidate)
 
-    this.placeNode(nodes.key, {
-      x: base.x - 25 * screenScale,
-      y: base.y - 20 * screenScale,
-    })
-    this.placeNode(nodes.prompt, {
+    this.placeNode(nodes.card, {
       x: base.x,
-      y: base.y + 24 * screenScale,
+      y: base.y + 29 * screenScale,
     })
   }
 
@@ -283,12 +285,17 @@ export class DomWorldOverlayRenderer {
     const current = this.interactionLabelNodes.get(candidate.id)
     if (current) return current
 
-    const key = document.createElement("div")
+    const card = document.createElement("div")
+    card.className = "world-dom-interaction-card"
+    const key = document.createElement("span")
     key.className = "world-dom-interaction-key"
+    const kind = document.createElement("span")
+    kind.className = "world-dom-interaction-kind"
     const prompt = document.createElement("div")
     prompt.className = "world-dom-interaction-prompt"
-    this.overlay.append(key, prompt)
-    const nodes = { key, prompt }
+    card.append(key, kind, prompt)
+    this.overlay.append(card)
+    const nodes = { card, key, kind, prompt }
     this.interactionLabelNodes.set(candidate.id, nodes)
 
     return nodes
@@ -387,4 +394,14 @@ function domZoneLabelMetrics(scale: number): {
 
 function cssHex(color: number): string {
   return `#${color.toString(16).padStart(6, "0")}`
+}
+
+function activeInteractionZoneIds(
+  info: ReturnType<OfficeScene["getWorldInteractionInfo"]>,
+): Set<string> {
+  return new Set(
+    visibleInteractionMarkerCandidates(info)
+      .filter((candidate) => candidate.kind === "zone" && candidate.active)
+      .map((candidate) => candidate.targetId),
+  )
 }

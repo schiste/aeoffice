@@ -1548,3 +1548,25 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   against `http://127.0.0.1:8787/app`, but still fails before navigation with
   `ERR_MODULE_NOT_FOUND` because the skill-local script cannot resolve
   `playwright`.
+- Interaction affordances are being polished into one native DOM card anchored
+  to the Phaser marker. The card now carries the input affordance (`E / Tap`),
+  the action kind, prompt text, active state, and tone metadata so door, zone,
+  object, and meeting prompts share a single crisp presentation path.
+- Marker geometry now uses a cleaner Phaser pin, halo, stem, and active ring,
+  while all marker text is native DOM. Active zone labels are suppressed when a
+  matching interaction card is visible, which removes the duplicated
+  "Join call" label/username overlap seen in the zone fixture.
+- Frontend smoke and renderer QA now assert the interaction card contract:
+  active state, tone metadata, `E / Tap`, action kind, crisp DOM text metrics,
+  and whole-pixel card anchoring. A targeted Playwright screenshot of the zone
+  fixture was inspected at `/private/tmp/aedventure-marker-polish-final-map.png`
+  and showed the card readable with no duplicate zone label overlap.
+- Verification passed after the interaction marker polish:
+  `node --check scripts/frontend-smoke.test.cjs`,
+  `node --check scripts/renderer-qa.test.cjs`,
+  `npm --workspace @aedventure/web run build`, `npm run smoke:frontend`,
+  `npm run qa:renderer`, `npm run qa:responsive`, `npm run check`, and
+  `git diff --check`. The standalone develop-web-game client was attempted
+  against `http://127.0.0.1:8787/app`, but still fails before navigation with
+  `ERR_MODULE_NOT_FOUND` because the skill-local script cannot resolve
+  `playwright`.

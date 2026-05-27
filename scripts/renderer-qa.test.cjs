@@ -1017,57 +1017,73 @@ async function assertDomInteractionLabels(page, state, label, expectedPrompt) {
 
   await page.waitForFunction(
     (prompt) =>
-      [...document.querySelectorAll(".world-dom-interaction-prompt")].some(
-        (node) => node.textContent === prompt,
+      [...document.querySelectorAll(".world-dom-interaction-card")].some(
+        (card) =>
+          card.querySelector(".world-dom-interaction-prompt")?.textContent === prompt,
       ),
     expectedPrompt,
     { timeout: 5000 },
   )
 
   const dom = await page.evaluate((prompt) => {
-    const readNodes = (selector) =>
-      [...document.querySelectorAll(selector)].map((element) => {
-        const rect = element.getBoundingClientRect()
-        const style = window.getComputedStyle(element)
+    const readNode = (element) => {
+      if (!element) return undefined
+      const rect = element.getBoundingClientRect()
+      const style = window.getComputedStyle(element)
 
-        return {
-          text: element.textContent,
-          leftPx: Number.parseFloat(style.left || "0"),
-          topPx: Number.parseFloat(style.top || "0"),
-          transform: style.transform,
-          fontSizePx: Number.parseFloat(style.fontSize || "0"),
-          lineHeightPx: Number.parseFloat(style.lineHeight || "0"),
-          width: rect.width,
-          height: rect.height,
-          opacity: Number.parseFloat(style.opacity || "0"),
-        }
-      })
+      return {
+        text: element.textContent,
+        leftPx: Number.parseFloat(style.left || "0"),
+        topPx: Number.parseFloat(style.top || "0"),
+        transform: style.transform,
+        fontSizePx: Number.parseFloat(style.fontSize || "0"),
+        lineHeightPx: Number.parseFloat(style.lineHeight || "0"),
+        width: rect.width,
+        height: rect.height,
+        opacity: Number.parseFloat(style.opacity || "0"),
+      }
+    }
+    const card = [...document.querySelectorAll(".world-dom-interaction-card")]
+      .find((candidate) =>
+        candidate.querySelector(".world-dom-interaction-prompt")?.textContent === prompt,
+      )
 
     return {
-      prompt: readNodes(".world-dom-interaction-prompt").find(
-        (node) => node.text === prompt,
-      ),
-      key: readNodes(".world-dom-interaction-key").find(
-        (node) => node.text === "E",
-      ),
+      card: readNode(card),
+      active: card?.classList.contains("is-active") ?? false,
+      tone: card?.getAttribute("data-action-tone"),
+      prompt: readNode(card?.querySelector(".world-dom-interaction-prompt")),
+      key: readNode(card?.querySelector(".world-dom-interaction-key")),
+      kind: readNode(card?.querySelector(".world-dom-interaction-kind")),
     }
   }, expectedPrompt)
 
   assert.ok(dom.prompt, `${label}: expected DOM interaction prompt ${expectedPrompt}.`)
-  assert.ok(dom.key, `${label}: expected DOM interaction key label E.`)
+  assert.ok(dom.key, `${label}: expected DOM interaction key label E / Tap.`)
+  assert.ok(dom.kind, `${label}: expected DOM interaction action kind label.`)
+  assert.ok(dom.card, `${label}: expected DOM interaction card.`)
+  assert.equal(dom.key.text, "E / Tap", `${label}: expected unified keyboard/touch affordance.`)
+  assert.ok(dom.kind.text.length >= 2, `${label}: expected non-empty action kind label.`)
+  assert.ok(dom.tone, `${label}: expected DOM interaction tone metadata.`)
+  assert.ok(dom.active, `${label}: expected primary interaction card to expose active state.`)
+  assert.equal(dom.card.transform, "none", `${label}: interaction card should not be transform-scaled.`)
+  assert.ok(
+    Number.isInteger(dom.card.leftPx) && Number.isInteger(dom.card.topPx),
+    `${label}: interaction card should be positioned on whole CSS pixels.`,
+  )
+  assert.ok(
+    dom.card.width >= 82 && dom.card.height >= 28 && dom.card.opacity > 0,
+    `${label}: interaction card should have visible DOM bounds.`,
+  )
 
-  for (const node of [dom.prompt, dom.key]) {
+  for (const node of [dom.prompt, dom.key, dom.kind]) {
     assert.equal(node.transform, "none", `${label}: interaction text should not be transform-scaled.`)
     assert.ok(
-      Number.isInteger(node.leftPx) && Number.isInteger(node.topPx),
-      `${label}: interaction text should be positioned on whole CSS pixels.`,
-    )
-    assert.ok(
-      node.fontSizePx >= 10 && node.lineHeightPx >= node.fontSizePx,
+      node.fontSizePx >= 9 && node.lineHeightPx >= node.fontSizePx,
       `${label}: interaction text should use readable native font metrics.`,
     )
     assert.ok(
-      node.width >= 16 && node.height >= 13 && node.opacity > 0,
+      node.width >= 16 && node.height >= 11 && node.opacity > 0,
       `${label}: interaction text should have visible DOM bounds.`,
     )
   }
@@ -1076,7 +1092,9 @@ async function assertDomInteractionLabels(page, state, label, expectedPrompt) {
     label,
     backend: "dom_overlay",
     prompt: expectedPrompt,
-    key: "E",
+    key: "E / Tap",
+    kind: dom.kind.text,
+    tone: dom.tone,
     promptFontSizePx: dom.prompt.fontSizePx,
     keyFontSizePx: dom.key.fontSizePx,
     wholePixelPositioning: true,

@@ -17,6 +17,9 @@ interface InteractionMarkerView {
   readonly container: Phaser.GameObjects.Container
   readonly halo: Phaser.GameObjects.Ellipse
   readonly selectionRing: Phaser.GameObjects.Ellipse
+  readonly pin: Phaser.GameObjects.Graphics
+  readonly actionDot: Phaser.GameObjects.Ellipse
+  readonly stem: Phaser.GameObjects.Rectangle
 }
 
 type InteractionActivationHandler = (candidateId: string) => void
@@ -90,19 +93,11 @@ export class InteractionRenderer {
     const selectionRing = this.scene.add.ellipse(0, 0, 42, 42, style.color, 0)
     selectionRing.setStrokeStyle(2, style.color, 0)
     const pin = this.scene.add.graphics()
-    pin.fillStyle(0xfffdf7, 0.98)
-    pin.lineStyle(1.5, style.color, 0.82)
-    pin.beginPath()
-    pin.moveTo(0, -13)
-    pin.lineTo(12, -1)
-    pin.lineTo(0, 15)
-    pin.lineTo(-12, -1)
-    pin.closePath()
-    pin.fillPath()
-    pin.strokePath()
+    drawActionPin(pin, style.color, false)
 
-    const actionDot = this.scene.add.ellipse(0, -1, 8, 8, style.color, 0.9)
-    const stem = this.scene.add.rectangle(0, 7, 2, 6, style.color, 0.72)
+    const actionDot = this.scene.add.ellipse(0, -2, 9, 9, style.color, 0.9)
+    actionDot.setStrokeStyle(1, 0xfffdf7, 0.72)
+    const stem = this.scene.add.rectangle(0, 8, 3, 7, style.color, 0.72)
 
     container.add([
       halo,
@@ -126,6 +121,9 @@ export class InteractionRenderer {
       container,
       halo,
       selectionRing,
+      pin,
+      actionDot,
+      stem,
     })
   }
 
@@ -157,10 +155,38 @@ export class InteractionRenderer {
       const hovered = marker.candidateId === this.hoveredCandidateId
       const active = selected || hovered
       marker.selectionRing.setVisible(active)
-      marker.selectionRing.setStrokeStyle(2, 0xfffdf7, active ? 0.88 : 0)
-      marker.halo.setAlpha(active ? 0.26 : 0.14)
+      marker.selectionRing.setStrokeStyle(active ? 3 : 2, 0xfffdf7, active ? 0.9 : 0)
+      marker.halo.setAlpha(active ? 0.3 : 0.14)
+      marker.actionDot.setScale(active ? 1.12 : 1)
+      marker.stem.setAlpha(active ? 0.88 : 0.72)
+      const candidate = this.info.candidates.find(
+        (entry) => entry.id === marker.candidateId,
+      )
+      if (candidate) {
+        drawActionPin(marker.pin, interactionStyle(candidate).color, active)
+      }
     })
   }
+}
+
+function drawActionPin(
+  graphics: Phaser.GameObjects.Graphics,
+  color: number,
+  active: boolean,
+): void {
+  graphics.clear()
+  graphics.fillStyle(0x20201d, active ? 0.08 : 0.04)
+  graphics.fillEllipse(0, 17, active ? 25 : 21, active ? 8 : 6)
+  graphics.fillStyle(0xfffdf7, active ? 1 : 0.98)
+  graphics.lineStyle(active ? 2.2 : 1.5, color, active ? 0.96 : 0.82)
+  graphics.beginPath()
+  graphics.moveTo(0, -15)
+  graphics.lineTo(14, -2)
+  graphics.lineTo(0, 17)
+  graphics.lineTo(-14, -2)
+  graphics.closePath()
+  graphics.fillPath()
+  graphics.strokePath()
 }
 
 function withInteractionPresentation(

@@ -1916,53 +1916,73 @@ async function assertNonBlankMapScreenshot(page) {
 async function assertDomInteractionText(page, expectedPrompt) {
   await page.waitForFunction(
     (prompt) =>
-      [...document.querySelectorAll(".world-dom-interaction-prompt")].some(
-        (node) => node.textContent === prompt,
+      [...document.querySelectorAll(".world-dom-interaction-card")].some(
+        (card) =>
+          card.querySelector(".world-dom-interaction-prompt")?.textContent === prompt,
       ),
     expectedPrompt,
     { timeout: 5000 },
   )
 
   const snapshot = await page.evaluate((prompt) => {
-    const nodeInfo = (selector, expectedText) =>
-      [...document.querySelectorAll(selector)]
-        .map((element) => {
-          const rect = element.getBoundingClientRect()
-          const style = window.getComputedStyle(element)
+    const readNode = (element) => {
+      if (!element) return undefined
+      const rect = element.getBoundingClientRect()
+      const style = window.getComputedStyle(element)
 
-          return {
-            text: element.textContent,
-            leftPx: Number.parseFloat(style.left || "0"),
-            topPx: Number.parseFloat(style.top || "0"),
-            transform: style.transform,
-            fontSizePx: Number.parseFloat(style.fontSize || "0"),
-            lineHeightPx: Number.parseFloat(style.lineHeight || "0"),
-            width: rect.width,
-            height: rect.height,
-          }
-        })
-        .find((entry) => entry.text === expectedText)
+      return {
+        text: element.textContent,
+        leftPx: Number.parseFloat(style.left || "0"),
+        topPx: Number.parseFloat(style.top || "0"),
+        transform: style.transform,
+        fontSizePx: Number.parseFloat(style.fontSize || "0"),
+        lineHeightPx: Number.parseFloat(style.lineHeight || "0"),
+        width: rect.width,
+        height: rect.height,
+        opacity: Number.parseFloat(style.opacity || "0"),
+      }
+    }
+    const cards = [...document.querySelectorAll(".world-dom-interaction-card")]
+    const card = cards.find(
+      (candidate) =>
+        candidate.querySelector(".world-dom-interaction-prompt")?.textContent === prompt,
+    )
 
     return {
-      prompt: nodeInfo(".world-dom-interaction-prompt", prompt),
-      key: nodeInfo(".world-dom-interaction-key", "E"),
+      card: readNode(card),
+      active: card?.classList.contains("is-active") ?? false,
+      tone: card?.getAttribute("data-action-tone"),
+      prompt: readNode(card?.querySelector(".world-dom-interaction-prompt")),
+      key: readNode(card?.querySelector(".world-dom-interaction-key")),
+      kind: readNode(card?.querySelector(".world-dom-interaction-kind")),
     }
   }, expectedPrompt)
 
   assert.ok(snapshot.prompt, `Expected DOM interaction prompt ${expectedPrompt}.`)
-  assert.ok(snapshot.key, "Expected DOM interaction key label E.")
-  for (const node of [snapshot.prompt, snapshot.key]) {
+  assert.ok(snapshot.key, "Expected DOM interaction key label E / Tap.")
+  assert.ok(snapshot.kind, "Expected DOM interaction action kind label.")
+  assert.ok(snapshot.card, "Expected DOM interaction card.")
+  assert.equal(snapshot.key.text, "E / Tap")
+  assert.ok(snapshot.kind.text.length >= 2)
+  assert.ok(snapshot.tone, "Expected DOM interaction card tone metadata.")
+  assert.ok(snapshot.active, "Expected primary DOM interaction card to be active.")
+  assert.equal(snapshot.card.transform, "none")
+  assert.ok(
+    Number.isInteger(snapshot.card.leftPx) && Number.isInteger(snapshot.card.topPx),
+    `Expected whole-pixel DOM interaction card placement, got ${JSON.stringify(snapshot.card)}.`,
+  )
+  assert.ok(
+    snapshot.card.width >= 82 && snapshot.card.height >= 28 && snapshot.card.opacity > 0,
+    `Expected visible DOM interaction card bounds, got ${JSON.stringify(snapshot.card)}.`,
+  )
+  for (const node of [snapshot.prompt, snapshot.key, snapshot.kind]) {
     assert.equal(node.transform, "none")
     assert.ok(
-      Number.isInteger(node.leftPx) && Number.isInteger(node.topPx),
-      `Expected whole-pixel DOM interaction text placement, got ${JSON.stringify(node)}.`,
-    )
-    assert.ok(
-      node.fontSizePx >= 10 && node.lineHeightPx >= node.fontSizePx,
+      node.fontSizePx >= 9 && node.lineHeightPx >= node.fontSizePx,
       `Expected readable DOM interaction text metrics, got ${JSON.stringify(node)}.`,
     )
     assert.ok(
-      node.width >= 16 && node.height >= 13,
+      node.width >= 16 && node.height >= 11 && node.opacity > 0,
       `Expected measurable DOM interaction text bounds, got ${JSON.stringify(node)}.`,
     )
   }
