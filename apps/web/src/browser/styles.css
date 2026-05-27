@@ -48,6 +48,9 @@
   --control-height: 40px;
   background: var(--surface-page);
   color: var(--ink);
+  text-rendering: geometricPrecision;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 * {
@@ -864,7 +867,7 @@ h1 {
   display: block;
   width: 100%;
   height: 100%;
-  image-rendering: pixelated;
+  image-rendering: auto !important;
   transition:
     opacity 180ms ease,
     transform 220ms ease;

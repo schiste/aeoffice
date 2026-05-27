@@ -4,6 +4,12 @@ import {
   PHASER_RENDERER_CONFIG,
   RENDERER_ROUNDING_DECISIONS,
 } from "./constants"
+import {
+  WORLD_TEXT_OBJECT_CLASSES,
+  WORLD_TEXT_POLICY,
+  WORLD_TEXT_RESOLUTION,
+  WORLD_TEXT_TEXTURE_FILTER,
+} from "./text-rendering"
 import type {
   RendererAdvancedInputInfo,
   RendererAssetPipelineInfo,
@@ -87,6 +93,7 @@ export class RendererCapabilityReporter {
       input,
       physics,
       audio,
+      text: textRenderingInfo(canvas),
       depthEffects,
       depth,
       tilemap,
@@ -118,6 +125,36 @@ export function isWebGLRenderer(
   renderer: Phaser.Renderer.Canvas.CanvasRenderer | Phaser.Renderer.WebGL.WebGLRenderer,
 ): renderer is Phaser.Renderer.WebGL.WebGLRenderer {
   return renderer.type === Phaser.WEBGL
+}
+
+function textRenderingInfo(
+  canvas: HTMLCanvasElement,
+): RendererCapabilityInfo["text"] {
+  const canvasImageRendering = computedStyleValue(canvas, "image-rendering") ||
+    "auto"
+  const fontSmoothing = computedStyleValue(document.documentElement, "-webkit-font-smoothing") ||
+    computedStyleValue(document.body, "-webkit-font-smoothing") ||
+    "auto"
+
+  return {
+    source: "renderer_text_quality",
+    policy: WORLD_TEXT_POLICY,
+    worldTextResolution: WORLD_TEXT_RESOLUTION,
+    worldTextTextureFilter: WORLD_TEXT_TEXTURE_FILTER,
+    canvasCssImageRendering: canvasImageRendering,
+    canvasCssAntialiasingAllowed: !["pixelated", "crisp-edges"].includes(
+      canvasImageRendering,
+    ),
+    domFontSmoothing: fontSmoothing,
+    textObjectClasses: WORLD_TEXT_OBJECT_CLASSES,
+    pixelArtSpritesRemainTextureFiltered: true,
+  }
+}
+
+function computedStyleValue(element: Element, property: string): string {
+  if (typeof window === "undefined") return ""
+
+  return window.getComputedStyle(element).getPropertyValue(property).trim()
 }
 
 function rendererName(

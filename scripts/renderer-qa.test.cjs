@@ -556,6 +556,28 @@ function assertAudioContract(audio) {
   assert.equal(audio.policy.maxConcurrentUiSounds, 6)
 }
 
+function assertTextRenderingContract(text) {
+  assert.equal(text?.source, "renderer_text_quality")
+  assert.equal(text.policy, "antialiased_text_pixel_art_world")
+  assert.equal(text.worldTextResolution, 4)
+  assert.equal(text.worldTextTextureFilter, "linear")
+  assert.equal(text.canvasCssImageRendering, "auto")
+  assert.equal(text.canvasCssAntialiasingAllowed, true)
+  assert.ok(
+    !["pixelated", "crisp-edges"].includes(text.canvasCssImageRendering),
+    `Expected canvas CSS to allow antialiased text, got ${text.canvasCssImageRendering}.`,
+  )
+  assert.equal(typeof text.domFontSmoothing, "string")
+  assert.deepEqual(text.textObjectClasses, [
+    "avatar_labels",
+    "emote_text",
+    "zone_labels",
+    "action_markers",
+    "debug_overlays",
+  ])
+  assert.equal(text.pixelArtSpritesRemainTextureFiltered, true)
+}
+
 async function verifyResponsiveScreenshots(browser, url, report) {
   for (const viewport of VIEWPORTS) {
     const page = await newQaPage(browser, {
@@ -1263,6 +1285,7 @@ function assertRendererSnapshot(state) {
   ))
   assertAudioContract(state.renderer.audio)
   assertAudioContract(state.audio)
+  assertTextRenderingContract(state.renderer.text)
   assert.equal(state.renderer.depthEffects.source, "phaser_depth_effects")
   assert.equal(state.renderer.depthEffects.authority, "visual_only")
   assert.equal(state.renderer.depthEffects.enabled, true)
@@ -1510,6 +1533,7 @@ function snapshotForReport(label, state) {
         placementPreview: state.renderer.physics.placementPreview,
       },
       audio: state.renderer.audio,
+      text: state.renderer.text,
       depthEffects: {
         masks: state.renderer.depthEffects.masks,
         blendModes: state.renderer.depthEffects.blendModes,

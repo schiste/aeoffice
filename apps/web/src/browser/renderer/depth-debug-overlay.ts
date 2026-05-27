@@ -1,5 +1,6 @@
 import Phaser from "phaser"
 
+import { applyCrispWorldText } from "./text-rendering"
 import type { RendererDepthInfo, RendererDepthObjectInfo } from "./types"
 
 const DEBUG_DEPTH = 120000
@@ -90,6 +91,7 @@ export class DepthDebugOverlay {
       },
     })
 
+    applyCrispWorldText(label)
     label.setDepth(DEBUG_DEPTH + 1)
     label.setVisible(this.enabled)
     this.labels.push(label)

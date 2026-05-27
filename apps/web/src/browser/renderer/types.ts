@@ -1223,6 +1223,24 @@ export interface RendererAvatarInfo {
   readonly players: readonly RendererAvatarPlayerInfo[]
 }
 
+export interface RendererTextRenderingInfo {
+  readonly source: "renderer_text_quality"
+  readonly policy: "antialiased_text_pixel_art_world"
+  readonly worldTextResolution: number
+  readonly worldTextTextureFilter: "linear"
+  readonly canvasCssImageRendering: string
+  readonly canvasCssAntialiasingAllowed: boolean
+  readonly domFontSmoothing: string
+  readonly textObjectClasses: readonly (
+    | "avatar_labels"
+    | "emote_text"
+    | "zone_labels"
+    | "action_markers"
+    | "debug_overlays"
+  )[]
+  readonly pixelArtSpritesRemainTextureFiltered: true
+}
+
 export interface RendererCapabilityInfo {
   readonly requestedRenderer: "webgl"
   readonly actualRenderer: "webgl" | "canvas" | "headless" | "unknown"
@@ -1256,6 +1274,7 @@ export interface RendererCapabilityInfo {
   readonly input: RendererAdvancedInputInfo
   readonly physics: RendererPhysicsInfo
   readonly audio: RendererAudioInfo
+  readonly text: RendererTextRenderingInfo
   readonly depthEffects: RendererDepthEffectsInfo
   readonly depth: RendererDepthInfo
   readonly tilemap: RendererTilemapInfo

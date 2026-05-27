@@ -1482,3 +1482,30 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   against `http://127.0.0.1:8787/app`, but still fails before navigation with
   `ERR_MODULE_NOT_FOUND` because the skill-local script cannot resolve
   `playwright`.
+- Text rendering now has an explicit crisp-text policy instead of relying on
+  scattered Phaser `Text` options. `text-rendering.ts` centralizes the
+  high-resolution text texture setting and linear texture filter used by avatar
+  labels, emotes, zone labels, interaction markers, and dev/debug overlays.
+- The canvas keeps Phaser `pixelArt: true` for tiles and sprites, but the final
+  browser canvas scaling is forced back to `image-rendering: auto`. This avoids
+  nearest-neighbor scaling of the entire canvas, which was making in-world
+  writing look blocky even when the underlying text textures were high
+  resolution.
+- DOM text smoothing is now explicit through the app CSS root, and
+  `render_game_to_text.renderer.text` reports the text quality contract:
+  `antialiased_text_pixel_art_world`, resolution `4`, texture filter `linear`,
+  canvas CSS image rendering `auto`, and text object classes covered.
+- Frontend smoke and renderer QA now assert the text rendering contract. Latest
+  renderer QA report confirmed `canvasCssAntialiasingAllowed: true` with
+  pixel-art sprites still texture-filtered by Phaser. Latest desktop lobby and
+  mobile responsive screenshots were visually inspected and labels/text
+  remained readable.
+- Verification passed after the text crispness pass:
+  `node --check scripts/frontend-smoke.test.cjs`,
+  `node --check scripts/renderer-qa.test.cjs`,
+  `npm --workspace @aedventure/web run build`, `npm run smoke:frontend`,
+  `npm run qa:renderer`, `npm run qa:responsive`, `npm run check`, and
+  `git diff --check`. The standalone develop-web-game client was attempted
+  against `http://127.0.0.1:8787/app`, but still fails before navigation with
+  `ERR_MODULE_NOT_FOUND` because the skill-local script cannot resolve
+  `playwright`.

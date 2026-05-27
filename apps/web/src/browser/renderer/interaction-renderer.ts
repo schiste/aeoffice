@@ -2,6 +2,10 @@ import Phaser from "phaser"
 
 import { ZONE_LABEL_DEPTH } from "./constants"
 import { clamp, roundTo } from "./math"
+import {
+  applyCrispWorldText,
+  WORLD_TEXT_RESOLUTION,
+} from "./text-rendering"
 import type {
   RendererWorldInteractionCandidate,
   RendererWorldInteractionInfo,
@@ -20,7 +24,7 @@ interface InteractionMarkerView {
 
 const MARKER_SCREEN_SCALE_MIN = 0.72
 const MARKER_SCREEN_SCALE_MAX = 1.18
-const MARKER_TEXT_RESOLUTION = 3
+const MARKER_TEXT_RESOLUTION = WORLD_TEXT_RESOLUTION
 
 type InteractionActivationHandler = (candidateId: string) => void
 
@@ -117,8 +121,7 @@ export class InteractionRenderer {
       align: "center",
       resolution: MARKER_TEXT_RESOLUTION,
     })
-    glyph.setResolution(MARKER_TEXT_RESOLUTION)
-    glyph.texture.setFilter(Phaser.Textures.FilterMode.LINEAR)
+    applyCrispWorldText(glyph)
     glyph.setOrigin(0.5, 0.5)
 
     const keyBack = this.scene.add.rectangle(-25, -19, 17, 15, 0x20201d, 0.88)
@@ -131,8 +134,7 @@ export class InteractionRenderer {
       align: "center",
       resolution: MARKER_TEXT_RESOLUTION,
     })
-    keyText.setResolution(MARKER_TEXT_RESOLUTION)
-    keyText.texture.setFilter(Phaser.Textures.FilterMode.LINEAR)
+    applyCrispWorldText(keyText)
     keyText.setOrigin(0.5, 0.5)
 
     const promptLabel = markerPromptLabel(candidate)
@@ -153,8 +155,7 @@ export class InteractionRenderer {
       align: "center",
       resolution: MARKER_TEXT_RESOLUTION,
     })
-    promptText.setResolution(MARKER_TEXT_RESOLUTION)
-    promptText.texture.setFilter(Phaser.Textures.FilterMode.LINEAR)
+    applyCrispWorldText(promptText)
     promptText.setOrigin(0.5, 0.5)
 
     container.add([

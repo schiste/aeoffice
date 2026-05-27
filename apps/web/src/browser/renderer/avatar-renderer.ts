@@ -35,6 +35,11 @@ import {
 } from "./constants"
 import { avatarDepth } from "./depth"
 import { clamp } from "./math"
+import {
+  applyCrispWorldText,
+  WORLD_TEXT_RESOLUTION,
+  WORLD_TEXT_TEXTURE_FILTER,
+} from "./text-rendering"
 import type {
   AvatarAnimationAction,
   AvatarAnimationTransitionReason,
@@ -58,8 +63,8 @@ export interface AvatarFollowTarget {
   readonly motion?: RendererCameraFollowMotion
 }
 
-const LABEL_TEXT_RESOLUTION = 4
-const LABEL_TEXTURE_FILTER = "linear" as const
+const LABEL_TEXT_RESOLUTION = WORLD_TEXT_RESOLUTION
+const LABEL_TEXTURE_FILTER = WORLD_TEXT_TEXTURE_FILTER
 const LABEL_SCREEN_SCALE_MIN = 0.72
 const LABEL_SCREEN_SCALE_MAX = 1.08
 const EMOTE_BUBBLE_SIZE = 18
@@ -563,8 +568,7 @@ class AvatarView {
       align: "center",
       resolution: LABEL_TEXT_RESOLUTION,
     })
-    this.label.setResolution(LABEL_TEXT_RESOLUTION)
-    this.applySmoothTextTexture(this.label)
+    applyCrispWorldText(this.label)
     this.label.setOrigin(0.5, 0.5)
     this.labelShadow = scene.add.rectangle(1, -29, this.labelWidth, 17, 0x20201d, 0.16)
     this.labelBack = scene.add.rectangle(0, -31, this.labelWidth, 17, 0xfffdf7, 0.93)
@@ -588,8 +592,7 @@ class AvatarView {
       align: "center",
       resolution: LABEL_TEXT_RESOLUTION,
     })
-    this.emoteText.setResolution(LABEL_TEXT_RESOLUTION)
-    this.applySmoothTextTexture(this.emoteText)
+    applyCrispWorldText(this.emoteText)
     this.emoteText.setOrigin(0.5, 0.5)
     this.emoteBack.setVisible(false)
     this.emoteText.setVisible(false)
@@ -718,7 +721,7 @@ class AvatarView {
       this.enqueueRemoteSnapshot(player)
     }
     this.label.setText(player.name)
-    this.applySmoothTextTexture(this.label)
+    applyCrispWorldText(this.label)
     this.resizeLabel()
     this.applyAppearance(nextAppearance)
     if (poseChanged) {
@@ -820,7 +823,7 @@ class AvatarView {
     this.emoteBack.setVisible(true)
     this.emoteText.setVisible(true)
     this.emoteText.setText(emote.glyph)
-    this.applySmoothTextTexture(this.emoteText)
+    applyCrispWorldText(this.emoteText)
     this.emoteBack.setAlpha(0.96)
     this.emoteText.setAlpha(1)
     this.positionEmoteOverlay()
@@ -1205,10 +1208,6 @@ class AvatarView {
         this.startIdleTween(this.animation, this.lastPosition)
       },
     })
-  }
-
-  private applySmoothTextTexture(text: Phaser.GameObjects.Text): void {
-    text.texture.setFilter(Phaser.Textures.FilterMode.LINEAR)
   }
 
   private applyLabelPresentation(): void {
@@ -1680,8 +1679,8 @@ class AvatarView {
     this.labelTail.setScale(scale)
     this.emoteBack.setScale(scale)
     this.emoteText.setScale(scale)
-    this.label.setResolution(LABEL_TEXT_RESOLUTION)
-    this.emoteText.setResolution(LABEL_TEXT_RESOLUTION)
+    applyCrispWorldText(this.label)
+    applyCrispWorldText(this.emoteText)
   }
 
   private positionEmoteOverlay(): void {

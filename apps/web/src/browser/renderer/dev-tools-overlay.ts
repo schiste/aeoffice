@@ -1,5 +1,6 @@
 import Phaser from "phaser"
 
+import { applyCrispWorldText } from "./text-rendering"
 import type {
   FixtureMap,
   RendererCameraState,
@@ -316,6 +317,7 @@ export class DevToolsOverlay {
         y: 5,
       },
     })
+    applyCrispWorldText(this.cameraText)
     this.cameraText.setScrollFactor(0)
     this.cameraText.setDepth(DEV_TOOLS_DEPTH + 1)
   }

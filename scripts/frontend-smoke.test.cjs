@@ -921,6 +921,7 @@ function assertRenderStateContract(state) {
   )
   assertAudioContract(state.audio)
   assertAudioContract(state.renderer?.audio)
+  assertTextRenderingContract(state.renderer?.text)
   assertCameraStateContract(state)
 }
 
@@ -1383,6 +1384,7 @@ function assertRendererCapabilities(state) {
   assert.equal(state.renderer.effects.capability.shadersAvailable, true)
   assert.equal(state.renderer.effects.capability.particlesAvailable, true)
   assertAudioContract(state.renderer.audio)
+  assertTextRenderingContract(state.renderer.text)
   assert.equal(state.camera.secondary.mode, "main_plus_overview")
   assert.ok(state.camera.secondary.totalCameraCount >= 2)
   assert.ok(state.camera.secondary.visibleCameraCount >= 2)
@@ -1536,6 +1538,28 @@ function assertAudioContract(audio) {
   assert.equal(audio.policy.autoplay, "play_after_unlock_else_track_attempt")
   assert.equal(typeof audio.policy.footstepThrottleMs, "number")
   assert.equal(audio.policy.maxConcurrentUiSounds, 6)
+}
+
+function assertTextRenderingContract(text) {
+  assert.equal(text?.source, "renderer_text_quality")
+  assert.equal(text.policy, "antialiased_text_pixel_art_world")
+  assert.equal(text.worldTextResolution, 4)
+  assert.equal(text.worldTextTextureFilter, "linear")
+  assert.equal(text.canvasCssImageRendering, "auto")
+  assert.equal(text.canvasCssAntialiasingAllowed, true)
+  assert.ok(
+    !["pixelated", "crisp-edges"].includes(text.canvasCssImageRendering),
+    `Expected canvas CSS to allow antialiased text, got ${text.canvasCssImageRendering}.`,
+  )
+  assert.equal(typeof text.domFontSmoothing, "string")
+  assert.deepEqual(text.textObjectClasses, [
+    "avatar_labels",
+    "emote_text",
+    "zone_labels",
+    "action_markers",
+    "debug_overlays",
+  ])
+  assert.equal(text.pixelArtSpritesRemainTextureFiltered, true)
 }
 
 function assertRendererPerformance(performance) {

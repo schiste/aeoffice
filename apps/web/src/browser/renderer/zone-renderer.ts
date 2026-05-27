@@ -2,6 +2,7 @@ import Phaser from "phaser"
 
 import { ZONE_DEPTH, ZONE_LABEL_DEPTH } from "./constants"
 import { clamp, roundTo } from "./math"
+import { applyCrispWorldText } from "./text-rendering"
 import type {
   FixtureZone,
   RendererZoneAction,
@@ -284,6 +285,7 @@ export class ZoneRenderer {
       fontStyle: "800",
       align: "center",
     })
+    applyCrispWorldText(label)
     label.setOrigin(0.5, 0.5)
     label.setDepth(ZONE_LABEL_DEPTH)
     const back = this.scene.add.rectangle(
@@ -327,6 +329,7 @@ export class ZoneRenderer {
       fontStyle: "800",
       align: "center",
     })
+    applyCrispWorldText(glyph)
     glyph.setOrigin(0.5, 0.5)
     marker.add([halo, back, glyph])
     this.actionMarkers.push({ zoneId: info.id, container: marker })

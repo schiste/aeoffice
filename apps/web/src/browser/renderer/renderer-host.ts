@@ -110,6 +110,7 @@ export class PhaserOfficeRenderer {
       scene: this.sceneManager.scenes,
     })
     this.capabilityReporter = new RendererCapabilityReporter(this.game)
+    this.applyCrispCanvasTextScaling()
     this.installContextRecoveryHandlers()
     this.resizeObserver = new ResizeObserver(() => this.resizeToParent())
     this.resizeObserver.observe(parent)
@@ -354,8 +355,13 @@ export class PhaserOfficeRenderer {
     )
 
     this.game.scale.resize(width, height)
+    this.applyCrispCanvasTextScaling()
     this.scene.resizeViewport(width, height)
     this.zoomFactor = this.scene.getCameraState().zoomFactor
+  }
+
+  private applyCrispCanvasTextScaling(): void {
+    this.game.canvas.style.imageRendering = "auto"
   }
 
   private resolveReady: (scene: OfficeScene) => void = () => undefined

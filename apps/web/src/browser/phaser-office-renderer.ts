@@ -21,6 +21,7 @@ export type {
   RendererEffectsOptions,
   RendererMapValidationInfo,
   RendererPerformanceInfo,
+  RendererTextRenderingInfo,
   RendererViewportState,
   RendererWorldInteractionAction,
   RendererWorldInteractionCandidate,
