@@ -159,6 +159,7 @@ export class TilemapRenderer {
     phaserLayer.setDepth(depth)
     phaserLayer.setVertexRoundMode(RENDERER_VERTEX_ROUND_MODE)
     const populatedTileCount = this.populateLayer(
+      name,
       phaserLayer,
       layer,
       tokensByGid,
@@ -183,6 +184,7 @@ export class TilemapRenderer {
   }
 
   private populateLayer(
+    name: RendererTilemapLayerInfo["name"],
     phaserLayer: Phaser.Tilemaps.TilemapLayer,
     layer: TileLayer,
     tokensByGid: ReadonlyMap<number, FixtureToken>,
@@ -201,7 +203,21 @@ export class TilemapRenderer {
         for (let offsetY = 0; offsetY < heightTiles; offsetY += 1) {
           for (let offsetX = 0; offsetX < widthTiles; offsetX += 1) {
             const tileGid = variantGrid?.[offsetY]?.[offsetX] ?? gid
-            phaserLayer.putTileAt(tileGid, x + offsetX, y + offsetY, false)
+            const tile = phaserLayer.putTileAt(
+              tileGid,
+              x + offsetX,
+              y + offsetY,
+              false,
+            )
+
+            if (tile) {
+              tile.properties = tilePropertiesForToken(
+                name,
+                token,
+                offsetX,
+                offsetY,
+              )
+            }
             populatedTileCount += 1
           }
         }
@@ -251,6 +267,35 @@ export class TilemapRenderer {
     gpuLayer.setVertexRoundMode(RENDERER_VERTEX_ROUND_MODE)
 
     return { layer: gpuLayer, mode: "gpu" }
+  }
+}
+
+function tilePropertiesForToken(
+  layerName: RendererTilemapLayerInfo["name"],
+  token: FixtureToken | undefined,
+  offsetX: number,
+  offsetY: number,
+): Record<string, unknown> {
+  const semanticId = token?.id ?? "unknown"
+  const kind = token?.kind ?? "floor"
+  const collides = kind === "wall"
+  const editorSelectable = kind === "wall" || kind === "floor"
+  const tenantCustomizable = kind === "floor" || kind === "wall"
+  const animated = semanticId.includes("glass") || semanticId.includes("water")
+
+  return {
+    schemaVersion: 1,
+    semanticId,
+    kind,
+    layerName,
+    collides,
+    editorSelectable,
+    tenantCustomizable,
+    animated,
+    animationKey: animated ? `${semanticId}:shimmer` : undefined,
+    callbackKind: collides ? "wall_collision_probe" : "none",
+    tileSegmentX: offsetX,
+    tileSegmentY: offsetY,
   }
 }
 

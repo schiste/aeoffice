@@ -30,6 +30,10 @@ import {
   StaticLayerBaker,
   emptyStaticLayerBakeInfo,
 } from "./static-layer-baker"
+import {
+  TilemapFeatureSystem,
+  emptyTilemapFeatureInfo,
+} from "./tilemap-feature-system"
 import { ZoneRenderer } from "./zone-renderer"
 import type {
   FixtureMap,
@@ -50,6 +54,7 @@ import type {
   RendererMapValidationInfo,
   RendererPerformanceInfo,
   RendererPhysicsInfo,
+  RendererTilemapFeatureInfo,
   RendererTilemapInfo,
   RendererViewportState,
   RendererWorldInteractionInfo,
@@ -70,6 +75,7 @@ export class OfficeScene extends Phaser.Scene {
   private readonly depthEffectsLayer: DepthEffectsLayer
   private readonly effectsLayer: EffectsLayer
   private readonly staticLayerBaker: StaticLayerBaker
+  private readonly tilemapFeatureSystem: TilemapFeatureSystem
   private readonly depthDebugOverlay: DepthDebugOverlay
   private readonly devToolsOverlay: DevToolsOverlay
   private readonly telemetry = new RendererTelemetry()
@@ -104,6 +110,7 @@ export class OfficeScene extends Phaser.Scene {
     this.depthEffectsLayer = new DepthEffectsLayer(this)
     this.effectsLayer = new EffectsLayer(this)
     this.staticLayerBaker = new StaticLayerBaker(this)
+    this.tilemapFeatureSystem = new TilemapFeatureSystem(this)
     this.depthDebugOverlay = new DepthDebugOverlay(this)
     this.devToolsOverlay = new DevToolsOverlay(this)
     this.assetPackLoader = new RendererAssetPackLoader(
@@ -166,6 +173,7 @@ export class OfficeScene extends Phaser.Scene {
     this.depthEffectsLayer.clear()
     this.effectsLayer.clear()
     this.staticLayerBaker.clear()
+    this.tilemapFeatureSystem.clear()
     this.depthDebugOverlay.clear()
     this.devToolsOverlay.clear()
     this.objectRenderer.releaseActiveSprites()
@@ -227,6 +235,10 @@ export class OfficeScene extends Phaser.Scene {
       multiTileVariantGids.byRootGid,
       10,
     )
+    const tilemapFeatureInfo = this.tilemapFeatureSystem.configure({
+      tilemap: this.activeMap,
+      fixtureMap,
+    })
     const staticLayerBake = this.staticLayerBaker.bakeStaticLayers(
       [floorLayer, wallLayer],
       {
@@ -237,6 +249,7 @@ export class OfficeScene extends Phaser.Scene {
     this.tilemapInfo = tilemapInfoFromLayers(
       [floorLayer.info, wallLayer.info],
       staticLayerBake,
+      tilemapFeatureInfo,
     )
     this.effectsLayer.renderFixtureMap(fixtureMap, {
       width: widthInPixels,
@@ -517,6 +530,7 @@ export class OfficeScene extends Phaser.Scene {
 function tilemapInfoFromLayers(
   staticLayers: RendererTilemapInfo["staticLayers"],
   staticLayerBake = emptyStaticLayerBakeInfo(),
+  features: RendererTilemapFeatureInfo = emptyTilemapFeatureInfo(),
 ): RendererTilemapInfo {
   return {
     staticLayers,
@@ -535,6 +549,7 @@ function tilemapInfoFromLayers(
     zoneLayerMode: "graphics",
     avatarLayerMode: "display_objects",
     labelLayerMode: "display_objects",
+    features,
   }
 }
 

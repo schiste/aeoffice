@@ -67,6 +67,7 @@ async function main() {
       advancedInput: undefined,
       physicsAffordances: undefined,
       depthEffects: undefined,
+      tilemapFeatures: undefined,
     }
 
     await verifyRendererRuntime(browser, url, report)
@@ -108,6 +109,7 @@ async function verifyRendererRuntime(browser, url, report) {
     report.advancedInput = await verifyAdvancedInput(page, initial)
     report.physicsAffordances = verifyPhysicsAffordances(initial)
     report.depthEffects = verifyDepthEffects(initial)
+    report.tilemapFeatures = verifyTilemapFeatures(initial)
 
     const baselineCadence = await measureFrameCadence(page)
     assertFrameCadence(initial.renderer.performance, baselineCadence)
@@ -403,6 +405,64 @@ function verifyDepthEffects(state) {
     blendModes: depthEffects.blendModes,
     fog: depthEffects.fog,
     labels: depthEffects.labels,
+  }
+}
+
+function verifyTilemapFeatures(state) {
+  const features = state.renderer.tilemap.features
+
+  assert.equal(features.source, "phaser_tilemap_runtime_features")
+  assert.equal(features.authority, "renderer_editor_affordances_only")
+  assert.equal(features.enabled, true)
+  assert.ok(features.features.includes("tile_metadata"))
+  assert.ok(features.features.includes("tile_collision_properties"))
+  assert.ok(features.features.includes("tile_index_callbacks"))
+  assert.ok(features.features.includes("tile_location_callbacks"))
+  assert.ok(features.features.includes("animated_tile_overlays"))
+  assert.ok(features.features.includes("layered_editor_metadata"))
+  assert.equal(features.metadata.propertySchemaVersion, 1)
+  assert.ok(features.metadata.tilePropertyCount >= 1)
+  assert.equal(
+    features.metadata.tilePropertyCount,
+    features.metadata.semanticTilePropertyCount,
+  )
+  assert.ok(features.metadata.editorPropertyCount >= 1)
+  assert.ok(features.metadata.layerNames.includes("floor"))
+  assert.ok(features.metadata.layerNames.includes("walls"))
+  assert.ok(features.collision.propertyCollisionTileCount >= 1)
+  assert.ok(features.collision.propertyCollisionLayerNames.includes("walls"))
+  assert.equal(
+    features.collision.serverAuthorityBoundary,
+    "compiled_collision_layers_remain_authoritative",
+  )
+  assert.ok(features.callbacks.tileIndexCallbackCount >= 1)
+  assert.ok(features.callbacks.tileLocationCallbackCount >= 1)
+  assert.ok(features.callbacks.callbackLayerNames.includes("walls"))
+  assert.ok(features.callbacks.callbackLayerNames.includes("floor"))
+  assert.ok(features.callbacks.registeredSemanticIds.length >= 1)
+  assert.equal(features.callbacks.invocationCount, 0)
+  assert.ok(features.animation.animatedTileCount >= 1)
+  assert.equal(
+    features.animation.animatedTileCount,
+    features.animation.animatedOverlayCount,
+  )
+  assert.ok(features.animation.animatedSemanticIds.some((id) =>
+    id.includes("glass")
+  ))
+  assert.equal(features.animation.clock, "phaser_tweens")
+  assert.equal(features.animation.deterministic, false)
+  assert.ok(features.editor.selectableTileCount >= 1)
+  assert.ok(features.editor.tenantCustomizableTileCount >= 1)
+  assert.equal(features.editor.layeredInspectorReady, true)
+
+  return {
+    source: "renderer_tilemap_features_qa",
+    authority: features.authority,
+    metadata: features.metadata,
+    collision: features.collision,
+    callbacks: features.callbacks,
+    animation: features.animation,
+    editor: features.editor,
   }
 }
 
@@ -1164,6 +1224,34 @@ function assertRendererSnapshot(state) {
   assert.equal(state.renderer.tilemap.staticLayerBake.sourceLayerCount, 2)
   assert.equal(state.renderer.tilemap.staticLayerBake.bakedLayerCount, 1)
   assert.ok(state.renderer.tilemap.staticLayerBake.displayObjectReduction >= 1)
+  assert.equal(
+    state.renderer.tilemap.features.source,
+    "phaser_tilemap_runtime_features",
+  )
+  assert.equal(
+    state.renderer.tilemap.features.authority,
+    "renderer_editor_affordances_only",
+  )
+  assert.equal(typeof state.renderer.tilemap.features.enabled, "boolean")
+  assert.ok(
+    state.renderer.tilemap.features.features.includes("tile_metadata"),
+  )
+  assert.equal(
+    typeof state.renderer.tilemap.features.metadata.tilePropertyCount,
+    "number",
+  )
+  assert.equal(
+    typeof state.renderer.tilemap.features.collision.propertyCollisionTileCount,
+    "number",
+  )
+  assert.equal(
+    typeof state.renderer.tilemap.features.callbacks.tileIndexCallbackCount,
+    "number",
+  )
+  assert.equal(
+    typeof state.renderer.tilemap.features.animation.animatedTileCount,
+    "number",
+  )
   assert.ok(
     state.renderer.effects.applied.customWebglPipelines.includes(
       "ShaderQuad:aedventure_room_lighting",
@@ -1287,6 +1375,7 @@ function snapshotForReport(label, state) {
         staticGpuLayerCount: state.renderer.tilemap.staticGpuLayerCount,
         staticTileCount: state.renderer.tilemap.staticTileCount,
         staticLayerBake: state.renderer.tilemap.staticLayerBake,
+        features: state.renderer.tilemap.features,
       },
       depth: {
         objectCount: state.renderer.depth.objectCount,

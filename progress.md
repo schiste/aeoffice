@@ -1415,3 +1415,37 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   against `http://127.0.0.1:8787/app`, but still fails before navigation with
   `ERR_MODULE_NOT_FOUND` because the skill-local script cannot resolve
   `playwright`.
+- Phaser tilemap features beyond static rendering now live in
+  `TilemapFeatureSystem`. Static floor/wall tiles are annotated during paint
+  with schema-versioned semantic metadata (`semanticId`, `kind`, layer,
+  collision flag, editor-selectable flag, tenant-customizable flag, animation
+  key, callback kind, and tile segment offsets).
+- The tilemap runtime now registers Phaser collision properties and callbacks
+  without changing gameplay authority: wall tiles get collision properties and
+  tile-index callbacks, while semantic zones get floor-layer location
+  callbacks. These callbacks are renderer/editor affordances only; compiled
+  collision layers and the server remain authoritative.
+- Animated tile overlays now provide a lightweight Phaser-tween animation path
+  for semantic tiles. The first pass animates glass wall tiles with subtle
+  screen-blended shimmer rectangles capped at 96 overlays, leaving static
+  GPU/baked architecture intact.
+- `render_game_to_text.renderer.tilemap.features` now reports tile metadata,
+  collision-property counts, callback registrations, animated tile overlays,
+  and layered editor readiness. The engine architecture contract now names
+  `TilemapFeatureSystem` and the
+  `phaserTilemapFeaturesAreRendererOnly` boundary.
+- Renderer QA now verifies the tilemap feature contract. Latest lobby report:
+  207 schema-versioned tile properties, 47 wall collision-property tiles, 2
+  wall tile-index callbacks, 1 floor location callback, 47 animated glass tile
+  overlays, and layered editor metadata ready across `floor` and `walls`.
+  Latest desktop lobby, mobile responsive, and devtools-zone screenshots were
+  visually inspected and remained nonblank/readable.
+- Verification passed after the tilemap-features pass:
+  `npm --workspace @aedventure/web run build`,
+  `node --check scripts/frontend-smoke.test.cjs`,
+  `node --check scripts/renderer-qa.test.cjs`, `npm run smoke:frontend`,
+  `npm run qa:renderer`, `npm run qa:responsive`, `npm run check`, and
+  `git diff --check`. The standalone develop-web-game client was attempted
+  against `http://127.0.0.1:8787/app`, but still fails before navigation with
+  `ERR_MODULE_NOT_FOUND` because the skill-local script cannot resolve
+  `playwright`.

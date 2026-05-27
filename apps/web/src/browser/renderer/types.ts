@@ -815,6 +815,56 @@ export interface RendererTilemapLayerInfo {
   readonly populatedTileCount: number
 }
 
+export type RendererTilemapFeature =
+  | "tile_metadata"
+  | "tile_collision_properties"
+  | "tile_index_callbacks"
+  | "tile_location_callbacks"
+  | "animated_tile_overlays"
+  | "layered_editor_metadata"
+
+export interface RendererTilemapFeatureInfo {
+  readonly source: "phaser_tilemap_runtime_features"
+  readonly authority: "renderer_editor_affordances_only"
+  readonly enabled: boolean
+  readonly features: readonly RendererTilemapFeature[]
+  readonly metadata: {
+    readonly propertySchemaVersion: 1
+    readonly tilePropertyCount: number
+    readonly semanticTilePropertyCount: number
+    readonly editorPropertyCount: number
+    readonly uniqueSemanticTokenCount: number
+    readonly layerNames: readonly RendererTilemapLayerInfo["name"][]
+  }
+  readonly collision: {
+    readonly propertyCollisionTileCount: number
+    readonly propertyCollisionLayerNames: readonly RendererTilemapLayerInfo["name"][]
+    readonly serverAuthorityBoundary:
+      "compiled_collision_layers_remain_authoritative"
+  }
+  readonly callbacks: {
+    readonly tileIndexCallbackCount: number
+    readonly tileLocationCallbackCount: number
+    readonly callbackLayerNames: readonly RendererTilemapLayerInfo["name"][]
+    readonly registeredSemanticIds: readonly string[]
+    readonly invocationCount: number
+  }
+  readonly animation: {
+    readonly animatedTileCount: number
+    readonly animatedOverlayCount: number
+    readonly animatedSemanticIds: readonly string[]
+    readonly maxAnimatedTiles: number
+    readonly clock: "phaser_tweens"
+    readonly deterministic: false
+  }
+  readonly editor: {
+    readonly selectableTileCount: number
+    readonly tenantCustomizableTileCount: number
+    readonly inspectedLayerCount: number
+    readonly layeredInspectorReady: boolean
+  }
+}
+
 export interface RendererStaticLayerBakeInfo {
   readonly source: "phaser_render_texture"
   readonly enabled: boolean
@@ -845,6 +895,7 @@ export interface RendererTilemapInfo {
   readonly zoneLayerMode: "graphics"
   readonly avatarLayerMode: "display_objects"
   readonly labelLayerMode: "display_objects"
+  readonly features: RendererTilemapFeatureInfo
 }
 
 export interface RendererDepthPlacementBounds {

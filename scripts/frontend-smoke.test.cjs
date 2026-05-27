@@ -775,6 +775,7 @@ function assertRenderStateContract(state) {
     "phaser_render_texture",
   )
   assert.equal(typeof state.renderer?.tilemap?.staticLayerBake?.enabled, "boolean")
+  assertTilemapFeaturesContract(state.renderer?.tilemap?.features)
   assert.equal(typeof state.renderer?.assets?.atlasLoaded, "boolean")
   assert.equal(typeof state.renderer?.assets?.primarySource, "string")
   assert.equal(
@@ -954,6 +955,10 @@ function assertEngineArchitectureContract(state) {
     state.engine?.renderer?.modules?.includes("DepthEffectsLayer"),
     `Expected DepthEffectsLayer module, got ${JSON.stringify(state.engine?.renderer)}.`,
   )
+  assert.ok(
+    state.engine?.renderer?.modules?.includes("TilemapFeatureSystem"),
+    `Expected TilemapFeatureSystem module, got ${JSON.stringify(state.engine?.renderer)}.`,
+  )
   assert.equal(state.engine?.controllers?.input, "InputController")
   assert.equal(state.engine?.controllers?.worldSync, "WorldSyncController")
   assert.equal(
@@ -964,6 +969,10 @@ function assertEngineArchitectureContract(state) {
   assert.equal(state.engine?.boundaries?.phaserInputOwnsRendererHitTesting, true)
   assert.equal(state.engine?.boundaries?.phaserPhysicsIsVisualOnly, true)
   assert.equal(state.engine?.boundaries?.phaserDepthEffectsAreVisualOnly, true)
+  assert.equal(
+    state.engine?.boundaries?.phaserTilemapFeaturesAreRendererOnly,
+    true,
+  )
   assert.equal(
     state.engine?.boundaries?.inputStateOwnedOutsideDomEvents,
     true,
@@ -1062,6 +1071,45 @@ function assertDepthEffectsContract(depthEffects) {
   assert.equal(typeof depthEffects.labels.occlusionCandidateCount, "number")
   assert.equal(typeof depthEffects.labels.foregroundOccluderCount, "number")
   assert.ok(Array.isArray(depthEffects.labels.occludedPlayerIds))
+}
+
+function assertTilemapFeaturesContract(features) {
+  assert.equal(features.source, "phaser_tilemap_runtime_features")
+  assert.equal(features.authority, "renderer_editor_affordances_only")
+  assert.equal(features.enabled, true)
+  assert.ok(features.features.includes("tile_metadata"))
+  assert.ok(features.features.includes("tile_collision_properties"))
+  assert.ok(features.features.includes("tile_index_callbacks"))
+  assert.ok(features.features.includes("tile_location_callbacks"))
+  assert.ok(features.features.includes("animated_tile_overlays"))
+  assert.ok(features.features.includes("layered_editor_metadata"))
+  assert.equal(features.metadata.propertySchemaVersion, 1)
+  assert.equal(typeof features.metadata.tilePropertyCount, "number")
+  assert.equal(typeof features.metadata.semanticTilePropertyCount, "number")
+  assert.equal(typeof features.metadata.editorPropertyCount, "number")
+  assert.ok(Array.isArray(features.metadata.layerNames))
+  assert.equal(
+    features.collision.serverAuthorityBoundary,
+    "compiled_collision_layers_remain_authoritative",
+  )
+  assert.equal(
+    typeof features.collision.propertyCollisionTileCount,
+    "number",
+  )
+  assert.ok(Array.isArray(features.collision.propertyCollisionLayerNames))
+  assert.equal(typeof features.callbacks.tileIndexCallbackCount, "number")
+  assert.equal(typeof features.callbacks.tileLocationCallbackCount, "number")
+  assert.ok(Array.isArray(features.callbacks.callbackLayerNames))
+  assert.ok(Array.isArray(features.callbacks.registeredSemanticIds))
+  assert.equal(typeof features.callbacks.invocationCount, "number")
+  assert.equal(typeof features.animation.animatedTileCount, "number")
+  assert.equal(typeof features.animation.animatedOverlayCount, "number")
+  assert.ok(Array.isArray(features.animation.animatedSemanticIds))
+  assert.equal(features.animation.clock, "phaser_tweens")
+  assert.equal(features.animation.deterministic, false)
+  assert.equal(typeof features.editor.selectableTileCount, "number")
+  assert.equal(typeof features.editor.tenantCustomizableTileCount, "number")
+  assert.equal(typeof features.editor.layeredInspectorReady, "boolean")
 }
 
 function assertAdvancedInputContract(input) {
@@ -1285,6 +1333,7 @@ function assertRendererCapabilities(state) {
   assert.equal(state.renderer.tilemap.zoneLayerMode, "graphics")
   assert.equal(state.renderer.tilemap.avatarLayerMode, "display_objects")
   assert.equal(state.renderer.tilemap.labelLayerMode, "display_objects")
+  assertTilemapFeaturesContract(state.renderer.tilemap.features)
   assert.equal(state.renderer.effects.source, "renderer_runtime")
   assert.equal(state.renderer.effects.authority, "visual_only")
   assert.equal(state.renderer.effects.deterministic, false)
