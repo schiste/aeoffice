@@ -1609,3 +1609,20 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   against `http://127.0.0.1:8787/app`, but it still exits before navigation with
   `ERR_MODULE_NOT_FOUND` because the skill-local script cannot resolve the
   `playwright` package.
+- Renderer module cleanup continued by extracting crisp DOM interaction cards
+  from `DomWorldOverlayRenderer` into a dedicated `DomInteractionOverlayRenderer`.
+  The world overlay now coordinates avatar labels, zone labels, and interaction
+  labels, while the interaction overlay owns card DOM node lifecycle,
+  positioning, active state, action tone, and prompt text.
+- This keeps the renderer split cleaner: Phaser marker drawing remains in
+  `InteractionRenderer`, crisp browser-text interaction cards now have their own
+  DOM renderer, and `DomWorldOverlayRenderer` no longer carries
+  interaction-specific card construction details.
+- Verification passed for the renderer cleanup slice:
+  `npm --workspace @aedventure/web run build`, `npm run smoke:frontend`, `npm
+  run qa:renderer`, `npm run qa:responsive`, `npm run check`, and `git diff
+  --check`. Latest renderer QA and responsive screenshots were visually
+  inspected. The standalone develop-web-game client was attempted against
+  `http://127.0.0.1:8787/app`, but it still exits before navigation with
+  `ERR_MODULE_NOT_FOUND` because the skill-local script cannot resolve
+  `playwright`.

@@ -1,33 +1,21 @@
 import { clamp } from "./math"
 import type { OfficeScene } from "./office-scene"
 import { avatarEmoteDefinition } from "./avatar-registry"
+import { DomInteractionOverlayRenderer } from "./dom-interaction-overlay-renderer"
 import {
-  interactionAffordanceLabel,
-  interactionMarkerPosition,
-  interactionMarkerScreenScale,
-  interactionPromptLabel,
-  interactionStyle,
   visibleInteractionMarkerCandidates,
 } from "./world-interaction-presentation"
 import type {
   RendererAvatarPlayerInfo,
-  RendererWorldInteractionCandidate,
   RendererZoneInfo,
 } from "./types"
 
-interface InteractionLabelNodes {
-  readonly card: HTMLDivElement
-  readonly key: HTMLSpanElement
-  readonly kind: HTMLSpanElement
-  readonly prompt: HTMLDivElement
-}
-
 export class DomWorldOverlayRenderer {
   private readonly overlay: HTMLDivElement
+  private readonly interactionOverlay: DomInteractionOverlayRenderer
   private readonly avatarLabelNodes = new Map<string, HTMLDivElement>()
   private readonly zoneLabelNodes = new Map<string, HTMLDivElement>()
   private readonly emoteLabelNodes = new Map<string, HTMLDivElement>()
-  private readonly interactionLabelNodes = new Map<string, InteractionLabelNodes>()
   private frameRequestId = 0
   private sceneReady = false
 
@@ -39,6 +27,10 @@ export class DomWorldOverlayRenderer {
     this.overlay = document.createElement("div")
     this.overlay.className = "world-dom-label-overlay"
     parent.appendChild(this.overlay)
+    this.interactionOverlay = new DomInteractionOverlayRenderer(
+      this.overlay,
+      scene,
+    )
 
     void sceneReady.then(() => {
       this.sceneReady = true
@@ -52,7 +44,7 @@ export class DomWorldOverlayRenderer {
     this.avatarLabelNodes.clear()
     this.zoneLabelNodes.clear()
     this.emoteLabelNodes.clear()
-    this.interactionLabelNodes.clear()
+    this.interactionOverlay.destroy()
     this.overlay.remove()
   }
 
@@ -70,7 +62,9 @@ export class DomWorldOverlayRenderer {
 
     this.renderAvatarLabels()
     this.renderZoneLabels()
-    this.renderInteractionLabels()
+    this.interactionOverlay.render(this.scene.getWorldInteractionInfo(), {
+      zoom: this.scene.cameras.main.zoom || 1,
+    })
   }
 
   private renderAvatarLabels(): void {
@@ -232,85 +226,6 @@ export class DomWorldOverlayRenderer {
     node.style.top = `${Math.round(labelAnchor.y - height / 2)}px`
   }
 
-  private renderInteractionLabels(): void {
-    const info = this.scene.getWorldInteractionInfo()
-    const visibleCandidateIds = new Set<string>()
-    const zoom = this.scene.cameras.main.zoom || 1
-    const screenScale = interactionMarkerScreenScale(zoom) * zoom
-
-    visibleInteractionMarkerCandidates(info).forEach((candidate) => {
-      visibleCandidateIds.add(candidate.id)
-      this.renderInteractionLabel(candidate, screenScale, {
-        active:
-          candidate.id === info.hoveredCandidateId ||
-          candidate.id === info.selectedCandidateId,
-      })
-    })
-
-    this.interactionLabelNodes.forEach((nodes, candidateId) => {
-      if (visibleCandidateIds.has(candidateId)) return
-      nodes.card.remove()
-      this.interactionLabelNodes.delete(candidateId)
-    })
-  }
-
-  private renderInteractionLabel(
-    candidate: RendererWorldInteractionCandidate,
-    screenScale: number,
-    state: { readonly active: boolean },
-  ): void {
-    const nodes = this.interactionNodesFor(candidate)
-    const style = interactionStyle(candidate)
-    const base = this.scene.projectWorldToViewport(
-      interactionMarkerPosition(candidate),
-    )
-
-    nodes.card.classList.toggle("is-active", state.active)
-    nodes.card.dataset.actionTone = style.tone
-    nodes.card.style.setProperty("--world-label-accent", cssHex(style.color))
-    nodes.card.style.color = style.textColor
-    nodes.key.textContent = interactionAffordanceLabel(candidate)
-    nodes.kind.textContent = style.glyph
-    nodes.prompt.textContent = interactionPromptLabel(candidate)
-
-    this.placeNode(nodes.card, {
-      x: base.x,
-      y: base.y + 29 * screenScale,
-    })
-  }
-
-  private interactionNodesFor(
-    candidate: RendererWorldInteractionCandidate,
-  ): InteractionLabelNodes {
-    const current = this.interactionLabelNodes.get(candidate.id)
-    if (current) return current
-
-    const card = document.createElement("div")
-    card.className = "world-dom-interaction-card"
-    const key = document.createElement("span")
-    key.className = "world-dom-interaction-key"
-    const kind = document.createElement("span")
-    kind.className = "world-dom-interaction-kind"
-    const prompt = document.createElement("div")
-    prompt.className = "world-dom-interaction-prompt"
-    card.append(key, kind, prompt)
-    this.overlay.append(card)
-    const nodes = { card, key, kind, prompt }
-    this.interactionLabelNodes.set(candidate.id, nodes)
-
-    return nodes
-  }
-
-  private placeNode(
-    node: HTMLElement,
-    center: { readonly x: number; readonly y: number },
-  ): void {
-    const width = Math.max(1, node.offsetWidth)
-    const height = Math.max(1, node.offsetHeight)
-
-    node.style.left = `${Math.round(center.x - width / 2)}px`
-    node.style.top = `${Math.round(center.y - height / 2)}px`
-  }
 }
 
 function avatarLabelAccent(avatarId: string): string {
@@ -390,10 +305,6 @@ function domZoneLabelMetrics(scale: number): {
     maxWidthPx: Math.round(clamp(120 * cssScale, 120, 142)),
     padding: `${paddingTopPx}px ${paddingX}px ${paddingBottomPx}px`,
   }
-}
-
-function cssHex(color: number): string {
-  return `#${color.toString(16).padStart(6, "0")}`
 }
 
 function activeInteractionZoneIds(
