@@ -11,6 +11,7 @@ import { AvatarRenderer } from "./avatar-renderer"
 import { CameraController } from "./camera-controller"
 import { depthInfo, emptyDepthInfo } from "./depth"
 import { DepthDebugOverlay } from "./depth-debug-overlay"
+import { DepthEffectsLayer } from "./depth-effects-layer"
 import { DevToolsOverlay } from "./dev-tools-overlay"
 import { EffectsLayer } from "./effects-layer"
 import { InteractionRenderer } from "./interaction-renderer"
@@ -41,6 +42,7 @@ import type {
   RendererCameraMode,
   RendererCameraState,
   RendererDepthInfo,
+  RendererDepthEffectsInfo,
   RendererDevToolsInfo,
   RendererDevToolsOptions,
   RendererEffectsInfo,
@@ -65,6 +67,7 @@ export class OfficeScene extends Phaser.Scene {
   private readonly interactionRenderer: InteractionRenderer
   private readonly advancedInputPlugin: AdvancedInputPlugin
   private readonly physicsAffordanceSystem: PhysicsAffordanceSystem
+  private readonly depthEffectsLayer: DepthEffectsLayer
   private readonly effectsLayer: EffectsLayer
   private readonly staticLayerBaker: StaticLayerBaker
   private readonly depthDebugOverlay: DepthDebugOverlay
@@ -98,6 +101,7 @@ export class OfficeScene extends Phaser.Scene {
     this.interactionRenderer = new InteractionRenderer(this)
     this.advancedInputPlugin = new AdvancedInputPlugin(this)
     this.physicsAffordanceSystem = new PhysicsAffordanceSystem(this)
+    this.depthEffectsLayer = new DepthEffectsLayer(this)
     this.effectsLayer = new EffectsLayer(this)
     this.staticLayerBaker = new StaticLayerBaker(this)
     this.depthDebugOverlay = new DepthDebugOverlay(this)
@@ -159,6 +163,7 @@ export class OfficeScene extends Phaser.Scene {
     this.interactionRenderer.clear()
     this.advancedInputPlugin.clearMapTargets()
     this.physicsAffordanceSystem.clearMapTargets()
+    this.depthEffectsLayer.clear()
     this.effectsLayer.clear()
     this.staticLayerBaker.clear()
     this.depthDebugOverlay.clear()
@@ -258,6 +263,14 @@ export class OfficeScene extends Phaser.Scene {
     this.physicsAffordanceSystem.setMapTargets({
       objects: this.objectDepthInfo,
       zones: this.zoneRenderer.getZoneInfo().zones,
+    })
+    this.depthEffectsLayer.renderMap({
+      objects: this.objectDepthInfo,
+      zones: this.zoneRenderer.getZoneInfo().zones,
+      mapBounds: {
+        width: widthInPixels,
+        height: heightInPixels,
+      },
     })
     this.updatePlayers(players)
     this.refreshDevToolsOverlay()
@@ -378,6 +391,10 @@ export class OfficeScene extends Phaser.Scene {
     return this.physicsAffordanceSystem.getInfo()
   }
 
+  getDepthEffectsInfo(): RendererDepthEffectsInfo {
+    return this.depthEffectsLayer.getInfo()
+  }
+
   getEffectsInfo(): RendererEffectsInfo {
     return this.effectsLayer.getInfo()
   }
@@ -472,6 +489,10 @@ export class OfficeScene extends Phaser.Scene {
       this.avatarRenderer.getDepthInfo(),
       this.depthDebugOverlay.isEnabled(),
     )
+    const occludedPlayerIds = this.depthEffectsLayer.updateDepthInfo(
+      this.rendererDepthInfo,
+    )
+    this.avatarRenderer.setForegroundOccludedLabels(occludedPlayerIds)
   }
 
   private refreshDevToolsOverlay(): void {

@@ -1382,3 +1382,36 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   visually inspected. The standalone develop-web-game client still fails before
   navigation with `ERR_MODULE_NOT_FOUND` because the skill-local script cannot
   resolve `playwright`.
+- Phaser masks, blend modes, and depth effects now live in a dedicated
+  `DepthEffectsLayer`. It builds Phaser geometry masks for semantic zone fog,
+  applies a low-alpha multiply fog pass to masked zones, reports private-zone
+  mask counts when private zones exist, and computes foreground label-occlusion
+  candidates from the same depth metadata used for object/player sorting.
+- Foreground wall sprites now receive explicit blend treatment. Glass wall
+  foreground sprites are transparent, tinted, and rendered with `SCREEN`
+  blending; solid foreground occluders stay on normal blending. Pooled object
+  sprites now reset alpha, tint, and blend mode before reuse to prevent visual
+  state from leaking between assets.
+- Avatar labels now support visual-only foreground occlusion. Local labels stay
+  readable; remote labels that overlap foreground occluders are dimmed by the
+  renderer without changing movement, collision, or permission authority.
+- `render_game_to_text.renderer.depthEffects` now reports visual-only
+  authority, feature flags, geometry/zone/label mask counts, foreground/glass
+  blend-mode counts, fog mode, and label occlusion policy. The engine
+  architecture contract now names `DepthEffectsLayer` and the
+  `phaserDepthEffectsAreVisualOnly` boundary.
+- Renderer QA now records depth-effects telemetry in
+  `renderer-qa-report.json`. Latest report verified one geometry mask, one
+  zone-fog mask, 47 glass foreground sprites using `screen`, and label
+  occlusion telemetry on the lobby; the stress map verified a private-zone mask
+  path. Latest desktop lobby, mobile responsive, and devtools-zone screenshots
+  were visually inspected and remained nonblank/readable.
+- Verification passed after the depth-effects pass:
+  `npm --workspace @aedventure/web run build`,
+  `node --check scripts/frontend-smoke.test.cjs`,
+  `node --check scripts/renderer-qa.test.cjs`, `npm run smoke:frontend`,
+  `npm run qa:renderer`, `npm run qa:responsive`, `npm run check`, and
+  `git diff --check`. The standalone develop-web-game client was attempted
+  against `http://127.0.0.1:8787/app`, but still fails before navigation with
+  `ERR_MODULE_NOT_FOUND` because the skill-local script cannot resolve
+  `playwright`.

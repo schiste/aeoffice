@@ -273,6 +273,7 @@ export class PhaserOfficeRenderer {
       this.sceneManager.getInfo(this.game),
       this.scene.getAdvancedInputInfo(),
       this.scene.getPhysicsInfo(),
+      this.scene.getDepthEffectsInfo(),
       this.scene.getDepthInfo(),
       this.scene.getEffectsInfo(),
       this.scene.getMapValidationInfo(),

@@ -250,6 +250,7 @@ const VISUAL_FACING_POSES: Record<AvatarVisualFacing, AvatarPoseState> = {
 export class AvatarRenderer {
   private readonly avatars = new Map<string, AvatarView>()
   private depthPlayers: readonly RendererDepthPlayerInfo[] = []
+  private foregroundOccludedPlayerIds = new Set<string>()
 
   constructor(private readonly scene: Phaser.Scene) {}
 
@@ -288,6 +289,7 @@ export class AvatarRenderer {
     })
 
     this.applyLabelLayout()
+    this.applyForegroundLabelOcclusion()
     this.depthPlayers = [...this.avatars.values()].map((avatar) =>
       avatar.depthInfo(),
     )
@@ -298,6 +300,7 @@ export class AvatarRenderer {
   refreshFrame(): void {
     this.avatars.forEach((avatar) => avatar.syncFrame())
     this.applyLabelLayout()
+    this.applyForegroundLabelOcclusion()
     this.depthPlayers = [...this.avatars.values()].map((avatar) =>
       avatar.depthInfo(),
     )
@@ -309,6 +312,11 @@ export class AvatarRenderer {
 
   getDepthInfo(): readonly RendererDepthPlayerInfo[] {
     return this.depthPlayers
+  }
+
+  setForegroundOccludedLabels(playerIds: readonly string[]): void {
+    this.foregroundOccludedPlayerIds = new Set(playerIds)
+    this.applyForegroundLabelOcclusion()
   }
 
   getAvatarInfo(): RendererAvatarInfo {
@@ -352,6 +360,14 @@ export class AvatarRenderer {
       if (visible) {
         acceptedLabels.push(bounds)
       }
+    })
+  }
+
+  private applyForegroundLabelOcclusion(): void {
+    this.avatars.forEach((avatar, playerId) => {
+      avatar.setForegroundLabelOcclusion(
+        this.foregroundOccludedPlayerIds.has(playerId),
+      )
     })
   }
 }
@@ -429,6 +445,7 @@ class AvatarView {
   private labelReason: RendererAvatarPlayerInfo["labelVisibilityReason"] =
     "visible"
   private labelIsVisible = true
+  private foregroundLabelOccluded = false
 
   get local(): boolean {
     return this.playerLocal
@@ -827,12 +844,13 @@ class AvatarView {
   ): void {
     this.labelIsVisible = visible
     this.labelReason = reason
-    const alpha = visible ? 1 : 0
+    this.applyLabelPresentation()
+  }
 
-    this.label.setAlpha(alpha)
-    this.labelBack.setAlpha(visible ? 0.93 : 0)
-    this.labelShadow.setAlpha(visible ? 0.16 : 0)
-    this.labelTail.setAlpha(visible ? 0.93 : 0)
+  setForegroundLabelOcclusion(occluded: boolean): void {
+    if (this.foregroundLabelOccluded === occluded) return
+    this.foregroundLabelOccluded = occluded
+    this.applyLabelPresentation()
   }
 
   currentLabelBounds(): RendererDepthPlacementBounds {
@@ -937,6 +955,8 @@ class AvatarView {
       labelVisible: this.labelIsVisible,
       labelVisibilityReason: this.labelReason,
       labelPolicy: "local_always_remote_overlap_suppressed",
+      labelOccludedByForeground: this.foregroundLabelOccluded,
+      labelOcclusionPolicy: "local_visible_remote_foreground_labels_dimmed",
       labelBounds: this.currentLabelBounds(),
       labelResolution: LABEL_TEXT_RESOLUTION,
       labelTextureFilter: LABEL_TEXTURE_FILTER,
@@ -1189,6 +1209,21 @@ class AvatarView {
 
   private applySmoothTextTexture(text: Phaser.GameObjects.Text): void {
     text.texture.setFilter(Phaser.Textures.FilterMode.LINEAR)
+  }
+
+  private applyLabelPresentation(): void {
+    if (!this.labelIsVisible) {
+      this.label.setAlpha(0)
+      this.labelBack.setAlpha(0)
+      this.labelShadow.setAlpha(0)
+      this.labelTail.setAlpha(0)
+      return
+    }
+
+    this.label.setAlpha(this.foregroundLabelOccluded ? 0.44 : 1)
+    this.labelBack.setAlpha(this.foregroundLabelOccluded ? 0.34 : 0.93)
+    this.labelShadow.setAlpha(this.foregroundLabelOccluded ? 0.05 : 0.16)
+    this.labelTail.setAlpha(this.foregroundLabelOccluded ? 0.28 : 0.93)
   }
 
   private applyAppearance(appearance: AvatarAppearanceMetadata): void {

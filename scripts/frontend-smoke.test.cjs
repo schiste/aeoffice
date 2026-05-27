@@ -800,6 +800,7 @@ function assertRenderStateContract(state) {
     "Expected renderer.assets.metadata.tenantThemeTags in render_game_to_text.",
   )
   assert.equal(typeof state.renderer?.depth?.debugOverlayEnabled, "boolean")
+  assertDepthEffectsContract(state.renderer?.depthEffects)
   assert.equal(typeof state.devTools?.gated, "boolean")
   assert.equal(typeof state.devTools?.enabled, "boolean")
   assert.equal(typeof state.devTools?.feelPanel?.visible, "boolean")
@@ -949,6 +950,10 @@ function assertEngineArchitectureContract(state) {
     state.engine?.renderer?.modules?.includes("PhysicsAffordanceSystem"),
     `Expected PhysicsAffordanceSystem module, got ${JSON.stringify(state.engine?.renderer)}.`,
   )
+  assert.ok(
+    state.engine?.renderer?.modules?.includes("DepthEffectsLayer"),
+    `Expected DepthEffectsLayer module, got ${JSON.stringify(state.engine?.renderer)}.`,
+  )
   assert.equal(state.engine?.controllers?.input, "InputController")
   assert.equal(state.engine?.controllers?.worldSync, "WorldSyncController")
   assert.equal(
@@ -958,6 +963,7 @@ function assertEngineArchitectureContract(state) {
   assert.equal(state.engine?.boundaries?.sceneLifecycleOwnedByRenderer, true)
   assert.equal(state.engine?.boundaries?.phaserInputOwnsRendererHitTesting, true)
   assert.equal(state.engine?.boundaries?.phaserPhysicsIsVisualOnly, true)
+  assert.equal(state.engine?.boundaries?.phaserDepthEffectsAreVisualOnly, true)
   assert.equal(
     state.engine?.boundaries?.inputStateOwnedOutsideDomEvents,
     true,
@@ -994,6 +1000,7 @@ function assertEngineArchitectureContract(state) {
   )
   assertAdvancedInputContract(state.renderer.input)
   assertPhysicsContract(state.renderer.physics)
+  assertDepthEffectsContract(state.renderer.depthEffects)
 }
 
 function assertPhysicsContract(physics) {
@@ -1023,6 +1030,38 @@ function assertPhysicsContract(physics) {
   assert.equal(physics.placementPreview.active, true)
   assert.equal(physics.placementPreview.state, "blocked")
   assert.ok(physics.placementPreview.overlappingObjectIds.length >= 1)
+}
+
+function assertDepthEffectsContract(depthEffects) {
+  assert.equal(depthEffects.source, "phaser_depth_effects")
+  assert.equal(depthEffects.authority, "visual_only")
+  assert.equal(depthEffects.enabled, true)
+  assert.ok(depthEffects.features.includes("geometry_masks"))
+  assert.ok(depthEffects.features.includes("foreground_blend_modes"))
+  assert.ok(depthEffects.features.includes("glass_transparency"))
+  assert.ok(depthEffects.features.includes("zone_fog_masks"))
+  assert.ok(depthEffects.features.includes("label_occlusion"))
+  assert.equal(typeof depthEffects.masks.geometryMaskCount, "number")
+  assert.equal(typeof depthEffects.masks.privateZoneMaskCount, "number")
+  assert.equal(typeof depthEffects.masks.zoneFogMaskCount, "number")
+  assert.equal(typeof depthEffects.masks.labelMaskCount, "number")
+  assert.equal(typeof depthEffects.blendModes.foregroundSpriteCount, "number")
+  assert.equal(typeof depthEffects.blendModes.glassForegroundCount, "number")
+  assert.equal(
+    typeof depthEffects.blendModes.transparentForegroundCount,
+    "number",
+  )
+  assert.ok(Array.isArray(depthEffects.blendModes.appliedBlendModes))
+  assert.equal(depthEffects.fog.blendMode, "multiply")
+  assert.equal(typeof depthEffects.fog.privateZoneCount, "number")
+  assert.equal(typeof depthEffects.fog.activeFogOverlayCount, "number")
+  assert.equal(
+    depthEffects.labels.policy,
+    "local_visible_remote_foreground_labels_dimmed",
+  )
+  assert.equal(typeof depthEffects.labels.occlusionCandidateCount, "number")
+  assert.equal(typeof depthEffects.labels.foregroundOccluderCount, "number")
+  assert.ok(Array.isArray(depthEffects.labels.occludedPlayerIds))
 }
 
 function assertAdvancedInputContract(input) {
@@ -1352,6 +1391,7 @@ function assertRendererCapabilities(state) {
   assert.equal(state.renderer.depth.debugOverlayEnabled, false)
   assert.equal(typeof state.renderer.depth.objectCount, "number")
   assert.equal(typeof state.renderer.depth.playerCount, "number")
+  assertDepthEffectsContract(state.renderer.depthEffects)
   assert.deepEqual(
     state.renderer.tilemap.staticLayers.map((layer) => [
       layer.name,

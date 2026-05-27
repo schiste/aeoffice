@@ -390,6 +390,43 @@ export interface RendererPhysicsInfo {
   }
 }
 
+export type RendererDepthEffectFeature =
+  | "geometry_masks"
+  | "foreground_blend_modes"
+  | "glass_transparency"
+  | "zone_fog_masks"
+  | "label_occlusion"
+
+export interface RendererDepthEffectsInfo {
+  readonly source: "phaser_depth_effects"
+  readonly authority: "visual_only"
+  readonly enabled: boolean
+  readonly features: readonly RendererDepthEffectFeature[]
+  readonly masks: {
+    readonly geometryMaskCount: number
+    readonly privateZoneMaskCount: number
+    readonly zoneFogMaskCount: number
+    readonly labelMaskCount: number
+  }
+  readonly blendModes: {
+    readonly foregroundSpriteCount: number
+    readonly glassForegroundCount: number
+    readonly transparentForegroundCount: number
+    readonly appliedBlendModes: readonly ("normal" | "screen" | "multiply")[]
+  }
+  readonly fog: {
+    readonly privateZoneCount: number
+    readonly activeFogOverlayCount: number
+    readonly blendMode: "multiply" | "normal"
+  }
+  readonly labels: {
+    readonly occlusionCandidateCount: number
+    readonly foregroundOccluderCount: number
+    readonly occludedPlayerIds: readonly string[]
+    readonly policy: "local_visible_remote_foreground_labels_dimmed"
+  }
+}
+
 export type RendererEffectsQuality = "auto" | "off" | "low" | "premium"
 export type RendererResolvedEffectsQuality = "off" | "low" | "premium"
 export type RendererTenantLightingMode = "day" | "night" | "tenant_theme"
@@ -1039,6 +1076,8 @@ export interface RendererAvatarPlayerInfo {
   readonly labelVisible: boolean
   readonly labelVisibilityReason: "visible" | "overlap_suppressed"
   readonly labelPolicy: "local_always_remote_overlap_suppressed"
+  readonly labelOccludedByForeground: boolean
+  readonly labelOcclusionPolicy: "local_visible_remote_foreground_labels_dimmed"
   readonly labelBounds: RendererDepthPlacementBounds
   readonly labelResolution: number
   readonly labelTextureFilter: "linear"
@@ -1106,6 +1145,7 @@ export interface RendererCapabilityInfo {
   readonly scenes: RendererSceneManagerInfo
   readonly input: RendererAdvancedInputInfo
   readonly physics: RendererPhysicsInfo
+  readonly depthEffects: RendererDepthEffectsInfo
   readonly depth: RendererDepthInfo
   readonly tilemap: RendererTilemapInfo
   readonly effects: RendererEffectsInfo

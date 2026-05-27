@@ -43,6 +43,8 @@ export class ObjectRenderer {
       sprite.setActive(false)
       sprite.setAngle(0)
       sprite.setAlpha(1)
+      sprite.clearTint()
+      sprite.setBlendMode(Phaser.BlendModes.NORMAL)
       sprite.setName("pooled-object-sprite")
       this.spritePool.push(sprite)
     })
@@ -91,6 +93,9 @@ export class ObjectRenderer {
         sprite.setDepth(depth)
         sprite.setData("depth", depth)
         sprite.setData("zAnchor", token.asset?.zAnchor)
+        sprite.setAlpha(1)
+        sprite.clearTint()
+        sprite.setBlendMode(Phaser.BlendModes.NORMAL)
         this.applyAmbientMotion(sprite, token.id, x, y)
         this.activeSprites.push({
           sprite,
@@ -148,6 +153,7 @@ export class ObjectRenderer {
         sprite.setDepth(depth)
         sprite.setData("depth", depth)
         sprite.setData("zAnchor", token.asset.zAnchor)
+        this.applyForegroundDepthTreatment(sprite, token.id)
         this.applyAmbientMotion(sprite, token.id, x, y)
         this.activeSprites.push({
           sprite,
@@ -226,6 +232,8 @@ export class ObjectRenderer {
       pooledSprite.setActive(true)
       pooledSprite.setAngle(0)
       pooledSprite.setAlpha(1)
+      pooledSprite.clearTint()
+      pooledSprite.setBlendMode(Phaser.BlendModes.NORMAL)
       this.reusedSpriteCount += 1
       return pooledSprite
     }
@@ -252,6 +260,24 @@ export class ObjectRenderer {
       repeat: -1,
       ease: "Sine.easeInOut",
     })
+  }
+
+  private applyForegroundDepthTreatment(
+    sprite: Phaser.GameObjects.Image,
+    tokenId: string,
+  ): void {
+    if (tokenId.toLowerCase().includes("glass")) {
+      sprite.setAlpha(0.68)
+      sprite.setTint(0xdff8ff)
+      sprite.setBlendMode(Phaser.BlendModes.SCREEN)
+      sprite.setData("depthEffect", "glass_transparent_foreground")
+      return
+    }
+
+    sprite.setAlpha(0.96)
+    sprite.clearTint()
+    sprite.setBlendMode(Phaser.BlendModes.NORMAL)
+    sprite.setData("depthEffect", "solid_foreground_occluder")
   }
 
   private createTokenTextures(

@@ -66,6 +66,7 @@ async function main() {
       avatarTextureLeak: undefined,
       advancedInput: undefined,
       physicsAffordances: undefined,
+      depthEffects: undefined,
     }
 
     await verifyRendererRuntime(browser, url, report)
@@ -106,6 +107,7 @@ async function verifyRendererRuntime(browser, url, report) {
     )
     report.advancedInput = await verifyAdvancedInput(page, initial)
     report.physicsAffordances = verifyPhysicsAffordances(initial)
+    report.depthEffects = verifyDepthEffects(initial)
 
     const baselineCadence = await measureFrameCadence(page)
     assertFrameCadence(initial.renderer.performance, baselineCadence)
@@ -364,6 +366,43 @@ function verifyPhysicsAffordances(state) {
     localProbeZones: physics.localProbe.overlappingZoneIds,
     placementPreviewState: physics.placementPreview.state,
     placementPreviewOverlaps: physics.placementPreview.overlappingObjectIds,
+  }
+}
+
+function verifyDepthEffects(state) {
+  const depthEffects = state.renderer.depthEffects
+
+  assert.equal(depthEffects.source, "phaser_depth_effects")
+  assert.equal(depthEffects.authority, "visual_only")
+  assert.equal(depthEffects.enabled, true)
+  assert.ok(depthEffects.features.includes("geometry_masks"))
+  assert.ok(depthEffects.features.includes("foreground_blend_modes"))
+  assert.ok(depthEffects.features.includes("glass_transparency"))
+  assert.ok(depthEffects.features.includes("zone_fog_masks"))
+  assert.ok(depthEffects.features.includes("label_occlusion"))
+  assert.ok(depthEffects.masks.geometryMaskCount >= 1)
+  assert.ok(depthEffects.masks.zoneFogMaskCount >= 1)
+  assert.ok(depthEffects.masks.labelMaskCount >= 1)
+  assert.ok(depthEffects.blendModes.foregroundSpriteCount >= 1)
+  assert.ok(depthEffects.blendModes.glassForegroundCount >= 1)
+  assert.ok(depthEffects.blendModes.transparentForegroundCount >= 1)
+  assert.ok(depthEffects.blendModes.appliedBlendModes.includes("screen"))
+  assert.equal(depthEffects.fog.blendMode, "multiply")
+  assert.ok(depthEffects.fog.activeFogOverlayCount >= 1)
+  assert.equal(
+    depthEffects.labels.policy,
+    "local_visible_remote_foreground_labels_dimmed",
+  )
+  assert.ok(Array.isArray(depthEffects.labels.occludedPlayerIds))
+
+  return {
+    source: "renderer_depth_effects_qa",
+    authority: depthEffects.authority,
+    features: depthEffects.features,
+    masks: depthEffects.masks,
+    blendModes: depthEffects.blendModes,
+    fog: depthEffects.fog,
+    labels: depthEffects.labels,
   }
 }
 
@@ -1072,6 +1111,26 @@ function assertRendererSnapshot(state) {
   assert.ok(Array.isArray(
     state.renderer.physics.placementPreview.overlappingObjectIds,
   ))
+  assert.equal(state.renderer.depthEffects.source, "phaser_depth_effects")
+  assert.equal(state.renderer.depthEffects.authority, "visual_only")
+  assert.equal(state.renderer.depthEffects.enabled, true)
+  assert.ok(state.renderer.depthEffects.features.includes("geometry_masks"))
+  assert.ok(
+    state.renderer.depthEffects.features.includes("foreground_blend_modes"),
+  )
+  assert.ok(state.renderer.depthEffects.features.includes("label_occlusion"))
+  assert.equal(
+    typeof state.renderer.depthEffects.masks.geometryMaskCount,
+    "number",
+  )
+  assert.equal(
+    typeof state.renderer.depthEffects.blendModes.foregroundSpriteCount,
+    "number",
+  )
+  assert.equal(
+    typeof state.renderer.depthEffects.labels.occlusionCandidateCount,
+    "number",
+  )
   assert.equal(state.renderer.assets.primarySource, "internal_atlas")
   assert.equal(state.renderer.assets.atlasLoaded, true)
   assert.equal(
@@ -1268,6 +1327,12 @@ function snapshotForReport(label, state) {
         sensors: state.renderer.physics.sensors,
         localProbe: state.renderer.physics.localProbe,
         placementPreview: state.renderer.physics.placementPreview,
+      },
+      depthEffects: {
+        masks: state.renderer.depthEffects.masks,
+        blendModes: state.renderer.depthEffects.blendModes,
+        fog: state.renderer.depthEffects.fog,
+        labels: state.renderer.depthEffects.labels,
       },
       cameras: state.camera.secondary,
       mapValidation: state.renderer.mapValidation,
