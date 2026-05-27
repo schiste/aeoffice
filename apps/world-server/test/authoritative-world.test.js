@@ -177,6 +177,29 @@ assert.equal(runMove.y, 32)
 assert.equal(runMove.movementMode, "run")
 assert.equal(runMove.speedPxPerSecond, 128)
 
+const stopMove = runningWorld.handleClientMessage(
+  "runner",
+  {
+    type: "move",
+    vector: { x: 0, y: 0 },
+    direction: "right",
+    movementMode: "walk",
+    seq: 2,
+  },
+  1250,
+)
+
+assert.equal(stopMove.type, "player_state")
+assert.equal(stopMove.x, 64)
+assert.equal(stopMove.y, 32)
+assert.equal(stopMove.seqAck, 2)
+assert.equal(stopMove.direction, "right")
+assert.deepEqual(stopMove.requestedVector, { x: 0, y: 0 })
+assert.deepEqual(stopMove.appliedVector, { x: 0, y: 0 })
+assert.equal(stopMove.collisionSlide, false)
+assert.equal(stopMove.movementMode, "walk")
+assert.equal(stopMove.speedPxPerSecond, 64)
+
 const towardObstacle = permittedWorld.handleClientMessage(
   "p2",
   { type: "move", direction: "down", seq: 2 },

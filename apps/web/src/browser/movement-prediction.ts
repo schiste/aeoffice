@@ -27,6 +27,7 @@ export type MovementPredictionOutcome =
   | "corrected"
   | "client_blocked"
   | "server_rejected"
+  | "server_superseded"
 
 export interface ClientMovementPrediction {
   readonly seq: number
@@ -143,6 +144,26 @@ export function createClientMovementPrediction(
     input.deltaMs,
   )
   const distance = (speedPxPerSecond * deltaMs * intensity) / 1000
+  if (intensity === 0) {
+    return {
+      seq: input.seq,
+      direction: input.direction ?? "down",
+      movementMode: input.movementMode ?? "walk",
+      requestedVector: { x: 0, y: 0 },
+      appliedVector: { x: 0, y: 0 },
+      from: input.from,
+      attempted: input.from,
+      target: input.from,
+      startedAtMs: input.nowMs,
+      deltaMs: 0,
+      distance: 0,
+      speedPxPerSecond,
+      blockedLocally: false,
+      collisionSlide: false,
+      collisionSlideAxis: undefined,
+      collisionSlideDistancePx: 0,
+    }
+  }
   const result = simulateMovement({
     current: input.from,
     vector: input.vector,

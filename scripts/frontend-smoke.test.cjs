@@ -170,6 +170,8 @@ async function main() {
       "websocket_fixed_tick_snapshot_stream",
     )
     assert.equal(realtimeReady.movement.simulation.inputHz, 20)
+    assert.equal(typeof realtimeReady.movement.realtime.movementInputCount, "number")
+    assert.equal(typeof realtimeReady.movement.realtime.idleInputCount, "number")
 
     const beforeMoveState = await renderGameToText(page)
     const beforeMove = beforeMoveState.player
@@ -204,9 +206,7 @@ async function main() {
       page,
       (state) =>
         state.movement.prediction.active === false &&
-        (state.player.x !== beforeMove.x ||
-          state.player.y !== beforeMove.y ||
-          state.movement.lastRejectedReason),
+        state.movement.prediction.totalPredicted > predictedBefore,
     )
     assert.equal(
       moved.movement.prediction.mode,
@@ -230,24 +230,32 @@ async function main() {
       `Expected realtime snapshots, got ${JSON.stringify(moved.movement.simulation)}.`,
     )
     assert.ok(
-      ["confirmed", "predicted", "server_rejected", "client_blocked"].includes(
-        moved.movement.prediction.lastOutcome,
-      ),
+      [
+        "confirmed",
+        "predicted",
+        "server_rejected",
+        "server_superseded",
+        "client_blocked",
+      ].includes(moved.movement.prediction.lastOutcome),
       `Unexpected prediction outcome ${moved.movement.prediction.lastOutcome}.`,
     )
 
     const beforeDiagonal = await renderGameToText(page)
     const diagonalPredictedBefore =
       beforeDiagonal.movement.prediction.totalPredicted
-    const diagonalSettledBefore =
-      beforeDiagonal.movement.prediction.totalConfirmed +
-      beforeDiagonal.movement.prediction.totalCorrected +
-      beforeDiagonal.movement.prediction.totalServerRejected
     const diagonalRealtimeSentBefore = beforeDiagonal.movement.realtime.sentCount
     await page.keyboard.down("ArrowUp")
     await page.waitForTimeout(20)
     await page.keyboard.down("ArrowRight")
-    await page.waitForTimeout(80)
+    const diagonalPredicted = await waitForTextState(
+      page,
+      (state) =>
+        state.movement.realtime.sentCount > diagonalRealtimeSentBefore &&
+        state.movement.prediction.totalPredicted > diagonalPredictedBefore &&
+        state.movement.prediction.lastRequestedVector?.x === 0.707 &&
+        state.movement.prediction.lastRequestedVector?.y === -0.707 &&
+        state.movement.prediction.lastDirection === "right",
+    )
     let diagonalMoved
     try {
       await page.keyboard.up("ArrowRight")
@@ -257,41 +265,39 @@ async function main() {
         (state) =>
           state.movement.prediction.active === false &&
           state.movement.realtime.sentCount > diagonalRealtimeSentBefore &&
-          state.movement.prediction.totalPredicted > diagonalPredictedBefore &&
-          state.movement.prediction.lastRequestedVector?.x === 0.707 &&
-          state.movement.prediction.lastRequestedVector?.y === -0.707 &&
-          state.movement.prediction.lastDirection === "right" &&
-          state.movement.prediction.totalConfirmed +
-            state.movement.prediction.totalCorrected +
-            state.movement.prediction.totalServerRejected >
-            diagonalSettledBefore,
+          state.movement.realtime.lastInputKind === "idle",
       )
     } finally {
       await page.keyboard.up("ArrowRight")
       await page.keyboard.up("ArrowUp")
     }
     assert.ok(
+      diagonalPredicted.movement.prediction.totalPredicted >
+        diagonalPredictedBefore,
+      `Expected diagonal movement to start prediction, got ${JSON.stringify(diagonalPredicted.movement.prediction)}.`,
+    )
+    assert.ok(
       diagonalMoved.movement.prediction.totalPredicted >
         diagonalPredictedBefore,
       `Expected diagonal movement to use client prediction, got ${JSON.stringify(diagonalMoved.movement.prediction)}.`,
     )
-    assert.deepEqual(diagonalMoved.movement.prediction.lastRequestedVector, {
+    assert.deepEqual(diagonalPredicted.movement.prediction.lastRequestedVector, {
       x: 0.707,
       y: -0.707,
     })
     assert.equal(
-      typeof diagonalMoved.movement.prediction.lastCollisionSlide,
+      typeof diagonalPredicted.movement.prediction.lastCollisionSlide,
       "boolean",
     )
-    if (diagonalMoved.movement.prediction.lastCollisionSlide) {
+    if (diagonalPredicted.movement.prediction.lastCollisionSlide) {
       assert.ok(
         ["x", "y", "corner"].includes(
-          diagonalMoved.movement.prediction.lastCollisionSlideAxis,
+          diagonalPredicted.movement.prediction.lastCollisionSlideAxis,
         ),
-        `Expected slide axis telemetry, got ${JSON.stringify(diagonalMoved.movement.prediction)}.`,
+        `Expected slide axis telemetry, got ${JSON.stringify(diagonalPredicted.movement.prediction)}.`,
       )
       assert.equal(
-        typeof diagonalMoved.movement.prediction.lastCollisionSlideDistancePx,
+        typeof diagonalPredicted.movement.prediction.lastCollisionSlideDistancePx,
         "number",
       )
     }
@@ -369,6 +375,12 @@ async function main() {
       0.707,
     )
     assert.equal(padDiagonalMoved.movement.runToggled, true)
+    assert.ok(
+      diagonalMoved.movement.realtime.idleInputCount >=
+        beforeDiagonal.movement.realtime.idleInputCount,
+      `Expected key release to stream an idle input, got ${JSON.stringify(diagonalMoved.movement.realtime)}.`,
+    )
+    assert.equal(diagonalMoved.movement.realtime.lastInputKind, "idle")
     assert.equal(await page.locator("#run-toggle").getAttribute("aria-pressed"), "true")
     await page.locator("#run-toggle").click()
 

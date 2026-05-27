@@ -167,8 +167,7 @@ export function isMovementVector(value: unknown): value is MovementVector {
 
   return (
     isMovementComponent(value.x) &&
-    isMovementComponent(value.y) &&
-    Math.hypot(value.x, value.y) > 0
+    isMovementComponent(value.y)
   )
 }
 
@@ -213,12 +212,14 @@ export function isMoveIntentMessage(value: unknown): value is MoveIntentMessage 
   if (!isRecord(value)) return false
 
   const seq = value.seq
+  const vector = value.vector
+  const direction = value.direction
 
   return (
     value.type === "move" &&
-    (isMovementVector(value.vector) || isDirection(value.direction)) &&
-    (value.vector === undefined || isMovementVector(value.vector)) &&
-    (value.direction === undefined || isDirection(value.direction)) &&
+    (isNonZeroMovementVector(vector) || isDirection(direction)) &&
+    (vector === undefined || isMovementVector(vector)) &&
+    (direction === undefined || isDirection(direction)) &&
     (value.movementMode === undefined || isMovementMode(value.movementMode)) &&
     typeof seq === "number" &&
     Number.isInteger(seq) &&
@@ -250,6 +251,10 @@ export function animationForDirection(
 ): string {
   const action = moving ? "walk" : "idle"
   return `${avatarId}_${action}_${direction}`
+}
+
+function isNonZeroMovementVector(value: unknown): value is MovementVector {
+  return isMovementVector(value) && Math.hypot(value.x, value.y) > 0
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

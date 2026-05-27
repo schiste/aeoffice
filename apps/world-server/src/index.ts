@@ -222,6 +222,21 @@ export class AuthoritativeWorld {
     const requestedVector = movementVectorForMoveIntent(message)
     const movementMode = movementModeForMoveIntent(message)
     const speedPxPerSecond = movementSpeedPxPerSecond(this.config, movementMode)
+
+    if (movementVectorIntensity(requestedVector) === 0) {
+      state.lastProcessedAt = nowMs
+      state.direction = message.direction ?? state.direction
+      state.lastSeqAck = message.seq
+      state.movementMode = movementMode
+
+      return playerStateMessage(
+        state,
+        message.seq,
+        nowMs,
+        idleMovementTelemetry(movementMode, speedPxPerSecond),
+      )
+    }
+
     const result = simulateMovement({
       current: state.position,
       vector: requestedVector,
@@ -1190,6 +1205,25 @@ function movementTelemetry(result: {
     movementMode,
     speedPxPerSecond,
   }
+}
+
+function idleMovementTelemetry(
+  movementMode: MovementMode,
+  speedPxPerSecond: number,
+): MovementTelemetry {
+  return {
+    requestedVector: { x: 0, y: 0 },
+    appliedVector: { x: 0, y: 0 },
+    collisionSlide: false,
+    collisionSlideAxis: undefined,
+    collisionSlideDistancePx: 0,
+    movementMode,
+    speedPxPerSecond,
+  }
+}
+
+function movementVectorIntensity(vector: MovementVector): number {
+  return Math.hypot(vector.x, vector.y)
 }
 
 function movementSpeedPxPerSecond(

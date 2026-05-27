@@ -1627,6 +1627,7 @@ function releaseJoystick(reason: "up" | "cancel" | "lost" | "reset", id?: number
 
   if (!hasHeldMovementInput()) {
     stopHeldMovementTimer()
+    requestMovementStop(`joystick-${reason}`)
   }
 }
 
@@ -1679,6 +1680,7 @@ function releaseDirection(direction: Direction): void {
 
   if (!hasHeldMovementInput()) {
     stopHeldMovementTimer()
+    requestMovementStop("key-release")
   }
 }
 
@@ -1693,6 +1695,7 @@ function releaseMovementControl(id: number): void {
 
   if (!hasHeldMovementInput()) {
     stopHeldMovementTimer()
+    requestMovementStop("pad-release")
   }
 }
 
@@ -1935,6 +1938,30 @@ function requestMoveFromHeldInput(): void {
     `vector=${formatMovementVector(intent.rawVector)} shaped=${formatMovementVector(intent.vector)} facing=${intent.direction} mode=${intent.movementMode} keys=${input.pressedDirections.join("+") || "-"} pads=${input.pressedControls.length} joystick=${input.joystick.active ? formatMovementVector(input.joystick.vector) : "-"}`,
   )
   requestMove(intent.vector, intent.direction, intent.movementMode)
+}
+
+function requestMovementStop(source: string): void {
+  if (!state.joined || !worldSync.canStream(state.clientId)) return
+
+  const direction = inputController.lastDirectionOr(state.direction)
+  const movementMode = activeMovementMode()
+  const seq = state.seq
+  state.seq += 1
+  const message = {
+    type: "move" as const,
+    vector: { x: 0, y: 0 },
+    direction,
+    movementMode,
+    seq,
+  }
+
+  logMovementDebug(
+    "realtime-stop",
+    `seq=${seq} source=${source} facing=${direction} mode=${movementMode} pos=${formatMovementVector(state.position)}`,
+  )
+  if (!worldSync.send(state.clientId, message)) return
+
+  clientMotion.reconcile(state.position)
 }
 
 function activeJoystickIntent():
@@ -3443,7 +3470,44 @@ function reconcileClientMovementPrediction(
       ? pending.length - 1
       : pending.findIndex((prediction) => prediction.seq === seqAck)
 
-  if (ackIndex < 0) return undefined
+  if (ackIndex < 0) {
+    if (seqAck !== undefined && seqAck > (state.movementPrediction.lastAckSeq ?? -1)) {
+      const supersededPredictions = pending.filter(
+        (prediction) => prediction.seq <= seqAck,
+      )
+      const unacknowledged = pending.filter(
+        (prediction) => prediction.seq > seqAck,
+      )
+      const replay = replayPendingMovementPredictions(
+        authoritativePosition,
+        unacknowledged,
+      )
+      const replayCorrectionPx = vectorDistancePx(
+        authoritativePosition,
+        replay.target,
+      )
+
+      state.movementPrediction.pending = replay.predictions
+      state.movementPrediction.active = replay.predictions.at(-1)
+      state.movementPrediction.last = supersededPredictions.at(-1) ??
+        state.movementPrediction.last
+      state.movementPrediction.lastAckSeq = seqAck
+      state.movementPrediction.lastReplayCount = replay.predictions.length
+      state.movementPrediction.totalReplayed += replay.predictions.length
+      state.movementPrediction.lastReplayCorrectionPx = Number(
+        replayCorrectionPx.toFixed(2),
+      )
+      state.movementPrediction.lastReplayTarget = replay.target
+      if (supersededPredictions.length > 0) {
+        state.movementPrediction.lastOutcome = "server_superseded"
+      }
+      logMovementDebug(
+        "reconcile",
+        `seq=${seqAck} acknowledged without prediction superseded=${formatPredictionSeqs(supersededPredictions)} replay=${replay.predictions.length} pending=${formatPredictionSeqs(replay.predictions)}`,
+      )
+    }
+    return undefined
+  }
 
   const acknowledged = pending[ackIndex]
   const unacknowledged = pending.slice(ackIndex + 1)

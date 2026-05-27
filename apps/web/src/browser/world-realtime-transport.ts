@@ -24,6 +24,9 @@ export interface WorldRealtimeSnapshot {
   readonly status: WorldRealtimeStatus
   readonly url?: string
   readonly sentCount: number
+  readonly movementInputCount: number
+  readonly idleInputCount: number
+  readonly lastInputKind?: "movement" | "idle" | "chat"
   readonly receivedCount: number
   readonly fallbackCount: number
   readonly snapshotCount: number
@@ -53,6 +56,9 @@ export class WorldRealtimeTransport {
   private clientId?: string
   private status: WorldRealtimeStatus = "idle"
   private sentCount = 0
+  private movementInputCount = 0
+  private idleInputCount = 0
+  private lastInputKind?: "movement" | "idle" | "chat"
   private receivedCount = 0
   private fallbackCount = 0
   private snapshotCount = 0
@@ -136,6 +142,7 @@ export class WorldRealtimeTransport {
         message,
       }),
     )
+    this.observeSentMessage(message)
     this.sentCount += 1
     return true
   }
@@ -158,6 +165,9 @@ export class WorldRealtimeTransport {
       status: this.status,
       url: this.url,
       sentCount: this.sentCount,
+      movementInputCount: this.movementInputCount,
+      idleInputCount: this.idleInputCount,
+      lastInputKind: this.lastInputKind,
       receivedCount: this.receivedCount,
       fallbackCount: this.fallbackCount,
       snapshotCount: this.snapshotCount,
@@ -186,6 +196,24 @@ export class WorldRealtimeTransport {
     } catch (error) {
       this.lastError = error instanceof Error ? error.message : "Invalid realtime packet."
     }
+  }
+
+  private observeSentMessage(message: ClientMessage): void {
+    if (message.type === "chat_send") {
+      this.lastInputKind = "chat"
+      return
+    }
+
+    const vector = message.vector
+    const idle = vector !== undefined && Math.hypot(vector.x, vector.y) === 0
+    if (idle) {
+      this.idleInputCount += 1
+      this.lastInputKind = "idle"
+      return
+    }
+
+    this.movementInputCount += 1
+    this.lastInputKind = "movement"
   }
 
   private observeSnapshots(events: readonly WorldRoomEvent[]): void {

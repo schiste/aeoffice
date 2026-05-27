@@ -1570,3 +1570,18 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   against `http://127.0.0.1:8787/app`, but still fails before navigation with
   `ERR_MODULE_NOT_FOUND` because the skill-local script cannot resolve
   `playwright`.
+- Realtime movement now streams explicit idle/stop inputs over the WebSocket
+  path when keyboard, D-pad, or joystick movement is released. The protocol
+  accepts zero-vector move intents only when a direction is present, and the
+  authoritative world returns zero-vector movement telemetry without moving the
+  player.
+- Client prediction now handles fixed-tick input coalescing correctly: if the
+  server acknowledges a newer idle/stop sequence while older predicted movement
+  inputs are still pending, those older predictions are marked as
+  `server_superseded` and removed from the pending prediction window.
+- Verification passed for the realtime stop/supersede slice:
+  `npm --workspace @aedventure/protocol run build`, `npm --workspace
+  @aedventure/world-server run build`, `npm --workspace @aedventure/web run
+  build`, `node apps/world-server/test/authoritative-world.test.js`, `node
+  --check scripts/frontend-smoke.test.cjs`, `npm run smoke:frontend`, and `git
+  diff --check`.
