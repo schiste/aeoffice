@@ -2520,6 +2520,31 @@ async function assertAvatarSystemSmoke(page) {
     352,
   )
   assert.equal(avatarState.avatars.spriteAtlas.atlasImport.missingFrameCount, 0)
+  assert.equal(avatarState.avatars.spriteAtlas.atlasImport.unexpectedFrameCount, 0)
+  assert.equal(
+    avatarState.avatars.spriteAtlas.atlasImport.duplicateSemanticFrameCount,
+    0,
+  )
+  assert.equal(
+    avatarState.avatars.spriteAtlas.atlasImport.duplicateAtlasFrameCount,
+    0,
+  )
+  assert.deepEqual(
+    avatarState.avatars.spriteAtlas.atlasImport.stateCoverage.map((state) => [
+      state.action,
+      state.expectedFrameCount,
+      state.manifestFrameCount,
+      state.runtimeFallbackFrameCount,
+      state.missingFrameCount,
+      state.complete,
+    ]),
+    [
+      ["idle", 64, 0, 64, 0, true],
+      ["walk", 96, 0, 96, 0, true],
+      ["run", 128, 0, 128, 0, true],
+      ["turn", 64, 0, 64, 0, true],
+    ],
+  )
   assert.deepEqual(avatarState.avatars.spriteAtlas.atlasImport.validationErrors, [])
   assert.equal(
     avatarState.avatars.spriteAtlas.atlasImport.runtimeFallbackTextureKeyStrategy,
@@ -2563,6 +2588,64 @@ async function assertAvatarSystemSmoke(page) {
   assert.equal(
     avatarState.avatars.animationPipeline.labelVisibilityRules,
     "local_always_remote_overlap_suppressed",
+  )
+  assert.deepEqual(avatarState.avatars.animationPipeline.atlasContract, {
+    source: "avatar_atlas_contract",
+    atlasId: "internal-avatar-atlas-v1",
+    frameKeyStrategy: "avatar_action_server_direction_frame",
+    serverDirectionModel: "4_way",
+    visualDirectionModel: "8_way",
+    avatarIds: ["ember", "cobalt", "moss", "violet"],
+    serverDirections: ["up", "down", "left", "right"],
+    visualFacings: [
+      "up",
+      "upRight",
+      "right",
+      "downRight",
+      "down",
+      "downLeft",
+      "left",
+      "upLeft",
+    ],
+    states: ["idle", "walk", "run", "turn"],
+    expectedAnimationCount: 64,
+    expectedFrameCount: 352,
+    expectedPreviewFixtureCount: 128,
+    activationPolicy:
+      "real_manifest_must_validate_else_runtime_generated_fallback",
+  })
+  assert.equal(
+    avatarState.avatars.animationPipeline.previewFixtureCoverage.source,
+    "avatar_preview_fixture",
+  )
+  assert.equal(
+    avatarState.avatars.animationPipeline.previewFixtureCoverage.qaTool,
+    "avatar_preview_gallery",
+  )
+  assert.equal(
+    avatarState.avatars.animationPipeline.previewFixtureCoverage.fixtureCount,
+    128,
+  )
+  assert.equal(
+    avatarState.avatars.animationPipeline.previewFixtureCoverage.expectedFixtureCount,
+    128,
+  )
+  assert.equal(
+    avatarState.avatars.animationPipeline.previewFixtureCoverage.complete,
+    true,
+  )
+  assert.deepEqual(
+    avatarState.avatars.animationPipeline.previewFixtureCoverage.visualFacings.sort(),
+    [
+      "down",
+      "downLeft",
+      "downRight",
+      "left",
+      "right",
+      "up",
+      "upLeft",
+      "upRight",
+    ],
   )
   assert.deepEqual(
     avatarState.avatars.spriteAtlas.stateDefinitions.map((state) => [

@@ -1585,3 +1585,27 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   build`, `node apps/world-server/test/authoritative-world.test.js`, `node
   --check scripts/frontend-smoke.test.cjs`, `npm run smoke:frontend`, and `git
   diff --check`.
+- The avatar pipeline now has a real atlas-ready contract layered over the
+  generated placeholder runtime. The contract declares the four supported
+  avatars, four server-authoritative directions, eight visual facings, and the
+  idle/walk/run/turn states needed by a future imported atlas.
+- Avatar atlas validation now checks the imported manifest against the expected
+  semantic frame matrix: unknown frames, duplicate semantic keys, duplicate
+  atlas frame names, metadata mismatches, frame rectangle bounds, anchor bounds,
+  and state-by-state coverage. Runtime-generated fallback frames still report as
+  complete so the current demo remains usable while real atlases are added.
+- The avatar preview gallery remains the QA surface for this work. Renderer
+  telemetry now exposes the atlas contract, state coverage, and preview fixture
+  coverage so agents and smoke tests can verify that all avatars, actions, and
+  eight-way visual facings stay covered.
+- Verification for the atlas pipeline slice has passed so far:
+  `npm --workspace @aedventure/web run build`, `node --check
+  scripts/frontend-smoke.test.cjs`, `node --check scripts/renderer-qa.test.cjs`,
+  `npm run smoke:frontend`, `npm run qa:renderer`, `npm run qa:responsive`, and
+  `git diff --check`. Latest desktop/mobile responsive screenshots and renderer
+  QA avatar screenshots were visually inspected and remained readable/nonblank.
+- Final project verification also passed with `npm run check` and a clean `git
+  diff --check`. The standalone develop-web-game Playwright client was attempted
+  against `http://127.0.0.1:8787/app`, but it still exits before navigation with
+  `ERR_MODULE_NOT_FOUND` because the skill-local script cannot resolve the
+  `playwright` package.

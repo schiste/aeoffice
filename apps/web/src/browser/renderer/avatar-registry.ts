@@ -9,6 +9,8 @@ import type {
   RendererAvatarAnimationPreviewFixture,
   RendererAvatarAnimationPipelineInfo,
   RendererAvatarAnimationSpriteInfo,
+  RendererAvatarAtlasContractInfo,
+  RendererAvatarPreviewFixtureCoverageInfo,
   RendererAvatarAnimationStateDefinition,
   RendererAvatarSpriteAtlasInfo,
 } from "./types"
@@ -344,6 +346,8 @@ const AVATAR_EMOTES: Record<AvatarEmoteId, AvatarEmoteDefinition> = {
 
 const ANIMATION_REGISTRY = buildAnimationRegistry()
 const ANIMATION_PREVIEW_FIXTURES = buildAnimationPreviewFixtures()
+const AVATAR_ATLAS_CONTRACT = buildAvatarAtlasContractInfo()
+const AVATAR_PREVIEW_FIXTURE_COVERAGE = buildAvatarPreviewFixtureCoverageInfo()
 
 export function avatarAppearance(avatarId: string): AvatarAppearanceMetadata {
   return AVATAR_APPEARANCES[resolveAvatarId(avatarId)]
@@ -398,6 +402,8 @@ export function avatarAnimationPipelineMetadata(): RendererAvatarAnimationPipeli
     emoteHooks: "renderer_emote_registry",
     labelVisibilityRules: "local_always_remote_overlap_suppressed",
     stateDefinitions: AVATAR_ANIMATION_STATE_DEFINITIONS,
+    atlasContract: AVATAR_ATLAS_CONTRACT,
+    previewFixtureCoverage: AVATAR_PREVIEW_FIXTURE_COVERAGE,
   }
 }
 
@@ -491,6 +497,68 @@ function buildAnimationPreviewFixtures(): RendererAvatarAnimationPreviewFixture[
       }),
     ),
   )
+}
+
+function buildAvatarAtlasContractInfo(): RendererAvatarAtlasContractInfo {
+  return {
+    source: "avatar_atlas_contract",
+    atlasId: AVATAR_SPRITE_ATLAS.atlasId,
+    frameKeyStrategy: AVATAR_SPRITE_ATLAS.frameKeyStrategy,
+    serverDirectionModel: AVATAR_SPRITE_ATLAS.serverDirectionModel,
+    visualDirectionModel: AVATAR_SPRITE_ATLAS.visualDirectionModel,
+    avatarIds: AVATAR_IDS,
+    serverDirections: AVATAR_SERVER_DIRECTIONS,
+    visualFacings: AVATAR_VISUAL_FACING_DIRECTIONS,
+    states: AVATAR_ANIMATION_STATES,
+    expectedAnimationCount:
+      AVATAR_IDS.length *
+      AVATAR_ANIMATION_STATES.length *
+      AVATAR_SERVER_DIRECTIONS.length,
+    expectedFrameCount: AVATAR_ATLAS_EXPECTED_FRAMES.length,
+    expectedPreviewFixtureCount:
+      AVATAR_IDS.length *
+      AVATAR_ANIMATION_STATES.length *
+      AVATAR_VISUAL_FACING_DIRECTIONS.length,
+    activationPolicy:
+      "real_manifest_must_validate_else_runtime_generated_fallback",
+  }
+}
+
+function buildAvatarPreviewFixtureCoverageInfo(): RendererAvatarPreviewFixtureCoverageInfo {
+  const avatarIds = uniqueSorted(
+    ANIMATION_PREVIEW_FIXTURES.map((fixture) => fixture.avatarId),
+  )
+  const states = uniqueSorted(
+    ANIMATION_PREVIEW_FIXTURES.map((fixture) => fixture.action),
+  ) as AvatarAnimationAction[]
+  const visualFacings = uniqueSorted(
+    ANIMATION_PREVIEW_FIXTURES.map((fixture) => fixture.visualFacing),
+  ) as AvatarVisualFacing[]
+  const expectedFixtureCount =
+    AVATAR_IDS.length *
+    AVATAR_ANIMATION_STATES.length *
+    AVATAR_VISUAL_FACING_DIRECTIONS.length
+
+  return {
+    source: "avatar_preview_fixture",
+    qaTool: "avatar_preview_gallery",
+    fixtureCount: ANIMATION_PREVIEW_FIXTURES.length,
+    expectedFixtureCount,
+    complete:
+      ANIMATION_PREVIEW_FIXTURES.length === expectedFixtureCount &&
+      avatarIds.length === AVATAR_IDS.length &&
+      states.length === AVATAR_ANIMATION_STATES.length &&
+      visualFacings.length === AVATAR_VISUAL_FACING_DIRECTIONS.length,
+    avatarIds,
+    states,
+    visualFacings,
+  }
+}
+
+function uniqueSorted<TValue extends string>(
+  values: readonly TValue[],
+): readonly TValue[] {
+  return [...new Set(values)].sort() as readonly TValue[]
 }
 
 function animationSpriteMetadata(

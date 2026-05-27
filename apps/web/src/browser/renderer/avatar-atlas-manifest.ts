@@ -5,6 +5,7 @@ import type {
   RendererAvatarAtlasFrameEntry,
   RendererAvatarAtlasFrameRect,
   RendererAvatarAtlasImportInfo,
+  RendererAvatarAtlasStateCoverage,
   RendererAvatarAnimationStateDefinition,
   RendererAvatarFrameSource,
   RendererAvatarSpriteAnchor,
@@ -48,6 +49,10 @@ export interface AvatarAtlasManifestValidationResult {
   readonly manifestFrameCount: number
   readonly expectedFrameCount: number
   readonly missingFrameCount: number
+  readonly unexpectedFrameCount: number
+  readonly duplicateSemanticFrameCount: number
+  readonly duplicateAtlasFrameCount: number
+  readonly stateCoverage: readonly RendererAvatarAtlasStateCoverage[]
   readonly errors: readonly string[]
 }
 
@@ -95,10 +100,14 @@ export function buildAvatarAtlasImportInfo(options: {
     manifestFrameCount: validation.manifestFrameCount,
     runtimeFallbackFrameCount: validation.expectedFrameCount,
     missingFrameCount: validation.missingFrameCount,
+    unexpectedFrameCount: validation.unexpectedFrameCount,
+    duplicateSemanticFrameCount: validation.duplicateSemanticFrameCount,
+    duplicateAtlasFrameCount: validation.duplicateAtlasFrameCount,
     validationErrors: validation.errors,
     semanticFrameKeyExample:
       options.expectedFrameEntries[0]?.semanticFrameKey ?? "",
     supportedStates: options.supportedStates,
+    stateCoverage: validation.stateCoverage,
   }
 }
 
@@ -174,9 +183,14 @@ export function validateAvatarAtlasManifest(
     errors.push("Avatar atlas license metadata is required.")
   }
 
+  const expectedFrameMap = createExpectedFrameMap(expectedFrames)
   const frameMap = createFrameMap(manifest.frames)
+  const atlasFrameMap = createAtlasFrameMap(manifest.frames)
   const missingFrames = expectedFrames.filter(
     (expected) => !frameMap.has(expected.semanticFrameKey),
+  )
+  const unexpectedFrames = manifest.frames.filter(
+    (frame) => !expectedFrameMap.has(frame.semanticFrameKey),
   )
 
   if (missingFrames.length > 0) {
@@ -184,21 +198,77 @@ export function validateAvatarAtlasManifest(
       `Avatar atlas is missing ${missingFrames.length} expected semantic frames.`,
     )
   }
+  if (unexpectedFrames.length > 0) {
+    errors.push(
+      `Avatar atlas declares ${unexpectedFrames.length} unexpected semantic frames.`,
+    )
+  }
+  if (frameMap.duplicateCount > 0) {
+    errors.push(
+      `Avatar atlas contains ${frameMap.duplicateCount} duplicate semantic frame keys.`,
+    )
+  }
+  if (atlasFrameMap.duplicateCount > 0) {
+    errors.push(
+      `Avatar atlas contains ${atlasFrameMap.duplicateCount} duplicate atlas frame keys.`,
+    )
+  }
 
   manifest.frames.forEach((frame) => {
+    const expected = expectedFrameMap.get(frame.semanticFrameKey)
+    if (expected) {
+      if (frame.avatarId !== expected.avatarId) {
+        errors.push(`Frame ${frame.semanticFrameKey} has mismatched avatarId.`)
+      }
+      if (frame.action !== expected.action) {
+        errors.push(`Frame ${frame.semanticFrameKey} has mismatched action.`)
+      }
+      if (frame.direction !== expected.direction) {
+        errors.push(`Frame ${frame.semanticFrameKey} has mismatched direction.`)
+      }
+      if (frame.frameIndex !== expected.frameIndex) {
+        errors.push(`Frame ${frame.semanticFrameKey} has mismatched frameIndex.`)
+      }
+    }
     if (frame.rect.width <= 0 || frame.rect.height <= 0) {
       errors.push(`Frame ${frame.semanticFrameKey} has invalid dimensions.`)
+    }
+    if (frame.rect.x < 0 || frame.rect.y < 0) {
+      errors.push(`Frame ${frame.semanticFrameKey} has invalid origin.`)
+    }
+    if (
+      frame.rect.width !== manifest.frameWidth * manifest.exportScale ||
+      frame.rect.height !== manifest.frameHeight * manifest.exportScale
+    ) {
+      errors.push(
+        `Frame ${frame.semanticFrameKey} dimensions do not match manifest frame size/export scale.`,
+      )
     }
     if (frame.frameIndex < 0) {
       errors.push(`Frame ${frame.semanticFrameKey} has an invalid frame index.`)
     }
+    if (
+      frame.anchor &&
+      (frame.anchor.x < 0 ||
+        frame.anchor.x > 1 ||
+        frame.anchor.y < 0 ||
+        frame.anchor.y > 1)
+    ) {
+      errors.push(`Frame ${frame.semanticFrameKey} has an invalid anchor.`)
+    }
   })
+
+  const stateCoverage = avatarAtlasStateCoverage(expectedFrames, manifest.frames)
 
   return {
     valid: errors.length === 0,
     manifestFrameCount: manifest.frames.length,
     expectedFrameCount: expectedFrames.length,
     missingFrameCount: missingFrames.length,
+    unexpectedFrameCount: unexpectedFrames.length,
+    duplicateSemanticFrameCount: frameMap.duplicateCount,
+    duplicateAtlasFrameCount: atlasFrameMap.duplicateCount,
+    stateCoverage,
     errors,
   }
 }
@@ -257,18 +327,111 @@ function fallbackValidation(
     manifestFrameCount: 0,
     expectedFrameCount: expectedFrames.length,
     missingFrameCount: 0,
+    unexpectedFrameCount: 0,
+    duplicateSemanticFrameCount: 0,
+    duplicateAtlasFrameCount: 0,
+    stateCoverage: fallbackAvatarAtlasStateCoverage(expectedFrames),
     errors: [],
   }
 }
 
 function createFrameMap(
   frames: readonly AvatarAtlasManifestFrame[],
-): Map<string, AvatarAtlasManifestFrame> {
-  const frameMap = new Map<string, AvatarAtlasManifestFrame>()
+): Map<string, AvatarAtlasManifestFrame> & { duplicateCount: number } {
+  const frameMap = new Map<string, AvatarAtlasManifestFrame>() as Map<
+    string,
+    AvatarAtlasManifestFrame
+  > & { duplicateCount: number }
+  let duplicateCount = 0
 
   frames.forEach((frame) => {
+    if (frameMap.has(frame.semanticFrameKey)) {
+      duplicateCount += 1
+    }
     frameMap.set(frame.semanticFrameKey, frame)
   })
+  frameMap.duplicateCount = duplicateCount
 
   return frameMap
+}
+
+function createAtlasFrameMap(
+  frames: readonly AvatarAtlasManifestFrame[],
+): Map<string, AvatarAtlasManifestFrame> & { duplicateCount: number } {
+  const frameMap = new Map<string, AvatarAtlasManifestFrame>() as Map<
+    string,
+    AvatarAtlasManifestFrame
+  > & { duplicateCount: number }
+  let duplicateCount = 0
+
+  frames.forEach((frame) => {
+    if (frameMap.has(frame.atlasFrameKey)) {
+      duplicateCount += 1
+    }
+    frameMap.set(frame.atlasFrameKey, frame)
+  })
+  frameMap.duplicateCount = duplicateCount
+
+  return frameMap
+}
+
+function createExpectedFrameMap(
+  frames: readonly RendererAvatarAtlasFrameEntry[],
+): Map<string, RendererAvatarAtlasFrameEntry> {
+  return new Map(frames.map((frame) => [frame.semanticFrameKey, frame]))
+}
+
+function avatarAtlasStateCoverage(
+  expectedFrames: readonly RendererAvatarAtlasFrameEntry[],
+  manifestFrames: readonly AvatarAtlasManifestFrame[],
+): readonly RendererAvatarAtlasStateCoverage[] {
+  const manifestFrameKeys = new Set(
+    manifestFrames.map((frame) => frame.semanticFrameKey),
+  )
+  const expectedByAction = groupFrameCountByAction(expectedFrames)
+  const manifestByAction = groupFrameCountByAction(manifestFrames)
+
+  return [...expectedByAction.entries()].map(([action, expectedFrameCount]) => {
+    const manifestFrameCount = manifestByAction.get(action) ?? 0
+    const missingFrameCount = expectedFrames.filter(
+      (frame) =>
+        frame.action === action && !manifestFrameKeys.has(frame.semanticFrameKey),
+    ).length
+
+    return {
+      action,
+      expectedFrameCount,
+      manifestFrameCount,
+      runtimeFallbackFrameCount: expectedFrameCount,
+      missingFrameCount,
+      complete: missingFrameCount === 0,
+    }
+  })
+}
+
+function fallbackAvatarAtlasStateCoverage(
+  expectedFrames: readonly RendererAvatarAtlasFrameEntry[],
+): readonly RendererAvatarAtlasStateCoverage[] {
+  return [...groupFrameCountByAction(expectedFrames).entries()].map(
+    ([action, expectedFrameCount]) => ({
+      action,
+      expectedFrameCount,
+      manifestFrameCount: 0,
+      runtimeFallbackFrameCount: expectedFrameCount,
+      missingFrameCount: 0,
+      complete: true,
+    }),
+  )
+}
+
+function groupFrameCountByAction(
+  frames: readonly RendererAvatarAtlasFrameEntry[],
+): Map<AvatarAnimationAction, number> {
+  const counts = new Map<AvatarAnimationAction, number>()
+
+  frames.forEach((frame) => {
+    counts.set(frame.action, (counts.get(frame.action) ?? 0) + 1)
+  })
+
+  return counts
 }

@@ -66,3 +66,52 @@ semantic frame keys a real atlas will use.
 
 The validator requires every expected semantic frame to exist before the real
 atlas can become active. Until then, generated fallback frames remain active.
+
+## Contract Coverage
+
+The renderer now reports the atlas contract through
+`render_game_to_text.avatars.animationPipeline.atlasContract`.
+
+Current expected import surface:
+
+- Avatars: `ember`, `cobalt`, `moss`, `violet`
+- Server directions: `up`, `down`, `left`, `right`
+- Visual facings: `up`, `upRight`, `right`, `downRight`, `down`, `downLeft`,
+  `left`, `upLeft`
+- States: `idle`, `walk`, `run`, `turn`
+- Animation definitions: `4 avatars * 4 states * 4 server directions = 64`
+- Atlas frames:
+  - `idle`: 64 frames
+  - `walk`: 96 frames
+  - `run`: 128 frames
+  - `turn`: 64 frames
+  - Total: 352 frames
+- Preview fixtures:
+  `4 avatars * 4 states * 8 visual facings = 128`
+
+The preview gallery remains the QA tool for animation atlas readiness. It
+renders every avatar/state/visual-facing combination, while the actual atlas
+manifest remains server-direction based. That lets the renderer validate
+4-direction imported art and still inspect 8-way visual presentation before a
+real atlas is activated.
+
+Manifest validation now checks:
+
+- required schema, strategy, direction models, frame dimensions, export scale,
+  and license metadata
+- missing expected semantic frame keys
+- unexpected semantic frame keys
+- duplicate semantic frame keys
+- duplicate concrete atlas frame keys
+- frame metadata mismatch against the semantic contract
+- rect origin/dimensions and optional anchor bounds
+
+Activation rule:
+
+```text
+real_manifest_must_validate_else_runtime_generated_fallback
+```
+
+Generated placeholders therefore remain available as the development fallback,
+but future real art has a precise import contract and can fail before Phaser
+mutates scene textures or animation state.

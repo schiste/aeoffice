@@ -1675,6 +1675,31 @@ function assertRendererSnapshot(state) {
     "runtime_generated_fallback",
   )
   assert.equal(state.avatars.spriteAtlas.atlasImport.contractValidated, true)
+  assert.equal(state.avatars.spriteAtlas.atlasImport.unexpectedFrameCount, 0)
+  assert.equal(state.avatars.spriteAtlas.atlasImport.duplicateSemanticFrameCount, 0)
+  assert.equal(state.avatars.spriteAtlas.atlasImport.duplicateAtlasFrameCount, 0)
+  assert.deepEqual(
+    state.avatars.spriteAtlas.atlasImport.stateCoverage.map((entry) => [
+      entry.action,
+      entry.expectedFrameCount,
+      entry.complete,
+    ]),
+    [
+      ["idle", 64, true],
+      ["walk", 96, true],
+      ["run", 128, true],
+      ["turn", 64, true],
+    ],
+  )
+  assert.equal(
+    state.avatars.animationPipeline.atlasContract.activationPolicy,
+    "real_manifest_must_validate_else_runtime_generated_fallback",
+  )
+  assert.equal(
+    state.avatars.animationPipeline.previewFixtureCoverage.qaTool,
+    "avatar_preview_gallery",
+  )
+  assert.equal(state.avatars.animationPipeline.previewFixtureCoverage.complete, true)
   assertRendererPerformance(state.renderer.performance)
 }
 

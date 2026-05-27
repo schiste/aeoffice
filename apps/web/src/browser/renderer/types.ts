@@ -655,6 +655,15 @@ export interface RendererAvatarAtlasFrameEntry {
   readonly anchor?: RendererAvatarSpriteAnchor
 }
 
+export interface RendererAvatarAtlasStateCoverage {
+  readonly action: AvatarAnimationAction
+  readonly expectedFrameCount: number
+  readonly manifestFrameCount: number
+  readonly runtimeFallbackFrameCount: number
+  readonly missingFrameCount: number
+  readonly complete: boolean
+}
+
 export interface RendererAvatarAtlasImportInfo {
   readonly source: "avatar_atlas_manifest"
   readonly schemaVersion: 1
@@ -674,9 +683,13 @@ export interface RendererAvatarAtlasImportInfo {
   readonly manifestFrameCount: number
   readonly runtimeFallbackFrameCount: number
   readonly missingFrameCount: number
+  readonly unexpectedFrameCount: number
+  readonly duplicateSemanticFrameCount: number
+  readonly duplicateAtlasFrameCount: number
   readonly validationErrors: readonly string[]
   readonly semanticFrameKeyExample: string
   readonly supportedStates: readonly AvatarAnimationAction[]
+  readonly stateCoverage: readonly RendererAvatarAtlasStateCoverage[]
 }
 
 export interface RendererAvatarSpriteAtlasInfo {
@@ -726,6 +739,8 @@ export interface RendererAvatarAnimationPipelineInfo {
   readonly emoteHooks: "renderer_emote_registry"
   readonly labelVisibilityRules: "local_always_remote_overlap_suppressed"
   readonly stateDefinitions: readonly RendererAvatarAnimationStateDefinition[]
+  readonly atlasContract: RendererAvatarAtlasContractInfo
+  readonly previewFixtureCoverage: RendererAvatarPreviewFixtureCoverageInfo
 }
 
 export interface RendererAvatarAnimationSpriteInfo {
@@ -750,6 +765,34 @@ export interface RendererAvatarAnimationPreviewFixture {
   readonly visualFacing: AvatarVisualFacing
   readonly animationKey: string
   readonly frameKeys: readonly string[]
+}
+
+export interface RendererAvatarAtlasContractInfo {
+  readonly source: "avatar_atlas_contract"
+  readonly atlasId: string
+  readonly frameKeyStrategy: "avatar_action_server_direction_frame"
+  readonly serverDirectionModel: "4_way"
+  readonly visualDirectionModel: "8_way"
+  readonly avatarIds: readonly string[]
+  readonly serverDirections: readonly Direction[]
+  readonly visualFacings: readonly AvatarVisualFacing[]
+  readonly states: readonly AvatarAnimationAction[]
+  readonly expectedAnimationCount: number
+  readonly expectedFrameCount: number
+  readonly expectedPreviewFixtureCount: number
+  readonly activationPolicy:
+    "real_manifest_must_validate_else_runtime_generated_fallback"
+}
+
+export interface RendererAvatarPreviewFixtureCoverageInfo {
+  readonly source: "avatar_preview_fixture"
+  readonly qaTool: "avatar_preview_gallery"
+  readonly fixtureCount: number
+  readonly expectedFixtureCount: number
+  readonly complete: boolean
+  readonly avatarIds: readonly string[]
+  readonly states: readonly AvatarAnimationAction[]
+  readonly visualFacings: readonly AvatarVisualFacing[]
 }
 
 export interface RendererViewportState {
