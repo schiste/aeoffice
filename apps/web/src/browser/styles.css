@@ -863,7 +863,13 @@ h1 {
   font-weight: 800;
 }
 
+.phaser-world-host {
+  position: relative;
+}
+
 .phaser-world-host canvas {
+  position: relative;
+  z-index: 1;
   display: block;
   width: 100%;
   height: 100%;
@@ -871,6 +877,75 @@ h1 {
   transition:
     opacity 180ms ease,
     transform 220ms ease;
+}
+
+.world-dom-label-overlay {
+  position: absolute !important;
+  z-index: 4;
+  inset: 0 auto auto 0;
+  width: 100% !important;
+  height: 100% !important;
+  pointer-events: none;
+}
+
+.world-dom-label {
+  --world-label-accent: #23665a;
+  --world-label-font-size: 12px;
+  --world-label-line-height: 14px;
+  --world-label-max-width: 142px;
+  --world-label-min-width: 52px;
+  --world-label-padding: 2px 8px 3px;
+  position: absolute;
+  left: 0;
+  top: 0;
+  min-width: var(--world-label-min-width);
+  max-width: var(--world-label-max-width);
+  padding: var(--world-label-padding);
+  border: 1px solid color-mix(in srgb, var(--world-label-accent), transparent 35%);
+  border-radius: 2px;
+  background: rgba(255, 253, 247, 0.94);
+  box-shadow: 1px 2px 0 rgba(32, 32, 29, 0.14);
+  color: #20201d;
+  font-family: Aptos, "Source Sans 3", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  font-size: var(--world-label-font-size);
+  font-weight: 800;
+  line-height: var(--world-label-line-height);
+  overflow: hidden;
+  pointer-events: none;
+  text-align: center;
+  text-overflow: ellipsis;
+  text-rendering: optimizeLegibility;
+  transform: none;
+  user-select: none;
+  will-change: left, top, opacity;
+  white-space: nowrap;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.world-dom-label::after {
+  position: absolute;
+  left: 50%;
+  bottom: -5px;
+  width: 8px;
+  height: 8px;
+  border-right: 1px solid color-mix(in srgb, var(--world-label-accent), transparent 45%);
+  border-bottom: 1px solid color-mix(in srgb, var(--world-label-accent), transparent 45%);
+  background: rgba(255, 253, 247, 0.94);
+  content: "";
+  transform: translateX(-50%) rotate(45deg);
+}
+
+.world-dom-zone-label {
+  border-radius: 1px;
+  background: rgba(255, 253, 247, 0.9);
+  box-shadow: 0 1px 0 rgba(32, 32, 29, 0.12);
+  color: color-mix(in srgb, var(--world-label-accent), #20201d 18%);
+  font-weight: 850;
+}
+
+.world-dom-zone-label::after {
+  display: none;
 }
 
 .map[data-transition="switching"] canvas {

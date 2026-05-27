@@ -1,8 +1,12 @@
 import Phaser from "phaser"
 
-export const WORLD_TEXT_RESOLUTION = 4
+export const WORLD_TEXT_RESOLUTION = 6
 export const WORLD_TEXT_TEXTURE_FILTER = "linear" as const
 export const WORLD_TEXT_POLICY = "antialiased_text_pixel_art_world" as const
+export const WORLD_TEXT_BACKENDS = [
+  "dom_overlay",
+  "phaser_text_fallback",
+] as const
 export const WORLD_TEXT_OBJECT_CLASSES = [
   "avatar_labels",
   "emote_text",

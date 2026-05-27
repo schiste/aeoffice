@@ -1543,8 +1543,12 @@ function assertAudioContract(audio) {
 function assertTextRenderingContract(text) {
   assert.equal(text?.source, "renderer_text_quality")
   assert.equal(text.policy, "antialiased_text_pixel_art_world")
-  assert.equal(text.worldTextResolution, 4)
+  assert.equal(text.worldTextResolution, 6)
   assert.equal(text.worldTextTextureFilter, "linear")
+  assert.deepEqual(text.worldTextBackends, [
+    "dom_overlay",
+    "phaser_text_fallback",
+  ])
   assert.equal(text.canvasCssImageRendering, "auto")
   assert.equal(text.canvasCssAntialiasingAllowed, true)
   assert.ok(
@@ -2493,8 +2497,9 @@ async function assertAvatarSystemSmoke(page) {
     assert.equal(player.labelVisible, true)
     assert.equal(player.labelVisibilityReason, "visible")
     assert.equal(player.labelPolicy, "local_always_remote_overlap_suppressed")
-    assert.equal(player.labelResolution, 4)
+    assert.equal(player.labelResolution, 6)
     assert.equal(player.labelTextureFilter, "linear")
+    assert.equal(player.labelRenderBackend, "dom_overlay")
     assert.ok(
       player.labelScreenScale >= 0.72 && player.labelScreenScale <= 1.08,
       `Expected zoom-aware label scale, got ${player.labelScreenScale}.`,

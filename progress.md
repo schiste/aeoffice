@@ -170,6 +170,22 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   passed. Fresh desktop/mobile and avatar preview gallery screenshots were
   inspected. The standalone develop-web-game client still cannot run because
   its skill-local Playwright dependency is missing.
+- World text sharpness was upgraded beyond high-resolution Phaser text:
+  avatar names and zone labels now render through a native DOM overlay
+  synchronized to Phaser world coordinates, positioned on whole CSS pixels, and
+  not transform-scaled. Phaser text remains as a hidden/fallback measurement path
+  for avatar/zone labels and as the fallback for remaining world glyphs.
+- Renderer telemetry now reports the `dom_overlay` + `phaser_text_fallback`
+  text backends, and renderer QA asserts visible DOM avatar/zone labels,
+  readable native font metrics, whole-pixel positioning, and no transform-based
+  text scaling. Desktop and mobile full-page screenshots were inspected and show
+  crisp avatar and zone labels.
+- Verification passed for the sharper text pass: `npm --workspace
+  @aedventure/web run build`, `npm run smoke:frontend`, `npm run qa:renderer`,
+  `npm run qa:responsive`, `npm run check`, and `git diff --check` passed. The
+  standalone develop-web-game client was retried and still fails before browser
+  launch because `/Users/christophehenner/.codex/skills/develop-web-game/scripts/web_game_playwright_client.js`
+  cannot resolve its own `playwright` ESM import.
 - Meeting-zone interactions now use the compiled map zones in the browser app:
   the Phaser renderer highlights the active zone, the app exposes Join/Leave
   meeting controls outside the canvas, and media is no longer auto-joined when

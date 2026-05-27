@@ -6,6 +6,7 @@ import {
 } from "./constants"
 import {
   WORLD_TEXT_OBJECT_CLASSES,
+  WORLD_TEXT_BACKENDS,
   WORLD_TEXT_POLICY,
   WORLD_TEXT_RESOLUTION,
   WORLD_TEXT_TEXTURE_FILTER,
@@ -141,6 +142,7 @@ function textRenderingInfo(
     policy: WORLD_TEXT_POLICY,
     worldTextResolution: WORLD_TEXT_RESOLUTION,
     worldTextTextureFilter: WORLD_TEXT_TEXTURE_FILTER,
+    worldTextBackends: WORLD_TEXT_BACKENDS,
     canvasCssImageRendering: canvasImageRendering,
     canvasCssAntialiasingAllowed: !["pixelated", "crisp-edges"].includes(
       canvasImageRendering,

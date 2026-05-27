@@ -288,6 +288,7 @@ export class ZoneRenderer {
     applyCrispWorldText(label)
     label.setOrigin(0.5, 0.5)
     label.setDepth(ZONE_LABEL_DEPTH)
+    label.setVisible(false)
     const back = this.scene.add.rectangle(
       0,
       0,
@@ -298,6 +299,7 @@ export class ZoneRenderer {
     )
     back.setStrokeStyle(1, style.color, info.active ? 0.7 : 0.42)
     back.setDepth(ZONE_LABEL_DEPTH - 1)
+    back.setVisible(false)
     const y = info.bounds.y + 12
     const x = clamp(
       info.bounds.x + info.bounds.width / 2,

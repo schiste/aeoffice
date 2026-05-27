@@ -570,11 +570,15 @@ class AvatarView {
     })
     applyCrispWorldText(this.label)
     this.label.setOrigin(0.5, 0.5)
+    this.label.setVisible(false)
     this.labelShadow = scene.add.rectangle(1, -29, this.labelWidth, 17, 0x20201d, 0.16)
     this.labelBack = scene.add.rectangle(0, -31, this.labelWidth, 17, 0xfffdf7, 0.93)
     this.labelBack.setStrokeStyle(1, palette.torso, 0.65)
     this.labelTail = scene.add.triangle(0, -21, -4, 0, 4, 0, 0, 5, 0xfffdf7, 0.93)
     this.labelTail.setStrokeStyle(1, palette.torso, 0.55)
+    this.labelShadow.setVisible(false)
+    this.labelBack.setVisible(false)
+    this.labelTail.setVisible(false)
     this.emoteBack = scene.add.ellipse(
       0,
       0,
@@ -963,6 +967,7 @@ class AvatarView {
       labelBounds: this.currentLabelBounds(),
       labelResolution: LABEL_TEXT_RESOLUTION,
       labelTextureFilter: LABEL_TEXTURE_FILTER,
+      labelRenderBackend: "dom_overlay",
       labelScreenScale: this.currentLabelScale(),
       emoteId: this.currentEmoteId,
       emoteOverlay: {

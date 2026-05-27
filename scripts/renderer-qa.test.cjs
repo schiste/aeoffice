@@ -59,6 +59,7 @@ async function main() {
       frameCadence: [],
       screenshots: [],
       depthCases: [],
+      textLabels: [],
       devTools: [],
       mapSwitchLeak: undefined,
       avatarFacingChecks: [],
@@ -103,6 +104,7 @@ async function verifyRendererRuntime(browser, url, report) {
         rendererReadyForQa(state),
     )
     assertRendererSnapshot(initial)
+    report.textLabels.push(await assertDomAvatarLabels(page, initial, "initial-lobby"))
     report.rendererSnapshots.push(snapshotForReport("initial-lobby", initial))
     report.screenshots.push(
       await captureCanvas(page, "desktop-lobby-canvas.png"),
@@ -127,6 +129,7 @@ async function verifyRendererRuntime(browser, url, report) {
         rendererReadyForQa(state),
     )
     assertRendererSnapshot(joined)
+    report.textLabels.push(await assertDomAvatarLabels(page, joined, "joined-lobby"))
     assert.ok(joined.renderer.depth.playerCount >= 2)
     report.rendererSnapshots.push(snapshotForReport("joined-lobby", joined))
     report.screenshots.push(
@@ -559,8 +562,12 @@ function assertAudioContract(audio) {
 function assertTextRenderingContract(text) {
   assert.equal(text?.source, "renderer_text_quality")
   assert.equal(text.policy, "antialiased_text_pixel_art_world")
-  assert.equal(text.worldTextResolution, 4)
+  assert.equal(text.worldTextResolution, 6)
   assert.equal(text.worldTextTextureFilter, "linear")
+  assert.deepEqual(text.worldTextBackends, [
+    "dom_overlay",
+    "phaser_text_fallback",
+  ])
   assert.equal(text.canvasCssImageRendering, "auto")
   assert.equal(text.canvasCssAntialiasingAllowed, true)
   assert.ok(
@@ -597,6 +604,9 @@ async function verifyResponsiveScreenshots(browser, url, report) {
       assert.equal(initial.layout.mode, viewport.expectedMode)
       assert.equal(initial.camera.localPlayerVisible, true)
       assertRendererSnapshot(initial)
+      report.textLabels.push(
+        await assertDomAvatarLabels(page, initial, `${viewport.name}-responsive`),
+      )
 
       const screenshotPath = join(
         ARTIFACT_DIR,
@@ -847,6 +857,147 @@ async function verifyDevTools(browser, url, report) {
   } finally {
     assertNoConsoleErrors(page, "developer renderer tools")
     await page.close()
+  }
+}
+
+async function assertDomAvatarLabels(page, state, label) {
+  const visiblePlayers = state.avatars.players.filter(
+    (player) => player.labelVisible,
+  )
+  const visibleZones = state.zones.zones.filter((zone) => zone.labelVisible)
+  assert.ok(
+    visiblePlayers.length >= 1,
+    `${label}: expected at least one visible avatar label in renderer state.`,
+  )
+
+  await page.waitForFunction(
+    () => document.querySelectorAll(".world-dom-label").length > 0,
+    undefined,
+    { timeout: 5000 },
+  )
+  await page.waitForTimeout(260)
+
+  const dom = await page.evaluate(() => {
+    const map = document.querySelector("#map")
+    const canvas = document.querySelector("#map canvas")
+    const host = document.querySelector(".phaser-world-host")
+    const overlay = document.querySelector(".world-dom-label-overlay")
+    const mapRect = map?.getBoundingClientRect()
+    const canvasRect = canvas?.getBoundingClientRect()
+    const hostRect = host?.getBoundingClientRect()
+    const overlayRect = overlay?.getBoundingClientRect()
+    const nodes = [...document.querySelectorAll(".world-dom-label")].map(
+      (node) => {
+        const element = node
+        const rect = element.getBoundingClientRect()
+        const style = window.getComputedStyle(element)
+
+        return {
+          text: element.textContent,
+          className: element.className,
+          opacity: Number.parseFloat(style.opacity || "0"),
+          transform: style.transform,
+          leftPx: Number.parseFloat(style.left || "0"),
+          topPx: Number.parseFloat(style.top || "0"),
+          fontSizePx: Number.parseFloat(style.fontSize || "0"),
+          lineHeightPx: Number.parseFloat(style.lineHeight || "0"),
+          width: rect.width,
+          height: rect.height,
+          x: rect.x,
+          y: rect.y,
+          textRendering: style.textRendering,
+        }
+      },
+    )
+
+    return {
+      mapRect: mapRect
+        ? { x: mapRect.x, y: mapRect.y, width: mapRect.width, height: mapRect.height }
+        : undefined,
+      canvasRect: canvasRect
+        ? { x: canvasRect.x, y: canvasRect.y, width: canvasRect.width, height: canvasRect.height }
+        : undefined,
+      hostRect: hostRect
+        ? { x: hostRect.x, y: hostRect.y, width: hostRect.width, height: hostRect.height }
+        : undefined,
+      overlayRect: overlayRect
+        ? { x: overlayRect.x, y: overlayRect.y, width: overlayRect.width, height: overlayRect.height }
+        : undefined,
+      nodes,
+    }
+  })
+
+  assert.ok(dom.mapRect, `${label}: expected #map bounds for DOM label QA.`)
+  assert.ok(dom.canvasRect, `${label}: expected Phaser canvas bounds for DOM label QA.`)
+  assert.ok(dom.hostRect, `${label}: expected Phaser host bounds for DOM label QA.`)
+  assert.ok(dom.overlayRect, `${label}: expected DOM label overlay bounds.`)
+  assert.ok(
+    Math.abs(dom.overlayRect.x - dom.canvasRect.x) <= 2 &&
+      Math.abs(dom.overlayRect.y - dom.canvasRect.y) <= 2 &&
+      Math.abs(dom.overlayRect.width - dom.canvasRect.width) <= 2 &&
+      Math.abs(dom.overlayRect.height - dom.canvasRect.height) <= 2,
+    `${label}: expected DOM label overlay to match Phaser canvas bounds.`,
+  )
+
+  const visibleDomLabels = dom.nodes.filter((node) => node.opacity > 0.05)
+  const visibleAvatarLabels = visibleDomLabels.filter((node) =>
+    node.className.includes("world-dom-avatar-label"),
+  )
+  const visibleZoneLabels = visibleDomLabels.filter((node) =>
+    node.className.includes("world-dom-zone-label"),
+  )
+  assert.ok(
+    visibleDomLabels.length >= 1,
+    `${label}: expected at least one visible DOM avatar label.`,
+  )
+  assert.ok(
+    visibleAvatarLabels.length >= 1,
+    `${label}: expected at least one visible DOM avatar label.`,
+  )
+  if (visibleZones.length > 0) {
+    assert.ok(
+      visibleZoneLabels.length >= 1,
+      `${label}: expected visible zone labels to use the DOM overlay.`,
+    )
+  }
+
+  visibleDomLabels.forEach((node) => {
+    const isZoneLabel = node.className.includes("world-dom-zone-label")
+    assert.equal(node.transform, "none", `${label}: label text should not be transform-scaled.`)
+    assert.ok(
+      Number.isInteger(node.leftPx) && Number.isInteger(node.topPx),
+      `${label}: label ${node.text} should be positioned on whole CSS pixels.`,
+    )
+    assert.ok(
+      node.fontSizePx >= 10 && node.lineHeightPx >= node.fontSizePx,
+      `${label}: label ${node.text} should use native readable font metrics.`,
+    )
+    assert.ok(
+      node.width >= (isZoneLabel ? 32 : 44) &&
+        node.height >= (isZoneLabel ? 14 : 18),
+      `${label}: label ${node.text} should have measurable native DOM bounds.`,
+    )
+    assert.ok(
+      node.x >= dom.mapRect.x - 8 &&
+        node.y >= dom.mapRect.y - 8 &&
+        node.x + node.width <= dom.mapRect.x + dom.mapRect.width + 8 &&
+        node.y + node.height <= dom.mapRect.y + dom.mapRect.height + 8,
+      `${label}: label ${node.text} should stay inside the map viewport.`,
+    )
+  })
+
+  return {
+    label,
+    backend: "dom_overlay",
+    nodeCount: dom.nodes.length,
+    visibleNodeCount: visibleDomLabels.length,
+    avatarNodeCount: visibleAvatarLabels.length,
+    zoneNodeCount: visibleZoneLabels.length,
+    avatarFontSizePx: visibleAvatarLabels[0].fontSizePx,
+    zoneFontSizePx: visibleZoneLabels[0]?.fontSizePx,
+    textRendering: visibleDomLabels[0].textRendering,
+    wholePixelPositioning: true,
+    transformScaled: false,
   }
 }
 

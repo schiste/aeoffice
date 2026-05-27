@@ -1191,6 +1191,7 @@ export interface RendererAvatarPlayerInfo {
   readonly labelBounds: RendererDepthPlacementBounds
   readonly labelResolution: number
   readonly labelTextureFilter: "linear"
+  readonly labelRenderBackend: "dom_overlay"
   readonly labelScreenScale: number
   readonly emoteId?: AvatarEmoteId
   readonly emoteOverlay: {
@@ -1228,6 +1229,7 @@ export interface RendererTextRenderingInfo {
   readonly policy: "antialiased_text_pixel_art_world"
   readonly worldTextResolution: number
   readonly worldTextTextureFilter: "linear"
+  readonly worldTextBackends: readonly ("dom_overlay" | "phaser_text_fallback")[]
   readonly canvasCssImageRendering: string
   readonly canvasCssAntialiasingAllowed: boolean
   readonly domFontSmoothing: string
