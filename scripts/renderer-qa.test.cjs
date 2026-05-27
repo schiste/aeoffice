@@ -65,6 +65,7 @@ async function main() {
       avatarFrameProgression: undefined,
       avatarTextureLeak: undefined,
       advancedInput: undefined,
+      physicsAffordances: undefined,
     }
 
     await verifyRendererRuntime(browser, url, report)
@@ -104,6 +105,7 @@ async function verifyRendererRuntime(browser, url, report) {
       await captureCanvas(page, "desktop-lobby-canvas.png"),
     )
     report.advancedInput = await verifyAdvancedInput(page, initial)
+    report.physicsAffordances = verifyPhysicsAffordances(initial)
 
     const baselineCadence = await measureFrameCadence(page)
     assertFrameCadence(initial.renderer.performance, baselineCadence)
@@ -317,6 +319,51 @@ async function verifyAdvancedInput(page, initialState) {
     dragDistancePx: draggedObject.renderer.input.gesture.distancePx,
     zoneTargetId: zoneTarget.id,
     hoveredZoneId: hoveredZone.renderer.input.hitTesting.hoveredZoneId,
+  }
+}
+
+function verifyPhysicsAffordances(state) {
+  const physics = state.renderer.physics
+  assert.equal(physics.source, "phaser_arcade_physics")
+  assert.equal(physics.authority, "visual_probes_only")
+  assert.equal(physics.enabled, true)
+  assert.equal(physics.engine, "arcade")
+  assert.equal(physics.config.gravity, "none")
+  assert.equal(physics.config.simulationAffectsGameplay, false)
+  assert.equal(
+    physics.serverAuthorityBoundary,
+    "movement_collision_permissions_remain_server_authoritative",
+  )
+  assert.ok(physics.features.includes("arcade_sensor_bodies"))
+  assert.ok(physics.features.includes("visual_collision_probes"))
+  assert.ok(physics.features.includes("editor_placement_preview"))
+  assert.ok(physics.features.includes("local_affordance_feedback"))
+  assert.ok(physics.sensors.objectSensorCount >= 1)
+  assert.ok(physics.sensors.zoneSensorCount >= 1)
+  assert.equal(
+    physics.sensors.staticBodyCount,
+    physics.sensors.objectSensorCount + physics.sensors.zoneSensorCount,
+  )
+  assert.equal(physics.sensors.dynamicProbeCount, 2)
+  assert.equal(physics.placementPreview.active, true)
+  assert.equal(physics.placementPreview.state, "blocked")
+  assert.ok(physics.placementPreview.overlappingObjectIds.length >= 1)
+  assert.ok(["none", "near_zone", "visual_blocked"].includes(
+    physics.localProbe.affordance,
+  ))
+
+  return {
+    source: "renderer_physics_affordance_qa",
+    engine: physics.engine,
+    authority: physics.authority,
+    objectSensorCount: physics.sensors.objectSensorCount,
+    zoneSensorCount: physics.sensors.zoneSensorCount,
+    staticBodyCount: physics.sensors.staticBodyCount,
+    dynamicProbeCount: physics.sensors.dynamicProbeCount,
+    localProbeAffordance: physics.localProbe.affordance,
+    localProbeZones: physics.localProbe.overlappingZoneIds,
+    placementPreviewState: physics.placementPreview.state,
+    placementPreviewOverlaps: physics.placementPreview.overlappingObjectIds,
   }
 }
 
@@ -1009,6 +1056,22 @@ function assertRendererSnapshot(state) {
   )
   assert.equal(state.renderer.input.drag.enabled, true)
   assert.equal(state.renderer.input.touch.multiPointerEnabled, true)
+  assert.equal(state.renderer.physics.source, "phaser_arcade_physics")
+  assert.equal(state.renderer.physics.authority, "visual_probes_only")
+  assert.equal(state.renderer.physics.enabled, true)
+  assert.equal(state.renderer.physics.engine, "arcade")
+  assert.equal(state.renderer.physics.matterEnabled, false)
+  assert.equal(state.renderer.physics.config.simulationAffectsGameplay, false)
+  assert.equal(typeof state.renderer.physics.sensors.objectSensorCount, "number")
+  assert.equal(typeof state.renderer.physics.sensors.zoneSensorCount, "number")
+  assert.equal(typeof state.renderer.physics.sensors.staticBodyCount, "number")
+  assert.equal(state.renderer.physics.sensors.dynamicProbeCount, 2)
+  assert.equal(typeof state.renderer.physics.localProbe.active, "boolean")
+  assert.ok(Array.isArray(state.renderer.physics.localProbe.overlappingObjectIds))
+  assert.ok(Array.isArray(state.renderer.physics.localProbe.overlappingZoneIds))
+  assert.ok(Array.isArray(
+    state.renderer.physics.placementPreview.overlappingObjectIds,
+  ))
   assert.equal(state.renderer.assets.primarySource, "internal_atlas")
   assert.equal(state.renderer.assets.atlasLoaded, true)
   assert.equal(
@@ -1198,6 +1261,13 @@ function snapshotForReport(label, state) {
         hitTesting: state.renderer.input.hitTesting,
         selection: state.renderer.input.selection,
         gesture: state.renderer.input.gesture,
+      },
+      physics: {
+        engine: state.renderer.physics.engine,
+        authority: state.renderer.physics.authority,
+        sensors: state.renderer.physics.sensors,
+        localProbe: state.renderer.physics.localProbe,
+        placementPreview: state.renderer.physics.placementPreview,
       },
       cameras: state.camera.secondary,
       mapValidation: state.renderer.mapValidation,

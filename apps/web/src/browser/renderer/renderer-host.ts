@@ -98,6 +98,13 @@ export class PhaserOfficeRenderer {
       scale: {
         mode: Phaser.Scale.NONE,
       },
+      physics: {
+        default: "arcade",
+        arcade: {
+          debug: false,
+          gravity: { x: 0, y: 0 },
+        },
+      },
       scene: this.sceneManager.scenes,
     })
     this.capabilityReporter = new RendererCapabilityReporter(this.game)
@@ -265,6 +272,7 @@ export class PhaserOfficeRenderer {
       this.scene.getAssetPipelineInfo(),
       this.sceneManager.getInfo(this.game),
       this.scene.getAdvancedInputInfo(),
+      this.scene.getPhysicsInfo(),
       this.scene.getDepthInfo(),
       this.scene.getEffectsInfo(),
       this.scene.getMapValidationInfo(),

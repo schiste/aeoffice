@@ -20,6 +20,7 @@ import {
   RendererTelemetry,
   type RendererTelemetrySnapshot,
 } from "./renderer-telemetry"
+import { PhysicsAffordanceSystem } from "./physics-affordance-system"
 import { validateFixtureMapForRenderer } from "./map-render-validation"
 import { rendererPerformanceInfo } from "./performance-info"
 import { createMultiTileVariantGids } from "./semantic-tiles"
@@ -46,6 +47,7 @@ import type {
   RendererEffectsOptions,
   RendererMapValidationInfo,
   RendererPerformanceInfo,
+  RendererPhysicsInfo,
   RendererTilemapInfo,
   RendererViewportState,
   RendererWorldInteractionInfo,
@@ -62,6 +64,7 @@ export class OfficeScene extends Phaser.Scene {
   private readonly zoneRenderer: ZoneRenderer
   private readonly interactionRenderer: InteractionRenderer
   private readonly advancedInputPlugin: AdvancedInputPlugin
+  private readonly physicsAffordanceSystem: PhysicsAffordanceSystem
   private readonly effectsLayer: EffectsLayer
   private readonly staticLayerBaker: StaticLayerBaker
   private readonly depthDebugOverlay: DepthDebugOverlay
@@ -94,6 +97,7 @@ export class OfficeScene extends Phaser.Scene {
     this.zoneRenderer = new ZoneRenderer(this)
     this.interactionRenderer = new InteractionRenderer(this)
     this.advancedInputPlugin = new AdvancedInputPlugin(this)
+    this.physicsAffordanceSystem = new PhysicsAffordanceSystem(this)
     this.effectsLayer = new EffectsLayer(this)
     this.staticLayerBaker = new StaticLayerBaker(this)
     this.depthDebugOverlay = new DepthDebugOverlay(this)
@@ -123,6 +127,7 @@ export class OfficeScene extends Phaser.Scene {
     this.advancedInputPlugin.bind({
       onHoveredZoneChange: (zoneId) => this.zoneRenderer.setHoveredZoneId(zoneId),
     })
+    this.physicsAffordanceSystem.bind()
     this.syncDevToolOverlays()
     this.events.on(Phaser.Scenes.Events.UPDATE, (_time: number, delta: number) => {
       this.updateFrame(delta)
@@ -153,6 +158,7 @@ export class OfficeScene extends Phaser.Scene {
     this.zoneRenderer.clear()
     this.interactionRenderer.clear()
     this.advancedInputPlugin.clearMapTargets()
+    this.physicsAffordanceSystem.clearMapTargets()
     this.effectsLayer.clear()
     this.staticLayerBaker.clear()
     this.depthDebugOverlay.clear()
@@ -249,6 +255,10 @@ export class OfficeScene extends Phaser.Scene {
     this.zoneRenderer.reset(fixtureMap.compiled.zones, tileSize)
     this.advancedInputPlugin.setZones(this.zoneRenderer.getZoneInfo().zones)
     this.advancedInputPlugin.setObjects(this.objectDepthInfo)
+    this.physicsAffordanceSystem.setMapTargets({
+      objects: this.objectDepthInfo,
+      zones: this.zoneRenderer.getZoneInfo().zones,
+    })
     this.updatePlayers(players)
     this.refreshDevToolsOverlay()
     this.telemetry.recordRender(
@@ -262,6 +272,7 @@ export class OfficeScene extends Phaser.Scene {
 
   updatePlayers(players: readonly RenderedPlayer[]): void {
     const followTarget = this.avatarRenderer.updatePlayers(players)
+    this.physicsAffordanceSystem.updatePlayers(players)
     this.cameraController.follow(followTarget)
     this.cameraController.updateFrame(1000 / 60)
     this.refreshDepthInfo()
@@ -361,6 +372,10 @@ export class OfficeScene extends Phaser.Scene {
 
   getAdvancedInputInfo(): RendererAdvancedInputInfo {
     return this.advancedInputPlugin.getInfo()
+  }
+
+  getPhysicsInfo(): RendererPhysicsInfo {
+    return this.physicsAffordanceSystem.getInfo()
   }
 
   getEffectsInfo(): RendererEffectsInfo {

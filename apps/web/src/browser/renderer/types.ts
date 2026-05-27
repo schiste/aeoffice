@@ -339,6 +339,57 @@ export interface RendererAdvancedInputInfo {
   }
 }
 
+export type RendererPhysicsFeature =
+  | "arcade_sensor_bodies"
+  | "visual_collision_probes"
+  | "editor_placement_preview"
+  | "interaction_hit_area_validation"
+  | "local_affordance_feedback"
+
+export interface RendererPhysicsInfo {
+  readonly source: "phaser_arcade_physics"
+  readonly authority: "visual_probes_only"
+  readonly enabled: boolean
+  readonly engine: "arcade"
+  readonly matterAvailable: boolean
+  readonly matterEnabled: false
+  readonly serverAuthorityBoundary:
+    "movement_collision_permissions_remain_server_authoritative"
+  readonly features: readonly RendererPhysicsFeature[]
+  readonly config: {
+    readonly defaultSystem: "arcade"
+    readonly gravity: "none"
+    readonly debug: boolean
+    readonly simulationAffectsGameplay: false
+  }
+  readonly sensors: {
+    readonly objectSensorCount: number
+    readonly zoneSensorCount: number
+    readonly staticBodyCount: number
+    readonly dynamicProbeCount: number
+  }
+  readonly localProbe: {
+    readonly active: boolean
+    readonly x?: number
+    readonly y?: number
+    readonly width?: number
+    readonly height?: number
+    readonly overlappingObjectIds: readonly string[]
+    readonly overlappingZoneIds: readonly string[]
+    readonly affordance: "none" | "near_zone" | "visual_blocked"
+  }
+  readonly placementPreview: {
+    readonly active: boolean
+    readonly state: "unavailable" | "clear" | "blocked"
+    readonly x?: number
+    readonly y?: number
+    readonly width?: number
+    readonly height?: number
+    readonly overlappingObjectIds: readonly string[]
+    readonly overlappingZoneIds: readonly string[]
+  }
+}
+
 export type RendererEffectsQuality = "auto" | "off" | "low" | "premium"
 export type RendererResolvedEffectsQuality = "off" | "low" | "premium"
 export type RendererTenantLightingMode = "day" | "night" | "tenant_theme"
@@ -1054,6 +1105,7 @@ export interface RendererCapabilityInfo {
   readonly assets: RendererAssetPipelineInfo
   readonly scenes: RendererSceneManagerInfo
   readonly input: RendererAdvancedInputInfo
+  readonly physics: RendererPhysicsInfo
   readonly depth: RendererDepthInfo
   readonly tilemap: RendererTilemapInfo
   readonly effects: RendererEffectsInfo

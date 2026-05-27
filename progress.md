@@ -1359,3 +1359,26 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   counts so drag/pinch telemetry only reflects pressed pointers. The localhost
   QA scripts needed escalated execution on the final rerun because the sandbox
   blocked temporary `127.0.0.1` binds, but the tests themselves passed.
+- Phaser Arcade Physics is now enabled only for visual/editor affordances
+  through `PhysicsAffordanceSystem`. It creates static Arcade sensor bodies from
+  renderer depth object collision bounds and semantic zone bounds, plus two
+  dynamic probes: a local player affordance probe and an editor placement
+  preview probe. It does not attach physics bodies to avatars and does not
+  mutate movement, collision, map placement, or permissions.
+- `render_game_to_text.renderer.physics` now reports the engine (`arcade`),
+  visual-only authority boundary, sensor/probe counts, local probe overlaps,
+  and deterministic placement-preview state. Matter remains explicitly disabled
+  for runtime authority.
+- Renderer QA now verifies the physics affordance contract. Latest report:
+  54 object sensors, 1 zone sensor, 55 static bodies, 2 dynamic probes, local
+  probe `near_zone` on `lobby-zone`, and placement preview `blocked` against
+  `furniture:item.plant_potted:3,3`.
+- Verification passed after the physics affordance pass:
+  `npm --workspace @aedventure/web run build`,
+  `node --check scripts/frontend-smoke.test.cjs`,
+  `node --check scripts/renderer-qa.test.cjs`, `npm run smoke:frontend`,
+  `npm run qa:renderer`, `npm run qa:responsive`, `npm run check`, and
+  `git diff --check`. Latest renderer and mobile responsive screenshots were
+  visually inspected. The standalone develop-web-game client still fails before
+  navigation with `ERR_MODULE_NOT_FOUND` because the skill-local script cannot
+  resolve `playwright`.

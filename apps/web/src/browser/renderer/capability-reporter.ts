@@ -12,6 +12,7 @@ import type {
   RendererEffectsInfo,
   RendererMapValidationInfo,
   RendererPerformanceInfo,
+  RendererPhysicsInfo,
   RendererSceneManagerInfo,
   RendererTilemapInfo,
 } from "./types"
@@ -39,6 +40,7 @@ export class RendererCapabilityReporter {
     assets: RendererAssetPipelineInfo,
     scenes: RendererSceneManagerInfo,
     input: RendererAdvancedInputInfo,
+    physics: RendererPhysicsInfo,
     depth: RendererDepthInfo,
     effects: RendererEffectsInfo,
     mapValidation: RendererMapValidationInfo,
@@ -79,6 +81,7 @@ export class RendererCapabilityReporter {
       assets,
       scenes,
       input,
+      physics,
       depth,
       tilemap,
       effects,

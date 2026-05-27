@@ -945,6 +945,10 @@ function assertEngineArchitectureContract(state) {
     state.engine?.renderer?.modules?.includes("AdvancedInputPlugin"),
     `Expected AdvancedInputPlugin module, got ${JSON.stringify(state.engine?.renderer)}.`,
   )
+  assert.ok(
+    state.engine?.renderer?.modules?.includes("PhysicsAffordanceSystem"),
+    `Expected PhysicsAffordanceSystem module, got ${JSON.stringify(state.engine?.renderer)}.`,
+  )
   assert.equal(state.engine?.controllers?.input, "InputController")
   assert.equal(state.engine?.controllers?.worldSync, "WorldSyncController")
   assert.equal(
@@ -953,6 +957,7 @@ function assertEngineArchitectureContract(state) {
   )
   assert.equal(state.engine?.boundaries?.sceneLifecycleOwnedByRenderer, true)
   assert.equal(state.engine?.boundaries?.phaserInputOwnsRendererHitTesting, true)
+  assert.equal(state.engine?.boundaries?.phaserPhysicsIsVisualOnly, true)
   assert.equal(
     state.engine?.boundaries?.inputStateOwnedOutsideDomEvents,
     true,
@@ -988,6 +993,36 @@ function assertEngineArchitectureContract(state) {
     ),
   )
   assertAdvancedInputContract(state.renderer.input)
+  assertPhysicsContract(state.renderer.physics)
+}
+
+function assertPhysicsContract(physics) {
+  assert.equal(physics.source, "phaser_arcade_physics")
+  assert.equal(physics.authority, "visual_probes_only")
+  assert.equal(physics.enabled, true)
+  assert.equal(physics.engine, "arcade")
+  assert.equal(physics.matterEnabled, false)
+  assert.equal(
+    physics.serverAuthorityBoundary,
+    "movement_collision_permissions_remain_server_authoritative",
+  )
+  assert.ok(physics.features.includes("arcade_sensor_bodies"))
+  assert.ok(physics.features.includes("visual_collision_probes"))
+  assert.ok(physics.features.includes("editor_placement_preview"))
+  assert.ok(physics.features.includes("interaction_hit_area_validation"))
+  assert.equal(physics.config.defaultSystem, "arcade")
+  assert.equal(physics.config.gravity, "none")
+  assert.equal(physics.config.simulationAffectsGameplay, false)
+  assert.ok(physics.sensors.objectSensorCount >= 1)
+  assert.ok(physics.sensors.zoneSensorCount >= 1)
+  assert.ok(physics.sensors.staticBodyCount >= 2)
+  assert.equal(physics.sensors.dynamicProbeCount, 2)
+  assert.equal(typeof physics.localProbe.active, "boolean")
+  assert.ok(Array.isArray(physics.localProbe.overlappingObjectIds))
+  assert.ok(Array.isArray(physics.localProbe.overlappingZoneIds))
+  assert.equal(physics.placementPreview.active, true)
+  assert.equal(physics.placementPreview.state, "blocked")
+  assert.ok(physics.placementPreview.overlappingObjectIds.length >= 1)
 }
 
 function assertAdvancedInputContract(input) {
