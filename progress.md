@@ -186,6 +186,17 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   standalone develop-web-game client was retried and still fails before browser
   launch because `/Users/christophehenner/.codex/skills/develop-web-game/scripts/web_game_playwright_client.js`
   cannot resolve its own `playwright` ESM import.
+- The DOM world label code has been extracted out of `RendererHost` into
+  `DomWorldOverlayRenderer`, keeping avatar/zone label node lifecycle,
+  world-to-viewport projection, label metrics, accent colors, and cleanup in a
+  dedicated renderer module. `RendererHost` now only wires the overlay to the
+  parent element, `OfficeScene`, and scene readiness promise.
+- Verification passed for the DOM overlay extraction: `npm --workspace
+  @aedventure/web run build`, `npm run smoke:frontend`, `npm run qa:renderer`,
+  `npm run qa:responsive`, `npm run check`, and `git diff --check` passed.
+  Desktop and mobile renderer screenshots were inspected and still show crisp
+  avatar/zone labels. The standalone develop-web-game client remains blocked by
+  the same skill-local missing `playwright` dependency.
 - Meeting-zone interactions now use the compiled map zones in the browser app:
   the Phaser renderer highlights the active zone, the app exposes Join/Leave
   meeting controls outside the canvas, and media is no longer auto-joined when
