@@ -1626,3 +1626,23 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   `http://127.0.0.1:8787/app`, but it still exits before navigation with
   `ERR_MODULE_NOT_FOUND` because the skill-local script cannot resolve
   `playwright`.
+- Visual polish continued after the renderer cleanup. Phaser action markers now
+  use layered marker geometry with a ground shadow, ambient halo, pulse ring,
+  richer pin silhouette, and stronger active-state treatment while the crisp DOM
+  interaction card remains transform-free for text sharpness.
+- Furniture rendering now adds pooled visual-only object shadows underneath
+  item sprites. The shadows use the existing asset metadata (`visualFootprint`
+  and `zAnchor`) where available, stay below the object depth, and are culled
+  with their corresponding sprites without affecting collision or server state.
+- The app surface received small polish upgrades: room switch/entry transitions
+  now have a light sweep overlay, interaction cards have a stronger accent rail,
+  the analog joystick has more tactile active styling, and reduced-motion users
+  get transition-heavy polish disabled at CSS level.
+- Verification passed for the visual polish slice:
+  `npm --workspace @aedventure/web run build`, `npm run smoke:frontend`, `npm
+  run qa:renderer`, `npm run qa:responsive`, `npm run check`, and `git diff
+  --check`. Regenerated desktop and mobile screenshots were visually inspected.
+  The standalone develop-web-game client was attempted against
+  `http://127.0.0.1:8787/app`, but it still exits before navigation with
+  `ERR_MODULE_NOT_FOUND` because the skill-local script cannot resolve
+  `playwright`.

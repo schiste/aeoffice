@@ -20,6 +20,7 @@ import type {
 
 interface ObjectSpriteRecord {
   readonly sprite: Phaser.GameObjects.Image
+  readonly shadow?: Phaser.GameObjects.Ellipse
   readonly bounds: Phaser.Geom.Rectangle
 }
 
@@ -27,6 +28,7 @@ export class ObjectRenderer {
   private readonly objectTextureKeys = new Set<string>()
   private readonly activeSprites: ObjectSpriteRecord[] = []
   private readonly spritePool: Phaser.GameObjects.Image[] = []
+  private readonly shadowPool: Phaser.GameObjects.Ellipse[] = []
   private createdSpriteCount = 0
   private reusedSpriteCount = 0
   private createdTextureCount = 0
@@ -37,7 +39,7 @@ export class ObjectRenderer {
   constructor(private readonly scene: Phaser.Scene) {}
 
   releaseActiveSprites(): void {
-    this.activeSprites.forEach(({ sprite }) => {
+    this.activeSprites.forEach(({ sprite, shadow }) => {
       this.scene.tweens.killTweensOf(sprite)
       sprite.setVisible(false)
       sprite.setActive(false)
@@ -47,6 +49,15 @@ export class ObjectRenderer {
       sprite.setBlendMode(Phaser.BlendModes.NORMAL)
       sprite.setName("pooled-object-sprite")
       this.spritePool.push(sprite)
+      if (shadow) {
+        this.scene.tweens.killTweensOf(shadow)
+        shadow.setVisible(false)
+        shadow.setActive(false)
+        shadow.setAlpha(1)
+        shadow.setScale(1)
+        shadow.setName("pooled-object-shadow")
+        this.shadowPool.push(shadow)
+      }
     })
     this.activeSprites.length = 0
     this.visibleSpriteCount = 0
@@ -84,8 +95,10 @@ export class ObjectRenderer {
         const centerY = y * tileSize + height / 2
         const id = `furniture:${token.id}:${x},${y}`
         const depth = objectDepth(x, y, tileSize, token)
+        const shadow = this.acquireShadow()
         const sprite = this.acquireSprite(textureKey)
 
+        this.configureObjectShadow(shadow, token, x, y, tileSize, depth)
         sprite.setName(id)
         sprite.setPosition(centerX, centerY)
         sprite.setOrigin(0.5, 0.5)
@@ -99,6 +112,7 @@ export class ObjectRenderer {
         this.applyAmbientMotion(sprite, token.id, x, y)
         this.activeSprites.push({
           sprite,
+          shadow,
           bounds: new Phaser.Geom.Rectangle(
             x * tileSize,
             y * tileSize,
@@ -181,13 +195,15 @@ export class ObjectRenderer {
     let visibleSpriteCount = 0
     let culledSpriteCount = 0
 
-    this.activeSprites.forEach(({ sprite, bounds }) => {
+    this.activeSprites.forEach(({ sprite, shadow, bounds }) => {
       const visible = Phaser.Geom.Intersects.RectangleToRectangle(
         cullingBounds,
         bounds,
       )
       sprite.setVisible(visible)
       sprite.setActive(visible)
+      shadow?.setVisible(visible)
+      shadow?.setActive(visible)
       if (visible) {
         visibleSpriteCount += 1
       } else {
@@ -241,6 +257,54 @@ export class ObjectRenderer {
     const sprite = this.scene.add.image(0, 0, textureKey)
     this.createdSpriteCount += 1
     return sprite
+  }
+
+  private acquireShadow(): Phaser.GameObjects.Ellipse {
+    const pooledShadow = this.shadowPool.pop()
+
+    if (pooledShadow) {
+      pooledShadow.setVisible(true)
+      pooledShadow.setActive(true)
+      pooledShadow.setScale(1)
+      pooledShadow.setAlpha(1)
+      return pooledShadow
+    }
+
+    return this.scene.add.ellipse(0, 0, 24, 8, 0x1b211e, 0.14)
+  }
+
+  private configureObjectShadow(
+    shadow: Phaser.GameObjects.Ellipse,
+    token: FixtureToken,
+    tileX: number,
+    tileY: number,
+    tileSize: number,
+    depth: number,
+  ): void {
+    const width = token.widthTiles * tileSize
+    const height = token.heightTiles * tileSize
+    const visualFootprint = token.asset?.visualFootprint
+    const zAnchor = token.asset?.zAnchor
+    const shadowWidth = clampNumber(
+      (visualFootprint?.width ?? width) * objectShadowWidthRatio(token.id),
+      tileSize * 0.46,
+      Math.max(tileSize * 0.7, width * 0.94),
+    )
+    const shadowHeight = clampNumber(
+      (visualFootprint?.height ?? height) * objectShadowHeightRatio(token.id),
+      5,
+      Math.max(8, tileSize * 0.42),
+    )
+    const centerX = tileX * tileSize + (zAnchor?.x ?? width / 2)
+    const centerY = tileY * tileSize + (zAnchor?.y ?? height - tileSize * 0.12)
+
+    shadow.setName(`shadow:${token.id}:${tileX},${tileY}`)
+    shadow.setPosition(centerX + objectShadowOffsetX(token.id), centerY - 1)
+    shadow.setSize(shadowWidth, shadowHeight)
+    shadow.setDisplaySize(shadowWidth, shadowHeight)
+    shadow.setFillStyle(0x1b211e, objectShadowAlpha(token.id))
+    shadow.setDepth(depth - 0.72)
+    shadow.setBlendMode(Phaser.BlendModes.MULTIPLY)
   }
 
   private applyAmbientMotion(
@@ -361,4 +425,37 @@ function ambientMotionToken(tokenId: string): boolean {
     tokenId.includes("coffee") ||
     tokenId.includes("water_cooler")
   )
+}
+
+function objectShadowAlpha(tokenId: string): number {
+  if (tokenId.includes("door")) return 0.1
+  if (tokenId.includes("chair")) return 0.13
+  if (tokenId.includes("plant")) return 0.15
+  if (tokenId.includes("coffee_machine")) return 0.16
+  return 0.18
+}
+
+function objectShadowWidthRatio(tokenId: string): number {
+  if (tokenId.includes("chair")) return 0.82
+  if (tokenId.includes("plant")) return 0.72
+  if (tokenId.includes("door")) return 0.68
+  if (tokenId.includes("coffee_machine")) return 0.78
+  return 0.86
+}
+
+function objectShadowHeightRatio(tokenId: string): number {
+  if (tokenId.includes("table")) return 0.26
+  if (tokenId.includes("couch")) return 0.32
+  if (tokenId.includes("chair")) return 0.3
+  return 0.28
+}
+
+function objectShadowOffsetX(tokenId: string): number {
+  if (tokenId.includes("door")) return 1
+  if (tokenId.includes("chair")) return 0.5
+  return 0
+}
+
+function clampNumber(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value))
 }

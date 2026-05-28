@@ -711,6 +711,22 @@ h1 {
   box-shadow: inset 0 0 0 1px rgba(255, 253, 247, 0.55), var(--shadow-panel);
 }
 
+.map::after {
+  position: absolute;
+  z-index: 3;
+  inset: 0;
+  background:
+    radial-gradient(circle at 50% 44%, rgba(255, 253, 247, 0.24), transparent 34%),
+    linear-gradient(110deg, transparent 0 28%, rgba(255, 253, 247, 0.18) 46%, transparent 66% 100%);
+  content: "";
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-8%);
+  transition:
+    opacity 240ms ease,
+    transform 420ms ease;
+}
+
 .stage-overlay {
   position: absolute;
   z-index: 6;
@@ -991,10 +1007,13 @@ h1 {
   padding: 5px 8px 6px;
   border: 1px solid color-mix(in srgb, var(--world-label-accent), transparent 34%);
   border-radius: 4px;
-  background: rgba(255, 253, 247, 0.96);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.76), transparent 52%),
+    rgba(255, 253, 247, 0.97);
   box-shadow:
     0 1px 0 rgba(32, 32, 29, 0.12),
-    0 7px 18px rgba(32, 32, 29, 0.11);
+    0 9px 20px rgba(32, 32, 29, 0.13),
+    0 0 0 1px rgba(255, 253, 247, 0.58) inset;
   color: color-mix(in srgb, var(--world-label-accent), #20201d 18%);
   font-family: Aptos, "Source Sans 3", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
   pointer-events: none;
@@ -1019,11 +1038,28 @@ h1 {
   transform: rotate(45deg);
 }
 
+.world-dom-interaction-card::after {
+  position: absolute;
+  inset: 4px auto 4px 4px;
+  width: 3px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--world-label-accent), transparent 8%);
+  content: "";
+  opacity: 0.74;
+}
+
 .world-dom-interaction-card.is-active {
   border-color: color-mix(in srgb, var(--world-label-accent), transparent 12%);
   box-shadow:
     0 0 0 2px color-mix(in srgb, var(--world-label-accent), transparent 78%),
-    0 10px 24px rgba(32, 32, 29, 0.14);
+    0 12px 26px rgba(32, 32, 29, 0.17),
+    0 0 0 1px rgba(255, 253, 247, 0.72) inset;
+}
+
+.world-dom-interaction-card[data-action-tone="locked"] {
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.7), transparent 52%),
+    rgba(255, 248, 236, 0.97);
 }
 
 .world-dom-interaction-key {
@@ -1070,13 +1106,22 @@ h1 {
 }
 
 .map[data-transition="switching"] canvas {
-  opacity: 0.2;
-  transform: scale(0.985);
+  opacity: 0.16;
+  transform: scale(0.978) translateY(2px);
+}
+
+.map[data-transition="switching"]::after {
+  opacity: 1;
+  transform: translateX(0);
 }
 
 .map[data-transition="entering"] canvas {
   opacity: 1;
   transform: scale(1);
+}
+
+.map[data-transition="entering"]::after {
+  animation: room-entry-wash 540ms ease-out;
 }
 
 .side-panel {
@@ -1529,18 +1574,28 @@ h1 {
   border: 1px solid rgba(35, 102, 90, 0.18);
   border-radius: var(--radius-sm);
   background:
-    radial-gradient(circle at 84% 50%, rgba(38, 116, 99, 0.12), transparent 42%),
-    rgba(255, 255, 255, 0.68);
+    radial-gradient(circle at 84% 50%, rgba(38, 116, 99, 0.14), transparent 42%),
+    linear-gradient(135deg, rgba(255, 253, 247, 0.88), rgba(238, 247, 243, 0.72));
+  box-shadow:
+    0 1px 0 rgba(255, 253, 247, 0.74) inset,
+    0 10px 22px rgba(35, 102, 90, 0.08);
   padding: var(--space-2);
   touch-action: none;
   user-select: none;
+  transition:
+    border-color 160ms ease,
+    background 160ms ease,
+    box-shadow 160ms ease;
 }
 
 .analog-joystick[data-active="true"] {
   border-color: rgba(38, 116, 99, 0.42);
   background:
-    radial-gradient(circle at 84% 50%, rgba(38, 116, 99, 0.2), transparent 44%),
-    rgba(244, 255, 251, 0.84);
+    radial-gradient(circle at 84% 50%, rgba(38, 116, 99, 0.24), transparent 44%),
+    linear-gradient(135deg, rgba(246, 255, 251, 0.96), rgba(224, 242, 235, 0.82));
+  box-shadow:
+    0 0 0 2px rgba(38, 116, 99, 0.1),
+    0 12px 26px rgba(35, 102, 90, 0.12);
 }
 
 .joystick-copy {
@@ -1571,6 +1626,7 @@ h1 {
   border-radius: 999px;
   background:
     radial-gradient(circle, rgba(255, 255, 255, 0.92) 0 17%, transparent 18%),
+    conic-gradient(from 45deg, rgba(35, 102, 90, 0.08), transparent 22%, rgba(215, 137, 44, 0.08), transparent 58%, rgba(35, 102, 90, 0.08)),
     radial-gradient(circle, rgba(38, 116, 99, 0.1) 0 54%, transparent 55%),
     linear-gradient(145deg, rgba(255, 255, 255, 0.92), rgba(232, 242, 237, 0.86));
   box-shadow:
@@ -1611,6 +1667,36 @@ h1 {
 
 .analog-joystick[data-active="true"] .joystick-knob {
   transition: transform 20ms linear;
+}
+
+@keyframes room-entry-wash {
+  0% {
+    opacity: 0.9;
+    transform: translateX(-18%);
+  }
+
+  58% {
+    opacity: 0.34;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateX(18%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .map::after,
+  .map[data-transition="entering"]::after {
+    animation: none;
+    transition: none;
+  }
+
+  .phaser-world-host canvas,
+  .analog-joystick,
+  .joystick-knob {
+    transition: none;
+  }
 }
 
 .controls {
