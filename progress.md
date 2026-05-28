@@ -1646,3 +1646,26 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   `http://127.0.0.1:8787/app`, but it still exits before navigation with
   `ERR_MODULE_NOT_FOUND` because the skill-local script cannot resolve
   `playwright`.
+- Realtime simulation core was hardened around the existing fixed-tick WebSocket
+  path. `WorldRealtimeTransport` now tracks snapshot cadence target, jitter,
+  dropped snapshot count, buffered snapshot count/window, and latest snapshot
+  player count so `render_game_to_text` can report whether the 20Hz server
+  stream is actually healthy enough for interpolation.
+- Snapshot reconciliation now handles a server snapshot acknowledging an input
+  sequence that has already been superseded out of the exact pending prediction
+  list. In that case the client still uses the authoritative snapshot as the
+  rewind point, replays remaining pending inputs, and blends toward the replay
+  target instead of silently accepting the authoritative point without a replay
+  correction.
+- Frontend smoke now asserts the realtime core contract: fixed 50ms server
+  cadence, snapshot buffer telemetry, dropped snapshot telemetry, latest
+  snapshot player count, sequence-numbered input history, and rewind/replay
+  reconciliation.
+- Verification passed for this realtime core slice:
+  `npm --workspace @aedventure/web run build`, `npm run smoke:frontend`, `node
+  apps/world-server/test/authoritative-world.test.js`, `npm run check`, `npm run
+  qa:responsive`, and `git diff --check`. Latest renderer QA and responsive
+  screenshots were visually inspected. The standalone develop-web-game client
+  was attempted against `http://127.0.0.1:8787/app`, but it still exits before
+  navigation with `ERR_MODULE_NOT_FOUND` because the skill-local script cannot
+  resolve `playwright`.

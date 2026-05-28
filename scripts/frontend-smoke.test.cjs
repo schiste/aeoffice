@@ -229,6 +229,17 @@ async function main() {
       moved.movement.simulation.snapshotCount >= 1,
       `Expected realtime snapshots, got ${JSON.stringify(moved.movement.simulation)}.`,
     )
+    assert.equal(moved.movement.simulation.snapshotCadenceTargetMs, 50)
+    assert.equal(typeof moved.movement.simulation.droppedSnapshotCount, "number")
+    assert.equal(typeof moved.movement.simulation.bufferedSnapshotCount, "number")
+    assert.ok(
+      moved.movement.simulation.bufferedSnapshotCount >= 1,
+      `Expected buffered realtime snapshots, got ${JSON.stringify(moved.movement.simulation)}.`,
+    )
+    assert.equal(
+      typeof moved.movement.simulation.latestSnapshotPlayerCount,
+      "number",
+    )
     assert.ok(
       [
         "confirmed",
@@ -688,8 +699,15 @@ function assertRenderStateContract(state) {
   assert.equal(typeof state.movement?.realtime?.receivedCount, "number")
   assert.equal(typeof state.movement?.realtime?.fallbackCount, "number")
   assert.equal(typeof state.movement?.realtime?.snapshotCount, "number")
+  assert.equal(typeof state.movement?.realtime?.droppedSnapshotCount, "number")
+  assert.equal(typeof state.movement?.realtime?.bufferedSnapshotCount, "number")
   if (state.movement?.realtime?.snapshotCount > 0) {
     assert.equal(typeof state.movement.realtime.serverTickHz, "number")
+    assert.equal(typeof state.movement.realtime.snapshotCadenceTargetMs, "number")
+    assert.equal(
+      typeof state.movement.realtime.latestSnapshotPlayerCount,
+      "number",
+    )
     assert.equal(typeof state.movement.realtime.inputStats?.authority, "string")
     assert.equal(
       state.movement.realtime.inputStats?.inputCoalescing,
@@ -722,6 +740,14 @@ function assertRenderStateContract(state) {
   assert.equal(typeof state.movement?.simulation?.inputHz, "number")
   assert.equal(typeof state.movement?.simulation?.clientInputMs, "number")
   assert.equal(typeof state.movement?.simulation?.snapshotCount, "number")
+  assert.equal(
+    typeof state.movement?.simulation?.droppedSnapshotCount,
+    "number",
+  )
+  assert.equal(
+    typeof state.movement?.simulation?.bufferedSnapshotCount,
+    "number",
+  )
   assert.equal(typeof state.movement?.prediction?.lastOutcome, "string")
   assert.equal(
     state.movement?.prediction?.reconciliationModel,

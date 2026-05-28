@@ -3501,6 +3501,26 @@ function reconcileClientMovementPrediction(
       if (supersededPredictions.length > 0) {
         state.movementPrediction.lastOutcome = "server_superseded"
       }
+      const acknowledged = supersededPredictions.at(-1)
+      if (acknowledged) {
+        state.movementPrediction.lastCorrectionPx = Number(
+          movementPredictionCorrectionPx(
+            acknowledged,
+            authoritativePosition,
+          ).toFixed(2),
+        )
+        logMovementDebug(
+          "reconcile",
+          `seq=${seqAck} superseded prediction=${acknowledged.seq} correction=${state.movementPrediction.lastCorrectionPx} replay=${replay.predictions.length} pending=${formatPredictionSeqs(replay.predictions)}`,
+        )
+        return {
+          acknowledged,
+          authoritativePosition,
+          replayTarget: replay.target,
+          replayCount: replay.predictions.length,
+          rejected,
+        }
+      }
       logMovementDebug(
         "reconcile",
         `seq=${seqAck} acknowledged without prediction superseded=${formatPredictionSeqs(supersededPredictions)} replay=${replay.predictions.length} pending=${formatPredictionSeqs(replay.predictions)}`,
@@ -6311,6 +6331,12 @@ function renderDemoToText(): string {
         lastSnapshotReceivedAtMs: realtime.lastSnapshotReceivedAtMs,
         latestSnapshotAgeMs: realtime.latestSnapshotAgeMs,
         snapshotCadenceMs: realtime.snapshotCadenceMs,
+        snapshotCadenceTargetMs: realtime.snapshotCadenceTargetMs,
+        snapshotJitterMs: realtime.snapshotJitterMs,
+        droppedSnapshotCount: realtime.droppedSnapshotCount,
+        bufferedSnapshotCount: realtime.bufferedSnapshotCount,
+        bufferedSnapshotWindowMs: realtime.bufferedSnapshotWindowMs,
+        latestSnapshotPlayerCount: realtime.latestSnapshotPlayerCount,
         inputStats: realtime.inputStats,
       },
       motion: clientMotionTextState(),
