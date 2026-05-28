@@ -1764,3 +1764,34 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   `http://127.0.0.1:8787/app`, but it still exits before navigation with
   `ERR_MODULE_NOT_FOUND` because the skill-local script cannot resolve
   `playwright`.
+- Phase 2 extracted the neutral asset metadata foundation into
+  `packages/game-assets`. The package now owns asset source/tileset/token
+  metadata, atlas manifest types, footprints, z-anchors, occlusion, interaction
+  affordances, variants, and catalog validation helpers. A boundary test checks
+  that the neutral source does not introduce obvious office/RPG/product terms.
+- Office-specific asset data moved under `packages/office-domain/src/assets`.
+  The office catalog, prompt compiler, preset maps, legacy SkyOffice reference
+  metadata, and internal office atlas paths now import neutral asset types from
+  `@aedventure/game-assets`. `@aedventure/asset-registry` remains as a
+  compatibility facade so existing app imports and tests keep working during
+  later extraction phases.
+- The asset variant role was neutralized from `tenant_tint` to `theme_tint`,
+  and the internal office atlas manifest was regenerated. The rendered atlas
+  image remains visually unchanged; the metadata vocabulary is now less tied to
+  the SaaS tenant model.
+- Verification passed for the Phase 2 game-assets split:
+  `npm --workspace @aedventure/game-assets run build`,
+  `npm --workspace @aedventure/office-domain run build`,
+  `npm --workspace @aedventure/asset-registry run build`,
+  `node packages/game-assets/test/assets.test.js`,
+  `node packages/asset-registry/test/catalog.test.js`,
+  `node scripts/verify-internal-assets.cjs`,
+  `npm --workspace @aedventure/web run build`, `npm run smoke:frontend`,
+  `npm run qa:renderer`, `npm run qa:responsive`, `npm run check`, and
+  `git diff --check`. Latest renderer and responsive screenshots were
+  inspected. A concurrent `qa:renderer` attempt hit the known timing-sensitive
+  non-looping avatar turn progression assertion, but the isolated rerun and the
+  full `npm run check` renderer QA both passed. The standalone
+  develop-web-game client still exits before navigation with
+  `ERR_MODULE_NOT_FOUND` because the skill-local script cannot resolve
+  `playwright`.

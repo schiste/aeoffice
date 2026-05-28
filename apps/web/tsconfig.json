@@ -10,6 +10,9 @@
       "path": "../../packages/asset-registry"
     },
     {
+      "path": "../../packages/game-assets"
+    },
+    {
       "path": "../../packages/map-engine"
     },
     {

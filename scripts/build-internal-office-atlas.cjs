@@ -556,9 +556,9 @@ function defaultVariants(frameId, themeTags) {
 
   if (themeTags.includes("brandable")) {
     variants.push({
-      id: `${frameId}.tenant_tint`,
-      label: "Tenant tint",
-      role: "tenant_tint",
+      id: `${frameId}.theme_tint`,
+      label: "Theme tint",
+      role: "theme_tint",
       frameId,
       themeTags,
     })

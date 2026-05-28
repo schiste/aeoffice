@@ -1,4 +1,4 @@
-import type { VisualAssetFrameMetadata } from "@aedventure/asset-registry"
+import type { VisualAssetFrameMetadata } from "@aedventure/game-assets"
 
 export type Direction = "up" | "down" | "left" | "right"
 export type MovementMode = "walk" | "run"

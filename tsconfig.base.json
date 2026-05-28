@@ -19,6 +19,15 @@
       "@aedventure/map-engine": [
         "packages/map-engine/src"
       ],
+      "@aedventure/game-assets": [
+        "packages/game-assets/src"
+      ],
+      "@aedventure/office-domain": [
+        "packages/office-domain/src"
+      ],
+      "@aedventure/office-domain/assets": [
+        "packages/office-domain/src/assets"
+      ],
       "@aedventure/asset-registry": [
         "packages/asset-registry/src"
       ],

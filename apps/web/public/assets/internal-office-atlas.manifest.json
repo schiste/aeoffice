@@ -125,9 +125,9 @@
           ]
         },
         {
-          "id": "floor.wood_parquet.tenant_tint",
-          "label": "Tenant tint",
-          "role": "tenant_tint",
+          "id": "floor.wood_parquet.theme_tint",
+          "label": "Theme tint",
+          "role": "theme_tint",
           "frameId": "floor.wood_parquet",
           "themeTags": [
             "cozy_wood",
@@ -197,9 +197,9 @@
           ]
         },
         {
-          "id": "floor.polished_concrete.tenant_tint",
-          "label": "Tenant tint",
-          "role": "tenant_tint",
+          "id": "floor.polished_concrete.theme_tint",
+          "label": "Theme tint",
+          "role": "theme_tint",
           "frameId": "floor.polished_concrete",
           "themeTags": [
             "modern_light",
@@ -269,9 +269,9 @@
           ]
         },
         {
-          "id": "floor.soft_carpet.tenant_tint",
-          "label": "Tenant tint",
-          "role": "tenant_tint",
+          "id": "floor.soft_carpet.theme_tint",
+          "label": "Theme tint",
+          "role": "theme_tint",
           "frameId": "floor.soft_carpet",
           "themeTags": [
             "quiet_carpet",
@@ -348,9 +348,9 @@
           ]
         },
         {
-          "id": "wall.wood.straight.tenant_tint",
-          "label": "Tenant tint",
-          "role": "tenant_tint",
+          "id": "wall.wood.straight.theme_tint",
+          "label": "Theme tint",
+          "role": "theme_tint",
           "frameId": "wall.wood.straight",
           "themeTags": [
             "cozy_wood",
@@ -427,9 +427,9 @@
           ]
         },
         {
-          "id": "wall.wood.corner.tenant_tint",
-          "label": "Tenant tint",
-          "role": "tenant_tint",
+          "id": "wall.wood.corner.theme_tint",
+          "label": "Theme tint",
+          "role": "theme_tint",
           "frameId": "wall.wood.corner",
           "themeTags": [
             "cozy_wood",
@@ -506,9 +506,9 @@
           ]
         },
         {
-          "id": "wall.glass.straight.tenant_tint",
-          "label": "Tenant tint",
-          "role": "tenant_tint",
+          "id": "wall.glass.straight.theme_tint",
+          "label": "Theme tint",
+          "role": "theme_tint",
           "frameId": "wall.glass.straight",
           "themeTags": [
             "modern_light",
@@ -585,9 +585,9 @@
           ]
         },
         {
-          "id": "wall.glass.corner.tenant_tint",
-          "label": "Tenant tint",
-          "role": "tenant_tint",
+          "id": "wall.glass.corner.theme_tint",
+          "label": "Theme tint",
+          "role": "theme_tint",
           "frameId": "wall.glass.corner",
           "themeTags": [
             "modern_light",
@@ -664,9 +664,9 @@
           ]
         },
         {
-          "id": "wall.neutral.straight.tenant_tint",
-          "label": "Tenant tint",
-          "role": "tenant_tint",
+          "id": "wall.neutral.straight.theme_tint",
+          "label": "Theme tint",
+          "role": "theme_tint",
           "frameId": "wall.neutral.straight",
           "themeTags": [
             "neutral_office",
@@ -743,9 +743,9 @@
           ]
         },
         {
-          "id": "wall.neutral.corner.tenant_tint",
-          "label": "Tenant tint",
-          "role": "tenant_tint",
+          "id": "wall.neutral.corner.theme_tint",
+          "label": "Theme tint",
+          "role": "theme_tint",
           "frameId": "wall.neutral.corner",
           "themeTags": [
             "neutral_office",
@@ -821,9 +821,9 @@
           ]
         },
         {
-          "id": "item.large_conference_table.tenant_tint",
-          "label": "Tenant tint",
-          "role": "tenant_tint",
+          "id": "item.large_conference_table.theme_tint",
+          "label": "Theme tint",
+          "role": "theme_tint",
           "frameId": "item.large_conference_table",
           "themeTags": [
             "meeting",
@@ -900,9 +900,9 @@
           ]
         },
         {
-          "id": "item.small_round_table.tenant_tint",
-          "label": "Tenant tint",
-          "role": "tenant_tint",
+          "id": "item.small_round_table.theme_tint",
+          "label": "Theme tint",
+          "role": "theme_tint",
           "frameId": "item.small_round_table",
           "themeTags": [
             "meeting",
@@ -977,9 +977,9 @@
           ]
         },
         {
-          "id": "item.office_chair.tenant_tint",
-          "label": "Tenant tint",
-          "role": "tenant_tint",
+          "id": "item.office_chair.theme_tint",
+          "label": "Theme tint",
+          "role": "theme_tint",
           "frameId": "item.office_chair",
           "themeTags": [
             "meeting",
@@ -1053,9 +1053,9 @@
           ]
         },
         {
-          "id": "item.coffee_machine.tenant_tint",
-          "label": "Tenant tint",
-          "role": "tenant_tint",
+          "id": "item.coffee_machine.theme_tint",
+          "label": "Theme tint",
+          "role": "theme_tint",
           "frameId": "item.coffee_machine",
           "themeTags": [
             "kitchen",
@@ -1129,9 +1129,9 @@
           ]
         },
         {
-          "id": "item.plant_potted.tenant_tint",
-          "label": "Tenant tint",
-          "role": "tenant_tint",
+          "id": "item.plant_potted.theme_tint",
+          "label": "Theme tint",
+          "role": "theme_tint",
           "frameId": "item.plant_potted",
           "themeTags": [
             "biophilic",
@@ -1207,9 +1207,9 @@
           ]
         },
         {
-          "id": "item.coffee_bar.tenant_tint",
-          "label": "Tenant tint",
-          "role": "tenant_tint",
+          "id": "item.coffee_bar.theme_tint",
+          "label": "Theme tint",
+          "role": "theme_tint",
           "frameId": "item.coffee_bar",
           "themeTags": [
             "kitchen",
@@ -1284,9 +1284,9 @@
           ]
         },
         {
-          "id": "item.door_single.tenant_tint",
-          "label": "Tenant tint",
-          "role": "tenant_tint",
+          "id": "item.door_single.theme_tint",
+          "label": "Theme tint",
+          "role": "theme_tint",
           "frameId": "item.door_single",
           "themeTags": [
             "entry",
@@ -1362,9 +1362,9 @@
           ]
         },
         {
-          "id": "item.lounge_couch.tenant_tint",
-          "label": "Tenant tint",
-          "role": "tenant_tint",
+          "id": "item.lounge_couch.theme_tint",
+          "label": "Theme tint",
+          "role": "theme_tint",
           "frameId": "item.lounge_couch",
           "themeTags": [
             "lounge",
@@ -1441,9 +1441,9 @@
           ]
         },
         {
-          "id": "item.modular_work_desk.tenant_tint",
-          "label": "Tenant tint",
-          "role": "tenant_tint",
+          "id": "item.modular_work_desk.theme_tint",
+          "label": "Theme tint",
+          "role": "theme_tint",
           "frameId": "item.modular_work_desk",
           "themeTags": [
             "meeting",
@@ -1520,9 +1520,9 @@
           ]
         },
         {
-          "id": "item.whiteboard_wall.tenant_tint",
-          "label": "Tenant tint",
-          "role": "tenant_tint",
+          "id": "item.whiteboard_wall.theme_tint",
+          "label": "Theme tint",
+          "role": "theme_tint",
           "frameId": "item.whiteboard_wall",
           "themeTags": [
             "meeting",
@@ -1599,9 +1599,9 @@
           ]
         },
         {
-          "id": "item.armchair_lounge.tenant_tint",
-          "label": "Tenant tint",
-          "role": "tenant_tint",
+          "id": "item.armchair_lounge.theme_tint",
+          "label": "Theme tint",
+          "role": "theme_tint",
           "frameId": "item.armchair_lounge",
           "themeTags": [
             "lounge",
@@ -1678,9 +1678,9 @@
           ]
         },
         {
-          "id": "item.bookshelf_low.tenant_tint",
-          "label": "Tenant tint",
-          "role": "tenant_tint",
+          "id": "item.bookshelf_low.theme_tint",
+          "label": "Theme tint",
+          "role": "theme_tint",
           "frameId": "item.bookshelf_low",
           "themeTags": [
             "lounge",
@@ -1757,9 +1757,9 @@
           ]
         },
         {
-          "id": "item.floor_lamp.tenant_tint",
-          "label": "Tenant tint",
-          "role": "tenant_tint",
+          "id": "item.floor_lamp.theme_tint",
+          "label": "Theme tint",
+          "role": "theme_tint",
           "frameId": "item.floor_lamp",
           "themeTags": [
             "lounge",
@@ -1836,9 +1836,9 @@
           ]
         },
         {
-          "id": "item.side_table.tenant_tint",
-          "label": "Tenant tint",
-          "role": "tenant_tint",
+          "id": "item.side_table.theme_tint",
+          "label": "Theme tint",
+          "role": "theme_tint",
           "frameId": "item.side_table",
           "themeTags": [
             "lounge",
@@ -1909,9 +1909,9 @@
           ]
         },
         {
-          "id": "avatar.local_placeholder.tenant_tint",
-          "label": "Tenant tint",
-          "role": "tenant_tint",
+          "id": "avatar.local_placeholder.theme_tint",
+          "label": "Theme tint",
+          "role": "theme_tint",
           "frameId": "avatar.local_placeholder",
           "themeTags": [
             "avatar",
@@ -1981,9 +1981,9 @@
           ]
         },
         {
-          "id": "avatar.ember.tenant_tint",
-          "label": "Tenant tint",
-          "role": "tenant_tint",
+          "id": "avatar.ember.theme_tint",
+          "label": "Theme tint",
+          "role": "theme_tint",
           "frameId": "avatar.ember",
           "themeTags": [
             "avatar",
@@ -2053,9 +2053,9 @@
           ]
         },
         {
-          "id": "avatar.cobalt.tenant_tint",
-          "label": "Tenant tint",
-          "role": "tenant_tint",
+          "id": "avatar.cobalt.theme_tint",
+          "label": "Theme tint",
+          "role": "theme_tint",
           "frameId": "avatar.cobalt",
           "themeTags": [
             "avatar",
@@ -2125,9 +2125,9 @@
           ]
         },
         {
-          "id": "avatar.moss.tenant_tint",
-          "label": "Tenant tint",
-          "role": "tenant_tint",
+          "id": "avatar.moss.theme_tint",
+          "label": "Theme tint",
+          "role": "theme_tint",
           "frameId": "avatar.moss",
           "themeTags": [
             "avatar",
@@ -2197,9 +2197,9 @@
           ]
         },
         {
-          "id": "avatar.violet.tenant_tint",
-          "label": "Tenant tint",
-          "role": "tenant_tint",
+          "id": "avatar.violet.theme_tint",
+          "label": "Theme tint",
+          "role": "theme_tint",
           "frameId": "avatar.violet",
           "themeTags": [
             "avatar",

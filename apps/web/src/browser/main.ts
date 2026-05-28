@@ -78,8 +78,8 @@ import {
   type PresetMapId,
   type PresetMapResult,
   type PromptMapValidation,
-  type VisualAssetFrameMetadata,
 } from "@aedventure/asset-registry"
+import type { VisualAssetFrameMetadata } from "@aedventure/game-assets"
 
 type StatusState = "idle" | "pending" | "ready" | "blocked"
 type ToastTone = "info" | "success" | "warning" | "error"

@@ -7,9 +7,6 @@
   "references": [
     {
       "path": "../game-assets"
-    },
-    {
-      "path": "../office-domain"
     }
   ],
   "include": ["src/**/*.ts"]

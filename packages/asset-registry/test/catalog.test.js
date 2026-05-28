@@ -96,8 +96,8 @@ for (const tokenId of stableTargetTokenIds) {
     ),
   )
   assert.ok(
-    token.asset.variants.some((variant) => variant.role === "tenant_tint"),
-    `Expected tenant-tint variant metadata for ${tokenId}.`,
+    token.asset.variants.some((variant) => variant.role === "theme_tint"),
+    `Expected theme-tint variant metadata for ${tokenId}.`,
   )
 }
 assert.equal(tokensById.get("wall.wood.straight").asset.occlusion.mode, "foreground")
