@@ -16,13 +16,13 @@
       "path": "../../packages/game-input"
     },
     {
+      "path": "../../packages/game-protocol"
+    },
+    {
       "path": "../../packages/game-renderer-phaser"
     },
     {
       "path": "../../packages/map-engine"
-    },
-    {
-      "path": "../../packages/protocol"
     },
     {
       "path": "../../packages/shared-types"

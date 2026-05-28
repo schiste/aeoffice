@@ -1,4 +1,4 @@
-import type { ChatRejectedReason, ChatScope } from "@aedventure/protocol"
+import type { ChatRejectedReason, ChatScope } from "@aedventure/game-protocol"
 
 export interface PolicyVector2 {
   readonly x: number

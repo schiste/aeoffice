@@ -699,6 +699,7 @@ function assertRenderStateContract(state) {
   assert.equal(typeof state.movement?.realtime?.sentCount, "number")
   assert.equal(typeof state.movement?.realtime?.receivedCount, "number")
   assert.equal(typeof state.movement?.realtime?.fallbackCount, "number")
+  assert.equal(typeof state.movement?.realtime?.actionInputCount, "number")
   assert.equal(typeof state.movement?.realtime?.snapshotCount, "number")
   assert.equal(typeof state.movement?.realtime?.droppedSnapshotCount, "number")
   assert.equal(typeof state.movement?.realtime?.bufferedSnapshotCount, "number")

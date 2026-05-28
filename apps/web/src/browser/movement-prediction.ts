@@ -9,7 +9,7 @@ import {
   type Direction,
   type MovementMode,
   type MovementVector,
-} from "@aedventure/protocol"
+} from "@aedventure/game-protocol"
 import {
   MOVEMENT_RUN_SPEED_PX_PER_SECOND,
   MOVEMENT_WALK_SPEED_PX_PER_SECOND,

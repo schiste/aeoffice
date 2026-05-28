@@ -1,4 +1,8 @@
-import type { ClientMessage } from "@aedventure/protocol"
+import {
+  isWorldSnapshotMessage,
+  type ClientMessage,
+  type WorldSnapshotInputStats,
+} from "@aedventure/game-protocol"
 
 interface WorldRoomEvent {
   readonly type: "broadcast" | "send"
@@ -26,7 +30,8 @@ export interface WorldRealtimeSnapshot {
   readonly sentCount: number
   readonly movementInputCount: number
   readonly idleInputCount: number
-  readonly lastInputKind?: "movement" | "idle" | "chat"
+  readonly actionInputCount: number
+  readonly lastInputKind?: "movement" | "idle" | "action" | "chat"
   readonly receivedCount: number
   readonly fallbackCount: number
   readonly snapshotCount: number
@@ -47,15 +52,7 @@ export interface WorldRealtimeSnapshot {
   readonly lastError?: string
 }
 
-export interface WorldRealtimeInputStats {
-  readonly authority: "server_authoritative_fixed_tick"
-  readonly inputCoalescing: "latest_intent_per_client_per_tick"
-  readonly queuedClientCount: number
-  readonly processedMoveCount: number
-  readonly droppedMoveCount: number
-  readonly maxQueueDepth: number
-  readonly latestInputAgeMs?: number
-}
+export type WorldRealtimeInputStats = WorldSnapshotInputStats
 
 interface WorldRealtimeSnapshotSample {
   readonly tick: number
@@ -73,7 +70,8 @@ export class WorldRealtimeTransport {
   private sentCount = 0
   private movementInputCount = 0
   private idleInputCount = 0
-  private lastInputKind?: "movement" | "idle" | "chat"
+  private actionInputCount = 0
+  private lastInputKind?: "movement" | "idle" | "action" | "chat"
   private receivedCount = 0
   private fallbackCount = 0
   private snapshotCount = 0
@@ -186,6 +184,7 @@ export class WorldRealtimeTransport {
       sentCount: this.sentCount,
       movementInputCount: this.movementInputCount,
       idleInputCount: this.idleInputCount,
+      actionInputCount: this.actionInputCount,
       lastInputKind: this.lastInputKind,
       receivedCount: this.receivedCount,
       fallbackCount: this.fallbackCount,
@@ -226,6 +225,12 @@ export class WorldRealtimeTransport {
   private observeSentMessage(message: ClientMessage): void {
     if (message.type === "chat_send") {
       this.lastInputKind = "chat"
+      return
+    }
+
+    if (message.type === "action") {
+      this.actionInputCount += 1
+      this.lastInputKind = "action"
       return
     }
 
@@ -290,46 +295,6 @@ export class WorldRealtimeTransport {
 
     return Math.max(0, Math.round(latest.receivedAtMs - first.receivedAtMs))
   }
-}
-
-function isWorldSnapshotMessage(value: unknown): value is {
-  readonly type: "world_snapshot"
-  readonly tick: number
-  readonly serverTime: number
-  readonly tickMs: number
-  readonly players: readonly unknown[]
-  readonly inputStats: WorldRealtimeInputStats
-} {
-  if (!value || typeof value !== "object") return false
-  const record = value as Record<string, unknown>
-  const inputStats = record.inputStats
-
-  return (
-    record.type === "world_snapshot" &&
-    typeof record.tick === "number" &&
-    typeof record.serverTime === "number" &&
-    typeof record.tickMs === "number" &&
-    Array.isArray(record.players) &&
-    isWorldRealtimeInputStats(inputStats)
-  )
-}
-
-function isWorldRealtimeInputStats(
-  value: unknown,
-): value is WorldRealtimeInputStats {
-  if (!value || typeof value !== "object") return false
-  const record = value as Record<string, unknown>
-
-  return (
-    record.authority === "server_authoritative_fixed_tick" &&
-    record.inputCoalescing === "latest_intent_per_client_per_tick" &&
-    typeof record.queuedClientCount === "number" &&
-    typeof record.processedMoveCount === "number" &&
-    typeof record.droppedMoveCount === "number" &&
-    typeof record.maxQueueDepth === "number" &&
-    (record.latestInputAgeMs === undefined ||
-      typeof record.latestInputAgeMs === "number")
-  )
 }
 
 function worldRealtimeUrl(clientId: string): string {

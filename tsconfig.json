@@ -5,6 +5,9 @@
       "path": "packages/shared-types"
     },
     {
+      "path": "packages/game-protocol"
+    },
+    {
       "path": "packages/protocol"
     },
     {

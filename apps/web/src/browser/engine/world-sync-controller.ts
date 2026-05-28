@@ -1,4 +1,4 @@
-import type { ClientMessage } from "@aedventure/protocol"
+import type { ClientMessage } from "@aedventure/game-protocol"
 
 import {
   WorldRealtimeTransport,

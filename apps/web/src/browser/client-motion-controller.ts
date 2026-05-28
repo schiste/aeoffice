@@ -8,7 +8,7 @@ import {
   type Direction,
   type MovementMode,
   type MovementVector,
-} from "@aedventure/protocol"
+} from "@aedventure/game-protocol"
 
 import {
   DEFAULT_MOVEMENT_FEEL,

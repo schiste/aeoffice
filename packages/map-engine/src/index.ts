@@ -3,7 +3,7 @@ import {
   movementVectorForDirection,
   type Direction,
   type MovementVector,
-} from "@aedventure/protocol"
+} from "@aedventure/game-protocol"
 
 export interface Vector2 {
   readonly x: number

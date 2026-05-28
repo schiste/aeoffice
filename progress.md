@@ -1872,3 +1872,27 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   `/Users/christophehenner/.codex/skills/develop-web-game/scripts/web_game_playwright_client.js`
   cannot resolve its own `playwright` ESM import. The local dev host was stopped
   after the attempt.
+- Phase 6 extracted the neutral wire contracts into
+  `packages/game-protocol`. The package now owns input intent messages, action
+  commands, entity state, map state, world snapshots, server tick metadata, and
+  movement reconciliation payload shapes. The old `packages/protocol` package
+  remains as a compatibility facade that re-exports `@aedventure/game-protocol`.
+- The realtime client/server path now imports `@aedventure/game-protocol`
+  directly: browser transport, world sync, movement prediction, client motion,
+  game input, map engine, world server, web app-layer types, and policy types.
+  WebSocket snapshots now also emit neutral entity state and tick metadata, and
+  player-state/rejection responses include reconciliation payloads for the
+  upcoming fixed-tick replay refactor.
+- Verification passed for the Phase 6 game-protocol split:
+  `npm --workspace @aedventure/game-protocol run build`,
+  `npm --workspace @aedventure/game-protocol test`,
+  `npm --workspace @aedventure/protocol run build`,
+  `npm --workspace @aedventure/world-server run build`,
+  `node apps/world-server/test/authoritative-world.test.js`,
+  `npm --workspace @aedventure/web run build`, `npm run smoke:frontend`,
+  `npm run qa:renderer`, `npm run qa:responsive`, `npm run check`, and
+  `git diff --check`. Latest renderer lobby and mobile responsive screenshots
+  were inspected.
+- The standalone develop-web-game client was retried again after the protocol
+  split and still exits before navigation with the same skill-local
+  `playwright` ESM resolution error.

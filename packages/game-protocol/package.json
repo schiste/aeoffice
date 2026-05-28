@@ -1,13 +1,11 @@
 {
-  "name": "@aedventure/map-engine",
+  "name": "@aedventure/game-protocol",
   "version": "0.1.0",
   "license": "AGPL-3.0-or-later",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "tsc -b"
-  },
-  "dependencies": {
-    "@aedventure/game-protocol": "0.1.0"
+    "build": "tsc -b",
+    "test": "node test/protocol.test.js"
   }
 }

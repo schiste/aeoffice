@@ -5,7 +5,7 @@ import {
   type Direction,
   type MovementMode,
   type MovementVector,
-} from "@aedventure/protocol"
+} from "@aedventure/game-protocol"
 
 export type GameInputActionType =
   | "move"

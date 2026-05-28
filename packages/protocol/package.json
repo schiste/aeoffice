@@ -6,5 +6,8 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc -b"
+  },
+  "dependencies": {
+    "@aedventure/game-protocol": "0.1.0"
   }
 }

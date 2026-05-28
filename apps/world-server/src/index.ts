@@ -1,9 +1,11 @@
 import {
   animationForDirection,
+  entityStateFromSnapshotPlayer,
   isChatSendMessage,
   isMoveIntentMessage,
   movementModeForMoveIntent,
   movementVectorForMoveIntent,
+  serverTickMetadataForSnapshot,
   type ChatRejectedMessage,
   type ChatSendMessage,
   type ClientMessage,
@@ -16,7 +18,7 @@ import {
   type ServerMessage,
   type WorldSnapshotInputStats,
   type WorldSnapshotMessage,
-} from "@aedventure/protocol"
+} from "@aedventure/game-protocol"
 import {
   type CollisionSlideOptions,
   type CollisionMap,
@@ -767,24 +769,33 @@ export class WorldRoomController {
     inputStats: WorldSnapshotInputStats = EMPTY_WORLD_SNAPSHOT_INPUT_STATS,
   ): WorldSnapshotMessage {
     const players = this.world.listPlayers()
-
-    return {
-      type: "world_snapshot",
-      roomId: players[0]?.roomId ?? "unknown",
+    const snapshotPlayers = players.map((player) => ({
+      playerId: player.playerId,
+      userId: player.userId,
+      x: player.position.x,
+      y: player.position.y,
+      direction: player.direction,
+      zoneIds: player.zoneIds,
+      lastSeqAck: player.lastSeqAck,
+      movementMode: player.movementMode,
+    }))
+    const tickMetadata = serverTickMetadataForSnapshot({
       tick: this.tickCount,
       tickMs: this.world.tickMs(),
       serverTime: nowMs,
       inputStats,
-      players: players.map((player) => ({
-        playerId: player.playerId,
-        userId: player.userId,
-        x: player.position.x,
-        y: player.position.y,
-        direction: player.direction,
-        zoneIds: player.zoneIds,
-        lastSeqAck: player.lastSeqAck,
-        movementMode: player.movementMode,
-      })),
+    })
+
+    return {
+      type: "world_snapshot",
+      roomId: players[0]?.roomId ?? "unknown",
+      tick: tickMetadata.tick,
+      tickMs: tickMetadata.tickMs,
+      serverTime: tickMetadata.serverTime,
+      inputStats,
+      players: snapshotPlayers,
+      entities: snapshotPlayers.map(entityStateFromSnapshotPlayer),
+      tickMetadata,
     }
   }
 }
@@ -1156,6 +1167,14 @@ function playerStateMessage(
     seqAck,
     serverTime,
     ...telemetry,
+    reconciliation: {
+      seqAck,
+      authoritativePosition: state.position,
+      requestedVector: telemetry?.requestedVector,
+      appliedVector: telemetry?.appliedVector,
+      correctionPx: 0,
+      accepted: true,
+    },
   }
 }
 
@@ -1176,6 +1195,14 @@ function movementRejected(
     seqAck,
     serverTime,
     ...telemetry,
+    reconciliation: {
+      seqAck,
+      authoritativePosition: position,
+      requestedVector: telemetry?.requestedVector,
+      appliedVector: telemetry?.appliedVector,
+      accepted: false,
+      reason,
+    },
   }
 }
 

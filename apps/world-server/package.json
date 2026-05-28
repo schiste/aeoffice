@@ -9,9 +9,9 @@
     "build": "tsc -b"
   },
   "dependencies": {
+    "@aedventure/game-protocol": "0.1.0",
     "@aedventure/map-engine": "0.1.0",
     "@aedventure/policy": "0.1.0",
-    "@aedventure/protocol": "0.1.0",
     "@aedventure/shared-types": "0.1.0"
   }
 }

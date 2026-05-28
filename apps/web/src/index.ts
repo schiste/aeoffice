@@ -1,7 +1,7 @@
 import {
   directionForMovementVector,
   movementVectorForDirection,
-} from "@aedventure/protocol"
+} from "@aedventure/game-protocol"
 import type {
   ChatDeliveredMessage,
   ChatScope,
@@ -10,7 +10,7 @@ import type {
   MovementMode,
   MovementVector,
   ServerMessage,
-} from "@aedventure/protocol"
+} from "@aedventure/game-protocol"
 import type {
   PermissionKey,
   RoleKey,

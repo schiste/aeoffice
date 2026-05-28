@@ -7,7 +7,7 @@
   },
   "references": [
     {
-      "path": "../../packages/protocol"
+      "path": "../../packages/game-protocol"
     },
     {
       "path": "../../packages/map-engine"
