@@ -6414,6 +6414,7 @@ function renderDemoToText(): string {
       domain: "@aedventure/office-domain",
       renderer: "@aedventure/game-renderer-phaser",
       uses: [
+        "@aedventure/game-core",
         "@aedventure/game-assets",
         "@aedventure/game-map",
         "@aedventure/game-input",

@@ -18,6 +18,7 @@ echo "Building target TypeScript workspace..."
 mkdir -p "$ROOT_DIR/node_modules/@aedventure"
 ln -sfn "../../packages/protocol" "$ROOT_DIR/node_modules/@aedventure/protocol"
 ln -sfn "../../packages/game-protocol" "$ROOT_DIR/node_modules/@aedventure/game-protocol"
+ln -sfn "../../packages/game-core" "$ROOT_DIR/node_modules/@aedventure/game-core"
 ln -sfn "../../packages/map-engine" "$ROOT_DIR/node_modules/@aedventure/map-engine"
 ln -sfn "../../packages/game-assets" "$ROOT_DIR/node_modules/@aedventure/game-assets"
 ln -sfn "../../packages/game-map" "$ROOT_DIR/node_modules/@aedventure/game-map"
@@ -37,6 +38,9 @@ ln -sfn "../../apps/world-server" "$ROOT_DIR/node_modules/@aedventure/world-serv
 
 echo "Running game-protocol checks..."
 node "$ROOT_DIR/packages/game-protocol/test/protocol.test.js"
+
+echo "Running game-core simulation checks..."
+node "$ROOT_DIR/packages/game-core/test/simulation.test.js"
 
 echo "Running map-engine movement checks..."
 node "$ROOT_DIR/packages/map-engine/test/movement.test.js"

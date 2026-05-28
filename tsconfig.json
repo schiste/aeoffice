@@ -8,6 +8,9 @@
       "path": "packages/game-protocol"
     },
     {
+      "path": "packages/game-core"
+    },
+    {
       "path": "packages/protocol"
     },
     {

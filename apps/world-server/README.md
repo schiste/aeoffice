@@ -17,7 +17,8 @@ Current implementation:
 
 - `AuthoritativeWorld` is a pure in-memory movement state machine.
 - It accepts protocol movement intents, not client coordinates.
-- It delegates collision and zone permission checks to `packages/map-engine`.
+- It delegates deterministic movement, collision, and zone permission checks to
+  `packages/game-core`.
 - It delegates chat delivery permissions and recipients to `packages/policy`.
 - `WorldAdmissionService` admits players from verified API-issued world-token
   claims.

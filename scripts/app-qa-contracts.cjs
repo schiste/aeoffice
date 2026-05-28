@@ -3,6 +3,7 @@ const { PNG } = require("pngjs")
 
 const SHARED_RENDERER_PACKAGE = "@aedventure/game-renderer-phaser"
 const SHARED_ENGINE_PACKAGES = [
+  "@aedventure/game-core",
   "@aedventure/game-assets",
   "@aedventure/game-map",
   "@aedventure/game-input",

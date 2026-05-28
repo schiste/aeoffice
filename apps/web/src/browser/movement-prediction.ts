@@ -2,8 +2,10 @@ import {
   type CollisionSlideOptions,
   type CollisionMap,
   type Size,
+  movementCorrectionPx as coreMovementCorrectionPx,
+  movementVectorIntensity,
   simulateMovement,
-} from "@aedventure/map-engine"
+} from "@aedventure/game-core"
 import {
   directionForMovementVector,
   type Direction,
@@ -250,17 +252,11 @@ function movementSpeedPxPerSecond(
   return input.speedPxPerSecond ?? CLIENT_WALK_SPEED_PX_PER_SECOND
 }
 
-function movementVectorIntensity(vector: MovementVector): number {
-  return Math.min(1, Math.hypot(vector.x, vector.y))
-}
-
 export function movementPredictionCorrectionPx(
   prediction: ClientMovementPrediction,
   authoritativePosition: Vector2,
 ): number {
-  const deltaX = authoritativePosition.x - prediction.target.x
-  const deltaY = authoritativePosition.y - prediction.target.y
-  return Math.hypot(deltaX, deltaY)
+  return coreMovementCorrectionPx(prediction.target, authoritativePosition)
 }
 
 export function movementPredictionMatches(

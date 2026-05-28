@@ -2,7 +2,7 @@ import {
   type CollisionMap,
   type Size,
   simulateMovement,
-} from "@aedventure/map-engine"
+} from "@aedventure/game-core"
 import {
   directionForMovementVector,
   type Direction,

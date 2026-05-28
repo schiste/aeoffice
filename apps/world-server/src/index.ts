@@ -1,16 +1,13 @@
 import {
   animationForDirection,
-  entityStateFromSnapshotPlayer,
   isChatSendMessage,
   isMoveIntentMessage,
-  movementModeForMoveIntent,
-  movementVectorForMoveIntent,
-  serverTickMetadataForSnapshot,
   type ChatRejectedMessage,
   type ChatSendMessage,
   type ClientMessage,
   type Direction,
   type MovementMode,
+  type MovementReconciliationPayload,
   type MovementVector,
   type MovementRejectedMessage,
   type PlayerStateMessage,
@@ -20,14 +17,18 @@ import {
   type WorldSnapshotMessage,
 } from "@aedventure/game-protocol"
 import {
-  type CollisionSlideOptions,
+  advanceDeterministicTick,
+  applyMovementIntentToEntity,
+  createMovementReconciliation,
+  createWorldSnapshot,
+  EMPTY_WORLD_SNAPSHOT_INPUT_STATS,
   type CollisionMap,
+  type CollisionSlideOptions,
   type Size,
   type Vector2,
   type Zone,
-  simulateMovement,
   zonesAtPosition,
-} from "@aedventure/map-engine"
+} from "@aedventure/game-core"
 import {
   evaluateChatDelivery,
   type ParticipantPolicyContext,
@@ -216,71 +217,65 @@ export class AuthoritativeWorld {
       return protocolError("invalid_payload", "Expected move intent message.", nowMs)
     }
 
-    const previousProcessedAt = state.lastProcessedAt ?? nowMs - this.config.tickMs
-    const deltaMs = Math.min(
-      this.config.tickMs,
-      Math.max(0, nowMs - previousProcessedAt),
-    )
-    const requestedVector = movementVectorForMoveIntent(message)
-    const movementMode = movementModeForMoveIntent(message)
-    const speedPxPerSecond = movementSpeedPxPerSecond(this.config, movementMode)
-
-    if (movementVectorIntensity(requestedVector) === 0) {
-      state.lastProcessedAt = nowMs
-      state.direction = message.direction ?? state.direction
-      state.lastSeqAck = message.seq
-      state.movementMode = movementMode
-
-      return playerStateMessage(
-        state,
-        message.seq,
-        nowMs,
-        idleMovementTelemetry(movementMode, speedPxPerSecond),
-      )
-    }
-
-    const result = simulateMovement({
-      current: state.position,
-      vector: requestedVector,
-      seq: message.seq,
+    const result = applyMovementIntentToEntity({
+      entity: {
+        entityId: state.playerId,
+        entityKind: "player",
+        position: state.position,
+        direction: state.direction,
+        zoneIds: state.zoneIds,
+        lastSeqAck: state.lastSeqAck,
+        movementMode: state.movementMode,
+      },
+      message,
       map: this.config.map,
       playerSize: this.config.playerSize,
-      speedPxPerSecond,
-      deltaMs,
+      speed: {
+        speedPxPerSecond: this.config.speedPxPerSecond,
+        runSpeedPxPerSecond: this.config.runSpeedPxPerSecond,
+      },
+      tickMs: this.config.tickMs,
+      nowMs,
+      previousProcessedAtMs: state.lastProcessedAt,
       collisionSlide: this.config.collisionSlide,
       zones: this.config.zones,
-      currentZoneIds: state.zoneIds,
       permissions: state.permissions,
     })
 
-    state.lastProcessedAt = nowMs
-    state.direction = message.direction ?? result.direction
-    state.lastSeqAck = message.seq
-    state.movementMode = movementMode
+    state.lastProcessedAt = result.processedAtMs
+    state.direction = result.entity.direction
+    state.lastSeqAck = result.entity.lastSeqAck ?? message.seq
+    state.movementMode = result.movementMode
 
-    if (!result.accepted) {
+    if (!result.movement.accepted) {
       return movementRejected(
         state.playerId,
-        result.reason ?? "collision",
+        result.movement.reason ?? "collision",
         state.position,
         message.seq,
         nowMs,
-        movementTelemetry(result, movementMode, speedPxPerSecond),
+        movementTelemetry(
+          result.movement,
+          result.movementMode,
+          result.speedPxPerSecond,
+        ),
+        result.reconciliation,
       )
     }
 
-    state.position = result.position
-    state.zoneIds = applyZoneChanges(
-      state.zoneIds,
-      result.enteredZoneIds,
-      result.leftZoneIds,
-    )
+    state.position = result.entity.position
+    state.zoneIds = result.entity.zoneIds ?? []
 
     return playerStateMessage(
       state,
       message.seq,
       nowMs,
-      movementTelemetry(result, movementMode, speedPxPerSecond),
+      movementTelemetry(
+        result.movement,
+        result.movementMode,
+        result.speedPxPerSecond,
+      ),
+      result.reconciliation,
     )
   }
 
@@ -489,15 +484,6 @@ interface QueuedMoveIntent {
   readonly receivedAtMs: number
 }
 
-const EMPTY_WORLD_SNAPSHOT_INPUT_STATS: WorldSnapshotInputStats = {
-  authority: "server_authoritative_fixed_tick",
-  inputCoalescing: "latest_intent_per_client_per_tick",
-  queuedClientCount: 0,
-  processedMoveCount: 0,
-  droppedMoveCount: 0,
-  maxQueueDepth: 0,
-}
-
 export class WorldAdmissionService {
   constructor(
     private readonly world: AuthoritativeWorld,
@@ -674,7 +660,12 @@ export class WorldRoomController {
   }
 
   tick(nowMs: number): readonly WorldRoomEvent[] {
-    this.tickCount += 1
+    const tick = advanceDeterministicTick({
+      currentTick: this.tickCount,
+      tickMs: this.world.tickMs(),
+      nowMs,
+    })
+    this.tickCount = tick.tick
 
     const events: WorldRoomEvent[] = []
     let queuedClientCount = 0
@@ -779,24 +770,14 @@ export class WorldRoomController {
       lastSeqAck: player.lastSeqAck,
       movementMode: player.movementMode,
     }))
-    const tickMetadata = serverTickMetadataForSnapshot({
+    return createWorldSnapshot({
+      roomId: players[0]?.roomId ?? "unknown",
       tick: this.tickCount,
       tickMs: this.world.tickMs(),
       serverTime: nowMs,
       inputStats,
-    })
-
-    return {
-      type: "world_snapshot",
-      roomId: players[0]?.roomId ?? "unknown",
-      tick: tickMetadata.tick,
-      tickMs: tickMetadata.tickMs,
-      serverTime: tickMetadata.serverTime,
-      inputStats,
       players: snapshotPlayers,
-      entities: snapshotPlayers.map(entityStateFromSnapshotPlayer),
-      tickMetadata,
-    }
+    })
   }
 }
 
@@ -1156,6 +1137,7 @@ function playerStateMessage(
   seqAck: number,
   serverTime: number,
   telemetry?: MovementTelemetry,
+  reconciliation?: MovementReconciliationPayload,
 ): PlayerStateMessage {
   return {
     type: "player_state",
@@ -1167,14 +1149,13 @@ function playerStateMessage(
     seqAck,
     serverTime,
     ...telemetry,
-    reconciliation: {
+    reconciliation: reconciliation ?? createMovementReconciliation({
       seqAck,
       authoritativePosition: state.position,
       requestedVector: telemetry?.requestedVector,
       appliedVector: telemetry?.appliedVector,
-      correctionPx: 0,
       accepted: true,
-    },
+    }),
   }
 }
 
@@ -1185,6 +1166,7 @@ function movementRejected(
   seqAck: number,
   serverTime: number,
   telemetry?: MovementTelemetry,
+  reconciliation?: MovementReconciliationPayload,
 ): MovementRejectedMessage {
   return {
     type: "movement_rejected",
@@ -1195,14 +1177,14 @@ function movementRejected(
     seqAck,
     serverTime,
     ...telemetry,
-    reconciliation: {
+    reconciliation: reconciliation ?? createMovementReconciliation({
       seqAck,
       authoritativePosition: position,
       requestedVector: telemetry?.requestedVector,
       appliedVector: telemetry?.appliedVector,
       accepted: false,
       reason,
-    },
+    }),
   }
 }
 
@@ -1232,36 +1214,6 @@ function movementTelemetry(result: {
     movementMode,
     speedPxPerSecond,
   }
-}
-
-function idleMovementTelemetry(
-  movementMode: MovementMode,
-  speedPxPerSecond: number,
-): MovementTelemetry {
-  return {
-    requestedVector: { x: 0, y: 0 },
-    appliedVector: { x: 0, y: 0 },
-    collisionSlide: false,
-    collisionSlideAxis: undefined,
-    collisionSlideDistancePx: 0,
-    movementMode,
-    speedPxPerSecond,
-  }
-}
-
-function movementVectorIntensity(vector: MovementVector): number {
-  return Math.hypot(vector.x, vector.y)
-}
-
-function movementSpeedPxPerSecond(
-  config: Pick<WorldServerConfig, "speedPxPerSecond" | "runSpeedPxPerSecond">,
-  movementMode: MovementMode,
-): number {
-  if (movementMode === "run") {
-    return config.runSpeedPxPerSecond ?? config.speedPxPerSecond * 1.68
-  }
-
-  return config.speedPxPerSecond
 }
 
 function definedMovementTuning(
@@ -1345,19 +1297,4 @@ function getMessageSeq(message: unknown): number {
   }
 
   return 0
-}
-
-function applyZoneChanges(
-  currentZoneIds: readonly string[],
-  enteredZoneIds: readonly string[],
-  leftZoneIds: readonly string[],
-): readonly string[] {
-  const remaining = currentZoneIds.filter((zoneId) => !leftZoneIds.includes(zoneId))
-  const merged = [...remaining]
-
-  for (const zoneId of enteredZoneIds) {
-    if (!merged.includes(zoneId)) merged.push(zoneId)
-  }
-
-  return merged
 }

@@ -19,6 +19,9 @@
       "@aedventure/game-protocol": [
         "packages/game-protocol/src"
       ],
+      "@aedventure/game-core": [
+        "packages/game-core/src"
+      ],
       "@aedventure/map-engine": [
         "packages/map-engine/src"
       ],

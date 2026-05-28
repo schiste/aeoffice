@@ -23,11 +23,11 @@ import {
 } from "@aedventure/game-renderer-phaser"
 import type { Direction, MovementMode, MovementVector } from "@aedventure/game-protocol"
 import {
-  simulateMovement,
+  applyMovementIntentToEntity,
   zonesAtPosition,
   type CollisionMap,
   type Zone,
-} from "@aedventure/map-engine"
+} from "@aedventure/game-core"
 import {
   RPG_IDLE_DEMO_ACTIONS,
   RPG_IDLE_DEMO_CATALOG,
@@ -215,35 +215,53 @@ function applyMovement(intent: RawMovementIntent, deltaMs: number): void {
   const seq = state.seq
   state.seq += 1
   const currentTopLeft = centerToBodyTopLeft(state.heroPosition)
-  const result = simulateMovement({
-    current: currentTopLeft,
-    vector: intent.vector,
-    seq,
+  const result = applyMovementIntentToEntity({
+    entity: {
+      entityId: "hero.scout",
+      entityKind: "player",
+      position: currentTopLeft,
+      direction: state.heroDirection,
+      zoneIds: state.activeZoneIds,
+      lastSeqAck: seq - 1,
+      movementMode: state.movementMode,
+    },
+    message: {
+      type: "move",
+      vector: intent.vector,
+      direction: intent.direction,
+      movementMode: intent.movementMode,
+      seq,
+    },
     map: collisionMap,
     playerSize: HERO_BODY,
-    speedPxPerSecond: intent.movementMode === "run" ? RUN_SPEED : WALK_SPEED,
+    speed: {
+      speedPxPerSecond: WALK_SPEED,
+      runSpeedPxPerSecond: RUN_SPEED,
+    },
+    tickMs: FRAME_CAP_MS,
+    nowMs: state.frameCount * FRAME_CAP_MS,
     deltaMs,
     collisionSlide: {
       maxNudgePx: 10,
       nudgeStepPx: 2,
     },
     zones: interactionZones,
-    currentZoneIds: state.activeZoneIds,
   })
 
-  if (result.accepted) {
-    state.heroPosition = bodyTopLeftToCenter(result.position)
-  } else if (result.reason === "collision") {
+  if (result.movement.accepted) {
+    state.heroPosition = bodyTopLeftToCenter(result.entity.position)
+    state.activeZoneIds = result.entity.zoneIds ? [...result.entity.zoneIds] : []
+  } else if (result.movement.reason === "collision") {
     state.blockedCount += 1
   }
 
-  state.heroDirection = result.direction
-  state.movementMode = intent.movementMode
+  state.heroDirection = result.entity.direction
+  state.movementMode = result.movementMode
   state.lastMovement = {
-    accepted: result.accepted,
-    reason: result.reason,
-    requestedVector: result.requestedVector,
-    appliedVector: result.appliedVector,
+    accepted: result.movement.accepted,
+    reason: result.movement.reason,
+    requestedVector: result.movement.requestedVector,
+    appliedVector: result.movement.appliedVector,
   }
 }
 
@@ -463,6 +481,7 @@ function renderGameToText(): string {
       domain: "@aedventure/rpg-domain",
       renderer: "@aedventure/game-renderer-phaser",
       uses: [
+        "@aedventure/game-core",
         "@aedventure/game-assets",
         "@aedventure/game-map",
         "@aedventure/game-input",

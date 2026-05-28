@@ -1926,3 +1926,34 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   `npm run smoke:rpg`, `npm run qa:renderer`, `npm run check`,
   `npm run qa:responsive`, and `git diff --check`. The neutral RPG renderer
   fixture screenshot was visually inspected.
+- Phase 9 extracted neutral deterministic simulation into
+  `packages/game-core`. The package now owns movement simulation, collision
+  checks, zone overlap, permission-aware movement application, deterministic
+  tick advancement, world snapshot creation, reconciliation payload helpers,
+  movement correction measurement, and replay helpers.
+- `packages/map-engine` is now a compatibility facade that re-exports
+  `@aedventure/game-core`. Active app paths were migrated to `game-core`:
+  the office world server delegates move intent application and snapshot
+  creation to the core package, the office browser prediction/motion code uses
+  core movement primitives, and the RPG idle demo applies movement through the
+  same neutral entity movement helper.
+- Multi-app QA now advertises `@aedventure/game-core` in each app's
+  `render_game_to_text` engine boundary. The renderer QA neutral fixture report
+  confirmed the RPG app uses shared packages
+  `@aedventure/game-core`, `@aedventure/game-assets`, `@aedventure/game-map`,
+  `@aedventure/game-input`, and `@aedventure/game-renderer-phaser` while
+  keeping `importsOfficeDomain: false`.
+- Verification passed for Phase 9: `npm --workspace @aedventure/game-core run
+  build`, `npm --workspace @aedventure/game-core test`, `npm --workspace
+  @aedventure/map-engine run build`, `node packages/map-engine/test/movement.test.js`,
+  `npm --workspace @aedventure/world-server run build`,
+  `node apps/world-server/test/authoritative-world.test.js`, `npm --workspace
+  @aedventure/web run build`, `npm --workspace @aedventure/rpg-idle-demo run
+  build`, `npm run smoke:office`, `npm run smoke:rpg`, `npm run qa:renderer`
+  after one transient frame-cadence retry, `npm run qa:renderer:built`,
+  `npm run check` after one transient renderer devtools retry, `npm run
+  qa:responsive`, and `git diff --check`. The neutral RPG renderer screenshot
+  and desktop/mobile responsive screenshots were visually inspected.
+- The standalone develop-web-game client was retried and still exits before
+  navigation with `ERR_MODULE_NOT_FOUND` because the skill-local script cannot
+  resolve its own `playwright` import.

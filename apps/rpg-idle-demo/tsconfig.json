@@ -10,6 +10,9 @@
       "path": "../../packages/game-assets"
     },
     {
+      "path": "../../packages/game-core"
+    },
+    {
       "path": "../../packages/game-input"
     },
     {
@@ -20,9 +23,6 @@
     },
     {
       "path": "../../packages/game-renderer-phaser"
-    },
-    {
-      "path": "../../packages/map-engine"
     },
     {
       "path": "../../packages/rpg-domain"

@@ -1,17 +1,12 @@
 # packages/map-engine
 
-Target map engine package.
+Compatibility facade for older map-engine imports.
 
-Responsibilities:
+The deterministic movement, collision, and zone primitives moved to
+`@aedventure/game-core` in Phase 9. This package re-exports the new neutral core
+temporarily so older imports keep compiling while apps migrate.
 
-- Parse maps.
-- Model collisions.
-- Model zones.
-- Model portals.
-- Provide room transition checks.
-- Provide navigation graph data for future agents.
-
-Current implementation:
+Moved implementation:
 
 - `simulateMovement` computes the next position from a normalized movement
   vector, speed, and elapsed time.

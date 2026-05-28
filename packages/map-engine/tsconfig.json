@@ -7,7 +7,7 @@
   },
   "references": [
     {
-      "path": "../game-protocol"
+      "path": "../game-core"
     }
   ],
   "include": [
