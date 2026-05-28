@@ -1,5 +1,6 @@
 import type { OfficeScene } from "./office-scene"
 import {
+  interactionActionFlowState,
   interactionAffordanceLabel,
   interactionMarkerPosition,
   interactionMarkerScreenScale,
@@ -45,6 +46,8 @@ export class DomInteractionOverlayRenderer {
         active:
           candidate.id === info.hoveredCandidateId ||
           candidate.id === info.selectedCandidateId,
+        hovered: candidate.id === info.hoveredCandidateId,
+        selected: candidate.id === info.selectedCandidateId,
       })
     })
 
@@ -58,7 +61,11 @@ export class DomInteractionOverlayRenderer {
   private renderInteractionLabel(
     candidate: RendererWorldInteractionCandidate,
     screenScale: number,
-    state: { readonly active: boolean },
+    state: {
+      readonly active: boolean
+      readonly hovered: boolean
+      readonly selected: boolean
+    },
   ): void {
     const nodes = this.interactionNodesFor(candidate)
     const style = interactionStyle(candidate)
@@ -67,7 +74,12 @@ export class DomInteractionOverlayRenderer {
     )
 
     nodes.card.classList.toggle("is-active", state.active)
+    nodes.card.classList.toggle("is-hovered", state.hovered)
+    nodes.card.classList.toggle("is-selected", state.selected)
     nodes.card.dataset.actionTone = style.tone
+    nodes.card.dataset.action = candidate.action
+    nodes.card.dataset.interactionKind = candidate.kind
+    nodes.card.dataset.actionFlow = interactionActionFlowState(candidate)
     nodes.card.style.setProperty("--world-label-accent", cssHex(style.color))
     nodes.card.style.color = style.textColor
     nodes.key.textContent = interactionAffordanceLabel(candidate)

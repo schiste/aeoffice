@@ -2,6 +2,8 @@ import Phaser from "phaser"
 
 import { ZONE_LABEL_DEPTH } from "./constants"
 import {
+  INTERACTION_MARKER_HIT_AREA_HEIGHT,
+  INTERACTION_MARKER_HIT_AREA_WIDTH,
   interactionMarkerPosition,
   interactionMarkerScreenScale,
   interactionStyle,
@@ -15,6 +17,8 @@ import type {
 interface InteractionMarkerView {
   readonly candidateId: string
   readonly container: Phaser.GameObjects.Container
+  readonly targetOutline: Phaser.GameObjects.Graphics
+  readonly tapTarget: Phaser.GameObjects.Rectangle
   readonly baseShadow: Phaser.GameObjects.Ellipse
   readonly halo: Phaser.GameObjects.Ellipse
   readonly pulseRing: Phaser.GameObjects.Ellipse
@@ -53,7 +57,10 @@ export class InteractionRenderer {
   }
 
   clear(): void {
-    this.markers.forEach((marker) => marker.container.destroy(true))
+    this.markers.forEach((marker) => {
+      marker.targetOutline.destroy()
+      marker.container.destroy(true)
+    })
     this.markers = []
   }
 
@@ -75,11 +82,18 @@ export class InteractionRenderer {
   private createActionMarker(candidate: RendererWorldInteractionCandidate): void {
     const style = interactionStyle(candidate)
     const position = interactionMarkerPosition(candidate)
+    const targetOutline = this.scene.add.graphics()
     const container = this.scene.add.container(position.x, position.y)
 
+    targetOutline.setDepth(ZONE_LABEL_DEPTH + 8)
     container.setDepth(ZONE_LABEL_DEPTH + 12)
     container.setInteractive(
-      new Phaser.Geom.Rectangle(-56, -34, 112, 62),
+      new Phaser.Geom.Rectangle(
+        -INTERACTION_MARKER_HIT_AREA_WIDTH / 2,
+        -INTERACTION_MARKER_HIT_AREA_HEIGHT / 2,
+        INTERACTION_MARKER_HIT_AREA_WIDTH,
+        INTERACTION_MARKER_HIT_AREA_HEIGHT,
+      ),
       Phaser.Geom.Rectangle.Contains,
     )
     container.on("pointerover", () => this.setHoveredCandidate(candidate.id))
@@ -91,6 +105,15 @@ export class InteractionRenderer {
       }
     })
 
+    const tapTarget = this.scene.add.rectangle(
+      0,
+      0,
+      INTERACTION_MARKER_HIT_AREA_WIDTH - 18,
+      INTERACTION_MARKER_HIT_AREA_HEIGHT - 18,
+      style.color,
+      0.018,
+    )
+    tapTarget.setStrokeStyle(1, style.color, 0.12)
     const baseShadow = this.scene.add.ellipse(0, 21, 36, 11, 0x20201d, 0.15)
     const halo = this.scene.add.ellipse(0, 0, 38, 38, style.color, 0.14)
     const pulseRing = this.scene.add.ellipse(0, 0, 44, 44, style.color, 0)
@@ -105,6 +128,7 @@ export class InteractionRenderer {
     const stem = this.scene.add.rectangle(0, 10, 3, 9, style.color, 0.76)
 
     container.add([
+      tapTarget,
       baseShadow,
       halo,
       pulseRing,
@@ -143,6 +167,8 @@ export class InteractionRenderer {
     this.markers.push({
       candidateId: candidate.id,
       container,
+      targetOutline,
+      tapTarget,
       baseShadow,
       halo,
       pulseRing,
@@ -182,6 +208,12 @@ export class InteractionRenderer {
       const active = selected || hovered
       marker.selectionRing.setVisible(active)
       marker.selectionRing.setStrokeStyle(active ? 3 : 2, 0xfffdf7, active ? 0.9 : 0)
+      marker.tapTarget.setAlpha(active ? 0.07 : 0.018)
+      marker.tapTarget.setStrokeStyle(
+        active ? 1.7 : 1,
+        0xfffdf7,
+        active ? 0.32 : 0.12,
+      )
       marker.baseShadow.setAlpha(active ? 0.2 : 0.15)
       marker.baseShadow.setScale(active ? 1.12 : 1)
       marker.halo.setAlpha(active ? 0.32 : 0.14)
@@ -197,6 +229,15 @@ export class InteractionRenderer {
       )
       if (candidate) {
         drawActionPin(marker.pin, interactionStyle(candidate).color, active)
+        drawTargetFeedback(
+          marker.targetOutline,
+          candidate,
+          interactionStyle(candidate).color,
+          {
+            hovered,
+            selected,
+          },
+        )
       }
     })
   }
@@ -230,6 +271,81 @@ function drawActionPin(
   graphics.strokePath()
 }
 
+function drawTargetFeedback(
+  graphics: Phaser.GameObjects.Graphics,
+  candidate: RendererWorldInteractionCandidate,
+  color: number,
+  state: { readonly hovered: boolean; readonly selected: boolean },
+): void {
+  graphics.clear()
+
+  if (!candidate.active || !candidate.markerVisible) return
+
+  const alpha = state.selected ? 0.78 : state.hovered ? 0.62 : 0.34
+  const lineWidth = state.selected ? 2.4 : state.hovered ? 1.9 : 1.2
+  const bounds = candidate.bounds
+
+  graphics.lineStyle(lineWidth, color, alpha)
+  graphics.fillStyle(color, state.selected ? 0.06 : 0.025)
+
+  if (candidate.kind === "object") {
+    graphics.fillRect(bounds.x - 3, bounds.y - 3, bounds.width + 6, bounds.height + 6)
+    graphics.strokeRect(
+      bounds.x - 4,
+      bounds.y - 4,
+      bounds.width + 8,
+      bounds.height + 8,
+    )
+    drawCornerTicks(graphics, bounds, 8)
+    return
+  }
+
+  if (candidate.action === "enter_portal" || candidate.action === "open_door") {
+    const centerY = bounds.y + bounds.height / 2
+    const direction = candidate.action === "enter_portal" ? 1 : -1
+    graphics.strokeRect(bounds.x + 2, bounds.y + 2, bounds.width - 4, bounds.height - 4)
+    graphics.beginPath()
+    graphics.moveTo(bounds.x + bounds.width / 2 - direction * 11, centerY - 9)
+    graphics.lineTo(bounds.x + bounds.width / 2 + direction * 1, centerY)
+    graphics.lineTo(bounds.x + bounds.width / 2 - direction * 11, centerY + 9)
+    graphics.strokePath()
+    graphics.beginPath()
+    graphics.moveTo(bounds.x + bounds.width / 2 + direction * 1, centerY - 9)
+    graphics.lineTo(bounds.x + bounds.width / 2 + direction * 13, centerY)
+    graphics.lineTo(bounds.x + bounds.width / 2 + direction * 1, centerY + 9)
+    graphics.strokePath()
+    return
+  }
+
+  drawCornerTicks(graphics, bounds, 12)
+}
+
+function drawCornerTicks(
+  graphics: Phaser.GameObjects.Graphics,
+  bounds: RendererWorldInteractionCandidate["bounds"],
+  size: number,
+): void {
+  const left = bounds.x
+  const right = bounds.x + bounds.width
+  const top = bounds.y
+  const bottom = bounds.y + bounds.height
+
+  graphics.beginPath()
+  graphics.moveTo(left, top + size)
+  graphics.lineTo(left, top)
+  graphics.lineTo(left + size, top)
+  graphics.moveTo(right - size, top)
+  graphics.lineTo(right, top)
+  graphics.lineTo(right, top + size)
+  graphics.moveTo(left, bottom - size)
+  graphics.lineTo(left, bottom)
+  graphics.lineTo(left + size, bottom)
+  graphics.moveTo(right - size, bottom)
+  graphics.lineTo(right, bottom)
+  graphics.lineTo(right, bottom - size)
+  graphics.strokePath()
+}
+
 function withInteractionPresentation(
   info: RendererWorldInteractionInfo,
   hoveredCandidateId: string | undefined,
@@ -255,6 +371,10 @@ function withInteractionPresentation(
       markerStyle: "action_marker_cards",
       markerEffectMode: "layered_pin_pulse_shadow",
       selectionMode: "hover_click_marker",
+      objectSelectionMode: "hover_select_target_outline",
+      doorPortalFeedback: "directional_beacon_and_bounds",
+      actionFlow: "approach_permission_confirm_execute",
+      touchAffordance: "large_marker_hit_area_dom_prompt",
       privateAreaFeedback: privateAreaFeedback(info),
     },
   }
@@ -333,6 +453,10 @@ function emptyWorldInteractionInfo(): RendererWorldInteractionInfo {
       markerStyle: "action_marker_cards",
       markerEffectMode: "layered_pin_pulse_shadow",
       selectionMode: "hover_click_marker",
+      objectSelectionMode: "hover_select_target_outline",
+      doorPortalFeedback: "directional_beacon_and_bounds",
+      actionFlow: "approach_permission_confirm_execute",
+      touchAffordance: "large_marker_hit_area_dom_prompt",
       privateAreaFeedback: "none",
     },
   }

@@ -1688,3 +1688,25 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   snapshot. The standalone develop-web-game client still exits before
   navigation with `ERR_MODULE_NOT_FOUND` because the skill-local script cannot
   resolve `playwright`.
+- World interaction UX now has stronger door, portal, object, and touch
+  affordances. Phaser markers use a larger 148x82 hit area, a subtle tap target,
+  and world-space target outlines; object candidates get footprint outlines,
+  while door/portal candidates get directional beacon feedback. The crisp DOM
+  interaction card now exposes action, interaction kind, and action-flow
+  metadata and has pointer-coarse sizing for touch devices.
+- The interaction presentation contract now records
+  `objectSelectionMode: hover_select_target_outline`,
+  `doorPortalFeedback: directional_beacon_and_bounds`,
+  `actionFlow: approach_permission_confirm_execute`, and
+  `touchAffordance: large_marker_hit_area_dom_prompt`. Frontend smoke and
+  renderer QA assert these fields plus the DOM card metadata so the new UX
+  affordances stay stable.
+- Verification passed for the world-interaction UX slice:
+  `npm --workspace @aedventure/web run build`, `npm run qa:renderer`, `npm run
+  smoke:frontend`, `npm run qa:responsive`, `npm run check`, and `git diff
+  --check`. A focused zone-fixture screenshot was captured at
+  `/private/tmp/aedventure-zone-interaction.png` and inspected; it shows the
+  enlarged meeting target, beacon marker, and crisp `E / Tap` card. The
+  standalone develop-web-game client still exits before navigation with
+  `ERR_MODULE_NOT_FOUND` because the skill-local script cannot resolve
+  `playwright`.

@@ -1056,6 +1056,26 @@ h1 {
     0 0 0 1px rgba(255, 253, 247, 0.72) inset;
 }
 
+.world-dom-interaction-card.is-hovered,
+.world-dom-interaction-card.is-selected {
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.86), transparent 48%),
+    color-mix(in srgb, var(--world-label-accent), #fffdf7 91%);
+}
+
+.world-dom-interaction-card.is-selected::after {
+  opacity: 1;
+  width: 4px;
+}
+
+.world-dom-interaction-card[data-interaction-kind="object"] {
+  min-width: 112px;
+}
+
+.world-dom-interaction-card[data-action-flow="checking"] {
+  opacity: 0.88;
+}
+
 .world-dom-interaction-card[data-action-tone="locked"] {
   background:
     linear-gradient(135deg, rgba(255, 255, 255, 0.7), transparent 52%),
@@ -1103,6 +1123,30 @@ h1 {
   text-align: right;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+@media (pointer: coarse) {
+  .world-dom-interaction-card {
+    min-width: 118px;
+    max-width: 184px;
+    padding: 7px 9px 8px;
+  }
+
+  .world-dom-interaction-key {
+    min-width: 46px;
+    font-size: 10px;
+    line-height: 14px;
+  }
+
+  .world-dom-interaction-kind {
+    font-size: 10px;
+    line-height: 12px;
+  }
+
+  .world-dom-interaction-prompt {
+    font-size: 12px;
+    line-height: 14px;
+  }
 }
 
 .map[data-transition="switching"] canvas {

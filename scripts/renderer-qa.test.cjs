@@ -1051,7 +1051,11 @@ async function assertDomInteractionLabels(page, state, label, expectedPrompt) {
     return {
       card: readNode(card),
       active: card?.classList.contains("is-active") ?? false,
+      selected: card?.classList.contains("is-selected") ?? false,
       tone: card?.getAttribute("data-action-tone"),
+      action: card?.getAttribute("data-action"),
+      interactionKind: card?.getAttribute("data-interaction-kind"),
+      actionFlow: card?.getAttribute("data-action-flow"),
       prompt: readNode(card?.querySelector(".world-dom-interaction-prompt")),
       key: readNode(card?.querySelector(".world-dom-interaction-key")),
       kind: readNode(card?.querySelector(".world-dom-interaction-kind")),
@@ -1065,6 +1069,9 @@ async function assertDomInteractionLabels(page, state, label, expectedPrompt) {
   assert.equal(dom.key.text, "E / Tap", `${label}: expected unified keyboard/touch affordance.`)
   assert.ok(dom.kind.text.length >= 2, `${label}: expected non-empty action kind label.`)
   assert.ok(dom.tone, `${label}: expected DOM interaction tone metadata.`)
+  assert.ok(dom.action, `${label}: expected DOM interaction action metadata.`)
+  assert.ok(["zone", "object"].includes(dom.interactionKind), `${label}: expected DOM interaction kind metadata.`)
+  assert.equal(dom.actionFlow, "ready", `${label}: expected ready action flow metadata.`)
   assert.ok(dom.active, `${label}: expected primary interaction card to expose active state.`)
   assert.equal(dom.card.transform, "none", `${label}: interaction card should not be transform-scaled.`)
   assert.ok(
@@ -1725,6 +1732,22 @@ function assertRendererSnapshot(state) {
   assert.equal(
     state.renderer.visualPolish.reducedMotionBehavior.ambientMotion,
     "subtle_visual_only",
+  )
+  assert.equal(
+    state.worldInteractions.presentation.objectSelectionMode,
+    "hover_select_target_outline",
+  )
+  assert.equal(
+    state.worldInteractions.presentation.doorPortalFeedback,
+    "directional_beacon_and_bounds",
+  )
+  assert.equal(
+    state.worldInteractions.presentation.actionFlow,
+    "approach_permission_confirm_execute",
+  )
+  assert.equal(
+    state.worldInteractions.presentation.touchAffordance,
+    "large_marker_hit_area_dom_prompt",
   )
   assert.equal(state.camera.secondary.source, "phaser_camera_manager")
   assert.ok(state.camera.secondary.totalCameraCount >= 2)

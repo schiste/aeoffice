@@ -933,6 +933,22 @@ function assertRenderStateContract(state) {
     state.worldInteractions?.presentation?.selectionMode,
     "hover_click_marker",
   )
+  assert.equal(
+    state.worldInteractions?.presentation?.objectSelectionMode,
+    "hover_select_target_outline",
+  )
+  assert.equal(
+    state.worldInteractions?.presentation?.doorPortalFeedback,
+    "directional_beacon_and_bounds",
+  )
+  assert.equal(
+    state.worldInteractions?.presentation?.actionFlow,
+    "approach_permission_confirm_execute",
+  )
+  assert.equal(
+    state.worldInteractions?.presentation?.touchAffordance,
+    "large_marker_hit_area_dom_prompt",
+  )
   assert.equal(state.effects?.source, "renderer_runtime")
   assert.equal(state.effects?.authority, "visual_only")
   assert.equal(typeof state.effects?.enabled, "boolean")
@@ -1989,7 +2005,11 @@ async function assertDomInteractionText(page, expectedPrompt) {
     return {
       card: readNode(card),
       active: card?.classList.contains("is-active") ?? false,
+      selected: card?.classList.contains("is-selected") ?? false,
       tone: card?.getAttribute("data-action-tone"),
+      action: card?.getAttribute("data-action"),
+      interactionKind: card?.getAttribute("data-interaction-kind"),
+      actionFlow: card?.getAttribute("data-action-flow"),
       prompt: readNode(card?.querySelector(".world-dom-interaction-prompt")),
       key: readNode(card?.querySelector(".world-dom-interaction-key")),
       kind: readNode(card?.querySelector(".world-dom-interaction-kind")),
@@ -2003,6 +2023,9 @@ async function assertDomInteractionText(page, expectedPrompt) {
   assert.equal(snapshot.key.text, "E / Tap")
   assert.ok(snapshot.kind.text.length >= 2)
   assert.ok(snapshot.tone, "Expected DOM interaction card tone metadata.")
+  assert.equal(snapshot.actionFlow, "ready")
+  assert.ok(["zone", "object"].includes(snapshot.interactionKind))
+  assert.ok(snapshot.action, "Expected DOM interaction action metadata.")
   assert.ok(snapshot.active, "Expected primary DOM interaction card to be active.")
   assert.equal(snapshot.card.transform, "none")
   assert.ok(
@@ -3210,6 +3233,10 @@ async function assertZonePresentationSmoke(page) {
     markerStyle: "action_marker_cards",
     markerEffectMode: "layered_pin_pulse_shadow",
     selectionMode: "hover_click_marker",
+    objectSelectionMode: "hover_select_target_outline",
+    doorPortalFeedback: "directional_beacon_and_bounds",
+    actionFlow: "approach_permission_confirm_execute",
+    touchAffordance: "large_marker_hit_area_dom_prompt",
     privateAreaFeedback: "none",
   })
   assert.equal(
@@ -3318,6 +3345,10 @@ async function assertZonePresentationSmoke(page) {
       (candidate) => candidate.markerVisible && candidate.action === "open_door",
     ),
     "Expected a tappable door/object marker when portal area is active.",
+  )
+  assert.equal(
+    portalZone.worldInteractions.presentation.doorPortalFeedback,
+    "directional_beacon_and_bounds",
   )
   await assertDomInteractionText(page, "Enter")
 }

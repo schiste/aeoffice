@@ -6,6 +6,8 @@ import type {
 
 export const INTERACTION_MARKER_SCREEN_SCALE_MIN = 0.72
 export const INTERACTION_MARKER_SCREEN_SCALE_MAX = 1.18
+export const INTERACTION_MARKER_HIT_AREA_WIDTH = 148
+export const INTERACTION_MARKER_HIT_AREA_HEIGHT = 82
 
 export function interactionMarkerScreenScale(zoom: number): number {
   return roundTo(
@@ -49,7 +51,7 @@ export function interactionStyle(candidate: RendererWorldInteractionCandidate): 
       return {
         color: 0x316f9f,
         textColor: "#1d4260",
-        glyph: "Go",
+        glyph: "Portal",
         tone: "portal",
       }
     case "open_door":
@@ -74,6 +76,14 @@ export function interactionStyle(candidate: RendererWorldInteractionCandidate): 
             tone: "locked",
           }
   }
+}
+
+export function interactionActionFlowState(
+  candidate: RendererWorldInteractionCandidate,
+): "checking" | "locked" | "ready" {
+  if (candidate.permission === "pending") return "checking"
+  if (!candidate.serverPermitted) return "locked"
+  return "ready"
 }
 
 export function interactionMarkerPosition(

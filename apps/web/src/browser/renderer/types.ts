@@ -246,6 +246,10 @@ export interface RendererWorldInteractionInfo {
     readonly markerStyle: "action_marker_cards"
     readonly markerEffectMode: "layered_pin_pulse_shadow"
     readonly selectionMode: "hover_click_marker"
+    readonly objectSelectionMode: "hover_select_target_outline"
+    readonly doorPortalFeedback: "directional_beacon_and_bounds"
+    readonly actionFlow: "approach_permission_confirm_execute"
+    readonly touchAffordance: "large_marker_hit_area_dom_prompt"
     readonly privateAreaFeedback:
       | "none"
       | "available"

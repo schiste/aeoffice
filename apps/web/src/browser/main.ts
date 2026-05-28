@@ -4588,9 +4588,12 @@ async function runWorldAction(
       publishToast(`Access granted: ${candidate.label}`, "success")
       return
     case "enter_portal":
-    case "open_door":
       recordEvent(`Used ${candidate.label}`)
-      publishToast(`${candidate.label} opened`, "success")
+      publishToast(`Portal ready: ${candidate.label}`, "success")
+      return
+    case "open_door":
+      recordEvent(`Opened ${candidate.label}`)
+      publishToast(`Door opened: ${candidate.label}`, "success")
       return
     case "use_object":
       recordEvent(`Used ${candidate.label}`)
