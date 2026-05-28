@@ -7,9 +7,6 @@
   "references": [
     {
       "path": "../game-assets"
-    },
-    {
-      "path": "../game-map"
     }
   ],
   "include": ["src/**/*.ts"]

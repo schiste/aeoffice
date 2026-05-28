@@ -19,6 +19,7 @@ mkdir -p "$ROOT_DIR/node_modules/@aedventure"
 ln -sfn "../../packages/protocol" "$ROOT_DIR/node_modules/@aedventure/protocol"
 ln -sfn "../../packages/map-engine" "$ROOT_DIR/node_modules/@aedventure/map-engine"
 ln -sfn "../../packages/game-assets" "$ROOT_DIR/node_modules/@aedventure/game-assets"
+ln -sfn "../../packages/game-map" "$ROOT_DIR/node_modules/@aedventure/game-map"
 ln -sfn "../../packages/office-domain" "$ROOT_DIR/node_modules/@aedventure/office-domain"
 ln -sfn "../../packages/asset-registry" "$ROOT_DIR/node_modules/@aedventure/asset-registry"
 ln -sfn "../../packages/auth-wikimedia" "$ROOT_DIR/node_modules/@aedventure/auth-wikimedia"
@@ -34,6 +35,9 @@ node "$ROOT_DIR/packages/map-engine/test/movement.test.js"
 
 echo "Running game-assets checks..."
 node "$ROOT_DIR/packages/game-assets/test/assets.test.js"
+
+echo "Running game-map checks..."
+node "$ROOT_DIR/packages/game-map/test/map.test.js"
 
 echo "Running asset-registry checks..."
 node "$ROOT_DIR/packages/asset-registry/test/catalog.test.js"

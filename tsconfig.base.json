@@ -22,6 +22,9 @@
       "@aedventure/game-assets": [
         "packages/game-assets/src"
       ],
+      "@aedventure/game-map": [
+        "packages/game-map/src"
+      ],
       "@aedventure/office-domain": [
         "packages/office-domain/src"
       ],

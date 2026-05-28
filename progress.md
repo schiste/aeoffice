@@ -1795,3 +1795,32 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   develop-web-game client still exits before navigation with
   `ERR_MODULE_NOT_FOUND` because the skill-local script cannot resolve
   `playwright`.
+- Phase 3 extracted the neutral semantic map compiler into
+  `packages/game-map`. The package now owns semantic map schema types, tile
+  layer compilation, object/furniture placement, zones, spawn helpers, movement
+  collision layers, blocked-tile handling, map validation, and deterministic
+  compiler primitives. A boundary test verifies the package does not introduce
+  obvious office/SkyOffice/product-domain labels.
+- Office-specific map behavior remains in `packages/office-domain/src/assets`:
+  prompt keyword parsing, lobby/meeting-room/lounge-cafe presets, office
+  semantic item names, office zone labels, and the starter visual catalog.
+  `@aedventure/asset-registry` remains the compatibility facade; direct neutral
+  consumers can now import `@aedventure/game-map`.
+- Renderer QA was stabilized for non-looping turn-pose clips. The check now
+  asserts that pose clips reach an animated frame and reports bounded turn
+  progress instead of requiring elapsed time to be monotonic across samples,
+  which can legitimately reset or clamp for non-looping clips.
+- Verification passed for the Phase 3 game-map split:
+  `npm --workspace @aedventure/game-map run build`,
+  `npm --workspace @aedventure/office-domain run build`,
+  `npm --workspace @aedventure/asset-registry run build`,
+  `node packages/game-map/test/map.test.js`,
+  `node packages/asset-registry/test/catalog.test.js`,
+  `node scripts/verify-internal-assets.cjs`,
+  `npm --workspace @aedventure/web run build`, `npm run qa:responsive`,
+  `npm run qa:renderer`, `npm run check`, and `git diff --check`. Desktop and
+  mobile responsive screenshots plus the renderer lobby screenshot were
+  inspected. The standalone develop-web-game client was attempted against
+  `http://127.0.0.1:8787/app`, but it still exits before navigation with
+  `ERR_MODULE_NOT_FOUND` because the skill-local script cannot resolve
+  `playwright`.

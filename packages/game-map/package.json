@@ -1,5 +1,5 @@
 {
-  "name": "@aedventure/office-domain",
+  "name": "@aedventure/game-map",
   "version": "0.1.0",
   "license": "AGPL-3.0-or-later",
   "main": "dist/index.js",
@@ -8,7 +8,6 @@
     "build": "tsc -b"
   },
   "dependencies": {
-    "@aedventure/game-assets": "0.1.0",
-    "@aedventure/game-map": "0.1.0"
+    "@aedventure/game-assets": "0.1.0"
   }
 }
