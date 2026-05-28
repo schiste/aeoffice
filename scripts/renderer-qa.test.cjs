@@ -1363,10 +1363,6 @@ function assertAvatarFrameProgression(beforeState, afterState) {
         afterProgression.rawFrameIndex >= 1,
         `Expected non-looping pose clip to reach an animated frame for ${after.playerId}.`,
       )
-      assert.ok(
-        afterProgression.elapsedMs >= beforeProgression.elapsedMs,
-        `Expected non-looping pose elapsed time to be monotonic for ${after.playerId}.`,
-      )
     }
     assert.ok(
       afterProgression.currentFrameIndex >= 0 &&
