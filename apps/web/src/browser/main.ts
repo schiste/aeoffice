@@ -8,6 +8,7 @@ import {
   type RendererCameraState,
   type RendererDevToolOverlayId,
   type RendererDevToolOverlayState,
+  type RendererEffectsInfo,
   type RendererEffectsOptions,
   type RendererPerformanceInfo,
   type RendererWorldInteractionAction,
@@ -6221,10 +6222,70 @@ function roundedVector(position: Vector2): Vector2 {
   }
 }
 
+function rendererVisualPolishTextState(
+  performance: RendererPerformanceInfo,
+  worldInteractionInfo: RendererWorldInteractionInfo,
+  effects: RendererEffectsInfo,
+) {
+  const reducedMotionMatches = prefersReducedMotion()
+  const ambientParticleCount =
+    effects.objectCounts.coffeeSteamEmitters +
+    effects.objectCounts.plantMoteEmitters +
+    effects.objectCounts.portalShimmerEmitters +
+    effects.objectCounts.meetingZoneActivationEmitters +
+    effects.objectCounts.entryTransitionEmitters
+
+  return {
+    source: "renderer_visual_polish",
+    markerEffectMode:
+      worldInteractionInfo.presentation?.markerEffectMode ?? "none",
+    markerStyle: worldInteractionInfo.presentation?.markerStyle ?? "none",
+    objectShadowCount: performance.pooling.activeShadowCount,
+    pooledObjectShadowCount: performance.pooling.pooledShadowCount,
+    ambientMotionCount:
+      performance.pooling.ambientMotionSpriteCount + ambientParticleCount,
+    ambientMotionBreakdown: {
+      objectSprites: performance.pooling.ambientMotionSpriteCount,
+      particleEmitters: ambientParticleCount,
+    },
+    transitionState: roomTransitionState(),
+    transitionOwner: "map_dataset_transition",
+    reducedMotionBehavior: {
+      policy: "prefers_reduced_motion_css_guard",
+      query: "(prefers-reduced-motion: reduce)",
+      matches: reducedMotionMatches,
+      mapTransition: reducedMotionMatches ? "disabled_by_css" : "enabled",
+      ambientMotion: "subtle_visual_only",
+    },
+  }
+}
+
+function prefersReducedMotion(): boolean {
+  if (typeof window.matchMedia !== "function") return false
+
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches
+}
+
+function roomTransitionState(): "idle" | "switching" | "entering" {
+  const transition = elements.map.dataset.transition
+
+  return transition === "switching" || transition === "entering"
+    ? transition
+    : "idle"
+}
+
 function renderDemoToText(): string {
   const overlay = stageOverlayContent()
   const realtime = worldSync.snapshot()
   const input = inputController.snapshot()
+  const rendererCapability = renderer.getCapabilityInfo()
+  const rendererPerformance = rendererCapability.performance
+  const worldInteractions = renderer.getWorldInteractionInfo()
+  const visualPolish = rendererVisualPolishTextState(
+    rendererPerformance,
+    worldInteractions,
+    rendererCapability.effects,
+  )
 
   return JSON.stringify({
     coordinateSystem: "pixel origin top-left, x right, y down",
@@ -6385,7 +6446,10 @@ function renderDemoToText(): string {
         open: section.open,
       })),
     },
-    renderer: renderer.getCapabilityInfo(),
+    renderer: {
+      ...rendererCapability,
+      visualPolish,
+    },
     engine: engineArchitectureTextState(),
     devTools: {
       gated: state.devTools.gated,
@@ -6426,10 +6490,10 @@ function renderDemoToText(): string {
     effects: renderer.getEffectsInfo(),
     audio: renderer.getAudioInfo(),
     mapValidation: renderer.getMapValidationInfo(),
-    performance: renderer.getPerformanceInfo(),
+    performance: rendererPerformance,
     avatars: renderer.getAvatarInfo(),
     zones: renderer.getZoneInfo(),
-    worldInteractions: renderer.getWorldInteractionInfo(),
+    worldInteractions,
     camera: renderer.getCameraState(),
     viewport: renderer.getViewportState(),
     map: state.fixtureMap

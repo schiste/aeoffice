@@ -35,6 +35,7 @@ export class ObjectRenderer {
   private reusedTextureCount = 0
   private visibleSpriteCount = 0
   private culledSpriteCount = 0
+  private ambientMotionSpriteCount = 0
 
   constructor(private readonly scene: Phaser.Scene) {}
 
@@ -62,6 +63,7 @@ export class ObjectRenderer {
     this.activeSprites.length = 0
     this.visibleSpriteCount = 0
     this.culledSpriteCount = 0
+    this.ambientMotionSpriteCount = 0
   }
 
   paintObjectSprites(
@@ -109,7 +111,9 @@ export class ObjectRenderer {
         sprite.setAlpha(1)
         sprite.clearTint()
         sprite.setBlendMode(Phaser.BlendModes.NORMAL)
-        this.applyAmbientMotion(sprite, token.id, x, y)
+        if (this.applyAmbientMotion(sprite, token.id, x, y)) {
+          this.ambientMotionSpriteCount += 1
+        }
         this.activeSprites.push({
           sprite,
           shadow,
@@ -168,7 +172,9 @@ export class ObjectRenderer {
         sprite.setData("depth", depth)
         sprite.setData("zAnchor", token.asset.zAnchor)
         this.applyForegroundDepthTreatment(sprite, token.id)
-        this.applyAmbientMotion(sprite, token.id, x, y)
+        if (this.applyAmbientMotion(sprite, token.id, x, y)) {
+          this.ambientMotionSpriteCount += 1
+        }
         this.activeSprites.push({
           sprite,
           bounds: new Phaser.Geom.Rectangle(
@@ -220,6 +226,10 @@ export class ObjectRenderer {
       activeSpriteCount: this.activeSprites.length,
       visibleSpriteCount: this.visibleSpriteCount,
       culledSpriteCount: this.culledSpriteCount,
+      activeShadowCount: this.activeSprites.filter(({ shadow }) => Boolean(shadow))
+        .length,
+      pooledShadowCount: this.shadowPool.length,
+      ambientMotionSpriteCount: this.ambientMotionSpriteCount,
       pooledSpriteCount: this.spritePool.length,
       createdSpriteCount: this.createdSpriteCount,
       reusedSpriteCount: this.reusedSpriteCount,
@@ -312,8 +322,8 @@ export class ObjectRenderer {
     tokenId: string,
     tileX: number,
     tileY: number,
-  ): void {
-    if (!ambientMotionToken(tokenId)) return
+  ): boolean {
+    if (!ambientMotionToken(tokenId)) return false
 
     this.scene.tweens.add({
       targets: sprite,
@@ -324,6 +334,7 @@ export class ObjectRenderer {
       repeat: -1,
       ease: "Sine.easeInOut",
     })
+    return true
   }
 
   private applyForegroundDepthTreatment(

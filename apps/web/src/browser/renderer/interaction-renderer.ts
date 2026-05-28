@@ -253,6 +253,7 @@ function withInteractionPresentation(
     selectedCandidateId: selected,
     presentation: {
       markerStyle: "action_marker_cards",
+      markerEffectMode: "layered_pin_pulse_shadow",
       selectionMode: "hover_click_marker",
       privateAreaFeedback: privateAreaFeedback(info),
     },
@@ -330,6 +331,7 @@ function emptyWorldInteractionInfo(): RendererWorldInteractionInfo {
     actionAffordance: "none",
     presentation: {
       markerStyle: "action_marker_cards",
+      markerEffectMode: "layered_pin_pulse_shadow",
       selectionMode: "hover_click_marker",
       privateAreaFeedback: "none",
     },

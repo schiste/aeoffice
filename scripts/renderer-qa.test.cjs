@@ -1643,6 +1643,89 @@ function assertRendererSnapshot(state) {
   assert.ok(state.renderer.effects.objectCounts.particleAliveBudget <= 96)
   assert.equal(state.renderer.effects.capability.shadersAvailable, true)
   assert.equal(state.renderer.effects.capability.particlesAvailable, true)
+  assert.equal(
+    state.renderer.visualPolish.source,
+    "renderer_visual_polish",
+  )
+  assert.equal(
+    state.renderer.visualPolish.markerEffectMode,
+    "layered_pin_pulse_shadow",
+  )
+  assert.equal(
+    state.renderer.visualPolish.markerStyle,
+    "action_marker_cards",
+  )
+  assert.equal(
+    state.renderer.visualPolish.objectShadowCount,
+    state.renderer.performance.pooling.activeShadowCount,
+  )
+  if (state.map?.label === "Renderer stress map") {
+    assert.ok(
+      state.renderer.visualPolish.objectShadowCount > 0,
+      "Expected renderer stress map to include polished object shadows.",
+    )
+  }
+  assert.equal(
+    state.renderer.visualPolish.pooledObjectShadowCount,
+    state.renderer.performance.pooling.pooledShadowCount,
+  )
+  assert.equal(
+    state.renderer.visualPolish.ambientMotionBreakdown.objectSprites,
+    state.renderer.performance.pooling.ambientMotionSpriteCount,
+  )
+  assert.equal(
+    state.renderer.visualPolish.ambientMotionBreakdown.particleEmitters,
+    state.renderer.effects.objectCounts.coffeeSteamEmitters +
+      state.renderer.effects.objectCounts.plantMoteEmitters +
+      state.renderer.effects.objectCounts.portalShimmerEmitters +
+      state.renderer.effects.objectCounts.meetingZoneActivationEmitters +
+      state.renderer.effects.objectCounts.entryTransitionEmitters,
+  )
+  assert.equal(
+    state.renderer.visualPolish.ambientMotionCount,
+    state.renderer.visualPolish.ambientMotionBreakdown.objectSprites +
+      state.renderer.visualPolish.ambientMotionBreakdown.particleEmitters,
+  )
+  assert.ok(
+    state.renderer.visualPolish.ambientMotionCount > 0,
+    "Expected subtle ambient object motion to be active.",
+  )
+  if (state.map?.label === "Renderer stress map") {
+    assert.ok(
+      state.renderer.visualPolish.ambientMotionBreakdown.objectSprites > 0,
+      "Expected renderer stress map to include ambient object motion.",
+    )
+  }
+  assert.ok(
+    ["idle", "switching", "entering"].includes(
+      state.renderer.visualPolish.transitionState,
+    ),
+  )
+  assert.equal(
+    state.renderer.visualPolish.transitionOwner,
+    "map_dataset_transition",
+  )
+  assert.equal(
+    state.renderer.visualPolish.reducedMotionBehavior.policy,
+    "prefers_reduced_motion_css_guard",
+  )
+  assert.equal(
+    state.renderer.visualPolish.reducedMotionBehavior.query,
+    "(prefers-reduced-motion: reduce)",
+  )
+  assert.equal(
+    typeof state.renderer.visualPolish.reducedMotionBehavior.matches,
+    "boolean",
+  )
+  assert.ok(
+    ["enabled", "disabled_by_css"].includes(
+      state.renderer.visualPolish.reducedMotionBehavior.mapTransition,
+    ),
+  )
+  assert.equal(
+    state.renderer.visualPolish.reducedMotionBehavior.ambientMotion,
+    "subtle_visual_only",
+  )
   assert.equal(state.camera.secondary.source, "phaser_camera_manager")
   assert.ok(state.camera.secondary.totalCameraCount >= 2)
   const overviewExpected =
@@ -1735,6 +1818,9 @@ function assertRendererPerformance(performance) {
   assert.equal(typeof performance.pooling.activeSpriteCount, "number")
   assert.equal(typeof performance.pooling.visibleSpriteCount, "number")
   assert.equal(typeof performance.pooling.culledSpriteCount, "number")
+  assert.equal(typeof performance.pooling.activeShadowCount, "number")
+  assert.equal(typeof performance.pooling.pooledShadowCount, "number")
+  assert.equal(typeof performance.pooling.ambientMotionSpriteCount, "number")
   assert.match(performance.proofs.mapSize, /^\d+x\d+$/)
   assert.equal(typeof performance.proofs.tileBatching.compatible, "boolean")
   assert.equal(typeof performance.proofs.staticLayerBaking.enabled, "boolean")
@@ -1790,6 +1876,7 @@ function snapshotForReport(label, state) {
         particleAliveBudget:
           state.renderer.effects.objectCounts.particleAliveBudget,
       },
+      visualPolish: state.renderer.visualPolish,
       scenes: {
         activeSceneKeys: state.renderer.scenes.activeSceneKeys,
         registeredSceneKeys: state.renderer.scenes.registeredSceneKeys,

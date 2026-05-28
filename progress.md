@@ -1669,3 +1669,22 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   was attempted against `http://127.0.0.1:8787/app`, but it still exits before
   navigation with `ERR_MODULE_NOT_FOUND` because the skill-local script cannot
   resolve `playwright`.
+- Renderer polish telemetry is now part of `render_game_to_text`. The renderer
+  snapshot exposes `visualPolish.markerEffectMode`, object shadow counts,
+  ambient motion counts with object/particle breakdown, room transition state,
+  and reduced-motion policy/match behavior.
+- `qa:renderer` now locks the visual polish telemetry contract and verifies it
+  against the real renderer sources: interaction marker presentation,
+  object-pool shadow counters, ambient object motion counters, Phaser particle
+  emitters, map transition dataset state, and reduced-motion media-query
+  behavior. Frontend smoke was updated to include the new marker effect mode in
+  the world-interaction presentation contract.
+- Verification passed for the polish telemetry slice:
+  `npm --workspace @aedventure/web run build`, `npm run qa:renderer`, `npm run
+  smoke:frontend`, `npm run qa:responsive`, `npm run check`, and `git diff
+  --check`. The latest renderer QA screenshot was inspected and the report
+  showed `markerEffectMode: layered_pin_pulse_shadow`, `objectShadowCount: 7`,
+  `ambientMotionCount: 7`, and `transitionState: entering` for the lobby
+  snapshot. The standalone develop-web-game client still exits before
+  navigation with `ERR_MODULE_NOT_FOUND` because the skill-local script cannot
+  resolve `playwright`.

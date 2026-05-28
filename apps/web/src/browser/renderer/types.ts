@@ -244,6 +244,7 @@ export interface RendererWorldInteractionInfo {
   readonly selectedCandidateId?: string
   readonly presentation?: {
     readonly markerStyle: "action_marker_cards"
+    readonly markerEffectMode: "layered_pin_pulse_shadow"
     readonly selectionMode: "hover_click_marker"
     readonly privateAreaFeedback:
       | "none"
@@ -1127,6 +1128,9 @@ export interface RendererObjectPoolInfo {
   readonly activeSpriteCount: number
   readonly visibleSpriteCount: number
   readonly culledSpriteCount: number
+  readonly activeShadowCount: number
+  readonly pooledShadowCount: number
+  readonly ambientMotionSpriteCount: number
   readonly pooledSpriteCount: number
   readonly createdSpriteCount: number
   readonly reusedSpriteCount: number

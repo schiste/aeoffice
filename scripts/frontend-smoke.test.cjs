@@ -3208,6 +3208,7 @@ async function assertZonePresentationSmoke(page) {
   assert.equal(zoneState.worldInteractions.tapLabel, "Tap")
   assert.deepEqual(zoneState.worldInteractions.presentation, {
     markerStyle: "action_marker_cards",
+    markerEffectMode: "layered_pin_pulse_shadow",
     selectionMode: "hover_click_marker",
     privateAreaFeedback: "none",
   })
