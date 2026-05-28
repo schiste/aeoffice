@@ -18,6 +18,7 @@
     "dev:http": "npm run build && node scripts/dev-http-host.cjs",
     "qa:responsive": "node scripts/responsive-layout-qa.test.cjs",
     "qa:renderer": "npm --workspace @aedventure/web run build:browser && node scripts/renderer-qa.test.cjs",
+    "smoke:rpg": "npm --workspace @aedventure/rpg-idle-demo run smoke",
     "smoke:frontend": "node scripts/frontend-smoke.test.cjs"
   },
   "devDependencies": {

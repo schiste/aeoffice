@@ -26,6 +26,9 @@
       "path": "packages/game-renderer-phaser"
     },
     {
+      "path": "packages/rpg-domain"
+    },
+    {
       "path": "packages/office-domain"
     },
     {
@@ -42,6 +45,9 @@
     },
     {
       "path": "apps/media-gateway"
+    },
+    {
+      "path": "apps/rpg-idle-demo"
     },
     {
       "path": "apps/web"

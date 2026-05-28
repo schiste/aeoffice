@@ -34,6 +34,9 @@
       "@aedventure/game-renderer-phaser": [
         "packages/game-renderer-phaser/src"
       ],
+      "@aedventure/rpg-domain": [
+        "packages/rpg-domain/src"
+      ],
       "@aedventure/office-domain": [
         "packages/office-domain/src"
       ],

@@ -33,6 +33,30 @@ function drawPolishedFloor(
   y: number,
   tileSize: number,
 ): void {
+  if (token.id.includes("grass") || token.id.includes("meadow")) {
+    const gradient = context.createLinearGradient(x, y, x, y + tileSize)
+    gradient.addColorStop(0, "#7dbc68")
+    gradient.addColorStop(1, "#4f9153")
+    context.fillStyle = gradient
+    context.fillRect(x, y, tileSize, tileSize)
+    context.strokeStyle = "rgba(43, 93, 48, 0.22)"
+    context.lineWidth = 1
+    for (let offset = 0; offset <= tileSize; offset += 8) {
+      context.beginPath()
+      context.moveTo(x + offset + 0.5, y)
+      context.lineTo(x + offset + 0.5, y + tileSize)
+      context.moveTo(x, y + offset + 0.5)
+      context.lineTo(x + tileSize, y + offset + 0.5)
+      context.stroke()
+    }
+    context.fillStyle = "rgba(226, 255, 202, 0.14)"
+    context.fillRect(x + 2, y + 3, tileSize - 4, 3)
+    context.fillStyle = "rgba(44, 110, 55, 0.14)"
+    context.fillRect(x + 5, y + 20, 5, 2)
+    context.fillRect(x + 21, y + 10, 6, 2)
+    return
+  }
+
   if (token.id.includes("wood")) {
     const gradient = context.createLinearGradient(x, y, x, y + tileSize)
     gradient.addColorStop(0, "#d8b175")
@@ -106,6 +130,37 @@ function drawPolishedWall(
   tileSize: number,
 ): void {
   const corner = token.id.includes("corner")
+
+  if (token.id.includes("stone")) {
+    const gradient = context.createLinearGradient(x, y, x, y + tileSize)
+    gradient.addColorStop(0, "#8d9283")
+    gradient.addColorStop(1, "#565f55")
+    context.fillStyle = gradient
+    context.fillRect(x, y, tileSize, tileSize)
+    context.strokeStyle = "rgba(37, 47, 40, 0.38)"
+    context.lineWidth = 1
+    context.beginPath()
+    context.moveTo(x, y + 10.5)
+    context.lineTo(x + tileSize, y + 10.5)
+    context.moveTo(x, y + 21.5)
+    context.lineTo(x + tileSize, y + 21.5)
+    context.moveTo(x + 11.5, y)
+    context.lineTo(x + 11.5, y + 10)
+    context.moveTo(x + 23.5, y + 10)
+    context.lineTo(x + 23.5, y + 21)
+    context.stroke()
+    context.fillStyle = "rgba(255, 255, 232, 0.18)"
+    context.fillRect(x + 3, y + 3, 13, 3)
+    context.fillStyle = "rgba(23, 31, 26, 0.18)"
+    context.fillRect(x, y + tileSize - 5, tileSize, 5)
+    if (corner) {
+      context.fillStyle = "#444d45"
+      fillRoundedRect(context, x + 2, y + 2, 9, tileSize - 7, 2)
+      context.fillStyle = "rgba(232, 238, 213, 0.18)"
+      context.fillRect(x + 4, y + 5, 3, tileSize - 13)
+    }
+    return
+  }
 
   if (token.id.includes("glass")) {
     const gradient = context.createLinearGradient(x, y, x, y + tileSize)
@@ -220,6 +275,48 @@ function drawPolishedItem(
   segment: TileSegment,
 ): void {
   context.clearRect(x, y, tileSize, tileSize)
+
+  if (token.id.includes("resource_node") || token.id.includes("tree")) {
+    drawSoftShadow(context, x + 16, y + 27, 22, 7)
+    context.fillStyle = "#6b4328"
+    fillRoundedRect(context, x + 12, y + 15, 8, 13, 2)
+    context.fillStyle = "#2f7a45"
+    context.beginPath()
+    context.arc(x + 16, y + 10, 9, 0, Math.PI * 2)
+    context.arc(x + 9, y + 14, 7, 0, Math.PI * 2)
+    context.arc(x + 23, y + 14, 7, 0, Math.PI * 2)
+    context.fill()
+    context.fillStyle = "#59a75f"
+    context.beginPath()
+    context.arc(x + 13, y + 7, 4, 0, Math.PI * 2)
+    context.fill()
+    context.fillStyle = "#c89a45"
+    fillRoundedRect(context, x + 9, y + 24, 14, 4, 2)
+    return
+  }
+
+  if (token.id.includes("building_site") || token.id.includes("cabin")) {
+    drawSegmentedObject(context, x, y, tileSize, segment, (originX, originY, width, height) => {
+      drawSoftShadow(context, originX + width / 2, originY + height - 7, width - 10, 9)
+      context.fillStyle = "#74512f"
+      fillRoundedRect(context, originX + 6, originY + 17, width - 12, height - 22, 4)
+      context.fillStyle = "#9f7240"
+      context.fillRect(originX + 9, originY + 21, width - 18, height - 31)
+      context.fillStyle = "#4d3928"
+      context.beginPath()
+      context.moveTo(originX + 3, originY + 19)
+      context.lineTo(originX + width / 2, originY + 4)
+      context.lineTo(originX + width - 3, originY + 19)
+      context.closePath()
+      context.fill()
+      context.fillStyle = "#c58c4c"
+      context.fillRect(originX + width / 2 - 5, originY + height - 24, 10, 17)
+      context.fillStyle = "#27362f"
+      context.fillRect(originX + 13, originY + 27, 9, 7)
+      context.fillRect(originX + width - 22, originY + 27, 9, 7)
+    })
+    return
+  }
 
   if (token.id.includes("large_conference_table")) {
     drawSegmentedObject(context, x, y, tileSize, segment, (originX, originY, width, height) => {

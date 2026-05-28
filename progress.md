@@ -78,6 +78,20 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   connected/joined/media-ready, reset clears chat and restores disconnected
   states, toasts render, no `#events` feed exists, and the browser console stayed
   clean. The standalone web-game client remains blocked by missing `playwright`.
+- Phase 7 engine-boundary proof is implemented: `packages/rpg-domain` owns a
+  tiny RPG/idle map, semantic asset catalog, entities, and gather action, while
+  `apps/rpg-idle-demo` renders it through `@aedventure/game-renderer-phaser`.
+- The RPG demo imports the neutral packages (`game-assets`, `game-map`,
+  `game-input`, `game-renderer-phaser`) and explicitly avoids
+  `office-domain`. It has one hero, one tree resource node, one cabin/site, one
+  gathering zone, and one local gather action with no accounts or persistence.
+- Browser smoke now covers RPG load -> gather -> move -> run toggle -> reset and
+  captures a nonblank canvas screenshot. A canvas layout feedback issue was fixed
+  by positioning the Phaser canvas absolutely inside a stable host.
+- Verification passed: `npm run check`, `npm run qa:responsive`,
+  `node scripts/rpg-idle-demo-smoke.test.cjs`. The standalone
+  `develop-web-game` client still fails before browser launch because the
+  skill-local script cannot resolve its own `playwright` import.
 - Phase 6 camera excellence is implemented: the Phaser renderer now exposes
   follow-player and fit-room modes, named zoom presets, mobile default zoom,
   viewport-tuned deadzones, constrained camera bounds, local-player visibility,

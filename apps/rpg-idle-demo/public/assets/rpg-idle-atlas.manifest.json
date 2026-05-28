@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "atlasId": "atlas.internal.rpg.procedural_v1",
+  "sourceId": "internal.generated.rpg.procedural_v1",
+  "tilesetId": "tileset.internal.rpg.procedural",
+  "source": {
+    "license": "AGPL-3.0-or-later",
+    "redistributionAllowed": "yes",
+    "commercialUseAllowed": "yes",
+    "bundledInTargetApp": true,
+    "externalImageInputs": []
+  },
+  "image": {
+    "path": "assets/rpg-idle-atlas.svg",
+    "width": 32,
+    "height": 32,
+    "tileSize": 32,
+    "exportScale": 1,
+    "retinaStrategy": "single_scale_procedural_fallback"
+  },
+  "frames": []
+}
