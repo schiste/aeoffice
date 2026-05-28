@@ -79,7 +79,7 @@ export class AdvancedInputPlugin {
     this.scene.input.on("pointerdown", this.handlePointerDown, this)
     this.scene.input.on("pointerup", this.handlePointerUp, this)
     this.scene.input.on("pointerupoutside", this.handlePointerUp, this)
-    this.scene.input.on("pointerout", this.handlePointerOut, this)
+    this.scene.input.on("gameout", this.handlePointerOut, this)
     this.scene.input.on("dragstart", this.handleDragStart, this)
     this.scene.input.on("drag", this.handleDrag, this)
     this.scene.input.on("dragend", this.handleDragEnd, this)
@@ -188,7 +188,15 @@ export class AdvancedInputPlugin {
     zone.setSize(bounds.width, bounds.height)
     zone.setInteractive()
     this.scene.input.setDraggable(zone, true)
-    zone.on("pointerover", () => this.setHoveredObject(object.id))
+    zone.on("pointerover", (pointer: Phaser.Input.Pointer) => {
+      this.recordPointer(pointer, true)
+      this.updateHoveredZoneFromPointer()
+      this.setHoveredObject(object.id)
+    })
+    zone.on("pointermove", (pointer: Phaser.Input.Pointer) => {
+      this.recordPointer(pointer, true)
+      this.updateHoveredZoneFromPointer()
+    })
     zone.on("pointerout", () => this.setHoveredObject(undefined))
     zone.on("pointerdown", () => this.selectObject(object.id, object.tokenId))
 

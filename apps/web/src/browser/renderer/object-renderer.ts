@@ -295,18 +295,35 @@ export class ObjectRenderer {
     const height = token.heightTiles * tileSize
     const visualFootprint = token.asset?.visualFootprint
     const zAnchor = token.asset?.zAnchor
-    const shadowWidth = clampNumber(
-      (visualFootprint?.width ?? width) * objectShadowWidthRatio(token.id),
-      tileSize * 0.46,
-      Math.max(tileSize * 0.7, width * 0.94),
-    )
-    const shadowHeight = clampNumber(
-      (visualFootprint?.height ?? height) * objectShadowHeightRatio(token.id),
-      5,
-      Math.max(8, tileSize * 0.42),
-    )
-    const centerX = tileX * tileSize + (zAnchor?.x ?? width / 2)
-    const centerY = tileY * tileSize + (zAnchor?.y ?? height - tileSize * 0.12)
+    const shadowFootprint = token.asset?.shadowFootprint
+    const metadataShadow =
+      shadowFootprint && shadowFootprint.width > 0 && shadowFootprint.height > 0
+        ? shadowFootprint
+        : undefined
+    const shadowWidth =
+      metadataShadow?.width ??
+      clampNumber(
+        (visualFootprint?.width ?? width) * objectShadowWidthRatio(token.id),
+        tileSize * 0.46,
+        Math.max(tileSize * 0.7, width * 0.94),
+      )
+    const shadowHeight =
+      metadataShadow?.height ??
+      clampNumber(
+        (visualFootprint?.height ?? height) * objectShadowHeightRatio(token.id),
+        5,
+        Math.max(8, tileSize * 0.42),
+      )
+    const centerX =
+      tileX * tileSize +
+      (metadataShadow
+        ? metadataShadow.x + metadataShadow.width / 2
+        : (zAnchor?.x ?? width / 2))
+    const centerY =
+      tileY * tileSize +
+      (metadataShadow
+        ? metadataShadow.y + metadataShadow.height / 2
+        : (zAnchor?.y ?? height - tileSize * 0.12))
 
     shadow.setName(`shadow:${token.id}:${tileX},${tileY}`)
     shadow.setPosition(centerX + objectShadowOffsetX(token.id), centerY - 1)

@@ -1067,7 +1067,9 @@ export interface RendererAssetPipelineInfo {
     readonly frameCount: number
     readonly collisionFootprintCount: number
     readonly visualFootprintCount: number
+    readonly shadowFootprintCount: number
     readonly zAnchorCount: number
+    readonly interactionAffordanceCount: number
     readonly occlusionSplitCount: number
     readonly variantCount: number
     readonly tenantThemeTagCount: number

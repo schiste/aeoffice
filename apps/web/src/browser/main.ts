@@ -4366,7 +4366,6 @@ function worldInteractionCandidatesForObjects(
   )
   const candidates: RendererWorldInteractionCandidate[] = []
   const tileSize = fixtureMap.compiled.tileSize
-  const interactionRadius = tileSize * WORLD_INTERACTION_OBJECT_RADIUS_TILES
 
   fixtureMap.compiled.layers.objects.gids.forEach((row, y) => {
     row.forEach((gid, x) => {
@@ -4375,9 +4374,11 @@ function worldInteractionCandidatesForObjects(
       const token = tokensByGid.get(gid)
       if (!token) return
 
-      const interaction = objectWorldInteraction(token.id)
+      const interaction = objectWorldInteraction(token)
       if (!interaction) return
 
+      const interactionRadius =
+        tileSize * (interaction.radiusTiles ?? WORLD_INTERACTION_OBJECT_RADIUS_TILES)
       const bounds = {
         x: x * tileSize,
         y: y * tileSize,
@@ -4697,12 +4698,25 @@ function zoneActionPrompt(
 }
 
 function objectWorldInteraction(
-  tokenId: string,
+  token: FixtureToken,
 ): {
   readonly action: RendererWorldInteractionAction
   readonly label: string
   readonly prompt: string
+  readonly radiusTiles?: number
 } | undefined {
+  const assetInteraction = token.asset?.interaction
+  if (assetInteraction && assetInteraction.affordance !== "none") {
+    return {
+      action:
+        assetInteraction.affordance === "open" ? "open_door" : "use_object",
+      label: assetInteraction.label ?? objectInteractionLabel(token.id),
+      prompt: assetInteraction.prompt ?? objectInteractionPrompt(token.id),
+      radiusTiles: assetInteraction.radiusTiles,
+    }
+  }
+
+  const tokenId = token.id
   const raw = tokenId.toLowerCase()
 
   if (raw.includes("door")) {
@@ -4730,6 +4744,27 @@ function objectWorldInteraction(
     }
   }
   return undefined
+}
+
+function objectInteractionLabel(tokenId: string): string {
+  const raw = tokenId.toLowerCase()
+  if (raw.includes("door")) return "Door"
+  if (raw.includes("coffee")) return "Coffee bar"
+  if (raw.includes("couch") || raw.includes("sofa")) return "Couch"
+  if (raw.includes("chair")) return "Chair"
+  if (raw.includes("whiteboard")) return "Whiteboard"
+  if (raw.includes("desk")) return "Work desk"
+  if (raw.includes("bookshelf")) return "Bookshelf"
+  if (raw.includes("lamp")) return "Floor lamp"
+  if (raw.includes("table")) return "Table"
+  return "Object"
+}
+
+function objectInteractionPrompt(tokenId: string): string {
+  const label = objectInteractionLabel(tokenId)
+  if (label === "Door") return "Open door"
+  if (label === "Chair" || label === "Couch") return `Use ${label.toLowerCase()}`
+  return `Use ${label.toLowerCase()}`
 }
 
 function pointInBounds(position: Vector2, bounds: { readonly x: number; readonly y: number; readonly width: number; readonly height: number }): boolean {

@@ -30,6 +30,15 @@ export type VisualAssetVariantRole =
   | "tenant_tint"
   | "accent"
 
+export type VisualAssetInteractionAffordance =
+  | "none"
+  | "open"
+  | "serve"
+  | "sit"
+  | "gather"
+  | "decorate"
+  | "inspect"
+
 export interface VisualAssetVariantMetadata {
   readonly id: string
   readonly label: string
@@ -90,10 +99,20 @@ export interface VisualAssetFrameMetadata {
   readonly anchor: VisualAssetPoint
   readonly collisionFootprint: VisualAssetFootprint
   readonly visualFootprint: VisualAssetFootprint
+  readonly shadowFootprint: VisualAssetFootprint
   readonly zAnchor: VisualAssetPoint
+  readonly interaction: VisualAssetInteractionMetadata
   readonly occlusion: VisualAssetOcclusionMetadata
   readonly themeTags: readonly VisualAssetThemeTag[]
   readonly variants: readonly VisualAssetVariantMetadata[]
+}
+
+export interface VisualAssetInteractionMetadata {
+  readonly affordance: VisualAssetInteractionAffordance
+  readonly label?: string
+  readonly prompt?: string
+  readonly radiusTiles?: number
+  readonly priority?: number
 }
 
 export interface VisualAssetOcclusionMetadata {
@@ -296,7 +315,9 @@ const INTERNAL_POLISHED_ATLAS_EXPORT_SCALE = 2
 interface InternalAtlasFrameOptions {
   readonly collisionFootprint?: VisualAssetFootprint
   readonly visualFootprint?: VisualAssetFootprint
+  readonly shadowFootprint?: VisualAssetFootprint
   readonly zAnchor?: VisualAssetPoint
+  readonly interaction?: VisualAssetInteractionMetadata
   readonly occlusionSplitAtY?: number
   readonly foregroundFootprint?: VisualAssetFootprint
   readonly themeTags?: readonly VisualAssetThemeTag[]
@@ -369,9 +390,13 @@ function internalAtlasFrame(
       width,
       height,
     },
+    shadowFootprint: options.shadowFootprint ?? defaultShadowFootprint(frameId, width, height),
     zAnchor: options.zAnchor ?? {
       x: width / 2,
       y: height,
+    },
+    interaction: options.interaction ?? {
+      affordance: "none",
     },
     occlusion:
       occlusionMode === "foreground"
@@ -385,6 +410,26 @@ function internalAtlasFrame(
           },
     themeTags,
     variants: options.variants ?? defaultVariants(frameId, themeTags),
+  }
+}
+
+function defaultShadowFootprint(
+  frameId: string,
+  width: number,
+  height: number,
+): VisualAssetFootprint {
+  if (frameId.startsWith("floor.")) {
+    return { x: 0, y: 0, width: 0, height: 0 }
+  }
+
+  const shadowWidth = Math.max(12, Math.round(width * 0.72))
+  const shadowHeight = Math.max(4, Math.round(height * 0.16))
+
+  return {
+    x: Math.round((width - shadowWidth) / 2),
+    y: Math.max(0, height - shadowHeight - 2),
+    width: shadowWidth,
+    height: shadowHeight,
   }
 }
 
@@ -631,7 +676,15 @@ export const starterVisualAssetCatalog: VisualAssetCatalog = {
       asset: internalAtlasFrame("item.large_conference_table", 3, 2, true, "y_sort", {
         collisionFootprint: { x: 8, y: 18, width: 80, height: 38 },
         visualFootprint: { x: 0, y: 4, width: 96, height: 58 },
+        shadowFootprint: { x: 8, y: 50, width: 80, height: 10 },
         zAnchor: { x: 48, y: 58 },
+        interaction: {
+          affordance: "gather",
+          label: "Conference table",
+          prompt: "Use meeting table",
+          radiusTiles: 1.4,
+          priority: 30,
+        },
         themeTags: ["meeting", "cozy_wood", "brandable"],
       }),
       tags: ["meeting", "table", "office"],
@@ -649,7 +702,15 @@ export const starterVisualAssetCatalog: VisualAssetCatalog = {
       asset: internalAtlasFrame("item.small_round_table", 2, 2, true, "y_sort", {
         collisionFootprint: { x: 8, y: 18, width: 48, height: 36 },
         visualFootprint: { x: 0, y: 1, width: 64, height: 62 },
+        shadowFootprint: { x: 11, y: 48, width: 42, height: 10 },
         zAnchor: { x: 32, y: 58 },
+        interaction: {
+          affordance: "gather",
+          label: "Table",
+          prompt: "Use table",
+          radiusTiles: 1.1,
+          priority: 28,
+        },
         themeTags: ["meeting", "lounge", "brandable"],
       }),
       tags: ["meeting", "table", "coffee", "office"],
@@ -667,7 +728,15 @@ export const starterVisualAssetCatalog: VisualAssetCatalog = {
       asset: internalAtlasFrame("item.office_chair", 1, 1, true, "y_sort", {
         collisionFootprint: { x: 7, y: 12, width: 18, height: 16 },
         visualFootprint: { x: 5, y: 6, width: 22, height: 22 },
+        shadowFootprint: { x: 7, y: 21, width: 18, height: 5 },
         zAnchor: { x: 16, y: 28 },
+        interaction: {
+          affordance: "sit",
+          label: "Chair",
+          prompt: "Sit down",
+          radiusTiles: 0.9,
+          priority: 16,
+        },
         themeTags: ["meeting", "brandable"],
       }),
       tags: ["meeting", "chair", "office"],
@@ -685,7 +754,15 @@ export const starterVisualAssetCatalog: VisualAssetCatalog = {
       asset: internalAtlasFrame("item.coffee_machine", 1, 1, true, "y_sort", {
         collisionFootprint: { x: 9, y: 8, width: 14, height: 18 },
         visualFootprint: { x: 7, y: 5, width: 18, height: 23 },
+        shadowFootprint: { x: 8, y: 23, width: 16, height: 5 },
         zAnchor: { x: 16, y: 27 },
+        interaction: {
+          affordance: "serve",
+          label: "Coffee machine",
+          prompt: "Brew coffee",
+          radiusTiles: 1,
+          priority: 35,
+        },
         themeTags: ["kitchen", "brandable"],
       }),
       tags: ["kitchen", "coffee", "office"],
@@ -703,7 +780,15 @@ export const starterVisualAssetCatalog: VisualAssetCatalog = {
       asset: internalAtlasFrame("item.plant_potted", 1, 1, true, "y_sort", {
         collisionFootprint: { x: 8, y: 18, width: 16, height: 10 },
         visualFootprint: { x: 5, y: 4, width: 22, height: 25 },
+        shadowFootprint: { x: 7, y: 22, width: 18, height: 6 },
         zAnchor: { x: 16, y: 28 },
+        interaction: {
+          affordance: "decorate",
+          label: "Plant",
+          prompt: "Inspect plant",
+          radiusTiles: 0.9,
+          priority: 10,
+        },
         themeTags: ["biophilic", "brandable"],
       }),
       tags: ["decor", "plant", "office"],
@@ -721,7 +806,15 @@ export const starterVisualAssetCatalog: VisualAssetCatalog = {
       asset: internalAtlasFrame("item.coffee_bar", 2, 1, true, "y_sort", {
         collisionFootprint: { x: 4, y: 10, width: 56, height: 18 },
         visualFootprint: { x: 0, y: 6, width: 64, height: 24 },
+        shadowFootprint: { x: 6, y: 23, width: 52, height: 6 },
         zAnchor: { x: 32, y: 29 },
+        interaction: {
+          affordance: "serve",
+          label: "Coffee bar",
+          prompt: "Use coffee bar",
+          radiusTiles: 1.35,
+          priority: 36,
+        },
         themeTags: ["kitchen", "lounge", "brandable"],
       }),
       tags: ["kitchen", "coffee", "bar", "office"],
@@ -738,7 +831,15 @@ export const starterVisualAssetCatalog: VisualAssetCatalog = {
       collidable: false,
       asset: internalAtlasFrame("item.door_single", 1, 1, false, "y_sort", {
         visualFootprint: { x: 7, y: 4, width: 18, height: 24 },
+        shadowFootprint: { x: 6, y: 25, width: 20, height: 5 },
         zAnchor: { x: 16, y: 29 },
+        interaction: {
+          affordance: "open",
+          label: "Door",
+          prompt: "Open door",
+          radiusTiles: 1,
+          priority: 55,
+        },
         themeTags: ["entry", "brandable"],
       }),
       tags: ["door", "entry", "office"],
@@ -758,10 +859,174 @@ export const starterVisualAssetCatalog: VisualAssetCatalog = {
       asset: internalAtlasFrame("item.lounge_couch", 2, 1, true, "y_sort", {
         collisionFootprint: { x: 3, y: 11, width: 58, height: 16 },
         visualFootprint: { x: 0, y: 7, width: 64, height: 22 },
+        shadowFootprint: { x: 4, y: 22, width: 56, height: 6 },
         zAnchor: { x: 32, y: 28 },
+        interaction: {
+          affordance: "sit",
+          label: "Couch",
+          prompt: "Sit on couch",
+          radiusTiles: 1.25,
+          priority: 20,
+        },
         themeTags: ["lounge", "quiet_carpet", "brandable"],
       }),
       tags: ["lounge", "couch", "sofa", "office"],
+    },
+    {
+      id: "item.modular_work_desk",
+      kind: "item",
+      layer: "object",
+      sourceId: INTERNAL_POLISHED_SOURCE_ID,
+      tilesetId: INTERNAL_POLISHED_TILESET_ID,
+      provisionalGid: 310,
+      widthTiles: 2,
+      heightTiles: 1,
+      collidable: true,
+      asset: internalAtlasFrame("item.modular_work_desk", 2, 1, true, "y_sort", {
+        collisionFootprint: { x: 4, y: 10, width: 56, height: 18 },
+        visualFootprint: { x: 0, y: 5, width: 64, height: 25 },
+        shadowFootprint: { x: 6, y: 23, width: 52, height: 7 },
+        zAnchor: { x: 32, y: 29 },
+        interaction: {
+          affordance: "gather",
+          label: "Work desk",
+          prompt: "Use desk",
+          radiusTiles: 1.15,
+          priority: 26,
+        },
+        themeTags: ["meeting", "neutral_office", "brandable"],
+      }),
+      tags: ["desk", "workstation", "meeting", "office"],
+    },
+    {
+      id: "item.whiteboard_wall",
+      kind: "item",
+      layer: "object",
+      sourceId: INTERNAL_POLISHED_SOURCE_ID,
+      tilesetId: INTERNAL_POLISHED_TILESET_ID,
+      provisionalGid: 311,
+      widthTiles: 2,
+      heightTiles: 1,
+      collidable: true,
+      asset: internalAtlasFrame("item.whiteboard_wall", 2, 1, true, "y_sort", {
+        collisionFootprint: { x: 3, y: 6, width: 58, height: 22 },
+        visualFootprint: { x: 2, y: 2, width: 60, height: 26 },
+        shadowFootprint: { x: 6, y: 25, width: 52, height: 5 },
+        zAnchor: { x: 32, y: 30 },
+        interaction: {
+          affordance: "inspect",
+          label: "Whiteboard",
+          prompt: "Use whiteboard",
+          radiusTiles: 1.2,
+          priority: 32,
+        },
+        themeTags: ["meeting", "modern_light", "brandable"],
+      }),
+      tags: ["meeting", "whiteboard", "presentation", "office"],
+    },
+    {
+      id: "item.armchair_lounge",
+      kind: "item",
+      layer: "object",
+      sourceId: INTERNAL_POLISHED_SOURCE_ID,
+      tilesetId: INTERNAL_POLISHED_TILESET_ID,
+      provisionalGid: 312,
+      widthTiles: 1,
+      heightTiles: 1,
+      collidable: true,
+      asset: internalAtlasFrame("item.armchair_lounge", 1, 1, true, "y_sort", {
+        collisionFootprint: { x: 6, y: 11, width: 20, height: 17 },
+        visualFootprint: { x: 3, y: 5, width: 26, height: 24 },
+        shadowFootprint: { x: 6, y: 24, width: 20, height: 5 },
+        zAnchor: { x: 16, y: 29 },
+        interaction: {
+          affordance: "sit",
+          label: "Armchair",
+          prompt: "Sit in armchair",
+          radiusTiles: 1,
+          priority: 21,
+        },
+        themeTags: ["lounge", "quiet_carpet", "brandable"],
+      }),
+      tags: ["lounge", "chair", "armchair", "office"],
+    },
+    {
+      id: "item.bookshelf_low",
+      kind: "item",
+      layer: "object",
+      sourceId: INTERNAL_POLISHED_SOURCE_ID,
+      tilesetId: INTERNAL_POLISHED_TILESET_ID,
+      provisionalGid: 313,
+      widthTiles: 2,
+      heightTiles: 1,
+      collidable: true,
+      asset: internalAtlasFrame("item.bookshelf_low", 2, 1, true, "y_sort", {
+        collisionFootprint: { x: 3, y: 8, width: 58, height: 20 },
+        visualFootprint: { x: 0, y: 2, width: 64, height: 27 },
+        shadowFootprint: { x: 5, y: 24, width: 54, height: 6 },
+        zAnchor: { x: 32, y: 29 },
+        interaction: {
+          affordance: "inspect",
+          label: "Bookshelf",
+          prompt: "Browse shelf",
+          radiusTiles: 1,
+          priority: 14,
+        },
+        themeTags: ["lounge", "neutral_office", "brandable"],
+      }),
+      tags: ["lounge", "bookshelf", "storage", "office"],
+    },
+    {
+      id: "item.floor_lamp",
+      kind: "item",
+      layer: "object",
+      sourceId: INTERNAL_POLISHED_SOURCE_ID,
+      tilesetId: INTERNAL_POLISHED_TILESET_ID,
+      provisionalGid: 314,
+      widthTiles: 1,
+      heightTiles: 1,
+      collidable: true,
+      asset: internalAtlasFrame("item.floor_lamp", 1, 1, true, "y_sort", {
+        collisionFootprint: { x: 12, y: 20, width: 8, height: 8 },
+        visualFootprint: { x: 9, y: 2, width: 14, height: 27 },
+        shadowFootprint: { x: 9, y: 25, width: 14, height: 5 },
+        zAnchor: { x: 16, y: 29 },
+        interaction: {
+          affordance: "inspect",
+          label: "Floor lamp",
+          prompt: "Adjust lamp",
+          radiusTiles: 0.9,
+          priority: 12,
+        },
+        themeTags: ["lounge", "neutral_office", "brandable"],
+      }),
+      tags: ["lounge", "lamp", "lighting", "office"],
+    },
+    {
+      id: "item.side_table",
+      kind: "item",
+      layer: "object",
+      sourceId: INTERNAL_POLISHED_SOURCE_ID,
+      tilesetId: INTERNAL_POLISHED_TILESET_ID,
+      provisionalGid: 315,
+      widthTiles: 1,
+      heightTiles: 1,
+      collidable: true,
+      asset: internalAtlasFrame("item.side_table", 1, 1, true, "y_sort", {
+        collisionFootprint: { x: 6, y: 12, width: 20, height: 14 },
+        visualFootprint: { x: 4, y: 8, width: 24, height: 20 },
+        shadowFootprint: { x: 6, y: 24, width: 20, height: 5 },
+        zAnchor: { x: 16, y: 28 },
+        interaction: {
+          affordance: "inspect",
+          label: "Side table",
+          prompt: "Use side table",
+          radiusTiles: 0.9,
+          priority: 15,
+        },
+        themeTags: ["lounge", "cozy_wood", "brandable"],
+      }),
+      tags: ["lounge", "table", "side-table", "office"],
     },
     {
       id: "avatar.local_placeholder",
@@ -1005,6 +1270,10 @@ export function validateVisualAssetCatalog(
         errors.push(`Token ${token.id} visual footprint is outside asset bounds`)
       }
 
+      if (!footprintWithinAsset(token.asset.shadowFootprint, token.asset.size)) {
+        errors.push(`Token ${token.id} shadow footprint is outside asset bounds`)
+      }
+
       if (
         token.asset.collisionFootprint.width > 0 &&
         !footprintWithinAsset(token.asset.collisionFootprint, token.asset.size)
@@ -1053,6 +1322,27 @@ export function validateVisualAssetCatalog(
 
       if (token.asset.variants.length === 0) {
         errors.push(`Token ${token.id} asset must declare at least one variant`)
+      }
+
+      if (token.kind === "item") {
+        if (
+          token.asset.shadowFootprint.width <= 0 ||
+          token.asset.shadowFootprint.height <= 0
+        ) {
+          errors.push(`Token ${token.id} item asset needs a shadow footprint`)
+        }
+
+        if (
+          token.asset.interaction.affordance !== "none" &&
+          (!token.asset.interaction.label ||
+            !token.asset.interaction.prompt ||
+            !token.asset.interaction.radiusTiles ||
+            token.asset.interaction.radiusTiles <= 0)
+        ) {
+          errors.push(
+            `Token ${token.id} interactive asset needs label, prompt, and radius`,
+          )
+        }
       }
 
       if (
@@ -1245,6 +1535,13 @@ function promptToSemanticMapDefinition(
   const height = keywords.includes("large") || seatCount >= 10 ? 11 : 10
   const tableX = Math.floor((width - 3) / 2)
   const tableY = Math.floor((height - 2) / 2)
+  const style = promptStyle(keywords)
+  const wantsLounge = keywords.includes("couch") || keywords.includes("lounge")
+  const wantsDesk =
+    keywords.includes("desk") ||
+    keywords.includes("workspace") ||
+    keywords.includes("workstation")
+  const wantsBooks = keywords.includes("bookshelf") || keywords.includes("library")
   const meetingZone = {
     id: "meeting-zone",
     xStart: Math.max(2, tableX - 2),
@@ -1259,7 +1556,7 @@ function promptToSemanticMapDefinition(
       width,
       height,
     },
-    style: "cozy_wood",
+    style,
     layers: {
       walls: perimeterWalls(
         width,
@@ -1271,6 +1568,8 @@ function promptToSemanticMapDefinition(
       furniture: [
         { x: tableX, y: tableY, item: "large_conference_table" },
         ...chairPlacements(seatCount, tableX, tableY),
+        { x: 2, y: 1, item: "whiteboard_wall" as const },
+        { x: width - 4, y: height - 3, item: "side_table" as const },
         ...(keywords.includes("coffee")
           ? [
               {
@@ -1282,14 +1581,35 @@ function promptToSemanticMapDefinition(
               },
             ]
           : []),
-        ...(keywords.includes("plant")
+        ...(keywords.includes("plant") || !wantsLounge
           ? [
               { x: 2, y: 2, item: "plant_potted" as const },
-              { x: width - 3, y: height - 3, item: "plant_potted" as const },
+              { x: width - 3, y: height - 4, item: "plant_potted" as const },
             ]
           : []),
-        ...(keywords.includes("couch")
-          ? [{ x: 2, y: height - 3, item: "lounge_couch" as const }]
+        ...(wantsLounge
+          ? [
+              { x: 2, y: height - 3, item: "lounge_couch" as const },
+              { x: 4, y: height - 3, item: "armchair_lounge" as const },
+              { x: 2, y: height - 4, item: "floor_lamp" as const },
+            ]
+          : []),
+        ...(wantsDesk
+          ? [
+              {
+                x: wantsLounge ? width - 6 : 2,
+                y: height - 4,
+                item: "modular_work_desk" as const,
+              },
+              {
+                x: wantsLounge ? width - 4 : 4,
+                y: height - 4,
+                item: "office_chair" as const,
+              },
+            ]
+          : []),
+        ...(wantsBooks
+          ? [{ x: width - 5, y: 1, item: "bookshelf_low" as const }]
           : []),
         ...(keywords.includes("door")
           ? [{ x: 0, y: Math.floor(height / 2), item: "door_single" as const }]
@@ -1298,6 +1618,13 @@ function promptToSemanticMapDefinition(
       zones: [meetingZone],
     },
   }
+}
+
+function promptStyle(keywords: readonly string[]): string {
+  if (keywords.includes("quiet") || keywords.includes("lounge")) return "quiet_carpet"
+  if (keywords.includes("modern") || keywords.includes("glass")) return "modern_light"
+  if (keywords.includes("neutral")) return "neutral_office"
+  return "cozy_wood"
 }
 
 function promptKeywords(prompt: string): readonly string[] {
@@ -1317,6 +1644,18 @@ function promptKeywords(prompt: string): readonly string[] {
     "couches",
     "sofa",
     "sofas",
+    "lounge",
+    "quiet",
+    "modern",
+    "glass",
+    "neutral",
+    "desk",
+    "desks",
+    "workspace",
+    "workstation",
+    "whiteboard",
+    "bookshelf",
+    "library",
     "door",
     "doors",
     "large",
@@ -1336,6 +1675,7 @@ function promptKeywords(prompt: string): readonly string[] {
   if (keywords.has("couches")) keywords.add("couch")
   if (keywords.has("sofa")) keywords.add("couch")
   if (keywords.has("sofas")) keywords.add("couch")
+  if (keywords.has("desks")) keywords.add("desk")
   if (keywords.has("doors")) keywords.add("door")
 
   return [...keywords].sort()
@@ -1371,9 +1711,12 @@ function presetMapDefinition(id: PresetMapId): {
               { x: 2, y: 9, item: "door_single" },
               { x: 3, y: 3, item: "plant_potted" },
               { x: 12, y: 3, item: "plant_potted" },
+              { x: 10, y: 2, item: "bookshelf_low" },
+              { x: 13, y: 6, item: "floor_lamp" },
               { x: 6, y: 4, item: "small_round_table" },
               { x: 5, y: 4, item: "office_chair", direction: "east" },
               { x: 8, y: 4, item: "office_chair", direction: "west" },
+              { x: 5, y: 6, item: "modular_work_desk" },
               { x: 11, y: 6, item: "coffee_machine" },
             ],
             zones: [
@@ -1403,9 +1746,11 @@ function presetMapDefinition(id: PresetMapId): {
             walls: perimeterWalls(14, 11, [{ edge: "left", offset: 5 }]),
             furniture: [
               { x: 0, y: 5, item: "door_single" },
+              { x: 2, y: 1, item: "whiteboard_wall" },
               { x: 5, y: 4, item: "large_conference_table" },
               ...chairPlacements(10, 5, 4),
               { x: 10, y: 2, item: "coffee_bar" },
+              { x: 10, y: 8, item: "side_table" },
               { x: 2, y: 2, item: "plant_potted" },
               { x: 11, y: 8, item: "plant_potted" },
             ],
@@ -1437,7 +1782,11 @@ function presetMapDefinition(id: PresetMapId): {
             furniture: [
               { x: 0, y: 6, item: "door_single" },
               { x: 10, y: 2, item: "coffee_bar" },
+              { x: 2, y: 7, item: "bookshelf_low" },
+              { x: 13, y: 3, item: "floor_lamp" },
               { x: 10, y: 6, item: "lounge_couch" },
+              { x: 12, y: 5, item: "armchair_lounge" },
+              { x: 9, y: 5, item: "side_table" },
               { x: 4, y: 3, item: "small_round_table" },
               { x: 3, y: 3, item: "office_chair", direction: "east" },
               { x: 6, y: 3, item: "office_chair", direction: "west" },
@@ -1482,7 +1831,13 @@ function perimeterWalls(
       walls.push({
         x,
         y: 0,
-        type: x === 0 || x === width - 1 ? "corner" : "straight",
+        type:
+          x === 0 ||
+          x === width - 1 ||
+          hasWallOpening(openings, "top", x - 1) ||
+          hasWallOpening(openings, "top", x + 1)
+            ? "corner"
+            : "straight",
       })
     }
 
@@ -1490,18 +1845,40 @@ function perimeterWalls(
       walls.push({
         x,
         y: height - 1,
-        type: x === 0 || x === width - 1 ? "corner" : "straight",
+        type:
+          x === 0 ||
+          x === width - 1 ||
+          hasWallOpening(openings, "bottom", x - 1) ||
+          hasWallOpening(openings, "bottom", x + 1)
+            ? "corner"
+            : "straight",
       })
     }
   }
 
   for (let y = 1; y < height - 1; y += 1) {
     if (!hasWallOpening(openings, "left", y)) {
-      walls.push({ x: 0, y, type: "straight" })
+      walls.push({
+        x: 0,
+        y,
+        type:
+          hasWallOpening(openings, "left", y - 1) ||
+          hasWallOpening(openings, "left", y + 1)
+            ? "corner"
+            : "straight",
+      })
     }
 
     if (!hasWallOpening(openings, "right", y)) {
-      walls.push({ x: width - 1, y, type: "straight" })
+      walls.push({
+        x: width - 1,
+        y,
+        type:
+          hasWallOpening(openings, "right", y - 1) ||
+          hasWallOpening(openings, "right", y + 1)
+            ? "corner"
+            : "straight",
+      })
     }
   }
 

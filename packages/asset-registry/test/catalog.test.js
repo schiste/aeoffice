@@ -59,6 +59,12 @@ const stableTargetTokenIds = [
   "item.coffee_bar",
   "item.door_single",
   "item.lounge_couch",
+  "item.modular_work_desk",
+  "item.whiteboard_wall",
+  "item.armchair_lounge",
+  "item.bookshelf_low",
+  "item.floor_lamp",
+  "item.side_table",
   "avatar.local_placeholder",
   "avatar.ember",
   "avatar.cobalt",
@@ -77,6 +83,8 @@ for (const tokenId of stableTargetTokenIds) {
   assert.equal(token.asset.size.exportScale, 2)
   assert.ok(token.asset.visualFootprint.width <= token.widthTiles * 32)
   assert.ok(token.asset.visualFootprint.height <= token.heightTiles * 32)
+  assert.ok(token.asset.shadowFootprint.width <= token.widthTiles * 32)
+  assert.ok(token.asset.shadowFootprint.height <= token.heightTiles * 32)
   assert.ok(token.asset.zAnchor.y <= token.heightTiles * 32)
   assert.ok(["none", "y_sort", "foreground"].includes(token.asset.occlusion.mode))
   assert.ok(token.asset.themeTags.length >= 1)
@@ -127,6 +135,20 @@ assert.equal(tokensById.get("item.plant_potted").provisionalGid, 306)
 assert.equal(tokensById.get("item.coffee_bar").provisionalGid, 307)
 assert.equal(tokensById.get("item.door_single").provisionalGid, 308)
 assert.equal(tokensById.get("item.lounge_couch").provisionalGid, 309)
+assert.equal(tokensById.get("item.modular_work_desk").provisionalGid, 310)
+assert.equal(tokensById.get("item.whiteboard_wall").provisionalGid, 311)
+assert.equal(tokensById.get("item.armchair_lounge").provisionalGid, 312)
+assert.equal(tokensById.get("item.bookshelf_low").provisionalGid, 313)
+assert.equal(tokensById.get("item.floor_lamp").provisionalGid, 314)
+assert.equal(tokensById.get("item.side_table").provisionalGid, 315)
+assert.deepEqual(tokensById.get("item.whiteboard_wall").asset.interaction, {
+  affordance: "inspect",
+  label: "Whiteboard",
+  prompt: "Use whiteboard",
+  radiusTiles: 1.2,
+  priority: 32,
+})
+assert.equal(tokensById.get("item.coffee_bar").asset.interaction.affordance, "serve")
 assert.equal(
   sourcesById.get("legacy.skyoffice.tileset.modern_office").bundledInTargetApp,
   false,
@@ -218,7 +240,18 @@ assert.ok(
     (item) => item.item === "coffee_bar",
   ),
 )
+assert.ok(
+  generated.definition.layers.furniture.some(
+    (item) => item.item === "whiteboard_wall",
+  ),
+)
+assert.ok(
+  generated.definition.layers.furniture.some(
+    (item) => item.item === "side_table",
+  ),
+)
 assert.ok(generated.compiled.referencedTokenIds.includes("item.coffee_bar"))
+assert.ok(generated.compiled.referencedTokenIds.includes("item.whiteboard_wall"))
 assert.ok(generated.compiled.blockedTiles.length > compiled.blockedTiles.length)
 assert.deepEqual(generated.validation.spawnIds, ["default", "guest"])
 assert.deepEqual(generated.validation.zoneIds, ["meeting-zone"])
@@ -278,16 +311,20 @@ const lobby = compilePresetMap("lobby")
 assert.equal(lobby.definition.style, "modern_light")
 assert.equal(lobby.compiled.width, 16)
 assert.ok(lobby.compiled.referencedTokenIds.includes("item.coffee_machine"))
+assert.ok(lobby.compiled.referencedTokenIds.includes("item.modular_work_desk"))
 
 const meetingRoom = compilePresetMap("meeting_room")
 assert.equal(meetingRoom.definition.style, "cozy_wood")
 assert.ok(meetingRoom.compiled.referencedTokenIds.includes("item.coffee_bar"))
+assert.ok(meetingRoom.compiled.referencedTokenIds.includes("item.whiteboard_wall"))
 assert.ok(meetingRoom.validation.zoneIds.includes("meeting-zone"))
 
 const loungeCafe = compilePresetMap("lounge_cafe")
 assert.equal(loungeCafe.definition.style, "quiet_carpet")
 assert.ok(loungeCafe.compiled.referencedTokenIds.includes("item.small_round_table"))
 assert.ok(loungeCafe.compiled.referencedTokenIds.includes("item.lounge_couch"))
+assert.ok(loungeCafe.compiled.referencedTokenIds.includes("item.armchair_lounge"))
+assert.ok(loungeCafe.compiled.referencedTokenIds.includes("item.bookshelf_low"))
 assert.ok(loungeCafe.compiled.referencedTokenIds.includes("wall.neutral.straight"))
 assert.ok(loungeCafe.validation.zoneIds.includes("lounge-zone"))
 

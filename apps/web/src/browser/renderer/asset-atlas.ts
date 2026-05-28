@@ -79,9 +79,22 @@ export interface InternalOfficeAtlasFrame {
     readonly width: number
     readonly height: number
   }
+  readonly shadowFootprint?: {
+    readonly x: number
+    readonly y: number
+    readonly width: number
+    readonly height: number
+  }
   readonly zAnchor?: {
     readonly x: number
     readonly y: number
+  }
+  readonly interaction?: {
+    readonly affordance: string
+    readonly label?: string
+    readonly prompt?: string
+    readonly radiusTiles?: number
+    readonly priority?: number
   }
   readonly themeTags?: readonly string[]
   readonly variants?: readonly {
@@ -313,14 +326,20 @@ function assetMetadataInfo(
   const themeTags = new Set<string>()
   let collisionFootprintCount = 0
   let visualFootprintCount = 0
+  let shadowFootprintCount = 0
   let zAnchorCount = 0
+  let interactionAffordanceCount = 0
   let occlusionSplitCount = 0
   let variantCount = 0
 
   manifest.frames.forEach((frame) => {
     if (frame.collisionFootprint) collisionFootprintCount += 1
     if (frame.visualFootprint) visualFootprintCount += 1
+    if (frame.shadowFootprint) shadowFootprintCount += 1
     if (frame.zAnchor) zAnchorCount += 1
+    if (frame.interaction?.affordance && frame.interaction.affordance !== "none") {
+      interactionAffordanceCount += 1
+    }
     if (frame.occlusion?.splitAtY !== undefined) occlusionSplitCount += 1
     frame.themeTags?.forEach((tag) => themeTags.add(tag))
     frame.variants?.forEach((variant) => {
@@ -334,7 +353,9 @@ function assetMetadataInfo(
     frameCount: manifest.frames.length,
     collisionFootprintCount,
     visualFootprintCount,
+    shadowFootprintCount,
     zAnchorCount,
+    interactionAffordanceCount,
     occlusionSplitCount,
     variantCount,
     tenantThemeTagCount: themeTags.size,
@@ -353,7 +374,9 @@ function assetMetadataInfo(
         (frame) =>
           Boolean(frame.collisionFootprint) &&
           Boolean(frame.visualFootprint) &&
+          Boolean(frame.shadowFootprint) &&
           Boolean(frame.zAnchor) &&
+          Boolean(frame.interaction) &&
           Boolean(frame.themeTags?.length) &&
           Boolean(frame.variants?.length),
       ),
@@ -365,7 +388,9 @@ function emptyAssetMetadataInfo(): RendererAssetPipelineInfo["metadata"] {
     frameCount: 0,
     collisionFootprintCount: 0,
     visualFootprintCount: 0,
+    shadowFootprintCount: 0,
     zAnchorCount: 0,
+    interactionAffordanceCount: 0,
     occlusionSplitCount: 0,
     variantCount: 0,
     tenantThemeTagCount: 0,

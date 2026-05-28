@@ -93,9 +93,18 @@
         "width": 32,
         "height": 32
       },
+      "shadowFootprint": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
       "zAnchor": {
         "x": 16,
         "y": 32
+      },
+      "interaction": {
+        "affordance": "none"
       },
       "occlusion": {
         "mode": "none"
@@ -156,9 +165,18 @@
         "width": 32,
         "height": 32
       },
+      "shadowFootprint": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
       "zAnchor": {
         "x": 16,
         "y": 32
+      },
+      "interaction": {
+        "affordance": "none"
       },
       "occlusion": {
         "mode": "none"
@@ -219,9 +237,18 @@
         "width": 32,
         "height": 32
       },
+      "shadowFootprint": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
       "zAnchor": {
         "x": 16,
         "y": 32
+      },
+      "interaction": {
+        "affordance": "none"
       },
       "occlusion": {
         "mode": "none"
@@ -282,9 +309,18 @@
         "width": 32,
         "height": 32
       },
+      "shadowFootprint": {
+        "x": 5,
+        "y": 25,
+        "width": 23,
+        "height": 5
+      },
       "zAnchor": {
         "x": 16,
         "y": 32
+      },
+      "interaction": {
+        "affordance": "none"
       },
       "occlusion": {
         "mode": "foreground",
@@ -352,9 +388,18 @@
         "width": 32,
         "height": 32
       },
+      "shadowFootprint": {
+        "x": 5,
+        "y": 25,
+        "width": 23,
+        "height": 5
+      },
       "zAnchor": {
         "x": 16,
         "y": 32
+      },
+      "interaction": {
+        "affordance": "none"
       },
       "occlusion": {
         "mode": "foreground",
@@ -422,9 +467,18 @@
         "width": 32,
         "height": 32
       },
+      "shadowFootprint": {
+        "x": 5,
+        "y": 25,
+        "width": 23,
+        "height": 5
+      },
       "zAnchor": {
         "x": 16,
         "y": 32
+      },
+      "interaction": {
+        "affordance": "none"
       },
       "occlusion": {
         "mode": "foreground",
@@ -492,9 +546,18 @@
         "width": 32,
         "height": 32
       },
+      "shadowFootprint": {
+        "x": 5,
+        "y": 25,
+        "width": 23,
+        "height": 5
+      },
       "zAnchor": {
         "x": 16,
         "y": 32
+      },
+      "interaction": {
+        "affordance": "none"
       },
       "occlusion": {
         "mode": "foreground",
@@ -562,9 +625,18 @@
         "width": 32,
         "height": 32
       },
+      "shadowFootprint": {
+        "x": 5,
+        "y": 25,
+        "width": 23,
+        "height": 5
+      },
       "zAnchor": {
         "x": 16,
         "y": 32
+      },
+      "interaction": {
+        "affordance": "none"
       },
       "occlusion": {
         "mode": "foreground",
@@ -632,9 +704,18 @@
         "width": 32,
         "height": 32
       },
+      "shadowFootprint": {
+        "x": 5,
+        "y": 25,
+        "width": 23,
+        "height": 5
+      },
       "zAnchor": {
         "x": 16,
         "y": 32
+      },
+      "interaction": {
+        "affordance": "none"
       },
       "occlusion": {
         "mode": "foreground",
@@ -702,9 +783,22 @@
         "width": 96,
         "height": 58
       },
+      "shadowFootprint": {
+        "x": 8,
+        "y": 50,
+        "width": 80,
+        "height": 10
+      },
       "zAnchor": {
         "x": 48,
         "y": 58
+      },
+      "interaction": {
+        "affordance": "gather",
+        "label": "Conference table",
+        "prompt": "Use meeting table",
+        "radiusTiles": 1.4,
+        "priority": 30
       },
       "occlusion": {
         "mode": "y_sort"
@@ -768,9 +862,22 @@
         "width": 64,
         "height": 62
       },
+      "shadowFootprint": {
+        "x": 11,
+        "y": 48,
+        "width": 42,
+        "height": 10
+      },
       "zAnchor": {
         "x": 32,
         "y": 58
+      },
+      "interaction": {
+        "affordance": "gather",
+        "label": "Table",
+        "prompt": "Use table",
+        "radiusTiles": 1.1,
+        "priority": 28
       },
       "occlusion": {
         "mode": "y_sort"
@@ -834,9 +941,22 @@
         "width": 22,
         "height": 22
       },
+      "shadowFootprint": {
+        "x": 7,
+        "y": 21,
+        "width": 18,
+        "height": 5
+      },
       "zAnchor": {
         "x": 16,
         "y": 28
+      },
+      "interaction": {
+        "affordance": "sit",
+        "label": "Chair",
+        "prompt": "Sit down",
+        "radiusTiles": 0.9,
+        "priority": 16
       },
       "occlusion": {
         "mode": "y_sort"
@@ -897,9 +1017,22 @@
         "width": 18,
         "height": 23
       },
+      "shadowFootprint": {
+        "x": 8,
+        "y": 23,
+        "width": 16,
+        "height": 5
+      },
       "zAnchor": {
         "x": 16,
         "y": 27
+      },
+      "interaction": {
+        "affordance": "serve",
+        "label": "Coffee machine",
+        "prompt": "Brew coffee",
+        "radiusTiles": 1,
+        "priority": 35
       },
       "occlusion": {
         "mode": "y_sort"
@@ -960,9 +1093,22 @@
         "width": 22,
         "height": 25
       },
+      "shadowFootprint": {
+        "x": 7,
+        "y": 22,
+        "width": 18,
+        "height": 6
+      },
       "zAnchor": {
         "x": 16,
         "y": 28
+      },
+      "interaction": {
+        "affordance": "decorate",
+        "label": "Plant",
+        "prompt": "Inspect plant",
+        "radiusTiles": 0.9,
+        "priority": 10
       },
       "occlusion": {
         "mode": "y_sort"
@@ -1023,9 +1169,22 @@
         "width": 64,
         "height": 24
       },
+      "shadowFootprint": {
+        "x": 6,
+        "y": 23,
+        "width": 52,
+        "height": 6
+      },
       "zAnchor": {
         "x": 32,
         "y": 29
+      },
+      "interaction": {
+        "affordance": "serve",
+        "label": "Coffee bar",
+        "prompt": "Use coffee bar",
+        "radiusTiles": 1.35,
+        "priority": 36
       },
       "occlusion": {
         "mode": "y_sort"
@@ -1089,9 +1248,22 @@
         "width": 18,
         "height": 24
       },
+      "shadowFootprint": {
+        "x": 6,
+        "y": 25,
+        "width": 20,
+        "height": 5
+      },
       "zAnchor": {
         "x": 16,
         "y": 29
+      },
+      "interaction": {
+        "affordance": "open",
+        "label": "Door",
+        "prompt": "Open door",
+        "radiusTiles": 1,
+        "priority": 55
       },
       "occlusion": {
         "mode": "y_sort"
@@ -1152,9 +1324,22 @@
         "width": 64,
         "height": 22
       },
+      "shadowFootprint": {
+        "x": 4,
+        "y": 22,
+        "width": 56,
+        "height": 6
+      },
       "zAnchor": {
         "x": 32,
         "y": 28
+      },
+      "interaction": {
+        "affordance": "sit",
+        "label": "Couch",
+        "prompt": "Sit on couch",
+        "radiusTiles": 1.25,
+        "priority": 20
       },
       "occlusion": {
         "mode": "y_sort"
@@ -1190,11 +1375,485 @@
       ]
     },
     {
+      "id": "item.modular_work_desk",
+      "tokenId": "item.modular_work_desk",
+      "kind": "item",
+      "x": 384,
+      "y": 192,
+      "width": 128,
+      "height": 64,
+      "size": {
+        "width": 64,
+        "height": 32,
+        "exportScale": 2
+      },
+      "anchor": {
+        "x": 32,
+        "y": 16
+      },
+      "collisionFootprint": {
+        "x": 4,
+        "y": 10,
+        "width": 56,
+        "height": 18
+      },
+      "visualFootprint": {
+        "x": 0,
+        "y": 5,
+        "width": 64,
+        "height": 25
+      },
+      "shadowFootprint": {
+        "x": 6,
+        "y": 23,
+        "width": 52,
+        "height": 7
+      },
+      "zAnchor": {
+        "x": 32,
+        "y": 29
+      },
+      "interaction": {
+        "affordance": "gather",
+        "label": "Work desk",
+        "prompt": "Use desk",
+        "radiusTiles": 1.15,
+        "priority": 26
+      },
+      "occlusion": {
+        "mode": "y_sort"
+      },
+      "themeTags": [
+        "meeting",
+        "neutral_office",
+        "brandable"
+      ],
+      "variants": [
+        {
+          "id": "item.modular_work_desk.default",
+          "label": "Default",
+          "role": "default",
+          "frameId": "item.modular_work_desk",
+          "themeTags": [
+            "meeting",
+            "neutral_office",
+            "brandable"
+          ]
+        },
+        {
+          "id": "item.modular_work_desk.tenant_tint",
+          "label": "Tenant tint",
+          "role": "tenant_tint",
+          "frameId": "item.modular_work_desk",
+          "themeTags": [
+            "meeting",
+            "neutral_office",
+            "brandable"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "item.whiteboard_wall",
+      "tokenId": "item.whiteboard_wall",
+      "kind": "item",
+      "x": 0,
+      "y": 256,
+      "width": 128,
+      "height": 64,
+      "size": {
+        "width": 64,
+        "height": 32,
+        "exportScale": 2
+      },
+      "anchor": {
+        "x": 32,
+        "y": 16
+      },
+      "collisionFootprint": {
+        "x": 3,
+        "y": 6,
+        "width": 58,
+        "height": 22
+      },
+      "visualFootprint": {
+        "x": 2,
+        "y": 2,
+        "width": 60,
+        "height": 26
+      },
+      "shadowFootprint": {
+        "x": 6,
+        "y": 25,
+        "width": 52,
+        "height": 5
+      },
+      "zAnchor": {
+        "x": 32,
+        "y": 30
+      },
+      "interaction": {
+        "affordance": "inspect",
+        "label": "Whiteboard",
+        "prompt": "Use whiteboard",
+        "radiusTiles": 1.2,
+        "priority": 32
+      },
+      "occlusion": {
+        "mode": "y_sort"
+      },
+      "themeTags": [
+        "meeting",
+        "modern_light",
+        "brandable"
+      ],
+      "variants": [
+        {
+          "id": "item.whiteboard_wall.default",
+          "label": "Default",
+          "role": "default",
+          "frameId": "item.whiteboard_wall",
+          "themeTags": [
+            "meeting",
+            "modern_light",
+            "brandable"
+          ]
+        },
+        {
+          "id": "item.whiteboard_wall.tenant_tint",
+          "label": "Tenant tint",
+          "role": "tenant_tint",
+          "frameId": "item.whiteboard_wall",
+          "themeTags": [
+            "meeting",
+            "modern_light",
+            "brandable"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "item.armchair_lounge",
+      "tokenId": "item.armchair_lounge",
+      "kind": "item",
+      "x": 128,
+      "y": 256,
+      "width": 64,
+      "height": 64,
+      "size": {
+        "width": 32,
+        "height": 32,
+        "exportScale": 2
+      },
+      "anchor": {
+        "x": 16,
+        "y": 16
+      },
+      "collisionFootprint": {
+        "x": 6,
+        "y": 11,
+        "width": 20,
+        "height": 17
+      },
+      "visualFootprint": {
+        "x": 3,
+        "y": 5,
+        "width": 26,
+        "height": 24
+      },
+      "shadowFootprint": {
+        "x": 6,
+        "y": 24,
+        "width": 20,
+        "height": 5
+      },
+      "zAnchor": {
+        "x": 16,
+        "y": 29
+      },
+      "interaction": {
+        "affordance": "sit",
+        "label": "Armchair",
+        "prompt": "Sit in armchair",
+        "radiusTiles": 1,
+        "priority": 21
+      },
+      "occlusion": {
+        "mode": "y_sort"
+      },
+      "themeTags": [
+        "lounge",
+        "quiet_carpet",
+        "brandable"
+      ],
+      "variants": [
+        {
+          "id": "item.armchair_lounge.default",
+          "label": "Default",
+          "role": "default",
+          "frameId": "item.armchair_lounge",
+          "themeTags": [
+            "lounge",
+            "quiet_carpet",
+            "brandable"
+          ]
+        },
+        {
+          "id": "item.armchair_lounge.tenant_tint",
+          "label": "Tenant tint",
+          "role": "tenant_tint",
+          "frameId": "item.armchair_lounge",
+          "themeTags": [
+            "lounge",
+            "quiet_carpet",
+            "brandable"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "item.bookshelf_low",
+      "tokenId": "item.bookshelf_low",
+      "kind": "item",
+      "x": 192,
+      "y": 256,
+      "width": 128,
+      "height": 64,
+      "size": {
+        "width": 64,
+        "height": 32,
+        "exportScale": 2
+      },
+      "anchor": {
+        "x": 32,
+        "y": 16
+      },
+      "collisionFootprint": {
+        "x": 3,
+        "y": 8,
+        "width": 58,
+        "height": 20
+      },
+      "visualFootprint": {
+        "x": 0,
+        "y": 2,
+        "width": 64,
+        "height": 27
+      },
+      "shadowFootprint": {
+        "x": 5,
+        "y": 24,
+        "width": 54,
+        "height": 6
+      },
+      "zAnchor": {
+        "x": 32,
+        "y": 29
+      },
+      "interaction": {
+        "affordance": "inspect",
+        "label": "Bookshelf",
+        "prompt": "Browse shelf",
+        "radiusTiles": 1,
+        "priority": 14
+      },
+      "occlusion": {
+        "mode": "y_sort"
+      },
+      "themeTags": [
+        "lounge",
+        "neutral_office",
+        "brandable"
+      ],
+      "variants": [
+        {
+          "id": "item.bookshelf_low.default",
+          "label": "Default",
+          "role": "default",
+          "frameId": "item.bookshelf_low",
+          "themeTags": [
+            "lounge",
+            "neutral_office",
+            "brandable"
+          ]
+        },
+        {
+          "id": "item.bookshelf_low.tenant_tint",
+          "label": "Tenant tint",
+          "role": "tenant_tint",
+          "frameId": "item.bookshelf_low",
+          "themeTags": [
+            "lounge",
+            "neutral_office",
+            "brandable"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "item.floor_lamp",
+      "tokenId": "item.floor_lamp",
+      "kind": "item",
+      "x": 320,
+      "y": 256,
+      "width": 64,
+      "height": 64,
+      "size": {
+        "width": 32,
+        "height": 32,
+        "exportScale": 2
+      },
+      "anchor": {
+        "x": 16,
+        "y": 16
+      },
+      "collisionFootprint": {
+        "x": 12,
+        "y": 20,
+        "width": 8,
+        "height": 8
+      },
+      "visualFootprint": {
+        "x": 9,
+        "y": 2,
+        "width": 14,
+        "height": 27
+      },
+      "shadowFootprint": {
+        "x": 9,
+        "y": 25,
+        "width": 14,
+        "height": 5
+      },
+      "zAnchor": {
+        "x": 16,
+        "y": 29
+      },
+      "interaction": {
+        "affordance": "inspect",
+        "label": "Floor lamp",
+        "prompt": "Adjust lamp",
+        "radiusTiles": 0.9,
+        "priority": 12
+      },
+      "occlusion": {
+        "mode": "y_sort"
+      },
+      "themeTags": [
+        "lounge",
+        "neutral_office",
+        "brandable"
+      ],
+      "variants": [
+        {
+          "id": "item.floor_lamp.default",
+          "label": "Default",
+          "role": "default",
+          "frameId": "item.floor_lamp",
+          "themeTags": [
+            "lounge",
+            "neutral_office",
+            "brandable"
+          ]
+        },
+        {
+          "id": "item.floor_lamp.tenant_tint",
+          "label": "Tenant tint",
+          "role": "tenant_tint",
+          "frameId": "item.floor_lamp",
+          "themeTags": [
+            "lounge",
+            "neutral_office",
+            "brandable"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "item.side_table",
+      "tokenId": "item.side_table",
+      "kind": "item",
+      "x": 384,
+      "y": 256,
+      "width": 64,
+      "height": 64,
+      "size": {
+        "width": 32,
+        "height": 32,
+        "exportScale": 2
+      },
+      "anchor": {
+        "x": 16,
+        "y": 16
+      },
+      "collisionFootprint": {
+        "x": 6,
+        "y": 12,
+        "width": 20,
+        "height": 14
+      },
+      "visualFootprint": {
+        "x": 4,
+        "y": 8,
+        "width": 24,
+        "height": 20
+      },
+      "shadowFootprint": {
+        "x": 6,
+        "y": 24,
+        "width": 20,
+        "height": 5
+      },
+      "zAnchor": {
+        "x": 16,
+        "y": 28
+      },
+      "interaction": {
+        "affordance": "inspect",
+        "label": "Side table",
+        "prompt": "Use side table",
+        "radiusTiles": 0.9,
+        "priority": 15
+      },
+      "occlusion": {
+        "mode": "y_sort"
+      },
+      "themeTags": [
+        "lounge",
+        "cozy_wood",
+        "brandable"
+      ],
+      "variants": [
+        {
+          "id": "item.side_table.default",
+          "label": "Default",
+          "role": "default",
+          "frameId": "item.side_table",
+          "themeTags": [
+            "lounge",
+            "cozy_wood",
+            "brandable"
+          ]
+        },
+        {
+          "id": "item.side_table.tenant_tint",
+          "label": "Tenant tint",
+          "role": "tenant_tint",
+          "frameId": "item.side_table",
+          "themeTags": [
+            "lounge",
+            "cozy_wood",
+            "brandable"
+          ]
+        }
+      ]
+    },
+    {
       "id": "avatar.local_placeholder",
       "tokenId": "avatar.local_placeholder",
       "kind": "avatar",
-      "x": 384,
-      "y": 192,
+      "x": 448,
+      "y": 256,
       "width": 64,
       "height": 64,
       "size": {
@@ -1218,9 +1877,18 @@
         "width": 18,
         "height": 28
       },
+      "shadowFootprint": {
+        "x": 5,
+        "y": 25,
+        "width": 23,
+        "height": 5
+      },
       "zAnchor": {
         "x": 16,
         "y": 28
+      },
+      "interaction": {
+        "affordance": "none"
       },
       "occlusion": {
         "mode": "none"
@@ -1256,8 +1924,8 @@
       "id": "avatar.ember",
       "tokenId": "avatar.ember",
       "kind": "avatar",
-      "x": 448,
-      "y": 192,
+      "x": 0,
+      "y": 320,
       "width": 64,
       "height": 64,
       "size": {
@@ -1281,9 +1949,18 @@
         "width": 18,
         "height": 28
       },
+      "shadowFootprint": {
+        "x": 5,
+        "y": 25,
+        "width": 23,
+        "height": 5
+      },
       "zAnchor": {
         "x": 16,
         "y": 28
+      },
+      "interaction": {
+        "affordance": "none"
       },
       "occlusion": {
         "mode": "none"
@@ -1319,8 +1996,8 @@
       "id": "avatar.cobalt",
       "tokenId": "avatar.cobalt",
       "kind": "avatar",
-      "x": 0,
-      "y": 256,
+      "x": 64,
+      "y": 320,
       "width": 64,
       "height": 64,
       "size": {
@@ -1344,9 +2021,18 @@
         "width": 18,
         "height": 28
       },
+      "shadowFootprint": {
+        "x": 5,
+        "y": 25,
+        "width": 23,
+        "height": 5
+      },
       "zAnchor": {
         "x": 16,
         "y": 28
+      },
+      "interaction": {
+        "affordance": "none"
       },
       "occlusion": {
         "mode": "none"
@@ -1382,8 +2068,8 @@
       "id": "avatar.moss",
       "tokenId": "avatar.moss",
       "kind": "avatar",
-      "x": 64,
-      "y": 256,
+      "x": 128,
+      "y": 320,
       "width": 64,
       "height": 64,
       "size": {
@@ -1407,9 +2093,18 @@
         "width": 18,
         "height": 28
       },
+      "shadowFootprint": {
+        "x": 5,
+        "y": 25,
+        "width": 23,
+        "height": 5
+      },
       "zAnchor": {
         "x": 16,
         "y": 28
+      },
+      "interaction": {
+        "affordance": "none"
       },
       "occlusion": {
         "mode": "none"
@@ -1445,8 +2140,8 @@
       "id": "avatar.violet",
       "tokenId": "avatar.violet",
       "kind": "avatar",
-      "x": 128,
-      "y": 256,
+      "x": 192,
+      "y": 320,
       "width": 64,
       "height": 64,
       "size": {
@@ -1470,9 +2165,18 @@
         "width": 18,
         "height": 28
       },
+      "shadowFootprint": {
+        "x": 5,
+        "y": 25,
+        "width": 23,
+        "height": 5
+      },
       "zAnchor": {
         "x": 16,
         "y": 28
+      },
+      "interaction": {
+        "affordance": "none"
       },
       "occlusion": {
         "mode": "none"
@@ -1521,6 +2225,6 @@
     "notes": "The atlas is generated from license-clean LPC copyleft image inputs plus project-owned vector overlays. No SkyOffice or LimeZu assets are copied."
   },
   "checksums": {
-    "imageSha256": "56d11670d869193c71d3536ea044d1387ea728ef94f3a920583112ea30903b61"
+    "imageSha256": "d97bea407570e572ae32678b100547a1298dddd107e0f04493444fe0d884599e"
   }
 }

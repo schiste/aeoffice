@@ -1465,8 +1465,10 @@ function assertRendererCapabilities(state) {
   assert.equal(state.renderer.assets.fallbackTokenCount, 0)
   assert.equal(state.renderer.assets.metadata.sourceLicenseValidated, true)
   assert.equal(state.renderer.assets.metadata.atlasBuildValidated, true)
-  assert.ok(state.renderer.assets.metadata.frameCount >= 20)
-  assert.ok(state.renderer.assets.metadata.variantCount >= 40)
+  assert.ok(state.renderer.assets.metadata.frameCount >= 28)
+  assert.ok(state.renderer.assets.metadata.shadowFootprintCount >= 28)
+  assert.ok(state.renderer.assets.metadata.interactionAffordanceCount >= 12)
+  assert.ok(state.renderer.assets.metadata.variantCount >= 56)
   assert.equal(
     state.renderer.assets.loader.packKey,
     "aedventure.office.core-pack",

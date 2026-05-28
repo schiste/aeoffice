@@ -1733,3 +1733,34 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   The standalone develop-web-game client still exits before navigation with
   `ERR_MODULE_NOT_FOUND` because the skill-local script cannot resolve
   `playwright`.
+- Asset/map presentation was upgraded with six new internal semantic furniture
+  tokens: modular work desk, wall whiteboard, lounge armchair, low bookshelf,
+  floor lamp, and side table. Existing item metadata now includes
+  shadow-footprint and interaction-affordance definitions, and the internal
+  atlas/manifest generator emits and validates those fields.
+- Preset and generated-room composition now use the richer catalog: the lobby
+  has workspace and shelf details, the meeting room gets whiteboard/side-table
+  affordances, lounge/cafe gets armchairs/bookshelves/floor lamps, and prompt
+  keywords can steer quiet carpet, modern glass, neutral office, lounge, desk,
+  and library variants. Wall perimeter generation now caps door/opening breaks
+  with corner transition pieces, and the atlas wall renderer draws stronger
+  trim/transition detail.
+- Object shadows now prefer asset shadow-footprint metadata instead of only
+  heuristic sprite bounds, and object interaction candidates consume
+  metadata-driven labels/prompts/radii for `open`, `sit`, `serve`, `gather`,
+  `inspect`, and decoration affordances. The Phaser advanced-input layer was
+  fixed to keep semantic zone hover underneath furniture hit targets and to use
+  Phaser `gameout` for actual canvas exits instead of clearing zone hover when
+  leaving an object.
+- Verification passed for the asset/map presentation slice:
+  `node packages/asset-registry/test/catalog.test.js`,
+  `node scripts/verify-internal-assets.cjs`, `npm run smoke:frontend`,
+  `npm run qa:renderer`, `npm run qa:responsive`, `npm run check`, and
+  `git diff --check`. The latest renderer and responsive screenshots were
+  inspected, including the denser lobby, mobile layout, and avatar preview
+  gallery. A focused local browser probe confirmed furniture hover and
+  underlying zone hover are both represented in `render_game_to_text`. The
+  standalone develop-web-game client was attempted against
+  `http://127.0.0.1:8787/app`, but it still exits before navigation with
+  `ERR_MODULE_NOT_FOUND` because the skill-local script cannot resolve
+  `playwright`.

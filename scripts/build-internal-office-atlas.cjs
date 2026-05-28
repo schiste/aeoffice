@@ -96,49 +96,197 @@ const FRAMES = [
   frame("item.large_conference_table", "item", 3, 2, true, "y_sort", {
     collisionFootprint: { x: 8, y: 18, width: 80, height: 38 },
     visualFootprint: { x: 0, y: 4, width: 96, height: 58 },
+    shadowFootprint: { x: 8, y: 50, width: 80, height: 10 },
     zAnchor: { x: 48, y: 58 },
+    interaction: {
+      affordance: "gather",
+      label: "Conference table",
+      prompt: "Use meeting table",
+      radiusTiles: 1.4,
+      priority: 30,
+    },
     themeTags: ["meeting", "cozy_wood", "brandable"],
   }),
   frame("item.small_round_table", "item", 2, 2, true, "y_sort", {
     collisionFootprint: { x: 8, y: 18, width: 48, height: 36 },
     visualFootprint: { x: 0, y: 1, width: 64, height: 62 },
+    shadowFootprint: { x: 11, y: 48, width: 42, height: 10 },
     zAnchor: { x: 32, y: 58 },
+    interaction: {
+      affordance: "gather",
+      label: "Table",
+      prompt: "Use table",
+      radiusTiles: 1.1,
+      priority: 28,
+    },
     themeTags: ["meeting", "lounge", "brandable"],
   }),
   frame("item.office_chair", "item", 1, 1, true, "y_sort", {
     collisionFootprint: { x: 7, y: 12, width: 18, height: 16 },
     visualFootprint: { x: 5, y: 6, width: 22, height: 22 },
+    shadowFootprint: { x: 7, y: 21, width: 18, height: 5 },
     zAnchor: { x: 16, y: 28 },
+    interaction: {
+      affordance: "sit",
+      label: "Chair",
+      prompt: "Sit down",
+      radiusTiles: 0.9,
+      priority: 16,
+    },
     themeTags: ["meeting", "brandable"],
   }),
   frame("item.coffee_machine", "item", 1, 1, true, "y_sort", {
     collisionFootprint: { x: 9, y: 8, width: 14, height: 18 },
     visualFootprint: { x: 7, y: 5, width: 18, height: 23 },
+    shadowFootprint: { x: 8, y: 23, width: 16, height: 5 },
     zAnchor: { x: 16, y: 27 },
+    interaction: {
+      affordance: "serve",
+      label: "Coffee machine",
+      prompt: "Brew coffee",
+      radiusTiles: 1,
+      priority: 35,
+    },
     themeTags: ["kitchen", "brandable"],
   }),
   frame("item.plant_potted", "item", 1, 1, true, "y_sort", {
     collisionFootprint: { x: 8, y: 18, width: 16, height: 10 },
     visualFootprint: { x: 5, y: 4, width: 22, height: 25 },
+    shadowFootprint: { x: 7, y: 22, width: 18, height: 6 },
     zAnchor: { x: 16, y: 28 },
+    interaction: {
+      affordance: "decorate",
+      label: "Plant",
+      prompt: "Inspect plant",
+      radiusTiles: 0.9,
+      priority: 10,
+    },
     themeTags: ["biophilic", "brandable"],
   }),
   frame("item.coffee_bar", "item", 2, 1, true, "y_sort", {
     collisionFootprint: { x: 4, y: 10, width: 56, height: 18 },
     visualFootprint: { x: 0, y: 6, width: 64, height: 24 },
+    shadowFootprint: { x: 6, y: 23, width: 52, height: 6 },
     zAnchor: { x: 32, y: 29 },
+    interaction: {
+      affordance: "serve",
+      label: "Coffee bar",
+      prompt: "Use coffee bar",
+      radiusTiles: 1.35,
+      priority: 36,
+    },
     themeTags: ["kitchen", "lounge", "brandable"],
   }),
   frame("item.door_single", "item", 1, 1, false, "y_sort", {
     visualFootprint: { x: 7, y: 4, width: 18, height: 24 },
+    shadowFootprint: { x: 6, y: 25, width: 20, height: 5 },
     zAnchor: { x: 16, y: 29 },
+    interaction: {
+      affordance: "open",
+      label: "Door",
+      prompt: "Open door",
+      radiusTiles: 1,
+      priority: 55,
+    },
     themeTags: ["entry", "brandable"],
   }),
   frame("item.lounge_couch", "item", 2, 1, true, "y_sort", {
     collisionFootprint: { x: 3, y: 11, width: 58, height: 16 },
     visualFootprint: { x: 0, y: 7, width: 64, height: 22 },
+    shadowFootprint: { x: 4, y: 22, width: 56, height: 6 },
     zAnchor: { x: 32, y: 28 },
+    interaction: {
+      affordance: "sit",
+      label: "Couch",
+      prompt: "Sit on couch",
+      radiusTiles: 1.25,
+      priority: 20,
+    },
     themeTags: ["lounge", "quiet_carpet", "brandable"],
+  }),
+  frame("item.modular_work_desk", "item", 2, 1, true, "y_sort", {
+    collisionFootprint: { x: 4, y: 10, width: 56, height: 18 },
+    visualFootprint: { x: 0, y: 5, width: 64, height: 25 },
+    shadowFootprint: { x: 6, y: 23, width: 52, height: 7 },
+    zAnchor: { x: 32, y: 29 },
+    interaction: {
+      affordance: "gather",
+      label: "Work desk",
+      prompt: "Use desk",
+      radiusTiles: 1.15,
+      priority: 26,
+    },
+    themeTags: ["meeting", "neutral_office", "brandable"],
+  }),
+  frame("item.whiteboard_wall", "item", 2, 1, true, "y_sort", {
+    collisionFootprint: { x: 3, y: 6, width: 58, height: 22 },
+    visualFootprint: { x: 2, y: 2, width: 60, height: 26 },
+    shadowFootprint: { x: 6, y: 25, width: 52, height: 5 },
+    zAnchor: { x: 32, y: 30 },
+    interaction: {
+      affordance: "inspect",
+      label: "Whiteboard",
+      prompt: "Use whiteboard",
+      radiusTiles: 1.2,
+      priority: 32,
+    },
+    themeTags: ["meeting", "modern_light", "brandable"],
+  }),
+  frame("item.armchair_lounge", "item", 1, 1, true, "y_sort", {
+    collisionFootprint: { x: 6, y: 11, width: 20, height: 17 },
+    visualFootprint: { x: 3, y: 5, width: 26, height: 24 },
+    shadowFootprint: { x: 6, y: 24, width: 20, height: 5 },
+    zAnchor: { x: 16, y: 29 },
+    interaction: {
+      affordance: "sit",
+      label: "Armchair",
+      prompt: "Sit in armchair",
+      radiusTiles: 1,
+      priority: 21,
+    },
+    themeTags: ["lounge", "quiet_carpet", "brandable"],
+  }),
+  frame("item.bookshelf_low", "item", 2, 1, true, "y_sort", {
+    collisionFootprint: { x: 3, y: 8, width: 58, height: 20 },
+    visualFootprint: { x: 0, y: 2, width: 64, height: 27 },
+    shadowFootprint: { x: 5, y: 24, width: 54, height: 6 },
+    zAnchor: { x: 32, y: 29 },
+    interaction: {
+      affordance: "inspect",
+      label: "Bookshelf",
+      prompt: "Browse shelf",
+      radiusTiles: 1,
+      priority: 14,
+    },
+    themeTags: ["lounge", "neutral_office", "brandable"],
+  }),
+  frame("item.floor_lamp", "item", 1, 1, true, "y_sort", {
+    collisionFootprint: { x: 12, y: 20, width: 8, height: 8 },
+    visualFootprint: { x: 9, y: 2, width: 14, height: 27 },
+    shadowFootprint: { x: 9, y: 25, width: 14, height: 5 },
+    zAnchor: { x: 16, y: 29 },
+    interaction: {
+      affordance: "inspect",
+      label: "Floor lamp",
+      prompt: "Adjust lamp",
+      radiusTiles: 0.9,
+      priority: 12,
+    },
+    themeTags: ["lounge", "neutral_office", "brandable"],
+  }),
+  frame("item.side_table", "item", 1, 1, true, "y_sort", {
+    collisionFootprint: { x: 6, y: 12, width: 20, height: 14 },
+    visualFootprint: { x: 4, y: 8, width: 24, height: 20 },
+    shadowFootprint: { x: 6, y: 24, width: 20, height: 5 },
+    zAnchor: { x: 16, y: 28 },
+    interaction: {
+      affordance: "inspect",
+      label: "Side table",
+      prompt: "Use side table",
+      radiusTiles: 0.9,
+      priority: 15,
+    },
+    themeTags: ["lounge", "cozy_wood", "brandable"],
   }),
   frame("avatar.local_placeholder", "avatar", 1, 1, false, "none", {
     visualFootprint: { x: 7, y: 1, width: 18, height: 28 },
@@ -356,9 +504,14 @@ function frameMetadata(layoutFrame) {
       width,
       height,
     },
+    shadowFootprint:
+      layoutFrame.shadowFootprint ?? defaultShadowFootprint(layoutFrame.id, width, height),
     zAnchor: layoutFrame.zAnchor ?? {
       x: width / 2,
       y: height,
+    },
+    interaction: layoutFrame.interaction ?? {
+      affordance: "none",
     },
     occlusion: {
       mode: layoutFrame.occlusionMode,
@@ -371,6 +524,22 @@ function frameMetadata(layoutFrame) {
     },
     themeTags,
     variants: layoutFrame.variants ?? defaultVariants(layoutFrame.id, themeTags),
+  }
+}
+
+function defaultShadowFootprint(frameId, width, height) {
+  if (frameId.startsWith("floor.")) {
+    return { x: 0, y: 0, width: 0, height: 0 }
+  }
+
+  const shadowWidth = Math.max(12, Math.round(width * 0.72))
+  const shadowHeight = Math.max(4, Math.round(height * 0.16))
+
+  return {
+    x: Math.round((width - shadowWidth) / 2),
+    y: Math.max(0, height - shadowHeight - 2),
+    width: shadowWidth,
+    height: shadowHeight,
   }
 }
 
@@ -534,6 +703,7 @@ function drawWall(png, frameLayout) {
     )
     diagonalGlassShine(png, frameLayout)
     wallBaseLip(png, frameLayout, "#376f77")
+    wallTransitionTrim(png, frameLayout, corner, "#9be8f1", "#21545e")
     if (corner) wallCornerPost(png, frameLayout, "#376f77", "#c8edf0")
     return
   }
@@ -553,6 +723,7 @@ function drawWall(png, frameLayout) {
       32,
     )
     wallBaseLip(png, frameLayout, "#9f927e")
+    wallTransitionTrim(png, frameLayout, corner, "#fffaf1", "#746b5c")
     if (corner) wallCornerPost(png, frameLayout, "#9f927e", "#f4efe6")
     return
   }
@@ -571,6 +742,7 @@ function drawWall(png, frameLayout) {
     32,
   )
   wallBaseLip(png, frameLayout, "#5f3f27")
+  wallTransitionTrim(png, frameLayout, corner, "#dbb17a", "#442a17")
   if (corner) wallCornerPost(png, frameLayout, "#5f3f27", "#c79461")
 }
 
@@ -618,6 +790,31 @@ function drawItem(png, frameLayout) {
     return
   }
 
+  if (frameLayout.id.includes("modular_work_desk")) {
+    shadow(png, frameLayout, 32, 26, 52, 7)
+    rect(png, frameLayout, 4, 10, 56, 13, "#5f4935", 1)
+    rect(png, frameLayout, 7, 8, 50, 4, "#9d8057", 1)
+    rect(png, frameLayout, 10, 14, 12, 6, "#2f454f", 1)
+    rect(png, frameLayout, 26, 13, 12, 8, "#cfd9dc", 1)
+    rect(png, frameLayout, 28, 15, 8, 4, "#4d7586", 1)
+    rect(png, frameLayout, 46, 14, 7, 6, "#f3ede2", 1)
+    rect(png, frameLayout, 12, 23, 4, 5, "#3b2d20", 1)
+    rect(png, frameLayout, 48, 23, 4, 5, "#3b2d20", 1)
+    return
+  }
+
+  if (frameLayout.id.includes("whiteboard_wall")) {
+    shadow(png, frameLayout, 32, 27, 52, 5)
+    rect(png, frameLayout, 3, 4, 58, 21, "#dfeeed", 1)
+    strokeRect(png, frameLayout, 3, 4, 58, 21, "#5e7980", 0.82)
+    rect(png, frameLayout, 7, 8, 18, 2, "#65a5a8", 0.72)
+    rect(png, frameLayout, 8, 13, 25, 1, "#2f646b", 0.54)
+    rect(png, frameLayout, 8, 17, 39, 1, "#6b8e94", 0.45)
+    rect(png, frameLayout, 42, 8, 10, 7, "#f4c95d", 0.72)
+    rect(png, frameLayout, 48, 23, 8, 2, "#3d555c", 1)
+    return
+  }
+
   if (frameLayout.id.includes("coffee_bar")) {
     shadow(png, frameLayout, 32, 26, 52, 6)
     rect(png, frameLayout, 4, 9, 56, 15, "#6b4b34", 1)
@@ -657,6 +854,55 @@ function drawItem(png, frameLayout) {
       64,
       20,
     )
+    return
+  }
+
+  if (frameLayout.id.includes("armchair_lounge")) {
+    shadow(png, frameLayout, 16, 26, 20, 5)
+    rect(png, frameLayout, 6, 12, 20, 12, "#5a6f8f", 1)
+    rect(png, frameLayout, 8, 8, 16, 9, "#6f84a8", 1)
+    rect(png, frameLayout, 4, 14, 4, 10, "#435671", 1)
+    rect(png, frameLayout, 24, 14, 4, 10, "#435671", 1)
+    rect(png, frameLayout, 8, 24, 4, 4, "#2f3b4d", 1)
+    rect(png, frameLayout, 20, 24, 4, 4, "#2f3b4d", 1)
+    rect(png, frameLayout, 10, 10, 11, 2, "#d8e0ee", 0.24)
+    return
+  }
+
+  if (frameLayout.id.includes("bookshelf_low")) {
+    shadow(png, frameLayout, 32, 27, 54, 6)
+    rect(png, frameLayout, 3, 5, 58, 21, "#5a3c27", 1)
+    rect(png, frameLayout, 5, 8, 54, 2, "#926c44", 1)
+    rect(png, frameLayout, 5, 16, 54, 2, "#926c44", 1)
+    rect(png, frameLayout, 8, 10, 4, 6, "#8fb1c6", 1)
+    rect(png, frameLayout, 14, 10, 3, 6, "#cf8c5d", 1)
+    rect(png, frameLayout, 20, 10, 6, 6, "#e2c766", 1)
+    rect(png, frameLayout, 35, 10, 4, 6, "#a6bf78", 1)
+    rect(png, frameLayout, 43, 10, 7, 6, "#d8d0bb", 1)
+    rect(png, frameLayout, 9, 18, 8, 6, "#d8d0bb", 1)
+    rect(png, frameLayout, 25, 18, 4, 6, "#8fb1c6", 1)
+    rect(png, frameLayout, 32, 18, 5, 6, "#cf8c5d", 1)
+    rect(png, frameLayout, 48, 18, 6, 6, "#a6bf78", 1)
+    return
+  }
+
+  if (frameLayout.id.includes("floor_lamp")) {
+    shadow(png, frameLayout, 16, 27, 14, 5)
+    rect(png, frameLayout, 15, 11, 2, 14, "#4a4036", 1)
+    rect(png, frameLayout, 11, 25, 10, 2, "#4a4036", 1)
+    ellipse(png, frameLayout, 16, 8, 7, 5, "#f1d884", 1)
+    ellipse(png, frameLayout, 16, 8, 4, 3, "#fff4bc", 0.68)
+    rect(png, frameLayout, 10, 9, 12, 2, "#b28a44", 0.8)
+    return
+  }
+
+  if (frameLayout.id.includes("side_table")) {
+    shadow(png, frameLayout, 16, 26, 20, 5)
+    rect(png, frameLayout, 6, 13, 20, 9, "#6f5035", 1)
+    rect(png, frameLayout, 4, 10, 24, 5, "#9c744c", 1)
+    rect(png, frameLayout, 8, 22, 3, 5, "#3b2d20", 1)
+    rect(png, frameLayout, 21, 22, 3, 5, "#3b2d20", 1)
+    ellipse(png, frameLayout, 21, 8, 4, 3, "#e9d6a6", 1)
     return
   }
 
@@ -778,6 +1024,19 @@ function wallCornerPost(png, frameLayout, dark, light) {
   rect(png, frameLayout, 2, 2, 8, 24, dark, 1)
   rect(png, frameLayout, 4, 4, 2, 21, light, 0.54)
   rect(png, frameLayout, 27, 26, 5, 4, "#20201d", 0.16)
+}
+
+function wallTransitionTrim(png, frameLayout, corner, light, dark) {
+  rect(png, frameLayout, 0, 2, 32, 1, light, 0.34)
+  rect(png, frameLayout, 0, 26, 32, 1, dark, 0.26)
+  if (corner) {
+    rect(png, frameLayout, 25, 3, 2, 23, dark, 0.28)
+    rect(png, frameLayout, 27, 4, 1, 21, light, 0.26)
+    return
+  }
+
+  rect(png, frameLayout, 0, 6, 1, 19, dark, 0.18)
+  rect(png, frameLayout, 31, 6, 1, 19, light, 0.18)
 }
 
 function diagonalGlassShine(png, frameLayout) {

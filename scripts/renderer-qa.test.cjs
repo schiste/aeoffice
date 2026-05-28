@@ -303,10 +303,11 @@ async function verifyAdvancedInput(page, initialState) {
       state.renderer.input.gesture.last === "drag",
   )
 
-  const zoneViewportPoint = await projectWorldToViewport(page, {
-    x: zoneTarget.bounds.x + zoneTarget.bounds.width / 2,
-    y: zoneTarget.bounds.y + zoneTarget.bounds.height / 2,
-  })
+  const zoneHoverPoint = clearZoneHoverPoint(
+    zoneTarget,
+    initialState.renderer.depth.objects,
+  )
+  const zoneViewportPoint = await projectWorldToViewport(page, zoneHoverPoint)
   await page.mouse.move(
     canvasBox.x + zoneViewportPoint.x,
     canvasBox.y + zoneViewportPoint.y,
@@ -327,8 +328,52 @@ async function verifyAdvancedInput(page, initialState) {
     dragTargetId: draggingObject.renderer.input.drag.targetId,
     dragDistancePx: draggedObject.renderer.input.gesture.distancePx,
     zoneTargetId: zoneTarget.id,
+    zoneHoverPoint,
     hoveredZoneId: hoveredZone.renderer.input.hitTesting.hoveredZoneId,
   }
+}
+
+function clearZoneHoverPoint(zone, objects) {
+  const bounds = zone.bounds
+  const candidates = []
+
+  for (
+    let y = bounds.y + 16;
+    y < bounds.y + bounds.height - 8;
+    y += 16
+  ) {
+    for (
+      let x = bounds.x + 16;
+      x < bounds.x + bounds.width - 8;
+      x += 16
+    ) {
+      candidates.push({ x, y })
+    }
+  }
+
+  candidates.push({
+    x: bounds.x + bounds.width / 2,
+    y: bounds.y + bounds.height / 2,
+  })
+
+  const objectBounds = objects
+    .filter((object) => object.layer === "object")
+    .map((object) => object.bounds)
+
+  return (
+    candidates.find((point) =>
+      objectBounds.every((bounds) => !pointInExpandedBounds(point, bounds, 8)),
+    ) ?? candidates[candidates.length - 1]
+  )
+}
+
+function pointInExpandedBounds(point, bounds, marginPx) {
+  return (
+    point.x >= bounds.x - marginPx &&
+    point.x < bounds.x + bounds.width + marginPx &&
+    point.y >= bounds.y - marginPx &&
+    point.y < bounds.y + bounds.height + marginPx
+  )
 }
 
 function verifyPhysicsAffordances(state) {
@@ -1642,7 +1687,9 @@ function assertRendererSnapshot(state) {
   )
   assert.equal(state.renderer.assets.metadata.sourceLicenseValidated, true)
   assert.equal(state.renderer.assets.metadata.atlasBuildValidated, true)
-  assert.ok(state.renderer.assets.metadata.collisionFootprintCount >= 20)
+  assert.ok(state.renderer.assets.metadata.collisionFootprintCount >= 26)
+  assert.ok(state.renderer.assets.metadata.shadowFootprintCount >= 28)
+  assert.ok(state.renderer.assets.metadata.interactionAffordanceCount >= 12)
   assert.ok(state.renderer.assets.metadata.occlusionSplitCount >= 6)
   assert.equal(state.renderer.tilemap.staticGpuLayerCount, 2)
   assert.equal(state.renderer.tilemap.objectLayerMode, "sprites")
@@ -2447,12 +2494,21 @@ async function waitForTextState(page, predicate, timeoutMs = 7000) {
   }
 
   assert.fail(
-    `Timed out waiting for renderer QA state. Latest state:\n${JSON.stringify(
+    `Timed out waiting for renderer QA state matching ${predicatePreview(
+      predicate,
+    )}. Latest state:\n${JSON.stringify(
       latest,
       null,
       2,
     )}`,
   )
+}
+
+function predicatePreview(predicate) {
+  return predicate
+    .toString()
+    .replace(/\s+/g, " ")
+    .slice(0, 260)
 }
 
 async function renderGameToText(page) {
