@@ -24,58 +24,30 @@ export function interactionStyle(candidate: RendererWorldInteractionCandidate): 
   readonly color: number
   readonly textColor: string
   readonly glyph: string
-  readonly tone:
-    | "meeting"
-    | "private"
-    | "portal"
-    | "door"
-    | "object"
-    | "locked"
+  readonly tone: string
 } {
-  switch (candidate.action) {
-    case "join_meeting":
-      return {
+  if (candidate.presentation) {
+    return {
+      color: candidate.presentation.color,
+      textColor: candidate.presentation.textColor,
+      glyph: candidate.presentation.glyph ?? candidate.label,
+      tone: candidate.presentation.tone ?? candidate.kind,
+    }
+  }
+
+  return candidate.serverPermitted
+    ? {
         color: 0x2f8f63,
         textColor: "#0f4f38",
-        glyph: "Call",
-        tone: "meeting",
+        glyph: candidate.label,
+        tone: candidate.kind,
       }
-    case "enter_private":
-      return {
-        color: 0x755aa5,
-        textColor: "#44305f",
-        glyph: "Private",
-        tone: "private",
+    : {
+        color: 0xa66f19,
+        textColor: "#6b440d",
+        glyph: "Locked",
+        tone: "locked",
       }
-    case "enter_portal":
-      return {
-        color: 0x316f9f,
-        textColor: "#1d4260",
-        glyph: "Portal",
-        tone: "portal",
-      }
-    case "open_door":
-      return {
-        color: 0x316f9f,
-        textColor: "#1d4260",
-        glyph: "Door",
-        tone: "door",
-      }
-    case "use_object":
-      return candidate.serverPermitted
-        ? {
-            color: 0x2f8f63,
-            textColor: "#0f4f38",
-            glyph: "Use",
-            tone: "object",
-          }
-        : {
-            color: 0xa66f19,
-            textColor: "#6b440d",
-            glyph: "Locked",
-            tone: "locked",
-          }
-  }
 }
 
 export function interactionActionFlowState(
@@ -115,18 +87,7 @@ export function interactionPromptLabel(
 ): string {
   if (candidate.permission === "pending") return "Checking"
   if (!candidate.serverPermitted) return "Locked"
-  switch (candidate.action) {
-    case "join_meeting":
-      return "Join call"
-    case "enter_private":
-      return "Private"
-    case "enter_portal":
-      return "Enter"
-    case "open_door":
-      return "Open door"
-    case "use_object":
-      return candidate.label
-  }
+  return candidate.presentation?.prompt ?? candidate.prompt ?? candidate.label
 }
 
 export function interactionAffordanceLabel(

@@ -17,6 +17,9 @@
       "path": "packages/game-map"
     },
     {
+      "path": "packages/game-renderer-phaser"
+    },
+    {
       "path": "packages/office-domain"
     },
     {

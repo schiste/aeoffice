@@ -377,6 +377,8 @@ export class AvatarRenderer {
   }
 }
 
+export { AvatarRenderer as EntityRenderer }
+
 class AvatarView {
   readonly focusTarget: Phaser.GameObjects.Container
   readonly cameraTarget: Phaser.GameObjects.Zone

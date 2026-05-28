@@ -1,14 +1,11 @@
 import Phaser from "phaser"
 
 import {
-  OFFICE_ASSET_PACK_KEY,
-  OFFICE_ASSET_PACK_SECTION,
-  OFFICE_ATLAS_IMAGE_TEXTURE_KEY,
-  OFFICE_ATLAS_MANIFEST_CACHE_KEY,
+  DEFAULT_RENDERER_ASSET_PACK_CONFIG,
   emptyAssetPackInfo,
-  internalOfficeAssetPackData,
+  rendererAssetPackData,
 } from "./asset-atlas"
-import type { RendererAssetPackInfo } from "./types"
+import type { RendererAssetPackConfig, RendererAssetPackInfo } from "./types"
 
 type LoaderFileLike = {
   readonly key?: string
@@ -24,30 +21,31 @@ export class RendererAssetPackLoader {
     private readonly scene: Phaser.Scene,
     private readonly preloadInfoProvider: (() => RendererAssetPackInfo | undefined) = () =>
       undefined,
+    private readonly config: RendererAssetPackConfig = DEFAULT_RENDERER_ASSET_PACK_CONFIG,
   ) {}
 
-  preloadCoreOfficePack(): void {
+  preloadCoreAssetPack(): void {
     if (this.coreAssetsReady()) {
       this.info = this.preloadedInfo()
       return
     }
 
     this.info = {
-      ...emptyAssetPackInfo(),
+      ...emptyAssetPackInfo(this.config),
       progress: {
-        ...emptyAssetPackInfo().progress,
+        ...emptyAssetPackInfo(this.config).progress,
         started: true,
       },
     }
 
     this.bindLoaderEvents()
-    this.scene.load.addPack(internalOfficeAssetPackData())
+    this.scene.load.addPack(rendererAssetPackData(this.config))
   }
 
   getInfo(): RendererAssetPackInfo {
     const info = this.preloadedInfo()
     const loadedSections = this.coreAssetsReady()
-      ? [OFFICE_ASSET_PACK_SECTION]
+      ? [this.config.coreSection]
       : []
 
     return {
@@ -63,11 +61,11 @@ export class RendererAssetPackLoader {
         ].sort(),
       },
       cache: {
-        jsonKeys: this.scene.cache.json.exists(OFFICE_ATLAS_MANIFEST_CACHE_KEY)
-          ? [OFFICE_ATLAS_MANIFEST_CACHE_KEY]
+        jsonKeys: this.scene.cache.json.exists(this.config.manifestCacheKey)
+          ? [this.config.manifestCacheKey]
           : [],
-        textureKeys: this.scene.textures.exists(OFFICE_ATLAS_IMAGE_TEXTURE_KEY)
-          ? [OFFICE_ATLAS_IMAGE_TEXTURE_KEY]
+        textureKeys: this.scene.textures.exists(this.config.imageTextureKey)
+          ? [this.config.imageTextureKey]
           : [],
       },
     }
@@ -75,8 +73,8 @@ export class RendererAssetPackLoader {
 
   coreAssetsReady(): boolean {
     return (
-      this.scene.cache.json.exists(OFFICE_ATLAS_MANIFEST_CACHE_KEY) &&
-      this.scene.textures.exists(OFFICE_ATLAS_IMAGE_TEXTURE_KEY)
+      this.scene.cache.json.exists(this.config.manifestCacheKey) &&
+      this.scene.textures.exists(this.config.imageTextureKey)
     )
   }
 

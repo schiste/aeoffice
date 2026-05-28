@@ -3,21 +3,32 @@ import Phaser from "phaser"
 import { drawSemanticTile } from "./semantic-tiles"
 import type {
   FixtureToken,
+  RendererAssetPackConfig,
   RendererAssetPackInfo,
   RendererAssetPipelineInfo,
   TileSegment,
 } from "./types"
 
-const ATLAS_MANIFEST_FILE = "assets/internal-office-atlas.manifest.json"
-const ATLAS_IMAGE_FILE = "assets/internal-office-atlas@2x.png"
-export const OFFICE_ASSET_PACK_KEY = "aedventure.office.core-pack"
-export const OFFICE_ASSET_PACK_SECTION = "core-office"
-export const OFFICE_ATLAS_MANIFEST_CACHE_KEY = "aedventure.office.atlas.manifest"
-export const OFFICE_ATLAS_IMAGE_TEXTURE_KEY = "aedventure.office.atlas.image"
-export const TENANT_DEFAULT_BUNDLE_ID = "tenant.default"
-export const OFFICE_POLISHED_THEME_BUNDLE_ID = "theme.office.polished_v1"
+export const DEFAULT_ASSET_PACK_KEY = "aedventure.renderer.core-pack"
+export const DEFAULT_ASSET_PACK_SECTION = "core-assets"
+export const DEFAULT_ATLAS_MANIFEST_CACHE_KEY = "aedventure.renderer.atlas.manifest"
+export const DEFAULT_ATLAS_IMAGE_TEXTURE_KEY = "aedventure.renderer.atlas.image"
+export const DEFAULT_ASSET_BUNDLE_ID = "bundle.default"
+export const DEFAULT_THEME_BUNDLE_ID = "theme.default.polished_v1"
 
-export interface InternalOfficeAtlasManifest {
+export const DEFAULT_RENDERER_ASSET_PACK_CONFIG: RendererAssetPackConfig = {
+  packKey: DEFAULT_ASSET_PACK_KEY,
+  coreSection: DEFAULT_ASSET_PACK_SECTION,
+  manifestCacheKey: DEFAULT_ATLAS_MANIFEST_CACHE_KEY,
+  imageTextureKey: DEFAULT_ATLAS_IMAGE_TEXTURE_KEY,
+  manifestPath: "assets/renderer-atlas.manifest.json",
+  imagePath: "assets/renderer-atlas@2x.png",
+  assetBundleId: DEFAULT_ASSET_BUNDLE_ID,
+  themeBundleId: DEFAULT_THEME_BUNDLE_ID,
+  deferredSections: ["avatar-atlas", "theme-bundle"],
+}
+
+export interface RuntimeAtlasManifest {
   readonly schemaVersion: number
   readonly atlasId: string
   readonly sourceId: string
@@ -42,10 +53,10 @@ export interface InternalOfficeAtlasManifest {
     readonly exportScale: number
     readonly retinaStrategy: string
   }
-  readonly frames: readonly InternalOfficeAtlasFrame[]
+  readonly frames: readonly RuntimeAtlasFrame[]
 }
 
-export interface InternalOfficeAtlasFrame {
+export interface RuntimeAtlasFrame {
   readonly id: string
   readonly tokenId: string
   readonly x: number
@@ -106,15 +117,17 @@ export interface InternalOfficeAtlasFrame {
 }
 
 export interface RuntimeAssetAtlas {
-  readonly manifest: InternalOfficeAtlasManifest
+  readonly manifest: RuntimeAtlasManifest
   readonly image: CanvasImageSource
-  readonly framesByTokenId: ReadonlyMap<string, InternalOfficeAtlasFrame>
+  readonly framesByTokenId: ReadonlyMap<string, RuntimeAtlasFrame>
 }
 
-export function emptyAssetPipelineInfo(): RendererAssetPipelineInfo {
+export function emptyAssetPipelineInfo(
+  config: RendererAssetPackConfig = DEFAULT_RENDERER_ASSET_PACK_CONFIG,
+): RendererAssetPipelineInfo {
   return {
-    manifestPath: atlasManifestPath(),
-    imagePath: atlasImagePath(),
+    manifestPath: atlasManifestPath(config),
+    imagePath: atlasImagePath(config),
     primarySource: "procedural_fallback",
     atlasLoaded: false,
     manifestLoaded: false,
@@ -122,7 +135,7 @@ export function emptyAssetPipelineInfo(): RendererAssetPipelineInfo {
     fallbackTokenCount: 0,
     fallbackTokenIds: [],
     tilesetReused: false,
-    loader: emptyAssetPackInfo(),
+    loader: emptyAssetPackInfo(config),
     metadata: emptyAssetMetadataInfo(),
   }
 }
@@ -135,12 +148,15 @@ export function assetPipelineInfoFromRender(
     readonly tilesetSignature?: string
     readonly tilesetReused?: boolean
     readonly loader?: RendererAssetPackInfo
+    readonly assetPackConfig?: RendererAssetPackConfig
   } = {},
 ): RendererAssetPipelineInfo {
+  const config = options.assetPackConfig ?? DEFAULT_RENDERER_ASSET_PACK_CONFIG
+
   return {
     atlasId: atlas?.manifest.atlasId,
-    manifestPath: atlasManifestPath(),
-    imagePath: atlas ? appAssetUrl(atlas.manifest.image.path) : atlasImagePath(),
+    manifestPath: atlasManifestPath(config),
+    imagePath: atlas ? appAssetUrl(atlas.manifest.image.path) : atlasImagePath(config),
     primarySource:
       atlas && fallbackTokenIds.size === 0 ? "internal_atlas" : "procedural_fallback",
     atlasLoaded: Boolean(atlas),
@@ -152,7 +168,7 @@ export function assetPipelineInfoFromRender(
     retinaStrategy: atlas?.manifest.image.retinaStrategy,
     tilesetSignature: options.tilesetSignature,
     tilesetReused: options.tilesetReused ?? false,
-    loader: options.loader ?? emptyAssetPackInfo(),
+    loader: options.loader ?? emptyAssetPackInfo(config),
     metadata: assetMetadataInfo(atlas?.manifest),
   }
 }
@@ -209,22 +225,24 @@ export function drawTokenFrameWithFallback(
   drawSemanticTile(context, token, x, y, tileSize, segment)
 }
 
-export function internalOfficeAssetPackData(): Record<
+export function rendererAssetPackData(
+  config: RendererAssetPackConfig = DEFAULT_RENDERER_ASSET_PACK_CONFIG,
+): Record<
   string,
   Phaser.Types.Loader.FileTypes.PackFileSection
 > {
   return {
-    [OFFICE_ASSET_PACK_SECTION]: {
+    [config.coreSection]: {
       files: [
         {
           type: "json",
-          key: OFFICE_ATLAS_MANIFEST_CACHE_KEY,
-          url: atlasManifestPath(),
+          key: config.manifestCacheKey,
+          url: atlasManifestPath(config),
         } as Phaser.Types.Loader.FileConfig,
         {
           type: "image",
-          key: OFFICE_ATLAS_IMAGE_TEXTURE_KEY,
-          url: atlasImagePath(),
+          key: config.imageTextureKey,
+          url: atlasImagePath(config),
         } as Phaser.Types.Loader.FileConfig,
       ],
     },
@@ -233,16 +251,17 @@ export function internalOfficeAssetPackData(): Record<
 
 export function runtimeAssetAtlasFromLoadedAssets(
   scene: Phaser.Scene,
+  config: RendererAssetPackConfig = DEFAULT_RENDERER_ASSET_PACK_CONFIG,
 ): RuntimeAssetAtlas | undefined {
   const manifest = scene.cache.json.get(
-    OFFICE_ATLAS_MANIFEST_CACHE_KEY,
-  ) as InternalOfficeAtlasManifest | undefined
+    config.manifestCacheKey,
+  ) as RuntimeAtlasManifest | undefined
 
-  if (!manifest || !scene.textures.exists(OFFICE_ATLAS_IMAGE_TEXTURE_KEY)) {
+  if (!manifest || !scene.textures.exists(config.imageTextureKey)) {
     return undefined
   }
 
-  const texture = scene.textures.get(OFFICE_ATLAS_IMAGE_TEXTURE_KEY)
+  const texture = scene.textures.get(config.imageTextureKey)
   const image = texture.getSourceImage() as CanvasImageSource
 
   if (!hasDrawableImageSize(image)) {
@@ -267,16 +286,18 @@ function hasDrawableImageSize(
   )
 }
 
-export function emptyAssetPackInfo(): RendererAssetPackInfo {
+export function emptyAssetPackInfo(
+  config: RendererAssetPackConfig = DEFAULT_RENDERER_ASSET_PACK_CONFIG,
+): RendererAssetPackInfo {
   return {
     source: "phaser_loader_asset_pack",
-    packKey: OFFICE_ASSET_PACK_KEY,
+    packKey: config.packKey,
     packSource: "inline_pack_object",
-    coreSection: OFFICE_ASSET_PACK_SECTION,
+    coreSection: config.coreSection,
     loadedSections: [],
-    deferredSections: ["avatar-atlas", "tenant-theme"],
-    tenantBundleId: TENANT_DEFAULT_BUNDLE_ID,
-    themeBundleId: OFFICE_POLISHED_THEME_BUNDLE_ID,
+    deferredSections: config.deferredSections ?? [],
+    tenantBundleId: config.assetBundleId,
+    themeBundleId: config.themeBundleId,
     progress: {
       started: false,
       complete: false,
@@ -294,12 +315,16 @@ export function emptyAssetPackInfo(): RendererAssetPackInfo {
   }
 }
 
-export function atlasManifestPath(): string {
-  return appAssetUrl(ATLAS_MANIFEST_FILE)
+export function atlasManifestPath(
+  config: RendererAssetPackConfig = DEFAULT_RENDERER_ASSET_PACK_CONFIG,
+): string {
+  return appAssetUrl(config.manifestPath)
 }
 
-export function atlasImagePath(): string {
-  return appAssetUrl(ATLAS_IMAGE_FILE)
+export function atlasImagePath(
+  config: RendererAssetPackConfig = DEFAULT_RENDERER_ASSET_PACK_CONFIG,
+): string {
+  return appAssetUrl(config.imagePath)
 }
 
 export function appAssetUrl(filePath: string): string {
@@ -319,7 +344,7 @@ export function appBasePath(): string {
 }
 
 function assetMetadataInfo(
-  manifest: InternalOfficeAtlasManifest | undefined,
+  manifest: RuntimeAtlasManifest | undefined,
 ): RendererAssetPipelineInfo["metadata"] {
   if (!manifest) return emptyAssetMetadataInfo()
 

@@ -5,14 +5,13 @@ import { clamp, roundTo } from "./math"
 import { applyCrispWorldText } from "./text-rendering"
 import type {
   FixtureZone,
-  RendererZoneAction,
   RendererZoneAvailability,
   RendererZoneBounds,
   RendererZoneFeedback,
   RendererZoneInfo,
   RendererZoneInteractionState,
-  RendererZoneKind,
   RendererZonePresentationInfo,
+  RendererZonePresentationOverride,
 } from "./types"
 
 interface ZoneLabelView {
@@ -38,6 +37,7 @@ export class ZoneRenderer {
   private activeZoneIds = new Set<string>()
   private availableActionZoneIds = new Set<string>()
   private joinedZoneIds = new Set<string>()
+  private presentations = new Map<string, RendererZonePresentationOverride>()
   private hoveredZoneId?: string
   private debugOverlayEnabled = zoneDebugEnabled()
   private tileSize = 32
@@ -74,6 +74,12 @@ export class ZoneRenderer {
     this.activeZoneIds = new Set(state.activeZoneIds)
     this.availableActionZoneIds = new Set(state.availableActionZoneIds ?? [])
     this.joinedZoneIds = new Set(state.joinedZoneIds ?? [])
+    this.presentations = new Map(
+      (state.presentations ?? []).map((presentation) => [
+        presentation.zoneId,
+        presentation,
+      ]),
+    )
     this.redrawZones()
   }
 
@@ -128,7 +134,7 @@ export class ZoneRenderer {
 
   private drawZone(zone: FixtureZone): void {
     const info = this.zoneInfo(zone)
-    const style = zoneStyle(info.kind)
+    const style = zoneStyle(this.presentationFor(zone))
     const graphics = this.zoneGraphics
 
     if (!graphics) return
@@ -324,7 +330,7 @@ export class ZoneRenderer {
     const halo = this.scene.add.ellipse(0, 0, 28, 28, style.color, 0.14)
     const back = this.scene.add.ellipse(0, 0, 20, 20, 0xfffdf7, 0.96)
     back.setStrokeStyle(1, style.color, 0.76)
-    const glyph = this.scene.add.text(0, -1, actionGlyph(info.availableAction), {
+    const glyph = this.scene.add.text(0, -1, info.markerGlyph ?? "Go", {
       color: style.textColor,
       fontFamily: "Aptos, Segoe UI, sans-serif",
       fontSize: "12px",
@@ -381,8 +387,9 @@ export class ZoneRenderer {
     const hovered = this.hoveredZoneId === zone.id
     const joined = this.joinedZoneIds.has(zone.id)
     const actionZone = this.availableActionZoneIds.has(zone.id)
-    const kind = zoneKind(zone)
-    const availableAction = actionZone ? zoneAction(kind) : undefined
+    const presentation = this.presentationFor(zone)
+    const kind = presentation.kind ?? "generic"
+    const availableAction = actionZone ? presentation.availableAction : undefined
     const availability: RendererZoneAvailability = joined
       ? "joined"
       : active && actionZone
@@ -400,14 +407,15 @@ export class ZoneRenderer {
       hovered,
       availability,
       availableAction,
-      feedback: zoneFeedback(kind, availability, active, availableAction),
-      label: zoneLabel(zone, availability, availableAction, active, kind),
+      feedback: zoneFeedback(presentation, availability, active),
+      label: zoneLabel(zone, presentation, availability, active),
+      markerGlyph: presentation.glyph,
       labelVisible:
         active ||
         hovered ||
         joined ||
-        kind === "meeting" ||
-        kind === "portal" ||
+        Boolean(presentation.label) ||
+        Boolean(presentation.availableAction) ||
         this.debugOverlayEnabled,
       labelScale: roundTo(
         clamp(
@@ -425,7 +433,17 @@ export class ZoneRenderer {
   private isActionZone(zoneId: string): boolean {
     const zone = this.zones.find((candidate) => candidate.id === zoneId)
     if (!zone) return false
-    return zoneAction(zoneKind(zone)) !== undefined
+    return this.presentationFor(zone).availableAction !== undefined
+  }
+
+  private presentationFor(zone: FixtureZone): RendererZonePresentationOverride {
+    return this.presentations.get(zone.id) ?? {
+      zoneId: zone.id,
+      kind: "generic",
+      color: 0x6f7d78,
+      textColor: "#3c4945",
+      label: readableZoneLabel(zone),
+    }
   }
 }
 
@@ -438,41 +456,13 @@ function zoneBounds(zone: FixtureZone, tileSize: number): RendererZoneBounds {
   }
 }
 
-function zoneKind(zone: FixtureZone): RendererZoneKind {
-  const raw = `${zone.zoneType} ${zone.id}`.toLowerCase()
-
-  if (raw.includes("meeting")) return "meeting"
-  if (raw.includes("portal") || raw.includes("door")) return "portal"
-  if (raw.includes("private")) return "private"
-  if (raw.includes("lobby")) return "lobby"
-  if (raw.includes("quiet")) return "quiet"
-  return "generic"
-}
-
-function zoneAction(kind: RendererZoneKind): RendererZoneAction | undefined {
-  if (kind === "meeting") return "join_meeting"
-  if (kind === "private") return "enter_private"
-  if (kind === "portal") return "enter_portal"
-  return undefined
-}
-
-function zoneStyle(kind: RendererZoneKind): {
+function zoneStyle(presentation: RendererZonePresentationOverride): {
   readonly color: number
   readonly textColor: string
 } {
-  switch (kind) {
-    case "meeting":
-      return { color: 0x2f8f63, textColor: "#0f4f38" }
-    case "private":
-      return { color: 0x755aa5, textColor: "#44305f" }
-    case "portal":
-      return { color: 0x316f9f, textColor: "#1d4260" }
-    case "lobby":
-      return { color: 0x2f7c83, textColor: "#1e5f55" }
-    case "quiet":
-      return { color: 0xa66f19, textColor: "#6b440d" }
-    case "generic":
-      return { color: 0x6f7d78, textColor: "#3c4945" }
+  return {
+    color: presentation.color,
+    textColor: presentation.textColor,
   }
 }
 
@@ -508,45 +498,26 @@ function zoneLineWidth(availability: RendererZoneAvailability): number {
 
 function zoneLabel(
   zone: FixtureZone,
+  presentation: RendererZonePresentationOverride,
   availability: RendererZoneAvailability,
-  availableAction: RendererZoneAction | undefined,
   active: boolean,
-  kind: RendererZoneKind,
 ): string {
-  if (availability === "joined") return "Call joined"
-  if (availableAction === "join_meeting") return "Join call"
-  if (availableAction === "enter_private") return "Private access"
-  if (availableAction === "enter_portal") return "Door ready"
-  if (active && kind === "private") return "Private area"
-  if (active && kind === "portal") return "Door"
+  if (availability === "joined") return presentation.label ?? readableZoneLabel(zone)
+  if (presentation.label && (active || presentation.availableAction)) {
+    return presentation.label
+  }
   return readableZoneLabel(zone)
 }
 
 function zoneFeedback(
-  kind: RendererZoneKind,
+  presentation: RendererZonePresentationOverride,
   availability: RendererZoneAvailability,
   active: boolean,
-  availableAction: RendererZoneAction | undefined,
 ): RendererZoneFeedback {
   if (availability === "joined") return "joined"
-  if (availableAction === "join_meeting") return "meeting_ready"
-  if (availableAction === "enter_private") return "private_access_available"
-  if (availableAction === "enter_portal") return "portal_ready"
-  if (active && kind === "private") return "private_boundary"
+  if (presentation.feedback) return presentation.feedback
+  if (active) return "active"
   return "none"
-}
-
-function actionGlyph(action: RendererZoneAction | undefined): string {
-  switch (action) {
-    case "join_meeting":
-      return "Call"
-    case "enter_private":
-      return "Lock"
-    case "enter_portal":
-      return "Door"
-    default:
-      return "Go"
-  }
 }
 
 function readableZoneLabel(zone: FixtureZone): string {

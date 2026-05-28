@@ -42,6 +42,7 @@ import type {
   RenderedPlayer,
   RendererAvatarInfo,
   RendererAdvancedInputInfo,
+  RendererAssetPackConfig,
   RendererAudioCueId,
   RendererAudioInfo,
   RendererAssetPackInfo,
@@ -66,7 +67,7 @@ import type {
   RendererZoomPresetId,
 } from "./types"
 
-export class OfficeScene extends Phaser.Scene {
+export class TileWorldScene extends Phaser.Scene {
   private readonly avatarRenderer: AvatarRenderer
   private readonly cameraController: CameraController
   private readonly tilemapRenderer: TilemapRenderer
@@ -99,10 +100,11 @@ export class OfficeScene extends Phaser.Scene {
   private sceneReady = false
 
   constructor(
-    private readonly onReady: (scene: OfficeScene) => void,
+    private readonly onReady: (scene: TileWorldScene) => void,
     assetPackInfoProvider?: () => RendererAssetPackInfo | undefined,
+    private readonly assetPackConfig?: RendererAssetPackConfig,
   ) {
-    super({ key: "OfficeScene" })
+    super({ key: "TileWorldScene" })
     this.avatarRenderer = new AvatarRenderer(this)
     this.cameraController = new CameraController(this)
     this.tilemapRenderer = new TilemapRenderer(this)
@@ -121,21 +123,25 @@ export class OfficeScene extends Phaser.Scene {
     this.assetPackLoader = new RendererAssetPackLoader(
       this,
       assetPackInfoProvider,
+      assetPackConfig,
     )
     this.rendererDepthInfo = emptyDepthInfo(this.depthDebugOverlay.isEnabled())
   }
 
   preload(): void {
     if (!this.assetPackLoader.coreAssetsReady()) {
-      this.assetPackLoader.preloadCoreOfficePack()
+      this.assetPackLoader.preloadCoreAssetPack()
     }
   }
 
   create(): void {
     this.sceneReady = true
-    this.runtimeAssetAtlas = runtimeAssetAtlasFromLoadedAssets(this)
+    this.runtimeAssetAtlas = runtimeAssetAtlasFromLoadedAssets(
+      this,
+      this.assetPackConfig,
+    )
     this.assetPipelineInfo = {
-      ...emptyAssetPipelineInfo(),
+      ...emptyAssetPipelineInfo(this.assetPackConfig),
       loader: this.assetPackLoader.getInfo(),
     }
     this.cameraController.markReady()
@@ -205,6 +211,7 @@ export class OfficeScene extends Phaser.Scene {
       multiTileVariantGids,
       atlas,
       this.assetPackLoader.getInfo(),
+      this.assetPackConfig,
     )
     const tileset = this.activeMap.addTilesetImage(
       TILESET_NAME,

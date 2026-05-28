@@ -1,8 +1,9 @@
 import Phaser from "phaser"
 
 import { RendererAssetPackLoader } from "./asset-pack-loader"
-import { OfficeScene } from "./office-scene"
+import { TileWorldScene } from "./tile-world-scene"
 import type {
+  RendererAssetPackConfig,
   RendererAssetPackInfo,
   RendererSceneDescriptor,
   RendererSceneManagerInfo,
@@ -13,18 +14,23 @@ export class RendererLoadingScene extends Phaser.Scene {
 
   constructor(
     private readonly onPreloadComplete: (info: RendererAssetPackInfo) => void,
+    assetPackConfig: RendererAssetPackConfig,
   ) {
     super({ key: "RendererLoadingScene" })
-    this.assetPackLoader = new RendererAssetPackLoader(this)
+    this.assetPackLoader = new RendererAssetPackLoader(
+      this,
+      undefined,
+      assetPackConfig,
+    )
   }
 
   preload(): void {
-    this.assetPackLoader.preloadCoreOfficePack()
+    this.assetPackLoader.preloadCoreAssetPack()
   }
 
   create(): void {
     this.onPreloadComplete(this.assetPackLoader.getInfo())
-    this.scene.start("OfficeScene")
+    this.scene.start("TileWorldScene")
   }
 }
 
@@ -32,18 +38,25 @@ export class RendererSceneManager {
   private preloadedAssetPackInfo?: RendererAssetPackInfo
 
   readonly loadingScene: RendererLoadingScene
-  readonly officeScene: OfficeScene
+  readonly tileWorldScene: TileWorldScene
   readonly scenes: Phaser.Scene[]
 
-  constructor(onOfficeReady: (scene: OfficeScene) => void) {
-    this.loadingScene = new RendererLoadingScene((info) => {
-      this.preloadedAssetPackInfo = info
-    })
-    this.officeScene = new OfficeScene(
-      onOfficeReady,
-      () => this.preloadedAssetPackInfo,
+  constructor(
+    onWorldReady: (scene: TileWorldScene) => void,
+    assetPackConfig: RendererAssetPackConfig,
+  ) {
+    this.loadingScene = new RendererLoadingScene(
+      (info) => {
+        this.preloadedAssetPackInfo = info
+      },
+      assetPackConfig,
     )
-    this.scenes = [this.loadingScene, this.officeScene]
+    this.tileWorldScene = new TileWorldScene(
+      onWorldReady,
+      () => this.preloadedAssetPackInfo,
+      assetPackConfig,
+    )
+    this.scenes = [this.loadingScene, this.tileWorldScene]
   }
 
   getInfo(game?: Phaser.Game): RendererSceneManagerInfo {
@@ -61,9 +74,9 @@ export class RendererSceneManager {
 
     return {
       source: "phaser_scene_manager",
-      architecture: "boot_preload_office_runtime",
+      architecture: "boot_preload_tile_world_runtime",
       bootSceneKey: "RendererLoadingScene",
-      worldSceneKey: "OfficeScene",
+      worldSceneKey: "TileWorldScene",
       preloadOwner: "RendererLoadingScene",
       transitionOwner: "RendererSceneManager",
       activeSceneKey: activeSceneKeys[0],
@@ -95,7 +108,7 @@ const registeredSceneDescriptors: readonly RendererSceneDescriptor[] = [
     owns: ["asset-pack-preload", "loader-progress", "cache-warmup"],
   },
   {
-    key: "OfficeScene",
+    key: "TileWorldScene",
     role: "world_runtime",
     status: "registered",
     owns: ["tilemap", "objects", "avatars", "zones", "camera", "effects"],
@@ -107,7 +120,7 @@ const plannedSceneDescriptors: readonly RendererSceneDescriptor[] = [
     key: "LobbyScene",
     role: "navigation",
     status: "planned",
-    owns: ["space-selection", "tenant-entry"],
+    owns: ["world-selection", "entry"],
   },
   {
     key: "AvatarPreviewScene",

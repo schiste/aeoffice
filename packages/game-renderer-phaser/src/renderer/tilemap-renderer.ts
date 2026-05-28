@@ -9,6 +9,7 @@ import { RENDERER_VERTEX_ROUND_MODE, TILESET_KEY } from "./constants"
 import type {
   FixtureMap,
   FixtureToken,
+  RendererAssetPackConfig,
   RendererAssetPackInfo,
   MultiTileVariantGids,
   RendererAssetPipelineInfo,
@@ -37,6 +38,7 @@ export class TilemapRenderer {
     multiTileVariantGids: MultiTileVariantGids,
     atlas: RuntimeAssetAtlas | undefined,
     loader: RendererAssetPackInfo,
+    assetPackConfig?: RendererAssetPackConfig,
   ): RendererAssetPipelineInfo {
     const tilesetSignature = semanticTilesetSignature(
       fixtureMap,
@@ -53,6 +55,18 @@ export class TilemapRenderer {
         ...this.lastAssetInfo,
         tilesetReused: true,
         loader,
+        manifestPath: assetPackConfig
+          ? assetPipelineInfoFromRender(atlas, 0, new Set(), {
+              loader,
+              assetPackConfig,
+            }).manifestPath
+          : this.lastAssetInfo.manifestPath,
+        imagePath: assetPackConfig
+          ? assetPipelineInfoFromRender(atlas, 0, new Set(), {
+              loader,
+              assetPackConfig,
+            }).imagePath
+          : this.lastAssetInfo.imagePath,
       }
       return this.lastAssetInfo
     }
@@ -136,6 +150,7 @@ export class TilemapRenderer {
         tilesetSignature,
         tilesetReused: false,
         loader,
+        assetPackConfig,
       },
     )
     return this.lastAssetInfo

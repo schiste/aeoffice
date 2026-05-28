@@ -267,8 +267,8 @@ export class WorldAudioSystem {
         lastCueAtMs: this.lastCueAtMs,
       },
       routing: {
-        mediaHandledOutsidePhaser: true,
-        mediaLayer: "livekit_or_browser_media",
+        realtimeStreamsHandledOutsidePhaser: true,
+        realtimeStreamLayer: "external_browser_runtime",
         spatialWorldUiOnly: true,
       },
       policy: {

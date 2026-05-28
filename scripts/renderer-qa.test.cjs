@@ -529,7 +529,7 @@ function verifyAudioSystem(state) {
     audio.cues.attemptedPlayCount >= 1,
     "Expected at least one world UI audio cue attempt.",
   )
-  assert.equal(audio.routing.mediaHandledOutsidePhaser, true)
+  assert.equal(audio.routing.realtimeStreamsHandledOutsidePhaser, true)
   assert.equal(audio.policy.maxConcurrentUiSounds, 6)
 
   return {
@@ -596,8 +596,8 @@ function assertAudioContract(audio) {
   assert.equal(typeof audio.cues.successfulPlayCount, "number")
   assert.equal(typeof audio.cues.blockedByLockCount, "number")
   assert.equal(typeof audio.cues.skippedUnavailableCount, "number")
-  assert.equal(audio.routing.mediaHandledOutsidePhaser, true)
-  assert.equal(audio.routing.mediaLayer, "livekit_or_browser_media")
+  assert.equal(audio.routing.realtimeStreamsHandledOutsidePhaser, true)
+  assert.equal(audio.routing.realtimeStreamLayer, "external_browser_runtime")
   assert.equal(audio.routing.spatialWorldUiOnly, true)
   assert.equal(audio.policy.autoplay, "play_after_unlock_else_track_attempt")
   assert.equal(typeof audio.policy.footstepThrottleMs, "number")
@@ -1590,12 +1590,12 @@ function assertRendererSnapshot(state) {
   assert.ok(state.renderer.webgl.maxTextureSize >= 1024)
   assert.equal(state.renderer.scenes.source, "phaser_scene_manager")
   assert.equal(state.renderer.scenes.bootSceneKey, "RendererLoadingScene")
-  assert.equal(state.renderer.scenes.worldSceneKey, "OfficeScene")
-  assert.ok(state.renderer.scenes.activeSceneKeys.includes("OfficeScene"))
+  assert.equal(state.renderer.scenes.worldSceneKey, "TileWorldScene")
+  assert.ok(state.renderer.scenes.activeSceneKeys.includes("TileWorldScene"))
   assert.ok(
     state.renderer.scenes.registeredSceneKeys.includes("RendererLoadingScene"),
   )
-  assert.ok(state.renderer.scenes.registeredSceneKeys.includes("OfficeScene"))
+  assert.ok(state.renderer.scenes.registeredSceneKeys.includes("TileWorldScene"))
   assert.ok(
     state.renderer.scenes.plannedSceneKeys.includes(
       "GeneratedRoomPreviewScene",
@@ -1603,7 +1603,7 @@ function assertRendererSnapshot(state) {
   )
   assert.ok(
     state.renderer.scenes.scenes.some(
-      (scene) => scene.key === "OfficeScene" && scene.status === "active",
+      (scene) => scene.key === "TileWorldScene" && scene.status === "active",
     ),
   )
   assert.equal(state.renderer.input.source, "phaser_input_plugin")
@@ -1784,7 +1784,7 @@ function assertRendererSnapshot(state) {
     state.renderer.effects.objectCounts.coffeeSteamEmitters +
       state.renderer.effects.objectCounts.plantMoteEmitters +
       state.renderer.effects.objectCounts.portalShimmerEmitters +
-      state.renderer.effects.objectCounts.meetingZoneActivationEmitters +
+      state.renderer.effects.objectCounts.actionZoneActivationEmitters +
       state.renderer.effects.objectCounts.entryTransitionEmitters,
   )
   assert.equal(

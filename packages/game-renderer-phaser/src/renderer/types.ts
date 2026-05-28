@@ -132,13 +132,7 @@ export interface FixtureZone {
   readonly zoneType: string
 }
 
-export type RendererZoneKind =
-  | "meeting"
-  | "private"
-  | "portal"
-  | "lobby"
-  | "quiet"
-  | "generic"
+export type RendererZoneKind = string
 
 export type RendererZoneAvailability =
   | "passive"
@@ -146,15 +140,9 @@ export type RendererZoneAvailability =
   | "available"
   | "joined"
 
-export type RendererZoneAction = "join_meeting" | "enter_private" | "enter_portal"
+export type RendererZoneAction = string
 
-export type RendererZoneFeedback =
-  | "none"
-  | "meeting_ready"
-  | "private_boundary"
-  | "private_access_available"
-  | "portal_ready"
-  | "joined"
+export type RendererZoneFeedback = string
 
 export interface RendererZoneBounds {
   readonly x: number
@@ -167,6 +155,23 @@ export interface RendererZoneInteractionState {
   readonly activeZoneIds: readonly string[]
   readonly availableActionZoneIds?: readonly string[]
   readonly joinedZoneIds?: readonly string[]
+  readonly presentations?: readonly RendererZonePresentationOverride[]
+}
+
+export interface RendererVisualTone {
+  readonly color: number
+  readonly textColor: string
+  readonly glyph?: string
+  readonly tone?: string
+  readonly prompt?: string
+}
+
+export interface RendererZonePresentationOverride extends RendererVisualTone {
+  readonly zoneId: string
+  readonly kind?: RendererZoneKind
+  readonly availableAction?: RendererZoneAction
+  readonly feedback?: RendererZoneFeedback
+  readonly label?: string
 }
 
 export interface RendererZoneInfo {
@@ -180,6 +185,7 @@ export interface RendererZoneInfo {
   readonly availableAction?: RendererZoneAction
   readonly feedback: RendererZoneFeedback
   readonly label: string
+  readonly markerGlyph?: string
   readonly labelVisible: boolean
   readonly labelScale: number
   readonly markerVisible: boolean
@@ -223,6 +229,7 @@ export interface RendererWorldInteractionCandidate {
   readonly serverPermitted: boolean
   readonly permissionReason?: string
   readonly markerVisible: boolean
+  readonly presentation?: RendererVisualTone
 }
 
 export type RendererWorldInteractionAffordance =
@@ -443,8 +450,8 @@ export interface RendererAudioInfo {
     readonly lastCueAtMs?: number
   }
   readonly routing: {
-    readonly mediaHandledOutsidePhaser: true
-    readonly mediaLayer: "livekit_or_browser_media"
+    readonly realtimeStreamsHandledOutsidePhaser: true
+    readonly realtimeStreamLayer: "external_browser_runtime"
     readonly spatialWorldUiOnly: true
   }
   readonly policy: {
@@ -498,7 +505,7 @@ export type RendererParticleEffectName =
   | "coffee_steam"
   | "plant_motes"
   | "portal_shimmer"
-  | "meeting_zone_activation"
+  | "zone_activation"
   | "room_entry_transition"
 
 export type RendererEffectsDisableReason =
@@ -563,7 +570,7 @@ export interface RendererEffectsInfo {
     readonly coffeeSteamEmitters: number
     readonly plantMoteEmitters: number
     readonly portalShimmerEmitters: number
-    readonly meetingZoneActivationEmitters: number
+    readonly actionZoneActivationEmitters: number
     readonly entryTransitionEmitters: number
     readonly particleAliveBudget: number
   }
@@ -1105,6 +1112,18 @@ export interface RendererAssetPackInfo {
   }
 }
 
+export interface RendererAssetPackConfig {
+  readonly packKey: string
+  readonly coreSection: string
+  readonly manifestCacheKey: string
+  readonly imageTextureKey: string
+  readonly manifestPath: string
+  readonly imagePath: string
+  readonly assetBundleId: string
+  readonly themeBundleId: string
+  readonly deferredSections?: readonly string[]
+}
+
 export type RendererSceneStatus = "registered" | "active" | "planned"
 
 export interface RendererSceneDescriptor {
@@ -1122,9 +1141,9 @@ export interface RendererSceneDescriptor {
 
 export interface RendererSceneManagerInfo {
   readonly source: "phaser_scene_manager"
-  readonly architecture: "boot_preload_office_runtime"
+  readonly architecture: "boot_preload_tile_world_runtime"
   readonly bootSceneKey: "RendererLoadingScene"
-  readonly worldSceneKey: "OfficeScene"
+  readonly worldSceneKey: "TileWorldScene"
   readonly preloadOwner: "RendererLoadingScene"
   readonly transitionOwner: "RendererSceneManager"
   readonly activeSceneKey?: string

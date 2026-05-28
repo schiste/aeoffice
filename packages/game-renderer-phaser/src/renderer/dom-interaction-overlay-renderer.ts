@@ -1,4 +1,4 @@
-import type { OfficeScene } from "./office-scene"
+import type { TileWorldScene } from "./tile-world-scene"
 import {
   interactionActionFlowState,
   interactionAffordanceLabel,
@@ -25,7 +25,7 @@ export class DomInteractionOverlayRenderer {
 
   constructor(
     private readonly overlay: HTMLElement,
-    private readonly scene: OfficeScene,
+    private readonly scene: TileWorldScene,
   ) {}
 
   destroy(): void {

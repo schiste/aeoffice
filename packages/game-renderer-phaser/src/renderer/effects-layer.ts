@@ -53,7 +53,7 @@ interface EffectsObjectCounts {
   coffeeSteamEmitters: number
   plantMoteEmitters: number
   portalShimmerEmitters: number
-  meetingZoneActivationEmitters: number
+  actionZoneActivationEmitters: number
   entryTransitionEmitters: number
   particleAliveBudget: number
 }
@@ -330,8 +330,8 @@ export class EffectsLayer {
       coffeeSteamEmitters: particleCounts.coffeeSteamEmitters,
       plantMoteEmitters: particleCounts.plantMoteEmitters,
       portalShimmerEmitters: particleCounts.portalShimmerEmitters,
-      meetingZoneActivationEmitters:
-        particleCounts.meetingZoneActivationEmitters,
+      actionZoneActivationEmitters:
+        particleCounts.actionZoneActivationEmitters,
       entryTransitionEmitters: particleCounts.entryTransitionEmitters,
       particleAliveBudget: particleCounts.particleAliveBudget,
     }

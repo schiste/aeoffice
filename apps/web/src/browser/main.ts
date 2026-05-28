@@ -15,9 +15,10 @@ import {
   type RendererWorldInteractionCandidate,
   type RendererWorldInteractionInfo,
   type RendererWorldInteractionPermissionState,
+  type RendererZonePresentationOverride,
   type RendererZoomPresetId,
 } from "./phaser-office-renderer"
-import { validateFixtureMapForRenderer } from "./renderer/map-render-validation"
+import { validateFixtureMapForRenderer } from "@aedventure/game-renderer-phaser"
 import {
   CLIENT_INPUT_HISTORY_LIMIT,
   CLIENT_MOVEMENT_FRAME_MS,
@@ -4185,7 +4186,133 @@ function renderZonePresentation(): void {
     activeZoneIds,
     availableActionZoneIds,
     joinedZoneIds,
+    presentations:
+      state.fixtureMap?.compiled.zones.map(zonePresentationForRenderer) ?? [],
   })
+}
+
+function zonePresentationForRenderer(
+  zone: FixtureZone,
+): RendererZonePresentationOverride {
+  const action = zoneWorldAction(zone)
+  const raw = `${zone.zoneType} ${zone.id}`.toLowerCase()
+  const base = {
+    zoneId: zone.id,
+    kind: rendererZoneKind(zone),
+    label: zoneActionLabel(action, zone),
+    availableAction: action,
+    feedback: rendererZoneFeedback(action, raw),
+    glyph: rendererZoneGlyph(action),
+  }
+
+  if (action === "join_meeting") {
+    return {
+      ...base,
+      color: 0x2f8f63,
+      textColor: "#0f4f38",
+      tone: "meeting",
+      prompt: "Join call",
+    }
+  }
+  if (action === "enter_private") {
+    return {
+      ...base,
+      color: 0x755aa5,
+      textColor: "#44305f",
+      tone: "private",
+      prompt: "Private",
+    }
+  }
+  if (action === "enter_portal") {
+    return {
+      ...base,
+      color: 0x316f9f,
+      textColor: "#1d4260",
+      tone: "portal",
+      prompt: "Enter",
+    }
+  }
+  if (raw.includes("quiet")) {
+    return {
+      ...base,
+      color: 0xa66f19,
+      textColor: "#6b440d",
+      tone: "quiet",
+      prompt: zoneDisplayName(zone),
+    }
+  }
+
+  return {
+    ...base,
+    color: 0x2f7c83,
+    textColor: "#1e5f55",
+    tone: "lobby",
+    prompt: zoneDisplayName(zone),
+  }
+}
+
+function objectInteractionPresentation(
+  action: RendererWorldInteractionAction,
+): RendererZonePresentationOverride {
+  if (action === "open_door") {
+    return {
+      zoneId: "object",
+      color: 0x316f9f,
+      textColor: "#1d4260",
+      glyph: "Door",
+      tone: "door",
+      prompt: "Open door",
+    }
+  }
+
+  return {
+    zoneId: "object",
+    color: 0x2f8f63,
+    textColor: "#0f4f38",
+    glyph: "Use",
+    tone: "object",
+  }
+}
+
+function rendererZoneKind(zone: FixtureZone): string {
+  const raw = `${zone.zoneType} ${zone.id}`.toLowerCase()
+
+  if (raw.includes("meeting")) return "meeting"
+  if (raw.includes("portal") || raw.includes("door")) return "portal"
+  if (raw.includes("private")) return "private"
+  if (raw.includes("quiet")) return "quiet"
+  if (raw.includes("lobby")) return "lobby"
+  return "generic"
+}
+
+function rendererZoneFeedback(
+  action: RendererWorldInteractionAction | undefined,
+  raw: string,
+): string {
+  if (action === "join_meeting") return "meeting_ready"
+  if (action === "enter_private") return "private_access_available"
+  if (action === "enter_portal") return "portal_ready"
+  if (raw.includes("private")) return "private_boundary"
+  return "none"
+}
+
+function rendererZoneGlyph(
+  action: RendererWorldInteractionAction | undefined,
+): string {
+  if (action === "join_meeting") return "Call"
+  if (action === "enter_private") return "Lock"
+  if (action === "enter_portal") return "Door"
+  return "Go"
+}
+
+function zoneActionLabel(
+  action: RendererWorldInteractionAction | undefined,
+  zone: FixtureZone,
+): string {
+  if (action === "join_meeting") return "Join call"
+  if (action === "enter_private") return "Private access"
+  if (action === "enter_portal") return "Door ready"
+  return zoneDisplayName(zone)
 }
 
 function syncWorldInteractionLayer(): void {
@@ -4354,6 +4481,7 @@ function worldInteractionCandidateForZone(
     serverPermitted: false,
     permissionReason: active ? undefined : "not_nearby",
     markerVisible: false,
+    presentation: zonePresentationForRenderer(zone),
   }
 }
 
@@ -4402,6 +4530,7 @@ function worldInteractionCandidatesForObjects(
         serverPermitted: false,
         permissionReason: active ? undefined : "not_nearby",
         markerVisible: false,
+        presentation: objectInteractionPresentation(interaction.action),
       })
     })
   })
@@ -4493,6 +4622,8 @@ function worldInteractionActionPriority(
       return 50
     case "use_object":
       return 30
+    default:
+      return 10
   }
 }
 
@@ -4673,6 +4804,8 @@ function worldActionButtonLabel(
       return "Open door"
     case "use_object":
       return "Use"
+    default:
+      return candidate.label || "Use"
   }
 }
 
@@ -6270,7 +6403,7 @@ function rendererVisualPolishTextState(
     effects.objectCounts.coffeeSteamEmitters +
     effects.objectCounts.plantMoteEmitters +
     effects.objectCounts.portalShimmerEmitters +
-    effects.objectCounts.meetingZoneActivationEmitters +
+    effects.objectCounts.actionZoneActivationEmitters +
     effects.objectCounts.entryTransitionEmitters
 
   return {
@@ -6609,8 +6742,8 @@ function engineArchitectureTextState() {
     renderer: {
       host: "RendererHost",
       sceneManager: "RendererSceneManager",
-      scene: "OfficeScene",
-      scenes: ["RendererLoadingScene", "OfficeScene"],
+      scene: "TileWorldScene",
+      scenes: ["RendererLoadingScene", "TileWorldScene"],
       plannedScenes: [
         "LobbyScene",
         "AvatarPreviewScene",

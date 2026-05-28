@@ -25,6 +25,9 @@
       "@aedventure/game-map": [
         "packages/game-map/src"
       ],
+      "@aedventure/game-renderer-phaser": [
+        "packages/game-renderer-phaser/src"
+      ],
       "@aedventure/office-domain": [
         "packages/office-domain/src"
       ],

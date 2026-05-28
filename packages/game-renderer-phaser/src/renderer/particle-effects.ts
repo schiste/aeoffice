@@ -14,7 +14,7 @@ export type ParticleEffectName =
   | "coffee_steam"
   | "plant_motes"
   | "portal_shimmer"
-  | "meeting_zone_activation"
+  | "zone_activation"
   | "room_entry_transition"
 
 export interface ParticleEffectsCounts {
@@ -23,7 +23,7 @@ export interface ParticleEffectsCounts {
   readonly coffeeSteamEmitters: number
   readonly plantMoteEmitters: number
   readonly portalShimmerEmitters: number
-  readonly meetingZoneActivationEmitters: number
+  readonly actionZoneActivationEmitters: number
   readonly entryTransitionEmitters: number
   readonly particleAliveBudget: number
 }
@@ -53,7 +53,7 @@ const PARTICLE_TEXTURE_KEY = "aedventure.effect.soft_particle"
 const MAX_COFFEE_STEAM_EMITTERS = 4
 const MAX_PLANT_MOTE_EMITTERS = 6
 const MAX_PORTAL_SHIMMER_EMITTERS = 3
-const MAX_MEETING_ACTIVATION_EMITTERS = 4
+const MAX_ACTION_ZONE_ACTIVATION_EMITTERS = 4
 
 type ParticleEmitterConfig =
   Phaser.Types.GameObjects.Particles.ParticleEmitterConfig
@@ -86,7 +86,7 @@ export class ParticleEffectsPass {
     records.push(...this.createPlantMoteEmitters(options.fixtureMap))
     records.push(...this.createPortalShimmerEmitters(options.fixtureMap))
     this.ambientRecords = records
-    this.activationRecords = this.createMeetingActivationEmitters(
+    this.activationRecords = this.createActionZoneActivationEmitters(
       options.fixtureMap,
     )
     this.lastCounts = this.computeCounts()
@@ -115,7 +115,7 @@ export class ParticleEffectsPass {
     }
 
     destroyRecords(this.activationRecords)
-    this.activationRecords = this.createMeetingActivationEmitters(
+    this.activationRecords = this.createActionZoneActivationEmitters(
       this.lastRenderOptions.fixtureMap,
     )
     this.lastCounts = this.computeCounts()
@@ -246,7 +246,7 @@ export class ParticleEffectsPass {
       })
   }
 
-  private createMeetingActivationEmitters(
+  private createActionZoneActivationEmitters(
     fixtureMap: FixtureMap,
   ): readonly ParticleEmitterRecord[] {
     const activeZoneIds = new Set([
@@ -256,8 +256,8 @@ export class ParticleEffectsPass {
     ])
 
     return fixtureMap.compiled.zones
-      .filter((zone) => zoneKind(zone) === "meeting" && activeZoneIds.has(zone.id))
-      .slice(0, MAX_MEETING_ACTIVATION_EMITTERS)
+      .filter((zone) => activeZoneIds.has(zone.id))
+      .slice(0, MAX_ACTION_ZONE_ACTIVATION_EMITTERS)
       .map((zone) => {
         const bounds = zoneBounds(zone, fixtureMap.compiled.tileSize)
         const emitter = this.createEmitter(
@@ -276,7 +276,7 @@ export class ParticleEffectsPass {
           },
           ZONE_DEPTH + 22,
         )
-        return recordFor(emitter, "meeting_zone_activation", 10)
+        return recordFor(emitter, "zone_activation", 10)
       })
   }
 
@@ -324,9 +324,9 @@ export class ParticleEffectsPass {
       coffeeSteamEmitters: countEffect(records, "coffee_steam"),
       plantMoteEmitters: countEffect(records, "plant_motes"),
       portalShimmerEmitters: countEffect(records, "portal_shimmer"),
-      meetingZoneActivationEmitters: countEffect(
+      actionZoneActivationEmitters: countEffect(
         records,
-        "meeting_zone_activation",
+        "zone_activation",
       ),
       entryTransitionEmitters: countEffect(records, "room_entry_transition"),
       particleAliveBudget: records.reduce(
@@ -364,7 +364,7 @@ export function emptyParticleEffectsCounts(): ParticleEffectsCounts {
     coffeeSteamEmitters: 0,
     plantMoteEmitters: 0,
     portalShimmerEmitters: 0,
-    meetingZoneActivationEmitters: 0,
+    actionZoneActivationEmitters: 0,
     entryTransitionEmitters: 0,
     particleAliveBudget: 0,
   }
@@ -417,6 +417,7 @@ function cloneZoneInteractionState(
     activeZoneIds: [...state.activeZoneIds],
     availableActionZoneIds: [...(state.availableActionZoneIds ?? [])],
     joinedZoneIds: [...(state.joinedZoneIds ?? [])],
+    presentations: [...(state.presentations ?? [])],
   }
 }
 
@@ -428,9 +429,8 @@ function zoneInteractionSignature(state: RendererZoneInteractionState): string {
   ].join("|")
 }
 
-function zoneKind(zone: FixtureZone): "meeting" | "portal" | "other" {
+function zoneKind(zone: FixtureZone): "portal" | "other" {
   const raw = `${zone.zoneType} ${zone.id}`.toLowerCase()
-  if (raw.includes("meeting")) return "meeting"
   if (raw.includes("portal") || raw.includes("door")) return "portal"
   return "other"
 }

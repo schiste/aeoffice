@@ -1824,3 +1824,28 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   `http://127.0.0.1:8787/app`, but it still exits before navigation with
   `ERR_MODULE_NOT_FOUND` because the skill-local script cannot resolve
   `playwright`.
+- Phase 4 extracted the neutral Phaser renderer into
+  `packages/game-renderer-phaser`. The package now owns `RendererHost`,
+  `TileWorldScene`, tilemap/object/avatar/entity/zone renderers, camera
+  control, DOM world overlays, interaction rendering, renderer telemetry,
+  effects, audio cues, dev overlays, and renderer QA support. A package boundary
+  test prevents obvious office/meeting/media/admin/account terms from entering
+  the neutral renderer source.
+- The office frontend now keeps only a thin adapter in
+  `apps/web/src/browser/phaser-office-renderer.ts`. It passes the internal
+  office atlas paths, cache keys, and bundle IDs into the neutral renderer while
+  keeping map data, entity lists, interaction labels, meeting/call state, and
+  app UI callbacks in the virtual office app layer.
+- Renderer telemetry was neutralized around the extraction: `OfficeScene` is now
+  `TileWorldScene`, scene architecture reports `boot_preload_tile_world_runtime`,
+  action-zone particles no longer use meeting-specific names, and world UI audio
+  reports realtime streams as an external browser runtime concern rather than a
+  Phaser media layer.
+- Verification passed for the Phase 4 renderer split:
+  `npm --workspace @aedventure/game-renderer-phaser run build`,
+  `npm --workspace @aedventure/game-renderer-phaser test`,
+  `npm --workspace @aedventure/web run build`, `npm run smoke:frontend`,
+  `npm run qa:renderer`, `npm run qa:responsive`, `npm run check`, and
+  `git diff --check`. The latest renderer lobby, desktop joined, and mobile
+  joined screenshots were inspected and the virtual office still visually
+  behaves through the extracted renderer package.

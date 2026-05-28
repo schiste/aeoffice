@@ -1,0 +1,15 @@
+{
+  "name": "@aedventure/game-renderer-phaser",
+  "version": "0.1.0",
+  "license": "AGPL-3.0-or-later",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -b",
+    "test": "node test/renderer-boundary.test.js"
+  },
+  "dependencies": {
+    "@aedventure/game-assets": "0.1.0",
+    "phaser": "^4.1.0"
+  }
+}

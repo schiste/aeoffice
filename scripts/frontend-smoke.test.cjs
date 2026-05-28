@@ -983,10 +983,10 @@ function assertEngineArchitectureContract(state) {
   assert.equal(state.engine?.source, "browser_engine_runtime")
   assert.equal(state.engine?.renderer?.host, "RendererHost")
   assert.equal(state.engine?.renderer?.sceneManager, "RendererSceneManager")
-  assert.equal(state.engine?.renderer?.scene, "OfficeScene")
+  assert.equal(state.engine?.renderer?.scene, "TileWorldScene")
   assert.deepEqual(state.engine?.renderer?.scenes, [
     "RendererLoadingScene",
-    "OfficeScene",
+    "TileWorldScene",
   ])
   assert.ok(
     state.engine?.renderer?.plannedScenes?.includes("GeneratedRoomPreviewScene"),
@@ -1044,22 +1044,22 @@ function assertEngineArchitectureContract(state) {
     true,
   )
   assert.equal(state.renderer.scenes.source, "phaser_scene_manager")
-  assert.equal(state.renderer.scenes.architecture, "boot_preload_office_runtime")
+  assert.equal(state.renderer.scenes.architecture, "boot_preload_tile_world_runtime")
   assert.equal(state.renderer.scenes.bootSceneKey, "RendererLoadingScene")
-  assert.equal(state.renderer.scenes.worldSceneKey, "OfficeScene")
+  assert.equal(state.renderer.scenes.worldSceneKey, "TileWorldScene")
   assert.equal(state.renderer.scenes.preloadOwner, "RendererLoadingScene")
-  assert.ok(state.renderer.scenes.activeSceneKeys.includes("OfficeScene"))
+  assert.ok(state.renderer.scenes.activeSceneKeys.includes("TileWorldScene"))
   assert.ok(
     state.renderer.scenes.registeredSceneKeys.includes("RendererLoadingScene"),
   )
-  assert.ok(state.renderer.scenes.registeredSceneKeys.includes("OfficeScene"))
+  assert.ok(state.renderer.scenes.registeredSceneKeys.includes("TileWorldScene"))
   assert.ok(
     state.renderer.scenes.plannedSceneKeys.includes("AvatarPreviewScene"),
   )
   assert.ok(state.renderer.scenes.plannedSceneKeys.includes("MapEditorScene"))
   assert.ok(
     state.renderer.scenes.scenes.some(
-      (scene) => scene.key === "OfficeScene" && scene.status === "active",
+      (scene) => scene.key === "TileWorldScene" && scene.status === "active",
     ),
   )
   assert.ok(
@@ -1588,8 +1588,8 @@ function assertAudioContract(audio) {
   assert.equal(typeof audio.cues.successfulPlayCount, "number")
   assert.equal(typeof audio.cues.blockedByLockCount, "number")
   assert.equal(typeof audio.cues.skippedUnavailableCount, "number")
-  assert.equal(audio.routing.mediaHandledOutsidePhaser, true)
-  assert.equal(audio.routing.mediaLayer, "livekit_or_browser_media")
+  assert.equal(audio.routing.realtimeStreamsHandledOutsidePhaser, true)
+  assert.equal(audio.routing.realtimeStreamLayer, "external_browser_runtime")
   assert.equal(audio.routing.spatialWorldUiOnly, true)
   assert.equal(audio.policy.autoplay, "play_after_unlock_else_track_attempt")
   assert.equal(typeof audio.policy.footstepThrottleMs, "number")

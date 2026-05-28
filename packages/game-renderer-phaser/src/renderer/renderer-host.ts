@@ -16,14 +16,16 @@ import {
   isWebGLRenderer,
   RendererCapabilityReporter,
 } from "./capability-reporter"
+import { DEFAULT_RENDERER_ASSET_PACK_CONFIG } from "./asset-atlas"
 import { DomWorldOverlayRenderer } from "./dom-world-overlay-renderer"
 import { clamp } from "./math"
-import { OfficeScene } from "./office-scene"
+import { TileWorldScene } from "./tile-world-scene"
 import { RendererSceneManager } from "./renderer-scene-manager"
 import type {
   AvatarEmoteId,
   FixtureMap,
   RenderedPlayer,
+  RendererAssetPackConfig,
   RendererAvatarInfo,
   RendererAudioCueId,
   RendererAudioInfo,
@@ -43,13 +45,17 @@ import type {
   RendererZoomPresetId,
 } from "./types"
 
-export class PhaserOfficeRenderer {
+export interface RendererHostOptions {
+  readonly assetPack?: RendererAssetPackConfig
+}
+
+export class PhaserTileWorldRenderer {
   private static nextGameInstanceId = 1
   private readonly sceneManager: RendererSceneManager
-  private readonly scene: OfficeScene
+  private readonly scene: TileWorldScene
   private readonly game: Phaser.Game
-  private readonly gameInstanceId = PhaserOfficeRenderer.nextGameInstanceId
-  private readonly ready: Promise<OfficeScene>
+  private readonly gameInstanceId = PhaserTileWorldRenderer.nextGameInstanceId
+  private readonly ready: Promise<TileWorldScene>
   private readonly resizeObserver: ResizeObserver
   private readonly capabilityReporter: RendererCapabilityReporter
   private readonly domWorldOverlay: DomWorldOverlayRenderer
@@ -66,13 +72,19 @@ export class PhaserOfficeRenderer {
   private fixtureMap?: FixtureMap
   private renderTask: Promise<void> = Promise.resolve()
 
-  constructor(private readonly parent: HTMLElement) {
-    PhaserOfficeRenderer.nextGameInstanceId += 1
+  constructor(
+    private readonly parent: HTMLElement,
+    private readonly options: RendererHostOptions = {},
+  ) {
+    PhaserTileWorldRenderer.nextGameInstanceId += 1
     parent.classList.add("phaser-world-host")
-    this.sceneManager = new RendererSceneManager((scene) => {
-      this.resolveReady(scene)
-    })
-    this.scene = this.sceneManager.officeScene
+    this.sceneManager = new RendererSceneManager(
+      (scene) => {
+        this.resolveReady(scene)
+      },
+      options.assetPack ?? DEFAULT_RENDERER_ASSET_PACK_CONFIG,
+    )
+    this.scene = this.sceneManager.tileWorldScene
     this.ready = new Promise((resolve) => {
       this.resolveReady = resolve
     })
@@ -148,6 +160,7 @@ export class PhaserOfficeRenderer {
       activeZoneIds: this.activeZoneIds,
       availableActionZoneIds: this.activeZoneIds,
       joinedZoneIds: [],
+      presentations: [],
     }
     void this.renderTask.then(async () => {
       const scene = await this.ready
@@ -161,6 +174,7 @@ export class PhaserOfficeRenderer {
       activeZoneIds: [...state.activeZoneIds],
       availableActionZoneIds: [...(state.availableActionZoneIds ?? [])],
       joinedZoneIds: [...(state.joinedZoneIds ?? [])],
+      presentations: [...(state.presentations ?? [])],
     }
     void this.renderTask.then(async () => {
       const scene = await this.ready
@@ -336,7 +350,7 @@ export class PhaserOfficeRenderer {
     })
   }
 
-  private queueRender(render: (scene: OfficeScene) => Promise<void>): Promise<void> {
+  private queueRender(render: (scene: TileWorldScene) => Promise<void>): Promise<void> {
     const previousRenderTask = this.renderTask.catch(() => undefined)
     return previousRenderTask.then(async () => {
       const scene = await this.ready
@@ -372,10 +386,10 @@ export class PhaserOfficeRenderer {
     this.game.canvas.style.imageRendering = "auto"
   }
 
-  private resolveReady: (scene: OfficeScene) => void = () => undefined
+  private resolveReady: (scene: TileWorldScene) => void = () => undefined
 }
 
-export { PhaserOfficeRenderer as RendererHost }
+export { PhaserTileWorldRenderer as RendererHost }
 
 function emptyWorldInteractionInfo(): RendererWorldInteractionInfo {
   return {
@@ -398,6 +412,11 @@ function cloneWorldInteractionInfo(
     activeCandidateIds: [...info.activeCandidateIds],
     permittedCandidateIds: [...info.permittedCandidateIds],
     deniedCandidateIds: [...info.deniedCandidateIds],
-    candidates: info.candidates.map((candidate) => ({ ...candidate })),
+    candidates: info.candidates.map((candidate) => ({
+      ...candidate,
+      presentation: candidate.presentation
+        ? { ...candidate.presentation }
+        : undefined,
+    })),
   }
 }

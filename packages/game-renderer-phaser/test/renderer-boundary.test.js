@@ -1,0 +1,76 @@
+const assert = require("node:assert")
+const fs = require("node:fs")
+const path = require("node:path")
+
+const packageRoot = path.resolve(__dirname, "..")
+const sourceRoot = path.join(packageRoot, "src")
+const publicApiSource = fs.readFileSync(
+  path.join(packageRoot, "src", "index.ts"),
+  "utf8",
+)
+
+const forbiddenTerms = [
+  "SkyOffice",
+  "LimeZu",
+  "OfficeScene",
+  "PhaserOfficeRenderer",
+  "office",
+  "meeting",
+  "media",
+  "admin",
+  "account",
+  "Wikimedia",
+]
+
+for (const filePath of sourceFiles(sourceRoot)) {
+  const source = fs.readFileSync(filePath, "utf8")
+  for (const forbidden of forbiddenTerms) {
+    assert.ok(
+      !new RegExp(`\\b${forbidden}\\b`, "i").test(source),
+      `${path.relative(packageRoot, filePath)} must stay domain-neutral; found ${forbidden}.`,
+    )
+  }
+}
+
+for (const fileName of ["README.md", "package.json"]) {
+  const source = fs.readFileSync(path.join(packageRoot, fileName), "utf8")
+  for (const forbidden of forbiddenTerms) {
+    assert.ok(
+      !new RegExp(`\\b${forbidden}\\b`, "i").test(source),
+      `${fileName} must stay domain-neutral; found ${forbidden}.`,
+    )
+  }
+}
+
+for (const exportedName of [
+  "RendererHost",
+  "PhaserTileWorldRenderer",
+  "TileWorldScene",
+  "RendererSceneManager",
+  "TilemapRenderer",
+  "ObjectRenderer",
+  "AvatarRenderer",
+  "EntityRenderer",
+  "ZoneRenderer",
+  "CameraController",
+  "DomWorldOverlayRenderer",
+  "InteractionRenderer",
+  "RendererTelemetry",
+  "validateFixtureMapForRenderer",
+]) {
+  assert.match(
+    publicApiSource,
+    new RegExp(`\\b${exportedName}\\b`),
+    `Expected @aedventure/game-renderer-phaser to export ${exportedName}.`,
+  )
+}
+
+function sourceFiles(directory) {
+  const entries = fs.readdirSync(directory, { withFileTypes: true })
+  return entries.flatMap((entry) => {
+    const filePath = path.join(directory, entry.name)
+    if (entry.isDirectory()) return sourceFiles(filePath)
+    if (entry.isFile() && filePath.endsWith(".ts")) return [filePath]
+    return []
+  })
+}

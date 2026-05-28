@@ -1,5 +1,5 @@
 import { clamp } from "./math"
-import type { OfficeScene } from "./office-scene"
+import type { TileWorldScene } from "./tile-world-scene"
 import { avatarEmoteDefinition } from "./avatar-registry"
 import { DomInteractionOverlayRenderer } from "./dom-interaction-overlay-renderer"
 import {
@@ -21,8 +21,8 @@ export class DomWorldOverlayRenderer {
 
   constructor(
     parent: HTMLElement,
-    private readonly scene: OfficeScene,
-    sceneReady: Promise<OfficeScene>,
+    private readonly scene: TileWorldScene,
+    sceneReady: Promise<TileWorldScene>,
   ) {
     this.overlay = document.createElement("div")
     this.overlay.className = "world-dom-label-overlay"
@@ -247,8 +247,6 @@ function zoneLabelAccent(zone: RendererZoneInfo): string {
   if (zone.active || zone.availability === "available") return "#1d7768"
 
   switch (zone.kind) {
-    case "meeting":
-      return "#1e7d8f"
     case "private":
       return "#8762a8"
     case "portal":
@@ -308,7 +306,7 @@ function domZoneLabelMetrics(scale: number): {
 }
 
 function activeInteractionZoneIds(
-  info: ReturnType<OfficeScene["getWorldInteractionInfo"]>,
+  info: ReturnType<TileWorldScene["getWorldInteractionInfo"]>,
 ): Set<string> {
   return new Set(
     visibleInteractionMarkerCandidates(info)
