@@ -2626,6 +2626,22 @@ async function assertAvatarSystemSmoke(page) {
     "pose_blend",
   )
   assert.equal(
+    avatarState.avatars.animationPipeline.stateMachine,
+    "explicit_idle_walk_run_turn",
+  )
+  assert.equal(
+    avatarState.avatars.animationPipeline.locomotionBlend,
+    "phase_preserved_walk_run",
+  )
+  assert.equal(
+    avatarState.avatars.animationPipeline.turnPoseMode,
+    "anticipation_arc_recovery",
+  )
+  assert.equal(
+    avatarState.avatars.animationPipeline.visualFacingQa,
+    "avatar_preview_gallery_8_way",
+  )
+  assert.equal(
     avatarState.avatars.animationPipeline.emoteHooks,
     "renderer_emote_registry",
   )
@@ -2813,6 +2829,27 @@ async function assertAvatarSystemSmoke(page) {
     assert.equal(typeof player.animation.transition.preserveSpritePhase, "boolean")
     assert.equal(typeof player.animation.transition.restartedSpriteClock, "boolean")
     assert.equal(typeof player.animation.transition.turnHoldActive, "boolean")
+    assert.equal(
+      player.animation.expressiveness.stateMachine,
+      "explicit_idle_walk_run_turn",
+    )
+    assert.equal(
+      player.animation.expressiveness.locomotionBlend,
+      "phase_preserved_walk_run",
+    )
+    assert.equal(
+      player.animation.expressiveness.turnPoseMode,
+      "anticipation_arc_recovery",
+    )
+    assert.equal(
+      player.animation.expressiveness.visualFacingQa,
+      "avatar_preview_gallery_8_way",
+    )
+    assert.equal(typeof player.animation.expressiveness.walkRunBlendWeight, "number")
+    assert.equal(typeof player.animation.expressiveness.phaseContinuity, "boolean")
+    assert.equal(typeof player.animation.expressiveness.turnPoseActive, "boolean")
+    assert.equal(typeof player.animation.expressiveness.turnPoseProgress, "number")
+    assert.equal(typeof player.animation.expressiveness.poseBlendDurationMs, "number")
     assert.equal(typeof player.animation.frameIndex, "number")
     assert.equal(
       player.animation.frameProgression.source,
@@ -2897,9 +2934,16 @@ async function assertAvatarSystemSmoke(page) {
     )
     assert.equal(typeof player.animation.poseBlendActive, "boolean")
     assert.equal(player.emoteOverlay.anchor, "label_top_right")
+    assert.equal(player.emoteOverlay.hook, "dom_overlay_label_anchor")
     assert.equal(player.emoteOverlay.size, 18)
     assert.equal(typeof player.emoteOverlay.visible, "boolean")
     assert.equal(typeof player.emoteOverlay.opacity, "number")
+    assert.ok(
+      ["none", "wave_sway", "raise_hand_lift", "focus_pulse"].includes(
+        player.emoteOverlay.reaction,
+      ),
+      `Expected known emote reaction mode, got ${JSON.stringify(player.emoteOverlay)}.`,
+    )
     assert.ok(
       player.emoteOverlay.x >= 32 && player.emoteOverlay.y <= -48,
       `Expected emote overlay to sit above the label edge, got ${JSON.stringify(player.emoteOverlay)}.`,
@@ -2918,6 +2962,7 @@ async function assertAvatarSystemSmoke(page) {
   assert.equal(remoteAvatar.interpolationProfile, "remote")
   assert.equal(remoteAvatar.emoteId, "wave")
   assert.equal(remoteAvatar.emoteOverlay.visible, true)
+  assert.equal(remoteAvatar.emoteOverlay.reaction, "wave_sway")
   assert.equal(remoteAvatar.emoteOverlay.anchor, "label_top_right")
   await assertNonBlankMapScreenshot(page)
 

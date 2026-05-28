@@ -272,6 +272,7 @@ function drawAvatarFrame(
   drawFaceCue(context, headX, headY, visualFacing, color(palette.torsoDark))
 
   if (animation.action === "turn") {
+    drawTurnPivotCue(context, centerX, anchorY, facing, motion, palette)
     context.strokeStyle = withAlpha(palette.accent, 0.45)
     context.lineWidth = 1.2
     context.beginPath()
@@ -295,26 +296,86 @@ function frameMotion(
     : frameIndex / animation.sprite.frameCount * Math.PI * 2
   const moving = animation.action === "walk" || animation.action === "run"
   const run = animation.action === "run"
+  const turning = animation.action === "turn"
   const turnLean = animation.action === "turn"
-    ? Math.sin((frameIndex + 1) / animation.sprite.frameCount * Math.PI) * 1.35
+    ? Math.sin((frameIndex + 1) / animation.sprite.frameCount * Math.PI) * 2.15
     : 0
-  const lift = moving
+  const turnPhase = Math.sin((frameIndex + 1) / animation.sprite.frameCount * Math.PI)
+  const lift = turning
+    ? -turnPhase * 0.72
+    : moving
     ? -Math.abs(Math.sin(phase)) * (run ? 1.25 : 0.68)
     : Math.sin(phase) * 0.18
-  const stride = moving ? Math.cos(phase) * (run ? 3.75 : 2.45) : 0
-  const armSwing = moving ? Math.cos(phase + Math.PI) * (run ? 3.2 : 2.05) : 0
+  const stride = turning
+    ? turnPhase * 1.2
+    : moving
+      ? Math.cos(phase) * (run ? 3.75 : 2.45)
+      : 0
+  const armSwing = turning
+    ? turnPhase * 1.35
+    : moving
+      ? Math.cos(phase + Math.PI) * (run ? 3.2 : 2.05)
+      : 0
 
   return {
     lift,
     stride,
     armSwing,
-    shoulderSway: moving ? Math.sin(phase) * (run ? 0.82 : 0.38) : 0,
-    squashX: moving ? 1 + Math.abs(Math.sin(phase)) * (run ? 0.045 : 0.026) : 1,
-    squashY: moving ? 1 - Math.abs(Math.sin(phase)) * (run ? 0.055 : 0.032) : 1,
-    footLift: moving ? Math.sin(phase) * (run ? 1.7 : 1.05) : 0,
+    shoulderSway: turning
+      ? turnLean * 0.34
+      : moving
+        ? Math.sin(phase) * (run ? 0.82 : 0.38)
+        : 0,
+    squashX: turning
+      ? 1.035
+      : moving
+        ? 1 + Math.abs(Math.sin(phase)) * (run ? 0.045 : 0.026)
+        : 1,
+    squashY: turning
+      ? 0.972
+      : moving
+        ? 1 - Math.abs(Math.sin(phase)) * (run ? 0.055 : 0.032)
+        : 1,
+    footLift: turning
+      ? turnPhase * 0.85
+      : moving
+        ? Math.sin(phase) * (run ? 1.7 : 1.05)
+        : 0,
     run,
     turnLean,
   }
+}
+
+function drawTurnPivotCue(
+  context: CanvasRenderingContext2D,
+  centerX: number,
+  anchorY: number,
+  facing: FacingVector,
+  motion: FrameMotion,
+  palette: AvatarAppearanceMetadata["palette"],
+): void {
+  const direction = facing.side === 0 ? (facing.x >= 0 ? 1 : -1) : facing.side
+
+  context.save()
+  context.strokeStyle = withAlpha(palette.accent, 0.58)
+  context.fillStyle = withAlpha(palette.accent, 0.5)
+  context.lineWidth = 1.35
+  context.beginPath()
+  context.arc(
+    centerX + direction * 0.5,
+    anchorY - 13 + motion.lift * 0.3,
+    11.2,
+    direction > 0 ? -1.35 : Math.PI + 1.35,
+    direction > 0 ? 0.34 : Math.PI - 0.34,
+  )
+  context.stroke()
+  context.beginPath()
+  context.moveTo(centerX + direction * 10.8, anchorY - 12.4)
+  context.lineTo(centerX + direction * 7.8, anchorY - 15.7)
+  context.lineTo(centerX + direction * 7.2, anchorY - 10.9)
+  context.closePath()
+  context.fill()
+  context.restore()
 }
 
 function drawBodyShadow(

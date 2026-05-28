@@ -406,6 +406,7 @@ class AvatarView {
   private rejectionTween?: Phaser.Tweens.Tween
   private impactTween?: Phaser.Tweens.Tween
   private emoteTween?: Phaser.Tweens.Tween
+  private emoteReactionTween?: Phaser.Tweens.Tween
   private remoteSnapshots: RemoteAvatarSnapshot[] = []
   private remoteVelocity: Vector2 = { x: 0, y: 0 }
   private remoteRenderTimeMs = 0
@@ -443,9 +444,12 @@ class AvatarView {
   private transitionReason: AvatarAnimationTransitionReason = "initial"
   private transitionPreservedSpritePhase = false
   private transitionRestartedSpriteClock = true
+  private lastPoseBlendDurationMs = 0
   private poseState: AvatarPoseState
   private interpolationProfile: AvatarInterpolationProfile
   private currentEmoteId?: AvatarEmoteId
+  private emoteReactionMode: RendererAvatarPlayerInfo["emoteOverlay"]["reaction"] =
+    "none"
   private cosmetics: Partial<Record<AvatarCosmeticSlot, string>> = {}
   private labelReason: RendererAvatarPlayerInfo["labelVisibilityReason"] =
     "visible"
@@ -824,6 +828,7 @@ class AvatarView {
 
     this.currentEmoteId = emote.id
     this.emoteTween?.stop()
+    this.playEmoteReaction(emote.id)
     this.emoteBack.setVisible(true)
     this.emoteText.setText(emote.glyph)
     applyCrispWorldText(this.emoteText)
@@ -839,10 +844,63 @@ class AvatarView {
       ease: "Sine.easeOut",
       onComplete: () => {
         this.currentEmoteId = undefined
+        this.emoteReactionMode = "none"
         this.emoteBack.setVisible(false)
         this.emoteText.setVisible(false)
       },
     })
+  }
+
+  private playEmoteReaction(emoteId: AvatarEmoteId): void {
+    this.emoteReactionTween?.stop()
+    this.emoteReactionMode = emoteReactionModeFor(emoteId)
+    this.visualRoot.setPosition(0, 0)
+    this.visualRoot.setScale(1, 1)
+    this.visualRoot.setAngle(0)
+
+    if (emoteId === "wave") {
+      this.emoteReactionTween = this.scene.tweens.add({
+        targets: this.visualRoot,
+        angle: this.visualFacing.includes("Left") ? -4 : 4,
+        y: -1.5,
+        duration: 105,
+        yoyo: true,
+        repeat: 2,
+        ease: "Sine.easeInOut",
+        onComplete: () => this.resetEmoteReactionPose(),
+      })
+      return
+    }
+
+    if (emoteId === "raise_hand") {
+      this.emoteReactionTween = this.scene.tweens.add({
+        targets: this.visualRoot,
+        y: -3.5,
+        scaleY: 1.045,
+        duration: 130,
+        yoyo: true,
+        repeat: 1,
+        ease: "Sine.easeOut",
+        onComplete: () => this.resetEmoteReactionPose(),
+      })
+      return
+    }
+
+    this.emoteReactionTween = this.scene.tweens.add({
+      targets: this.emoteBack,
+      scaleX: this.currentLabelScale() * 1.2,
+      scaleY: this.currentLabelScale() * 1.2,
+      duration: 180,
+      yoyo: true,
+      repeat: 1,
+      ease: "Sine.easeInOut",
+    })
+  }
+
+  private resetEmoteReactionPose(): void {
+    this.visualRoot.setPosition(0, 0)
+    this.visualRoot.setScale(1, 1)
+    this.visualRoot.setAngle(0)
   }
 
   setLabelVisibility(
@@ -946,6 +1004,22 @@ class AvatarView {
           turnHoldActive: this.turnHoldUntilMs > this.scene.time.now,
         },
         poseBlendActive: this.poseTween?.isPlaying() ?? false,
+        expressiveness: {
+          stateMachine: "explicit_idle_walk_run_turn",
+          locomotionBlend: "phase_preserved_walk_run",
+          turnPoseMode: "anticipation_arc_recovery",
+          visualFacingQa: "avatar_preview_gallery_8_way",
+          walkRunBlendWeight: locomotionBlendWeight(this.animation.action),
+          phaseContinuity: this.transitionPreservedSpritePhase,
+          turnPoseActive:
+            this.animation.action === "turn" ||
+            this.transitionReason === "turn_hold",
+          turnPoseProgress:
+            this.animation.action === "turn"
+              ? Number(this.spriteNormalizedCycleProgress.toFixed(3))
+              : 0,
+          poseBlendDurationMs: this.lastPoseBlendDurationMs,
+        },
       },
       interpolationProfile: this.interpolationProfile.id,
       interpolationActive: this.remoteInterpolationActive(),
@@ -978,6 +1052,8 @@ class AvatarView {
         size: EMOTE_BUBBLE_SIZE,
         scale: Number(this.currentLabelScale().toFixed(2)),
         opacity: Number(this.emoteBack.alpha.toFixed(2)),
+        hook: "dom_overlay_label_anchor",
+        reaction: this.emoteReactionMode,
       },
       cosmeticSlots: this.appearance.cosmeticSlots,
       cosmetics: this.cosmetics,
@@ -993,6 +1069,7 @@ class AvatarView {
     this.rejectionTween?.stop()
     this.impactTween?.stop()
     this.emoteTween?.stop()
+    this.emoteReactionTween?.stop()
     this.focusTarget.destroy(true)
     this.cameraTarget.destroy()
   }
@@ -1449,6 +1526,7 @@ class AvatarView {
     visualFacing: AvatarVisualFacing,
   ): void {
     this.poseTween?.stop()
+    this.lastPoseBlendDurationMs = 0
     this.poseState = renderedPoseFor(animation, visualFacing)
     this.applyPoseState()
   }
@@ -1471,12 +1549,14 @@ class AvatarView {
 
     if (durationMs <= 0) {
       this.poseTween?.stop()
+      this.lastPoseBlendDurationMs = 0
       this.poseState = targetPose
       this.applyPoseState()
       return
     }
 
     this.poseTween?.stop()
+    this.lastPoseBlendDurationMs = durationMs
     this.poseTween = this.scene.tweens.add({
       targets: this.poseState,
       ...targetPose,
@@ -1485,6 +1565,7 @@ class AvatarView {
       onUpdate: () => this.applyPoseState(),
       onComplete: () => {
         this.poseState = targetPose
+        this.lastPoseBlendDurationMs = 0
         this.applyPoseState()
       },
     })
@@ -1566,6 +1647,7 @@ class AvatarView {
     this.bodyRoot.setAngle(0)
     this.walkTween = this.scene.tweens.add({
       targets: this.bodyRoot,
+      y: animation.action === "run" ? -2.2 : -1.2,
       scaleX: animation.bodyScaleX,
       scaleY: animation.bodyScaleY,
       duration: animation.durationMs,
@@ -1614,9 +1696,12 @@ class AvatarView {
     this.visualRoot.setScale(1, 1)
     this.leftFoot.setScale(1, 1)
     this.rightFoot.setScale(1, 1)
+    const nudge = turnPoseNudge(this.visualFacing)
 
     this.turnTween = this.scene.tweens.add({
       targets: this.bodyRoot,
+      x: nudge.x,
+      y: nudge.y,
       angle: turnAngleForFacing(this.visualFacing),
       scaleX: animation.bodyScaleX,
       scaleY: animation.bodyScaleY,
@@ -1842,6 +1927,28 @@ function turnAngleForFacing(visualFacing: AvatarVisualFacing): number {
   if (visualFacing.includes("Right")) return -2.5
   if (visualFacing.includes("Left")) return 2.5
   return 0
+}
+
+function turnPoseNudge(visualFacing: AvatarVisualFacing): Vector2 {
+  if (visualFacing.includes("Right")) return { x: 1.6, y: -0.8 }
+  if (visualFacing.includes("Left")) return { x: -1.6, y: -0.8 }
+  if (visualFacing === "up") return { x: 0, y: -1.2 }
+  if (visualFacing === "down") return { x: 0, y: 0.8 }
+  return { x: 0, y: 0 }
+}
+
+function locomotionBlendWeight(action: AvatarAnimationAction): number {
+  if (action === "run") return 1
+  if (action === "walk") return 0.52
+  return 0
+}
+
+function emoteReactionModeFor(
+  emoteId: AvatarEmoteId,
+): RendererAvatarPlayerInfo["emoteOverlay"]["reaction"] {
+  if (emoteId === "wave") return "wave_sway"
+  if (emoteId === "raise_hand") return "raise_hand_lift"
+  return "focus_pulse"
 }
 
 function velocityBetween(

@@ -741,6 +741,10 @@ export interface RendererAvatarAnimationPipelineInfo {
   readonly serverDirectionModel: "4_way"
   readonly visualDirectionModel: "8_way"
   readonly turnBlending: "pose_blend"
+  readonly stateMachine: "explicit_idle_walk_run_turn"
+  readonly locomotionBlend: "phase_preserved_walk_run"
+  readonly turnPoseMode: "anticipation_arc_recovery"
+  readonly visualFacingQa: "avatar_preview_gallery_8_way"
   readonly emoteHooks: "renderer_emote_registry"
   readonly labelVisibilityRules: "local_always_remote_overlap_suppressed"
   readonly stateDefinitions: readonly RendererAvatarAnimationStateDefinition[]
@@ -1194,6 +1198,17 @@ export interface RendererAvatarAnimationInfo {
     readonly turnHoldActive: boolean
   }
   readonly poseBlendActive: boolean
+  readonly expressiveness: {
+    readonly stateMachine: "explicit_idle_walk_run_turn"
+    readonly locomotionBlend: "phase_preserved_walk_run"
+    readonly turnPoseMode: "anticipation_arc_recovery"
+    readonly visualFacingQa: "avatar_preview_gallery_8_way"
+    readonly walkRunBlendWeight: number
+    readonly phaseContinuity: boolean
+    readonly turnPoseActive: boolean
+    readonly turnPoseProgress: number
+    readonly poseBlendDurationMs: number
+  }
 }
 
 export interface RendererRemoteInterpolationInfo {
@@ -1253,6 +1268,8 @@ export interface RendererAvatarPlayerInfo {
     readonly size: number
     readonly scale: number
     readonly opacity: number
+    readonly hook: "dom_overlay_label_anchor"
+    readonly reaction: "none" | "wave_sway" | "raise_hand_lift" | "focus_pulse"
   }
   readonly cosmeticSlots: readonly AvatarCosmeticSlot[]
   readonly cosmetics: Partial<Record<AvatarCosmeticSlot, string>>

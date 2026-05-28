@@ -1710,3 +1710,26 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   standalone develop-web-game client still exits before navigation with
   `ERR_MODULE_NOT_FOUND` because the skill-local script cannot resolve
   `playwright`.
+- Avatar animation expressiveness was upgraded on top of the atlas-ready
+  pipeline. Runtime avatar telemetry now declares the explicit
+  idle/walk/run/turn state machine, phase-preserved walk/run blending,
+  anticipation-arc turn poses, and avatar-preview 8-way facing QA contract.
+- Procedural fallback avatar frames now make turn clips visibly distinct with
+  stronger lean/lift/stride cues plus pivot arc markers, so the generated atlas
+  remains useful as a concrete target for future real PNG/JSON imports.
+  Walk/run rendering also preserves locomotion phase while adding richer body
+  bounce, and emotes now expose visual hooks for wave sway, raise-hand lift, and
+  focus pulse reactions.
+- Frontend smoke and renderer QA now assert the animation pipeline fields,
+  walk/run blend weights, turn-pose progress, emote reaction hook, and 8-way
+  preview-gallery samples. The renderer QA non-loop turn assertion was tuned to
+  validate a reached expressive pose instead of treating turn clips like
+  forever-looping locomotion.
+- Verification passed for the avatar animation expressiveness slice:
+  `npm --workspace @aedventure/web run build`, `npm run smoke:frontend`,
+  `npm run qa:renderer`, `npm run qa:responsive`, `npm run check`, and `git
+  diff --check`. The avatar preview gallery screenshot was inspected at
+  `/var/folders/f2/krjzd4c15nn491pm37zrkp1h0000gn/T/aedventure-renderer-qa/avatar-preview-gallery-canvas.png`.
+  The standalone develop-web-game client still exits before navigation with
+  `ERR_MODULE_NOT_FOUND` because the skill-local script cannot resolve
+  `playwright`.

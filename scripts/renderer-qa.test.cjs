@@ -1261,11 +1261,18 @@ async function waitForProgressedAvatarGallery(page) {
         "idle",
         "downLeft",
       )
+      const turnSample = avatarPreviewPlayer(
+        state,
+        "violet",
+        "turn",
+        "left",
+      )
 
       return state.map?.label === "Avatar preview gallery" &&
         runSample?.animation.frameProgression.rawFrameIndex >= 2 &&
         walkSample?.animation.frameProgression.rawFrameIndex >= 2 &&
-        idleSample?.animation.frameProgression.rawFrameIndex >= 1
+        idleSample?.animation.frameProgression.rawFrameIndex >= 1 &&
+        turnSample?.animation.frameProgression.rawFrameIndex >= 1
     },
     9000,
   )
@@ -1276,6 +1283,7 @@ function assertAvatarFrameProgression(beforeState, afterState) {
     ["ember", "run", "downRight"],
     ["cobalt", "walk", "upRight"],
     ["moss", "idle", "downLeft"],
+    ["violet", "turn", "left"],
   ].map(([avatarId, action, visualFacing]) => {
     const before = avatarPreviewPlayer(beforeState, avatarId, action, visualFacing)
     const after = avatarPreviewPlayer(afterState, avatarId, action, visualFacing)
@@ -1296,14 +1304,25 @@ function assertAvatarFrameProgression(beforeState, afterState) {
     assert.equal(afterProgression.source, "phaser_animation_manager")
     assert.equal(afterProgression.frameCount, after.animation.sprite.frameCount)
     assert.equal(afterProgression.loop, after.animation.sprite.loop)
-    assert.ok(
-      afterProgression.elapsedMs > beforeProgression.elapsedMs,
-      `Expected elapsed frame time to advance for ${after.playerId}.`,
-    )
-    assert.ok(
-      afterProgression.rawFrameIndex > beforeProgression.rawFrameIndex,
-      `Expected raw frame index to advance for ${after.playerId}.`,
-    )
+    if (after.animation.sprite.loop) {
+      assert.ok(
+        afterProgression.elapsedMs > beforeProgression.elapsedMs,
+        `Expected elapsed frame time to advance for ${after.playerId}.`,
+      )
+      assert.ok(
+        afterProgression.rawFrameIndex > beforeProgression.rawFrameIndex,
+        `Expected raw frame index to advance for ${after.playerId}.`,
+      )
+    } else {
+      assert.ok(
+        afterProgression.rawFrameIndex >= 1,
+        `Expected non-looping pose clip to reach an animated frame for ${after.playerId}.`,
+      )
+      assert.ok(
+        afterProgression.elapsedMs >= beforeProgression.elapsedMs,
+        `Expected non-looping pose elapsed time to be monotonic for ${after.playerId}.`,
+      )
+    }
     assert.ok(
       afterProgression.currentFrameIndex >= 0 &&
         afterProgression.currentFrameIndex < afterProgression.frameCount,
@@ -1315,6 +1334,42 @@ function assertAvatarFrameProgression(beforeState, afterState) {
       ),
       `Expected frame key to match progression telemetry for ${after.playerId}.`,
     )
+    assert.equal(
+      after.animation.expressiveness.stateMachine,
+      "explicit_idle_walk_run_turn",
+    )
+    assert.equal(
+      after.animation.expressiveness.locomotionBlend,
+      "phase_preserved_walk_run",
+    )
+    assert.equal(
+      after.animation.expressiveness.visualFacingQa,
+      "avatar_preview_gallery_8_way",
+    )
+    if (action === "run") {
+      assert.equal(after.animation.expressiveness.walkRunBlendWeight, 1)
+      assert.equal(after.animation.expressiveness.phaseContinuity, true)
+    }
+    if (action === "walk") {
+      assert.ok(
+        after.animation.expressiveness.walkRunBlendWeight > 0 &&
+          after.animation.expressiveness.walkRunBlendWeight < 1,
+        `Expected walk blend weight between idle and run, got ${JSON.stringify(after.animation.expressiveness)}.`,
+      )
+      assert.equal(after.animation.expressiveness.phaseContinuity, true)
+    }
+    if (action === "turn") {
+      assert.equal(
+        after.animation.expressiveness.turnPoseMode,
+        "anticipation_arc_recovery",
+      )
+      assert.equal(after.animation.expressiveness.turnPoseActive, true)
+      assert.ok(
+        after.animation.expressiveness.turnPoseProgress >= 0 &&
+          after.animation.expressiveness.turnPoseProgress <= 1,
+        `Expected bounded turn pose progress, got ${JSON.stringify(after.animation.expressiveness)}.`,
+      )
+    }
 
     return {
       playerId: after.playerId,
@@ -1330,6 +1385,7 @@ function assertAvatarFrameProgression(beforeState, afterState) {
         playing: after.animation.nativeAnimation.playing,
         progress: after.animation.nativeAnimation.progress,
       },
+      expressiveness: after.animation.expressiveness,
     }
   })
 
@@ -1800,6 +1856,22 @@ function assertRendererSnapshot(state) {
   assert.equal(
     state.avatars.animationPipeline.atlasContract.activationPolicy,
     "real_manifest_must_validate_else_runtime_generated_fallback",
+  )
+  assert.equal(
+    state.avatars.animationPipeline.stateMachine,
+    "explicit_idle_walk_run_turn",
+  )
+  assert.equal(
+    state.avatars.animationPipeline.locomotionBlend,
+    "phase_preserved_walk_run",
+  )
+  assert.equal(
+    state.avatars.animationPipeline.turnPoseMode,
+    "anticipation_arc_recovery",
+  )
+  assert.equal(
+    state.avatars.animationPipeline.visualFacingQa,
+    "avatar_preview_gallery_8_way",
   )
   assert.equal(
     state.avatars.animationPipeline.previewFixtureCoverage.qaTool,
