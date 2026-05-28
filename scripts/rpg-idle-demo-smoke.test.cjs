@@ -1,16 +1,22 @@
 const assert = require("node:assert")
 const fs = require("node:fs")
-const http = require("node:http")
 const path = require("node:path")
 const { chromium } = require("playwright")
-const { PNG } = require("pngjs")
+const {
+  assertNonBlankImageBuffer,
+  assertRpgRenderGameContract,
+} = require("./app-qa-contracts.cjs")
+const { startStaticAppServer } = require("./app-qa-server.cjs")
 
 const ROOT_DIR = path.resolve(__dirname, "..")
 const DIST_DIR = path.join(ROOT_DIR, "apps/rpg-idle-demo/dist-app")
 const SCREENSHOT_PATH = path.join(ROOT_DIR, "tmp/rpg-idle-demo-smoke.png")
 
 async function main() {
-  const { server, url } = await startStaticServer(DIST_DIR)
+  const { server, url } = await startStaticAppServer({
+    directory: DIST_DIR,
+    basePath: "/app",
+  })
   let browser
   const consoleErrors = []
 
@@ -37,12 +43,7 @@ async function main() {
       consoleErrors,
     )
 
-    assert.deepEqual(initial.engineBoundary.uses, [
-      "@aedventure/game-assets",
-      "@aedventure/game-map",
-      "@aedventure/game-input",
-      "@aedventure/game-renderer-phaser",
-    ])
+    assertRpgRenderGameContract(initial)
     assert.equal(initial.engineBoundary.importsOfficeDomain, false)
     assert.equal(initial.entities.length, 3)
     assert.equal(initial.resources.wood, 0)
@@ -164,79 +165,17 @@ async function assertNonBlankWorldScreenshot(page) {
     }
   })
   await page.locator("#world canvas").screenshot({ path: SCREENSHOT_PATH })
-  const png = PNG.sync.read(fs.readFileSync(SCREENSHOT_PATH))
-  const colors = new Set()
-  let opaquePixels = 0
-
-  for (let index = 0; index < png.data.length; index += 4) {
-    const alpha = png.data[index + 3]
-    if (alpha < 20) continue
-    opaquePixels += 1
-    colors.add(
-      `${png.data[index]},${png.data[index + 1]},${png.data[index + 2]},${alpha}`,
-    )
-    if (colors.size > 48 && opaquePixels > 4000) return
-  }
-
-  assert.fail(
-    `Expected nonblank RPG world screenshot, got ${colors.size} colors and ${opaquePixels} opaque pixels.`,
+  assertNonBlankImageBuffer(
+    fs.readFileSync(SCREENSHOT_PATH),
+    "RPG idle demo world screenshot",
+    {
+      minWidth: 300,
+      minHeight: 220,
+      minOpaqueSamples: 500,
+      minUniqueColors: 8,
+      minLuminanceRange: 24,
+    },
   )
-}
-
-async function startStaticServer(directory) {
-  assert.ok(
-    fs.existsSync(path.join(directory, "index.html")),
-    `Missing RPG idle demo build output at ${directory}. Run npm --workspace @aedventure/rpg-idle-demo run build:browser first.`,
-  )
-
-  const server = http.createServer((request, response) => {
-    const url = new URL(request.url ?? "/", "http://127.0.0.1")
-    const relativePath = staticPathFor(url.pathname)
-    if (!relativePath) {
-      response.writeHead(404)
-      response.end("Not found")
-      return
-    }
-
-    const filePath = path.join(directory, relativePath)
-    if (!filePath.startsWith(directory) || !fs.existsSync(filePath)) {
-      response.writeHead(404)
-      response.end("Not found")
-      return
-    }
-
-    response.writeHead(200, {
-      "content-type": contentTypeFor(filePath),
-      "cache-control": "no-store",
-    })
-    fs.createReadStream(filePath).pipe(response)
-  })
-
-  await new Promise((resolve) => {
-    server.listen(0, "127.0.0.1", resolve)
-  })
-  const address = server.address()
-  assert.equal(typeof address, "object")
-  return {
-    server,
-    url: `http://127.0.0.1:${address.port}`,
-  }
-}
-
-function staticPathFor(pathname) {
-  if (pathname === "/app" || pathname === "/app/") return "index.html"
-  if (!pathname.startsWith("/app/")) return undefined
-  const relativePath = decodeURIComponent(pathname.slice("/app/".length))
-  return relativePath || "index.html"
-}
-
-function contentTypeFor(filePath) {
-  if (filePath.endsWith(".html")) return "text/html; charset=utf-8"
-  if (filePath.endsWith(".js")) return "text/javascript; charset=utf-8"
-  if (filePath.endsWith(".css")) return "text/css; charset=utf-8"
-  if (filePath.endsWith(".json")) return "application/json; charset=utf-8"
-  if (filePath.endsWith(".svg")) return "image/svg+xml"
-  return "application/octet-stream"
 }
 
 main().catch((error) => {

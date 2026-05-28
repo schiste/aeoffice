@@ -525,6 +525,7 @@ function renderGameToText(): string {
       blockedCount: state.blockedCount,
     },
     renderer: {
+      ...capabilityInfo,
       readiness: mapValidationInfo.valid ? "ready" : "invalid_map",
       viewport,
       zoneInfo,

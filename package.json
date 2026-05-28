@@ -17,9 +17,14 @@
     "build": "tsc -b && npm --workspace @aedventure/web run build:browser",
     "dev:http": "npm run build && node scripts/dev-http-host.cjs",
     "qa:responsive": "node scripts/responsive-layout-qa.test.cjs",
-    "qa:renderer": "npm --workspace @aedventure/web run build:browser && node scripts/renderer-qa.test.cjs",
+    "qa:renderer": "npm --workspace @aedventure/web run build:browser && npm --workspace @aedventure/rpg-idle-demo run build:browser && node scripts/renderer-qa.test.cjs",
+    "qa:renderer:built": "node scripts/renderer-qa.test.cjs",
+    "smoke:apps": "npm run smoke:office && npm run smoke:rpg",
+    "smoke:office": "npm --workspace @aedventure/web run build:browser && node scripts/frontend-smoke.test.cjs",
+    "smoke:office:built": "node scripts/frontend-smoke.test.cjs",
     "smoke:rpg": "npm --workspace @aedventure/rpg-idle-demo run smoke",
-    "smoke:frontend": "node scripts/frontend-smoke.test.cjs"
+    "smoke:rpg:built": "node scripts/rpg-idle-demo-smoke.test.cjs",
+    "smoke:frontend": "npm run smoke:office:built"
   },
   "devDependencies": {
     "playwright": "^1.60.0",

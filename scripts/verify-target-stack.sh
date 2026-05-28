@@ -96,13 +96,13 @@ echo "Building RPG idle demo bundle..."
 npm --workspace @aedventure/rpg-idle-demo run build:browser
 
 echo "Running RPG idle demo smoke..."
-node "$ROOT_DIR/scripts/rpg-idle-demo-smoke.test.cjs"
+npm run smoke:rpg:built
 
-echo "Running browser frontend smoke..."
-npm run smoke:frontend
+echo "Running office browser smoke..."
+npm run smoke:office:built
 
 echo "Running Phaser renderer QA..."
-npm run qa:renderer
+npm run qa:renderer:built
 
 echo "Running development HTTP host checks..."
 node "$ROOT_DIR/scripts/dev-http-host.test.cjs"

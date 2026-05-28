@@ -1910,3 +1910,19 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
 - The standalone develop-web-game client was retried again after the protocol
   split and still exits before navigation with the same skill-local
   `playwright` ESM resolution error.
+- Phase 8 made QA multi-app. Added shared browser QA helpers for
+  `render_game_to_text` contracts, static app serving, and nonblank screenshot
+  assertions. The office app now reports `app`, neutral engine-boundary
+  metadata, and renderer viewport state; the RPG idle demo now exposes the same
+  renderer capability surface.
+- The root scripts now split office smoke, RPG smoke, and built-app variants.
+  `npm run check` builds both browser apps, runs both app smokes, and runs the
+  shared Phaser renderer QA without rebuilding inside the gate.
+- Renderer QA now includes a neutral RPG fixture. The latest report recorded
+  `app: rpg-idle-demo`, `domain: @aedventure/rpg-domain`,
+  `importsOfficeDomain: false`, `mapId: rpg_idle_grove`, and a nonblank
+  `810x645` canvas screenshot with 96 sampled color buckets.
+- Verification passed for Phase 8: `npm run smoke:office`,
+  `npm run smoke:rpg`, `npm run qa:renderer`, `npm run check`,
+  `npm run qa:responsive`, and `git diff --check`. The neutral RPG renderer
+  fixture screenshot was visually inspected.

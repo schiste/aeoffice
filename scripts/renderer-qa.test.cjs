@@ -4,10 +4,17 @@ const { join } = require("node:path")
 const { tmpdir } = require("node:os")
 const { chromium } = require("playwright")
 const { PNG } = require("pngjs")
+const {
+  assertNonBlankImageBuffer,
+  assertOfficeRenderGameContract,
+  assertRpgRenderGameContract,
+} = require("./app-qa-contracts.cjs")
+const { startStaticAppServer } = require("./app-qa-server.cjs")
 const { startDevelopmentServer } = require("./dev-http-host.cjs")
 
 const ARTIFACT_DIR =
   process.env.RENDERER_QA_ARTIFACT_DIR ?? join(tmpdir(), "aedventure-renderer-qa")
+const RPG_APP_DIST_DIR = join(__dirname, "../apps/rpg-idle-demo/dist-app")
 
 const VIEWPORTS = [
   { name: "desktop", width: 1440, height: 960, expectedMode: "desktop" },
@@ -70,11 +77,13 @@ async function main() {
       depthEffects: undefined,
       tilemapFeatures: undefined,
       audio: undefined,
+      neutralFixtures: [],
     }
 
     await verifyRendererRuntime(browser, url, report)
     await verifyResponsiveScreenshots(browser, url, report)
     await verifyDevTools(browser, url, report)
+    await verifyNeutralRendererFixtures(browser, report)
 
     writeFileSync(
       join(ARTIFACT_DIR, "renderer-qa-report.json"),
@@ -103,6 +112,7 @@ async function verifyRendererRuntime(browser, url, report) {
         state.lifecycle?.rendererReadiness === "ready" &&
         rendererReadyForQa(state),
     )
+    assertOfficeRenderGameContract(initial)
     assertRendererSnapshot(initial)
     report.textLabels.push(await assertDomAvatarLabels(page, initial, "initial-lobby"))
     report.rendererSnapshots.push(snapshotForReport("initial-lobby", initial))
@@ -128,6 +138,7 @@ async function verifyRendererRuntime(browser, url, report) {
         state.players.length >= 2 &&
         rendererReadyForQa(state),
     )
+    assertOfficeRenderGameContract(joined)
     assertRendererSnapshot(joined)
     report.textLabels.push(await assertDomAvatarLabels(page, joined, "joined-lobby"))
     assert.ok(joined.renderer.depth.playerCount >= 2)
@@ -910,6 +921,71 @@ async function verifyDevTools(browser, url, report) {
   } finally {
     assertNoConsoleErrors(page, "developer renderer tools")
     await page.close()
+  }
+}
+
+async function verifyNeutralRendererFixtures(browser, report) {
+  const { server, url } = await startStaticAppServer({
+    directory: RPG_APP_DIST_DIR,
+    basePath: "/app",
+  })
+  const page = await newQaPage(browser, { width: 1180, height: 760 })
+
+  try {
+    await page.goto(`${url}/app`, { waitUntil: "domcontentloaded" })
+    const state = await waitForTextState(
+      page,
+      (current) =>
+        current.app === "rpg-idle-demo" &&
+        current.map?.rendererValidationValid === true &&
+        current.assets?.catalogValid === true &&
+        current.renderer?.performance?.mapRenderCount >= 1 &&
+        current.renderer?.performance?.objectCount > 0,
+      9000,
+    )
+
+    assertRpgRenderGameContract(state)
+    await page.evaluate(() => {
+      const canvas = document.querySelector("#world canvas")
+      if (canvas instanceof HTMLCanvasElement) {
+        canvas.style.transition = "none"
+      }
+    })
+
+    const path = join(ARTIFACT_DIR, "neutral-rpg-idle-fixture-canvas.png")
+    const buffer = await page.locator("#world canvas").screenshot({ path })
+    const stats = assertNonBlankImageBuffer(
+      buffer,
+      "neutral RPG renderer fixture canvas",
+      {
+        minWidth: 300,
+        minHeight: 220,
+        minUniqueColors: 8,
+        minLuminanceRange: 24,
+      },
+    )
+
+    report.neutralFixtures.push({
+      app: state.app,
+      domain: state.engineBoundary.domain,
+      renderer: state.engineBoundary.renderer,
+      importsOfficeDomain: state.engineBoundary.importsOfficeDomain,
+      sharedPackages: state.engineBoundary.uses,
+      mapId: state.map.id,
+      mapSize: `${state.map.width}x${state.map.height}`,
+      rendererPrimarySource: state.assets.rendererPrimarySource,
+      screenshot: {
+        label: "neutral-rpg-idle-fixture-canvas",
+        path,
+        stats,
+      },
+    })
+  } finally {
+    assertNoConsoleErrors(page, "neutral RPG renderer fixture")
+    await page.close()
+    await new Promise((resolve, reject) => {
+      server.close((error) => (error ? reject(error) : resolve()))
+    })
   }
 }
 

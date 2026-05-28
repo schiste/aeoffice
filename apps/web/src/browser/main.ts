@@ -6399,6 +6399,7 @@ function renderDemoToText(): string {
   const input = inputController.snapshot()
   const rendererCapability = renderer.getCapabilityInfo()
   const rendererPerformance = rendererCapability.performance
+  const rendererViewport = renderer.getViewportState()
   const worldInteractions = renderer.getWorldInteractionInfo()
   const visualPolish = rendererVisualPolishTextState(
     rendererPerformance,
@@ -6407,7 +6408,19 @@ function renderDemoToText(): string {
   )
 
   return JSON.stringify({
+    app: "customer-virtual-office",
     coordinateSystem: "pixel origin top-left, x right, y down",
+    engineBoundary: {
+      domain: "@aedventure/office-domain",
+      renderer: "@aedventure/game-renderer-phaser",
+      uses: [
+        "@aedventure/game-assets",
+        "@aedventure/game-map",
+        "@aedventure/game-input",
+        "@aedventure/game-renderer-phaser",
+      ],
+      importsOfficeDomain: true,
+    },
     joined: state.joined,
     sessionStatus: elements.sessionStatus.textContent,
     worldStatus: elements.worldStatus.textContent,
@@ -6568,6 +6581,7 @@ function renderDemoToText(): string {
     },
     renderer: {
       ...rendererCapability,
+      viewport: rendererViewport,
       visualPolish,
     },
     engine: engineArchitectureTextState(),
@@ -6615,7 +6629,7 @@ function renderDemoToText(): string {
     zones: renderer.getZoneInfo(),
     worldInteractions,
     camera: renderer.getCameraState(),
-    viewport: renderer.getViewportState(),
+    viewport: rendererViewport,
     map: state.fixtureMap
       ? {
           renderer: "phaser",

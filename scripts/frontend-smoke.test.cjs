@@ -1,6 +1,10 @@
 const assert = require("node:assert")
 const { chromium } = require("playwright")
 const { PNG } = require("pngjs")
+const {
+  assertNonBlankImageBuffer,
+  assertOfficeRenderGameContract,
+} = require("./app-qa-contracts.cjs")
 const { startDevelopmentServer } = require("./dev-http-host.cjs")
 
 const SMOKE_MESSAGE = "Frontend smoke chat"
@@ -666,6 +670,7 @@ async function renderGameToText(page) {
 }
 
 function assertRenderStateContract(state) {
+  assertOfficeRenderGameContract(state)
   assert.equal(typeof state.layout?.mode, "string")
   assert.ok(
     Array.isArray(state.layout?.collapsibleSections),
@@ -1959,38 +1964,10 @@ async function expectVisible(locator, message) {
 
 async function assertNonBlankMapScreenshot(page) {
   const screenshot = await page.locator("#map").screenshot()
-  const image = PNG.sync.read(screenshot)
-  const stride = Math.max(4, Math.floor((image.width * image.height) / 20000) * 4)
-  const colors = new Set()
-  let minLuma = 255
-  let maxLuma = 0
-  let opaqueSamples = 0
-
-  for (let offset = 0; offset < image.data.length; offset += stride) {
-    const red = image.data[offset]
-    const green = image.data[offset + 1]
-    const blue = image.data[offset + 2]
-    const alpha = image.data[offset + 3]
-
-    if (alpha < 16) continue
-
-    opaqueSamples += 1
-    minLuma = Math.min(minLuma, red, green, blue)
-    maxLuma = Math.max(maxLuma, red, green, blue)
-
-    if (colors.size < 64) {
-      colors.add(`${red >> 4}:${green >> 4}:${blue >> 4}`)
-    }
-  }
-
-  assert.ok(image.width >= 300, `Expected map screenshot width, got ${image.width}.`)
-  assert.ok(image.height >= 250, `Expected map screenshot height, got ${image.height}.`)
-  assert.ok(opaqueSamples > 500, "Expected enough opaque map screenshot samples.")
-  assert.ok(colors.size >= 4, `Expected nonblank map colors, got ${colors.size}.`)
-  assert.ok(
-    maxLuma - minLuma >= 24,
-    `Expected visible map contrast, got ${maxLuma - minLuma}.`,
-  )
+  assertNonBlankImageBuffer(screenshot, "office map screenshot", {
+    minHeight: 250,
+    minUniqueColors: 4,
+  })
 }
 
 async function assertDomInteractionText(page, expectedPrompt) {
