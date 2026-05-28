@@ -56,15 +56,19 @@ import {
   type MovementFeelTuningKey,
 } from "./movement-feel"
 import {
+  eventTargetConsumesGameInput,
+  gameInputTelemetry,
   InputController,
-  clampMovementComponent,
+  joystickInputFromPointer,
+  keyboardGameInputActionForKey,
+  keyboardMovementDirectionForKey,
+  movementControlIntentFromDataset,
+  sequenceMoveIntent,
   type MovementControlIntent,
-  type MovementIntent,
-} from "./engine/input-controller"
+  type RawMovementIntent,
+} from "@aedventure/game-input"
 import { WorldSyncController } from "./engine/world-sync-controller"
 import {
-  directionForMovementVector,
-  isDirection,
   movementVectorForDirection,
   type Direction,
   type MovementMode,
@@ -850,9 +854,10 @@ elements.zoomPreset.addEventListener("change", () => {
   renderCameraControls(renderer.setZoomPreset(zoomPreset))
 })
 document.addEventListener("keydown", (event) => {
-  if (eventTargetConsumesMovementKeys(event.target)) return
+  if (eventTargetConsumesGameInput(event.target)) return
 
-  if (event.key === "e" || event.key === "E") {
+  const action = keyboardGameInputActionForKey(event.key)
+  if (action?.type === "interact") {
     if (
       !event.repeat &&
       state.worldInteractionInfo.state === "available" &&
@@ -865,7 +870,7 @@ document.addEventListener("keydown", (event) => {
     return
   }
 
-  if (event.key === "Shift") {
+  if (action?.type === "run") {
     if (!inputController.snapshot().shiftRunning) {
       inputController.setShiftRunning(true)
       renderMovementModeControl()
@@ -874,7 +879,7 @@ document.addEventListener("keydown", (event) => {
     return
   }
 
-  const direction = directionForKey(event.key)
+  const direction = keyboardMovementDirectionForKey(event.key)
   if (!direction) return
 
   event.preventDefault()
@@ -887,16 +892,17 @@ document.addEventListener("keydown", (event) => {
   pressDirection(direction)
 })
 document.addEventListener("keyup", (event) => {
-  if (eventTargetConsumesMovementKeys(event.target)) return
+  if (eventTargetConsumesGameInput(event.target)) return
 
-  if (event.key === "Shift") {
+  const action = keyboardGameInputActionForKey(event.key)
+  if (action?.type === "run") {
     inputController.setShiftRunning(false)
     renderMovementModeControl()
     requestMoveFromHeldInput()
     return
   }
 
-  const direction = directionForKey(event.key)
+  const direction = keyboardMovementDirectionForKey(event.key)
   if (!direction) return
 
   event.preventDefault()
@@ -1342,13 +1348,13 @@ async function move(
     seq,
   )
   state.seq += 1
-  const message = {
-    type: "move" as const,
+  const message = sequenceMoveIntent(seq, {
+    type: "move",
     vector,
     direction,
     movementMode,
-    seq,
-  }
+    source: "programmatic",
+  })
 
   if (worldSync.send(state.clientId, message)) {
     logMovementDebug("realtime-send", `seq=${seq} transport=websocket`)
@@ -1495,8 +1501,8 @@ function installMovementControlButton(button: HTMLButtonElement): void {
     pressMovementControl({
       ...intent,
       id: event.pointerId,
-      button,
     })
+    button.dataset.active = "true"
   })
   button.addEventListener("pointerup", (event) => {
     event.preventDefault()
@@ -1564,51 +1570,20 @@ function updateJoystickFromPointer(
   const surface = elements.joystick.querySelector<HTMLElement>(".joystick-surface")
   if (!surface) return
 
-  const rect = surface.getBoundingClientRect()
-  const radiusPx = Math.max(24, Math.min(rect.width, rect.height) / 2)
-  const deadzonePx = radiusPx * JOYSTICK_DEADZONE_RATIO
-  const center = {
-    x: rect.left + rect.width / 2,
-    y: rect.top + rect.height / 2,
-  }
-  const offset = {
-    x: event.clientX - center.x,
-    y: event.clientY - center.y,
-  }
-  const rawDistance = Math.hypot(offset.x, offset.y)
-  const distance = Math.min(rawDistance, radiusPx)
-  const magnitude = rawDistance <= deadzonePx ? 0 : distance / radiusPx
-  const scale = rawDistance > 0 ? distance / rawDistance : 0
-  const knob = {
-    x: offset.x * scale,
-    y: offset.y * scale,
-  }
-  const vector =
-    magnitude <= JOYSTICK_MIN_MAGNITUDE
-      ? { x: 0, y: 0 }
-      : {
-          x: Number((knob.x / radiusPx).toFixed(3)),
-          y: Number((knob.y / radiusPx).toFixed(3)),
-        }
-  const direction =
-    vector.x === 0 && vector.y === 0
-      ? inputController.snapshot().joystick.direction
-      : directionForMovementVector(vector)
-
-  inputController.updateJoystick({
+  const joystick = joystickInputFromPointer({
     pointerId: event.pointerId,
-    vector,
-    direction,
-    magnitude,
-    knob,
-    radiusPx,
-    deadzonePx,
+    clientX: event.clientX,
+    clientY: event.clientY,
+    surfaceRect: surface.getBoundingClientRect(),
+    deadzoneRatio: JOYSTICK_DEADZONE_RATIO,
+    previousDirection: inputController.snapshot().joystick.direction,
     minMagnitude: JOYSTICK_MIN_MAGNITUDE,
   })
+  inputController.updateJoystick(joystick)
   renderJoystickControl()
   logMovementDebug(
     `joystick-${phase}`,
-    `id=${event.pointerId} vector=${formatMovementVector(vector)} magnitude=${formatMovementNumber(magnitude)} facing=${direction ?? "-"}`,
+    `id=${event.pointerId} vector=${formatMovementVector(joystick.vector)} magnitude=${formatMovementNumber(joystick.magnitude)} facing=${joystick.direction ?? "-"}`,
   )
 
   if (hasHeldMovementInput()) {
@@ -1646,29 +1621,12 @@ function renderJoystickControl(): void {
 
 function movementIntentForControlButton(
   button: HTMLButtonElement,
-): Omit<MovementControlIntent, "id" | "button"> | undefined {
-  const vector = {
-    x: Number(button.dataset.moveX),
-    y: Number(button.dataset.moveY),
-  }
-  const direction = button.dataset.facing
-
-  if (!Number.isFinite(vector.x) || !Number.isFinite(vector.y)) return undefined
-  if (!isControlVectorComponent(vector.x) || !isControlVectorComponent(vector.y)) {
-    return undefined
-  }
-  if (vector.x === 0 && vector.y === 0) return undefined
-  if (!isDirection(direction)) return undefined
-
-  return {
-    vector,
-    direction,
-    source: "dpad",
-  }
-}
-
-function isControlVectorComponent(value: number): value is -1 | 0 | 1 {
-  return value === -1 || value === 0 || value === 1
+): Omit<MovementControlIntent, "id"> | undefined {
+  return movementControlIntentFromDataset({
+    moveX: button.dataset.moveX,
+    moveY: button.dataset.moveY,
+    facing: button.dataset.facing,
+  })
 }
 
 function pressDirection(direction: Direction): void {
@@ -1693,7 +1651,15 @@ function pressMovementControl(intent: MovementControlIntent): void {
 }
 
 function releaseMovementControl(id: number): void {
-  inputController.releaseControl(id)
+  const intent = inputController.releaseControl(id)
+  const button = intent
+    ? document.querySelector<HTMLButtonElement>(
+        `[data-move-x="${intent.vector.x}"][data-move-y="${intent.vector.y}"][data-facing="${intent.direction}"]`,
+      )
+    : undefined
+  if (button) {
+    delete button.dataset.active
+  }
 
   if (!hasHeldMovementInput()) {
     stopHeldMovementTimer()
@@ -1711,6 +1677,11 @@ function startHeldMovement(): void {
 
 function stopHeldMovement(): void {
   inputController.clearHeldInput()
+  document
+    .querySelectorAll<HTMLElement>("[data-move-x][data-move-y][data-facing]")
+    .forEach((button) => {
+      delete button.dataset.active
+    })
   stopHeldMovementTimer()
   renderJoystickControl()
   renderMovementModeControl()
@@ -1839,7 +1810,7 @@ function applyMovementFeelPreset(presetId: MovementFeelPresetId): void {
 
 function applyMovementFeel(nextFeel: MovementFeelTuning): void {
   state.movementFeel = normalizeMovementFeel(nextFeel)
-  inputController.setFeel(state.movementFeel)
+  inputController.setVectorShaping(state.movementFeel)
   clientMotion.setFeel(state.movementFeel)
   renderMovementFeelPanel()
   scheduleDevelopmentMovementFeelSync()
@@ -1917,14 +1888,7 @@ async function syncDevelopmentMovementFeel(feel: MovementFeelTuning): Promise<vo
   }
 }
 
-function activeHeldMovementIntent():
-  | {
-      readonly vector: MovementVector
-      readonly rawVector: MovementVector
-      readonly direction: Direction
-      readonly movementMode: MovementMode
-    }
-  | undefined {
+function activeHeldMovementIntent(): RawMovementIntent | undefined {
   return inputController.activeHeldIntent()
 }
 
@@ -1949,13 +1913,13 @@ function requestMovementStop(source: string): void {
   const movementMode = activeMovementMode()
   const seq = state.seq
   state.seq += 1
-  const message = {
-    type: "move" as const,
+  const message = sequenceMoveIntent(seq, {
+    type: "move",
     vector: { x: 0, y: 0 },
     direction,
     movementMode,
-    seq,
-  }
+    source: inputSourceForStop(source),
+  })
 
   logMovementDebug(
     "realtime-stop",
@@ -1964,6 +1928,14 @@ function requestMovementStop(source: string): void {
   if (!worldSync.send(state.clientId, message)) return
 
   clientMotion.reconcile(state.position)
+}
+
+function inputSourceForStop(
+  source: string,
+): "keyboard" | "dpad" | "joystick" {
+  if (source.startsWith("joystick")) return "joystick"
+  if (source.startsWith("pad")) return "dpad"
+  return "keyboard"
 }
 
 function activeJoystickIntent():
@@ -1999,7 +1971,13 @@ function requestMove(
   }
 
   if (inputController.isInFlight()) {
-    inputController.queuePendingIntent({ vector, direction, movementMode })
+    inputController.queuePendingIntent({
+      type: "move",
+      vector,
+      direction,
+      movementMode,
+      source: "programmatic",
+    })
     logMovementDebug(
       "queue",
       `in_flight vector=${formatMovementVector(vector)} facing=${direction} mode=${movementMode}`,
@@ -6194,36 +6172,6 @@ function devToolFixtureLabel(fixtureId: DevToolFixtureId): string {
   }
 }
 
-function directionForKey(key: string): Direction | undefined {
-  switch (key) {
-    case "ArrowUp":
-    case "w":
-    case "W":
-      return "up"
-    case "ArrowDown":
-    case "s":
-    case "S":
-      return "down"
-    case "ArrowLeft":
-    case "a":
-    case "A":
-      return "left"
-    case "ArrowRight":
-    case "d":
-    case "D":
-      return "right"
-    default:
-      return undefined
-  }
-}
-
-function eventTargetConsumesMovementKeys(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false
-  return Boolean(
-    target.closest("input, textarea, select, [contenteditable='true']"),
-  )
-}
-
 function movementPredictionTextState() {
   const prediction = state.movementPrediction
   const playerSize = movementCollisionBodySize(state.movementFeel)
@@ -6573,6 +6521,7 @@ function renderDemoToText(): string {
       },
       motion: clientMotionTextState(),
       feel: movementFeelTextState(),
+      input: gameInputTelemetry(input, { repeatMs: MOVE_REPEAT_MS }),
       joystick: joystickTextState(),
       prediction: movementPredictionTextState(),
       debugLog: movementDebugRecords.map(movementDebugLine),

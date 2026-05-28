@@ -17,6 +17,9 @@
       "path": "packages/game-map"
     },
     {
+      "path": "packages/game-input"
+    },
+    {
       "path": "packages/game-renderer-phaser"
     },
     {

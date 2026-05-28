@@ -13,6 +13,9 @@
       "path": "../../packages/game-assets"
     },
     {
+      "path": "../../packages/game-input"
+    },
+    {
       "path": "../../packages/game-renderer-phaser"
     },
     {

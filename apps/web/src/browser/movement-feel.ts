@@ -394,37 +394,9 @@ export function movementCollisionSlideOptions(
   }
 }
 
-export function shapeMovementVectorForFeel(
-  vector: { readonly x: number; readonly y: number },
-  feel: MovementFeelTuning,
-): { readonly x: number; readonly y: number } {
-  const magnitude = Math.hypot(vector.x, vector.y)
-  if (magnitude === 0) return { x: 0, y: 0 }
-
-  const normalized = {
-    x: vector.x / magnitude,
-    y: vector.y / magnitude,
-  }
-  const clampedMagnitude = Math.min(1, magnitude)
-  const curvedMagnitude = Math.pow(
-    clampedMagnitude,
-    Math.max(0.01, feel.analogCurveExponent),
-  )
-
-  return {
-    x: roundMovementComponent(normalized.x * curvedMagnitude),
-    y: roundMovementComponent(normalized.y * curvedMagnitude),
-  }
-}
-
 function decimalPrecision(value: number): number {
   const [, decimals = ""] = value.toString().split(".")
   return decimals.length
-}
-
-function roundMovementComponent(value: number): number {
-  if (Math.abs(value) < 0.0005) return 0
-  return Number(Math.max(-1, Math.min(1, value)).toFixed(3))
 }
 
 function movementFeelValuesEqual(

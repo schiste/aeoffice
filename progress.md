@@ -1849,3 +1849,26 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   `git diff --check`. The latest renderer lobby, desktop joined, and mobile
   joined screenshots were inspected and the virtual office still visually
   behaves through the extracted renderer package.
+- Phase 5 extracted the neutral input layer into `packages/game-input`. The
+  package now owns keyboard direction mapping, neutral keyboard actions
+  (`move`, `interact`, `select`, `cancel`, `run`), held movement state,
+  run/walk intent generation, d-pad parsing, joystick vector math, input
+  telemetry, and sequence-numbered input shapes.
+- The virtual office app now acts as the DOM/product adapter for input: it keeps
+  office UI labels, meeting/action behavior, button active styling, movement
+  debug copy, and server transport decisions, while consuming neutral movement
+  and action intents from `@aedventure/game-input`.
+- Verification passed for the Phase 5 game-input split:
+  `npm --workspace @aedventure/game-input run build`,
+  `npm --workspace @aedventure/game-input test`,
+  `npm --workspace @aedventure/web run build`, `npm run smoke:frontend`,
+  `npm run qa:responsive`, isolated `npm run qa:renderer`, `npm run check`, and
+  `git diff --check`. A parallel renderer/responsive QA run hit a transient
+  frame-cadence threshold, but the isolated rerun and full check passed. Latest
+  renderer lobby and mobile responsive screenshots were inspected.
+- The standalone develop-web-game client was retried against
+  `http://127.0.0.1:8787/app` after starting the local dev host, but it still
+  exits before navigation with `ERR_MODULE_NOT_FOUND` because
+  `/Users/christophehenner/.codex/skills/develop-web-game/scripts/web_game_playwright_client.js`
+  cannot resolve its own `playwright` ESM import. The local dev host was stopped
+  after the attempt.

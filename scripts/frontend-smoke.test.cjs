@@ -692,6 +692,7 @@ function assertRenderStateContract(state) {
   assert.equal(typeof state.movement?.motion?.active, "boolean")
   assert.equal(typeof state.movement?.motion?.speedPxPerSecond, "number")
   assert.equal(typeof state.movement?.motion?.correctionPx, "number")
+  assertGameInputContract(state)
   assertMovementFeelContract(state)
   assertJoystickContract(state)
   assert.equal(typeof state.movement?.realtime?.status, "string")
@@ -1281,6 +1282,28 @@ function assertCameraStateContract(state) {
   assert.equal(typeof overviewCamera.alpha, "number")
   assert.equal(typeof overviewCamera.roundPixels, "boolean")
   assert.equal(typeof state.camera?.localPlayerVisible, "boolean")
+}
+
+function assertGameInputContract(state) {
+  assert.equal(state.movement?.input?.source, "game_input")
+  assert.deepEqual(state.movement?.input?.neutralIntentTypes, [
+    "move",
+    "interact",
+    "select",
+    "cancel",
+    "run",
+  ])
+  assert.equal(
+    state.movement?.input?.sequenceModel,
+    "monotonic_client_sequence",
+  )
+  assert.equal(typeof state.movement?.input?.heldDirectionCount, "number")
+  assert.equal(typeof state.movement?.input?.pressedControlCount, "number")
+  assert.equal(typeof state.movement?.input?.joystickActive, "boolean")
+  assert.equal(typeof state.movement?.input?.inFlight, "boolean")
+  assert.equal(typeof state.movement?.input?.runToggled, "boolean")
+  assert.equal(typeof state.movement?.input?.shiftRunning, "boolean")
+  assert.equal(state.movement?.input?.repeatMs, state.movement?.repeatMs)
 }
 
 function assertMovementFeelContract(state) {
