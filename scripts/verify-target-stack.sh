@@ -56,6 +56,9 @@ node "$ROOT_DIR/packages/game-topology/test/topology.test.js"
 echo "Running game-world checks..."
 node "$ROOT_DIR/packages/game-world/test/world.test.js"
 
+echo "Running ADD domain adapter checks..."
+node "$ROOT_DIR/packages/add-domain/test/adapters.test.js"
+
 echo "Running map-engine movement checks..."
 node "$ROOT_DIR/packages/map-engine/test/movement.test.js"
 
