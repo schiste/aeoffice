@@ -1994,3 +1994,19 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   points at `../add-core`.
 - Phase 8 verification passed with `cargo check` and `cargo test` from the
   aeoffice root.
+- ADD migration Phase 12 replaced the ADD canvas-style overworld projection
+  with a Phaser hex renderer in `apps/add-rpg`. The renderer now draws terrain
+  cells, inactive/converting/stabilized/blocked states, bubble edge outlines,
+  the Studio/base center, Survivor Cave, hover and selection affordances, and
+  camera zoom/pan/reset controls from the live ADD snapshot adapter.
+- The ADD adapter now passes bubble ring metadata through the neutral
+  `GameWorld` map metadata so the Phaser layer can reproduce ADD's bubble edge
+  without owning rules or simulation state. `render_game_to_text` reports the
+  explicit authority split: Rust/WASM snapshots own rules, Phaser is visual
+  projection only, and Phaser does not mutate simulation.
+- Phase 12 verification passed with `npm --workspace @aedventure/add-rpg run
+  build:types`, `npm --workspace @aedventure/add-rpg run build:browser`, `npm
+  run smoke:add-rpg:built`, `npm run qa:renderer`, and `npm run check`. The ADD
+  smoke now asserts snapshot cell parity, bubble edge presence, Studio and
+  Survivor Cave visibility, hover/select, zoom, pan, reset, and nonblank map/app
+  screenshots. The latest ADD RPG screenshots were visually inspected.

@@ -94,6 +94,10 @@ export function addSnapshotToGameWorld(
       clockSeconds: snapshot.clockSeconds,
       activeWorldAction: snapshot.activeWorldAction?.actionId ?? "",
       activeStoryBeat: snapshot.narrative.activeBeatId ?? "",
+      stabilizedRing: snapshot.bubble.stabilizedRing,
+      targetRing: snapshot.bubble.targetRing,
+      frontierProgress: snapshot.bubble.frontierProgress,
+      fieldBudget: snapshot.bubble.fieldBudget,
     },
   }
 

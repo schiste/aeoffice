@@ -157,14 +157,14 @@ createEffect(() => {
   })
   setWorld(nextWorld)
   mapHost?.renderWorld(nextWorld)
-  if (mapHost) setMapInfo(mapHost.getInfo())
+  refreshMapInfo()
 })
 
 window.render_game_to_text = () => JSON.stringify(toTextState())
 window.advanceTime = async (milliseconds = 1000) => {
   await tickRuntime(milliseconds / 1000)
   mapHost?.advanceTime(milliseconds)
-  if (mapHost) setMapInfo(mapHost.getInfo())
+  refreshMapInfo()
   return JSON.stringify(toTextState())
 }
 
@@ -174,6 +174,7 @@ client.init()
 function AddRpgApp() {
   let mapElement: HTMLDivElement | undefined
   let autoTickTimer: number | undefined
+  let mapInfoTimer: number | undefined
 
   onMount(() => {
     if (!mapElement) return
@@ -181,17 +182,19 @@ function AddRpgApp() {
     const currentWorld = world()
     if (currentWorld) {
       mapHost.renderWorld(currentWorld)
-      setMapInfo(mapHost.getInfo())
+      refreshMapInfo()
     }
     autoTickTimer = window.setInterval(() => {
       if (autoTick() && ready()) {
         void tickRuntime(1)
       }
     }, 1000)
+    mapInfoTimer = window.setInterval(refreshMapInfo, 180)
   })
 
   onCleanup(() => {
     if (autoTickTimer !== undefined) window.clearInterval(autoTickTimer)
+    if (mapInfoTimer !== undefined) window.clearInterval(mapInfoTimer)
     mapHost?.destroy()
     client.dispose()
   })
@@ -214,6 +217,43 @@ function AddRpgApp() {
         <div id="add-world" class="add-world" ref=${(node: HTMLDivElement) => (mapElement = node)}>
           <div class=${() => (mapInfo().ready ? "map-loading hidden" : "map-loading")}>
             Initializing map
+          </div>
+          <div class="map-hud" aria-label="ADD map controls">
+            <div class="map-camera-controls">
+              <button
+                id="map-zoom-out"
+                type="button"
+                class="map-button"
+                onClick=${() => zoomMap(0.9)}
+                disabled=${() => !mapInfo().ready}
+                aria-label="Zoom out"
+              >
+                -
+              </button>
+              <span class="zoom-readout">${() => `${Math.round(mapInfo().camera.zoom * 100)}%`}</span>
+              <button
+                id="map-zoom-in"
+                type="button"
+                class="map-button"
+                onClick=${() => zoomMap(1.1)}
+                disabled=${() => !mapInfo().ready}
+                aria-label="Zoom in"
+              >
+                +
+              </button>
+              <button
+                id="map-reset-camera"
+                type="button"
+                class="map-button text"
+                onClick=${resetMapCamera}
+                disabled=${() => !mapInfo().ready}
+              >
+                Center
+              </button>
+            </div>
+            <div class="map-selection-readout">
+              <span>${() => mapFocusCopy()}</span>
+            </div>
           </div>
         </div>
       </section>
@@ -242,7 +282,7 @@ function AddRpgApp() {
             </div>
             <div>
               <dt>Renderer</dt>
-              <dd>${() => `${mapInfo().rendererType} / ${mapInfo().cellInfo.cellCount} cells`}</dd>
+              <dd>${() => `${mapInfo().rendererType} / ${mapInfo().cells.total} cells`}</dd>
             </div>
           </dl>
         </section>
@@ -340,6 +380,29 @@ function actionRows(): readonly unknown[] {
         </li>
       `,
     )
+}
+
+function refreshMapInfo(): void {
+  const info = mapHost?.getInfo()
+  if (info) setMapInfo(info)
+}
+
+function zoomMap(factor: number): void {
+  mapHost?.zoomBy(factor)
+  refreshMapInfo()
+}
+
+function resetMapCamera(): void {
+  mapHost?.resetCamera()
+  refreshMapInfo()
+}
+
+function mapFocusCopy(): string {
+  const info = mapInfo()
+  if (info.interaction.selectedLabel) return info.interaction.selectedLabel
+  if (info.interaction.hoveredHex) return `Hex ${info.interaction.hoveredHex}`
+  if (info.cells.total > 0) return `${info.cells.bubbleEdge} bubble edge cells`
+  return "Waiting for map"
 }
 
 async function tickRuntime(seconds: number): Promise<void> {
@@ -484,7 +547,7 @@ function toTextState(): RuntimeTextState {
           recruitmentEnabled: currentUi.objective.recruitmentEnabled,
         }
       : null,
-    map: mapInfo(),
+    map: mapHost?.getInfo() ?? mapInfo(),
     catalog: currentCatalog
       ? {
           resourceCount: currentCatalog.resources.length,
@@ -538,28 +601,38 @@ function emptyMapInfo(): AddPhaserMapInfo {
     validationValid: false,
     validationSummary: "Map has not rendered yet.",
     rendererType: "unknown",
-    cellInfo: {
-      source: "hex_cell_renderer",
-      topology: "hex",
-      layerCount: 0,
-      cellCount: 0,
-      blockedCellCount: 0,
-      radius: 28,
-      depth: 0,
+    authority: {
+      rules: "rust_wasm_snapshot",
+      phaser: "visual_projection_only",
+      mutatesSimulation: false,
     },
-    zoneInfo: {
-      source: "hex_zone_renderer",
-      topology: "hex",
-      zoneCount: 0,
-      zoneCellCount: 0,
-      depth: 20,
+    cells: {
+      total: 0,
+      inactive: 0,
+      converting: 0,
+      stabilized: 0,
+      blocked: 0,
+      bubbleEdge: 0,
     },
-    landmarkInfo: {
-      source: "hex_landmark_renderer",
-      topology: "hex",
-      landmarkCount: 0,
-      labelCount: 0,
-      depth: 40,
+    landmarks: {
+      baseCenter: null,
+      studioLabelVisible: false,
+      survivorCave: null,
+      survivorCaveVisible: false,
+      renderedCount: 0,
+    },
+    camera: {
+      mode: "fit",
+      zoom: 1,
+      scrollX: 0,
+      scrollY: 0,
+    },
+    interaction: {
+      hoverEnabled: true,
+      selectEnabled: true,
+      hoveredHex: null,
+      selectedHex: null,
+      selectedLabel: null,
     },
   }
 }

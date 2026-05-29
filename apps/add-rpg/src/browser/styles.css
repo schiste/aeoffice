@@ -200,6 +200,75 @@ h1 {
   display: none;
 }
 
+.map-hud {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  left: 12px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.map-camera-controls,
+.map-selection-readout {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid rgb(31 43 38 / 16%);
+  border-radius: 8px;
+  background: rgb(255 250 226 / 82%);
+  box-shadow: 0 12px 28px rgb(25 32 28 / 16%);
+  backdrop-filter: blur(14px);
+  pointer-events: auto;
+}
+
+.map-camera-controls {
+  gap: 4px;
+  padding: 5px;
+}
+
+.map-button {
+  display: inline-grid;
+  min-width: 2rem;
+  min-height: 2rem;
+  place-items: center;
+  border-radius: 6px;
+  padding: 0 0.55rem;
+  font-size: 0.94rem;
+  line-height: 1;
+  box-shadow: none;
+}
+
+.map-button.text {
+  min-width: 4rem;
+  font-size: 0.78rem;
+}
+
+.zoom-readout {
+  min-width: 3.2rem;
+  color: #25332e;
+  font-size: 0.78rem;
+  font-weight: 850;
+  text-align: center;
+}
+
+.map-selection-readout {
+  max-width: min(52%, 360px);
+  min-height: 2.35rem;
+  padding: 0 0.8rem;
+  color: #26352f;
+  font-size: 0.8rem;
+  font-weight: 850;
+}
+
+.map-selection-readout span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .management-rail {
   display: flex;
   flex-direction: column;
@@ -334,6 +403,15 @@ h1 {
 
   .add-world {
     min-height: 55vh;
+  }
+
+  .map-hud {
+    align-items: stretch;
+    flex-direction: column-reverse;
+  }
+
+  .map-selection-readout {
+    max-width: none;
   }
 
   .management-rail {

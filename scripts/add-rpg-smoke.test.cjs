@@ -41,9 +41,14 @@ async function main() {
         state.map?.hostedBy === "phaser" &&
         state.map?.ready === true &&
         state.map?.validationValid === true &&
-        state.map?.cellInfo?.cellCount > 0 &&
-        state.map?.landmarkInfo?.landmarkCount > 0 &&
         state.snapshot?.hexCount > 0 &&
+        state.map?.cells?.total === state.snapshot.hexCount &&
+        state.map?.cells?.bubbleEdge > 0 &&
+        state.map?.cells?.stabilized > 0 &&
+        state.map?.landmarks?.studioLabelVisible === true &&
+        state.map?.landmarks?.survivorCaveVisible === true &&
+        state.map?.authority?.rules === "rust_wasm_snapshot" &&
+        state.map?.authority?.mutatesSimulation === false &&
         state.catalog?.resourceCount > 0 &&
         state.catalog?.tileCount > 0,
       consoleErrors,
@@ -54,6 +59,10 @@ async function main() {
     assert.equal(initial.runtime.error, null)
     assert.ok(initial.ui.resourceCount > 0)
     assert.ok(initial.catalog.worldActionCount > 0)
+
+    const interacted = await interactWithMap(page, consoleErrors)
+    assert.ok(interacted.map.interaction.selectedHex)
+    assert.ok(interacted.map.interaction.selectedLabel)
 
     await page.locator("#tick-runtime").click()
     const ticked = await waitForTextState(
@@ -87,6 +96,65 @@ async function main() {
     if (browser) await browser.close()
     await new Promise((resolve) => server.close(resolve))
   }
+}
+
+async function interactWithMap(page, consoleErrors) {
+  const canvas = page.locator("#add-world canvas")
+  await canvas.waitFor({ state: "visible" })
+  const box = await canvas.boundingBox()
+  assert.ok(box, "ADD RPG Phaser canvas should have a browser box")
+  const center = {
+    x: box.x + box.width / 2,
+    y: box.y + box.height / 2,
+  }
+
+  await page.mouse.move(center.x, center.y)
+  await waitForTextState(
+    page,
+    (state) => state.map?.interaction?.hoveredHex !== null,
+    consoleErrors,
+  )
+  await page.mouse.click(center.x, center.y)
+  const selected = await waitForTextState(
+    page,
+    (state) => state.map?.interaction?.selectedHex !== null,
+    consoleErrors,
+  )
+
+  const zoomBefore = selected.map.camera.zoom
+  for (let index = 0; index < 5; index += 1) {
+    await page.locator("#map-zoom-in").click()
+  }
+  const zoomed = await waitForTextState(
+    page,
+    (state) => state.map?.camera?.zoom > zoomBefore + 0.35,
+    consoleErrors,
+  )
+  const cameraBefore = zoomed.map.camera
+
+  await page.mouse.move(center.x, center.y)
+  await page.mouse.down()
+  await page.mouse.move(center.x - 90, center.y - 54, { steps: 5 })
+  await page.mouse.up()
+
+  const panned = await waitForTextState(
+    page,
+    (state) =>
+      Math.abs((state.map?.camera?.scrollX ?? 0) - cameraBefore.scrollX) > 0.5 ||
+      Math.abs((state.map?.camera?.scrollY ?? 0) - cameraBefore.scrollY) > 0.5,
+    consoleErrors,
+  )
+
+  await page.locator("#map-reset-camera").click()
+  await waitForTextState(
+    page,
+    (state) =>
+      Math.abs((state.map?.camera?.scrollX ?? 0) - panned.map.camera.scrollX) > 0.5 ||
+      Math.abs((state.map?.camera?.scrollY ?? 0) - panned.map.camera.scrollY) > 0.5,
+    consoleErrors,
+  )
+
+  return panned
 }
 
 async function assertNonBlankMapScreenshot(page) {
