@@ -1,0 +1,146 @@
+:root {
+  color-scheme: light;
+  --bg: #f5f2ea;
+  --ink: #18201d;
+  --muted: #66736c;
+  --panel: #fffdf7;
+  --line: #d8d1c2;
+  --accent: #356f5a;
+  --accent-strong: #194c3e;
+  --square: #466f8f;
+  --hex: #a05f2d;
+  --zone: rgba(43, 116, 102, 0.2);
+  --shadow: 0 18px 55px rgba(39, 35, 27, 0.16);
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  font-size: 16px;
+  line-height: 1.45;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  color: var(--ink);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0)),
+    var(--bg);
+}
+
+.sandbox-shell {
+  display: grid;
+  grid-template-rows: auto minmax(420px, 1fr) auto;
+  min-height: 100vh;
+  gap: 18px;
+  padding: 24px;
+}
+
+.sandbox-header,
+.sandbox-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.eyebrow {
+  margin: 0 0 4px;
+  color: var(--accent-strong);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+h1 {
+  margin: 0;
+  font-size: clamp(1.35rem, 2.4vw, 2rem);
+  line-height: 1.1;
+}
+
+.status-pill {
+  min-width: 160px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 8px 12px;
+  color: var(--accent-strong);
+  background: rgba(255, 253, 247, 0.84);
+  font-size: 0.88rem;
+  font-weight: 800;
+  text-align: center;
+  box-shadow: 0 6px 22px rgba(39, 35, 27, 0.08);
+}
+
+.sandbox-stage {
+  position: relative;
+  min-height: 420px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+#sandbox-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 420px;
+  cursor: default;
+}
+
+.sandbox-footer {
+  min-height: 40px;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.sandbox-footer > div {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.legend-swatch {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+}
+
+.legend-swatch.square {
+  background: var(--square);
+}
+
+.legend-swatch.hex {
+  background: var(--hex);
+}
+
+@media (max-width: 760px) {
+  .sandbox-shell {
+    grid-template-rows: auto minmax(520px, 1fr) auto;
+    padding: 14px;
+  }
+
+  .sandbox-header,
+  .sandbox-footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .status-pill {
+    width: 100%;
+  }
+
+  #sandbox-canvas {
+    min-height: 520px;
+  }
+}

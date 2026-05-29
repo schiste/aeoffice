@@ -19,9 +19,11 @@
     "qa:responsive": "node scripts/responsive-layout-qa.test.cjs",
     "qa:renderer": "npm --workspace @aedventure/web run build:browser && npm --workspace @aedventure/rpg-idle-demo run build:browser && node scripts/renderer-qa.test.cjs",
     "qa:renderer:built": "node scripts/renderer-qa.test.cjs",
-    "smoke:apps": "npm run smoke:office && npm run smoke:rpg",
+    "smoke:apps": "npm run smoke:office && npm run smoke:rpg && npm run smoke:engine-sandbox",
     "smoke:office": "npm --workspace @aedventure/web run build:browser && node scripts/frontend-smoke.test.cjs",
     "smoke:office:built": "node scripts/frontend-smoke.test.cjs",
+    "smoke:engine-sandbox": "npm --workspace @aedventure/engine-sandbox run smoke",
+    "smoke:engine-sandbox:built": "node scripts/engine-sandbox-smoke.test.cjs",
     "smoke:rpg": "npm --workspace @aedventure/rpg-idle-demo run smoke",
     "smoke:rpg:built": "node scripts/rpg-idle-demo-smoke.test.cjs",
     "smoke:frontend": "npm run smoke:office:built"

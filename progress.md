@@ -1957,3 +1957,8 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
 - The standalone develop-web-game client was retried and still exits before
   navigation with `ERR_MODULE_NOT_FOUND` because the skill-local script cannot
   resolve its own `playwright` import.
+- ADD migration Phase 6 started the neutral engine sandbox app in
+  `apps/engine-sandbox`. The sandbox consumes only `@aedventure/game-topology`
+  and `@aedventure/game-world`, renders one square fixture and one hex fixture
+  on a shared canvas, and exposes entities, zones, labels, interactions, and
+  topology coexistence through `window.render_game_to_text`.

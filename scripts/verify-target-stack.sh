@@ -35,6 +35,7 @@ ln -sfn "../../packages/policy" "$ROOT_DIR/node_modules/@aedventure/policy"
 ln -sfn "../../packages/shared-types" "$ROOT_DIR/node_modules/@aedventure/shared-types"
 ln -sfn "../../apps/add-rpg" "$ROOT_DIR/node_modules/@aedventure/add-rpg"
 ln -sfn "../../apps/api" "$ROOT_DIR/node_modules/@aedventure/api"
+ln -sfn "../../apps/engine-sandbox" "$ROOT_DIR/node_modules/@aedventure/engine-sandbox"
 ln -sfn "../../apps/media-gateway" "$ROOT_DIR/node_modules/@aedventure/media-gateway"
 ln -sfn "../../apps/rpg-idle-demo" "$ROOT_DIR/node_modules/@aedventure/rpg-idle-demo"
 ln -sfn "../../apps/web" "$ROOT_DIR/node_modules/@aedventure/web"
@@ -109,8 +110,14 @@ npm --workspace @aedventure/web run build:browser
 echo "Building RPG idle demo bundle..."
 npm --workspace @aedventure/rpg-idle-demo run build:browser
 
+echo "Building engine sandbox bundle..."
+npm --workspace @aedventure/engine-sandbox run build:browser
+
 echo "Running RPG idle demo smoke..."
 npm run smoke:rpg:built
+
+echo "Running engine sandbox smoke..."
+npm run smoke:engine-sandbox:built
 
 echo "Running office browser smoke..."
 npm run smoke:office:built

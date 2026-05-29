@@ -59,6 +59,9 @@
       "path": "apps/add-rpg"
     },
     {
+      "path": "apps/engine-sandbox"
+    },
+    {
       "path": "apps/media-gateway"
     },
     {

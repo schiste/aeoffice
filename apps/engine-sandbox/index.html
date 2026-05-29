@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Aedventure Engine Sandbox</title>
+    <script type="module" src="/src/browser/main.ts"></script>
+  </head>
+  <body>
+    <main class="sandbox-shell">
+      <header class="sandbox-header">
+        <div>
+          <p class="eyebrow">Engine sandbox</p>
+          <h1>Topology fixture renderer</h1>
+        </div>
+        <div class="status-pill" id="validation-status">Preparing world</div>
+      </header>
+      <section class="sandbox-stage" id="world" aria-label="Square and hex topology fixtures">
+        <canvas id="sandbox-canvas"></canvas>
+      </section>
+      <footer class="sandbox-footer">
+        <div>
+          <span class="legend-swatch square"></span>
+          Square fixture
+        </div>
+        <div>
+          <span class="legend-swatch hex"></span>
+          Hex fixture
+        </div>
+        <div id="interaction-status">Select an interaction marker.</div>
+      </footer>
+    </main>
+  </body>
+</html>
