@@ -46,6 +46,9 @@ node "$ROOT_DIR/packages/game-protocol/test/protocol.test.js"
 echo "Running game-core simulation checks..."
 node "$ROOT_DIR/packages/game-core/test/simulation.test.js"
 
+echo "Running game-topology checks..."
+node "$ROOT_DIR/packages/game-topology/test/topology.test.js"
+
 echo "Running map-engine movement checks..."
 node "$ROOT_DIR/packages/map-engine/test/movement.test.js"
 
