@@ -1,0 +1,12 @@
+[workspace]
+members = [
+    "crates/add-core",
+    "crates/add-web-bindings",
+    "crates/add-web-worker",
+]
+resolver = "2"
+
+[workspace.package]
+edition = "2024"
+license = "MIT"
+version = "0.1.0"

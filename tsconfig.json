@@ -11,6 +11,15 @@
       "path": "packages/game-core"
     },
     {
+      "path": "packages/game-topology"
+    },
+    {
+      "path": "packages/game-world"
+    },
+    {
+      "path": "packages/add-domain"
+    },
+    {
       "path": "packages/protocol"
     },
     {
@@ -45,6 +54,9 @@
     },
     {
       "path": "apps/api"
+    },
+    {
+      "path": "apps/add-rpg"
     },
     {
       "path": "apps/media-gateway"

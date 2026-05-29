@@ -22,6 +22,15 @@
       "@aedventure/game-core": [
         "packages/game-core/src"
       ],
+      "@aedventure/game-topology": [
+        "packages/game-topology/src"
+      ],
+      "@aedventure/game-world": [
+        "packages/game-world/src"
+      ],
+      "@aedventure/add-domain": [
+        "packages/add-domain/src"
+      ],
       "@aedventure/map-engine": [
         "packages/map-engine/src"
       ],
