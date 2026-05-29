@@ -1,0 +1,14 @@
+{
+  "name": "add",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "check:rust": "cargo check",
+    "check:web": "npm --workspace @add/web run check",
+    "dev:web": "npm --workspace @add/web run dev",
+    "build:web": "npm --workspace @add/web run build"
+  }
+}
