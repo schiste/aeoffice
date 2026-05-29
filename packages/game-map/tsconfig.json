@@ -7,6 +7,9 @@
   "references": [
     {
       "path": "../game-assets"
+    },
+    {
+      "path": "../game-topology"
     }
   ],
   "include": ["src/**/*.ts"]

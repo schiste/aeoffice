@@ -2,6 +2,13 @@ import type {
   VisualAssetCatalog,
   VisualTokenDefinition,
 } from "@aedventure/game-assets"
+import {
+  createSquareCoord,
+  createSquareTopology,
+  squareCoordInBounds,
+  type GridTopology,
+  type SquareCoord,
+} from "@aedventure/game-topology"
 
 export interface SemanticMapDefinition {
   readonly roomDimensions: {
@@ -124,6 +131,18 @@ export interface CompileSemanticMapOptions {
   ) => string
 }
 
+export function squareTopologyForCompiledMap(
+  compiled: Pick<CompiledSemanticMap, "width" | "height" | "tileSize">,
+): GridTopology<SquareCoord> {
+  return createSquareTopology({
+    cellSize: compiled.tileSize,
+    bounds: {
+      width: compiled.width,
+      height: compiled.height,
+    },
+  })
+}
+
 export function compileSemanticMapDefinition(
   definition: SemanticMapDefinition,
   catalog: VisualAssetCatalog,
@@ -136,6 +155,10 @@ export function compileSemanticMapDefinition(
 
   const width = definition.roomDimensions.width
   const height = definition.roomDimensions.height
+  const topology = createSquareTopology({
+    cellSize: catalog.tileSize,
+    bounds: { width, height },
+  })
   const floorToken = requireToken(catalog, style.floorTokenId)
   const floor = createLayer("floor", width, height, floorToken.provisionalGid)
   const walls = createLayer("walls", width, height, 0)
@@ -148,8 +171,9 @@ export function compileSemanticMapDefinition(
   for (const wall of definition.layers.walls ?? []) {
     const token = requireToken(catalog, style.wallTokenIds[wall.type])
     referencedTokenIds.add(token.id)
-    paintToken(walls, token, wall.x, wall.y)
-    addBlockedTiles(blockedTiles, token, wall.x, wall.y)
+    const coord = createSquareCoord(wall.x, wall.y)
+    paintToken(walls, token, coord)
+    addBlockedTiles(blockedTiles, token, coord, topology)
   }
 
   for (const object of [
@@ -158,8 +182,9 @@ export function compileSemanticMapDefinition(
   ]) {
     const token = requireToken(catalog, resolveObjectTokenId(object))
     referencedTokenIds.add(token.id)
-    paintToken(objects, token, object.x, object.y)
-    addBlockedTiles(blockedTiles, token, object.x, object.y)
+    const coord = createSquareCoord(object.x, object.y)
+    paintToken(objects, token, coord)
+    addBlockedTiles(blockedTiles, token, coord, topology)
   }
 
   return {
@@ -201,19 +226,15 @@ export function validateCompiledMap(
   }
 
   for (const tile of compiled.blockedTiles) {
-    const key = `${tile.x}:${tile.y}`
+    const coord = createSquareCoord(tile.x, tile.y)
+    const key = squareTileKey(coord)
 
     if (blockedTileKeys.has(key)) {
       fail("blocked_tiles", `Duplicate blocked tile ${key}.`)
     }
     blockedTileKeys.add(key)
 
-    if (
-      tile.x < 0 ||
-      tile.y < 0 ||
-      tile.x >= compiled.width ||
-      tile.y >= compiled.height
-    ) {
+    if (!squareCoordInBounds(coord, { width: compiled.width, height: compiled.height })) {
       fail("blocked_tiles", `Blocked tile ${key} is outside the map.`)
     }
   }
@@ -313,7 +334,9 @@ export function validateSpawnPoints(
 ): readonly MapValidationCheck[] {
   const checks: MapValidationCheck[] = []
   const blockedTileKeys = new Set(
-    compiled.blockedTiles.map((tile) => `${tile.x}:${tile.y}`),
+    compiled.blockedTiles.map((tile) =>
+      squareTileKey(createSquareCoord(tile.x, tile.y)),
+    ),
   )
   const add = (status: MapValidationCheck["status"]) =>
     (id: MapValidationCheck["id"], message: string) => {
@@ -341,12 +364,14 @@ export function tileSpawnPoint(
   tile: { readonly x: number; readonly y: number },
   tileSize: number,
 ): MapSpawnPoint {
+  const topology = createSquareTopology({
+    cellSize: tileSize,
+  })
+  const position = topology.cellToWorld(createSquareCoord(tile.x, tile.y))
+
   return {
     id,
-    position: {
-      x: tile.x * tileSize,
-      y: tile.y * tileSize,
-    },
+    position,
   }
 }
 
@@ -354,15 +379,18 @@ export function firstFreeTile(
   compiled: CompiledSemanticMap,
   candidates: readonly { readonly x: number; readonly y: number }[],
 ): { readonly x: number; readonly y: number } | undefined {
+  const topology = squareTopologyForCompiledMap(compiled)
+
   return candidates.find(
-    (tile) =>
-      tile.x >= 0 &&
-      tile.y >= 0 &&
-      tile.x < compiled.width &&
-      tile.y < compiled.height &&
-      !compiled.blockedTiles.some(
-        (blockedTile) => blockedTile.x === tile.x && blockedTile.y === tile.y,
-      ),
+    (tile) => {
+      const coord = createSquareCoord(tile.x, tile.y)
+      return (
+        topology.inBounds(coord) &&
+        !compiled.blockedTiles.some(
+          (blockedTile) => blockedTile.x === tile.x && blockedTile.y === tile.y,
+        )
+      )
+    },
   )
 }
 
@@ -371,16 +399,21 @@ export function createMovementCollisionLayer(
   height: number,
   blockedTiles: readonly { readonly x: number; readonly y: number }[],
 ): CompiledCollisionLayer {
+  const topology = createSquareTopology({
+    cellSize: 1,
+    bounds: { width, height },
+  })
   const blocked = Array.from({ length: height }, () =>
     Array.from({ length: width }, () => false),
   )
 
   for (const tile of blockedTiles) {
-    if (tile.x < 0 || tile.y < 0 || tile.x >= width || tile.y >= height) {
+    const coord = createSquareCoord(tile.x, tile.y)
+    if (!topology.inBounds(coord)) {
       continue
     }
 
-    blocked[tile.y][tile.x] = true
+    blocked[coord.y][coord.x] = true
   }
 
   return {
@@ -415,20 +448,17 @@ function validateSpawnPointsInto(
   fail: (id: MapValidationCheck["id"], message: string) => void,
 ): boolean {
   let hasFailures = false
+  const topology = squareTopologyForCompiledMap(compiled)
 
   for (const spawn of spawnPoints) {
-    const tile = {
+    const rawTile = {
       x: Math.floor(spawn.position.x / compiled.tileSize),
       y: Math.floor(spawn.position.y / compiled.tileSize),
     }
-    const key = `${tile.x}:${tile.y}`
+    const tile = topology.worldToCell(spawn.position)
+    const key = squareTileKey(createSquareCoord(rawTile.x, rawTile.y))
 
-    if (
-      tile.x < 0 ||
-      tile.y < 0 ||
-      tile.x >= compiled.width ||
-      tile.y >= compiled.height
-    ) {
+    if (!tile) {
       hasFailures = true
       fail("spawn_clearance", `Spawn ${spawn.id} is outside the map.`)
     }
@@ -448,16 +478,16 @@ function validateZoneBoundsInto(
   fail: (id: MapValidationCheck["id"], message: string) => void,
   pass: (id: MapValidationCheck["id"], message: string) => void,
 ): void {
+  const bounds = { width: compiled.width, height: compiled.height }
+
   for (const zone of compiled.zones) {
     if (zone.xStart >= zone.xEnd || zone.yStart >= zone.yEnd) {
       fail("zone_bounds", `Zone ${zone.id} has invalid bounds.`)
     }
 
     if (
-      zone.xStart < 0 ||
-      zone.yStart < 0 ||
-      zone.xEnd > compiled.width ||
-      zone.yEnd > compiled.height
+      !squareCoordInBounds(createSquareCoord(zone.xStart, zone.yStart), bounds) ||
+      !squareCoordInBounds(createSquareCoord(zone.xEnd - 1, zone.yEnd - 1), bounds)
     ) {
       fail("zone_bounds", `Zone ${zone.id} is outside the map.`)
     }
@@ -485,24 +515,26 @@ function requireToken(
 function paintToken(
   layer: CompiledTileLayer,
   token: VisualTokenDefinition,
-  x: number,
-  y: number,
+  coord: SquareCoord,
 ): void {
-  ensureInsideLayer(layer, token, x, y)
-  ;(layer.gids[y] as number[])[x] = token.provisionalGid
+  ensureInsideLayer(layer, token, coord)
+  ;(layer.gids[coord.y] as number[])[coord.x] = token.provisionalGid
 }
 
 function addBlockedTiles(
   blockedTiles: { x: number; y: number }[],
   token: VisualTokenDefinition,
-  x: number,
-  y: number,
+  coord: SquareCoord,
+  topology: GridTopology<SquareCoord>,
 ): void {
   if (!token.collidable) return
 
-  for (let tileY = y; tileY < y + token.heightTiles; tileY += 1) {
-    for (let tileX = x; tileX < x + token.widthTiles; tileX += 1) {
-      blockedTiles.push({ x: tileX, y: tileY })
+  for (let tileY = coord.y; tileY < coord.y + token.heightTiles; tileY += 1) {
+    for (let tileX = coord.x; tileX < coord.x + token.widthTiles; tileX += 1) {
+      const blockedCoord = createSquareCoord(tileX, tileY)
+      if (topology.inBounds(blockedCoord)) {
+        blockedTiles.push({ x: blockedCoord.x, y: blockedCoord.y })
+      }
     }
   }
 }
@@ -510,14 +542,17 @@ function addBlockedTiles(
 function ensureInsideLayer(
   layer: CompiledTileLayer,
   token: VisualTokenDefinition,
-  x: number,
-  y: number,
+  coord: SquareCoord,
 ): void {
+  const bounds = { width: layer.width, height: layer.height }
+  const endCoord = createSquareCoord(
+    coord.x + token.widthTiles - 1,
+    coord.y + token.heightTiles - 1,
+  )
+
   if (
-    x < 0 ||
-    y < 0 ||
-    x + token.widthTiles > layer.width ||
-    y + token.heightTiles > layer.height
+    !squareCoordInBounds(coord, bounds) ||
+    !squareCoordInBounds(endCoord, bounds)
   ) {
     throw new Error(`Token ${token.id} is outside layer ${layer.name}`)
   }
@@ -527,4 +562,8 @@ function defaultObjectTokenId(placement: SemanticObjectPlacement): string {
   if (placement.tokenId) return placement.tokenId
   if (placement.item) return `item.${placement.item}`
   throw new Error("Semantic object placement requires tokenId or item.")
+}
+
+function squareTileKey(coord: SquareCoord): string {
+  return `${coord.x}:${coord.y}`
 }

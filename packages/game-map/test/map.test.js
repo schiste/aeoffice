@@ -4,6 +4,7 @@ const path = require("node:path")
 const {
   compileSemanticMapDefinition,
   firstFreeTile,
+  squareTopologyForCompiledMap,
   tileSpawnPoint,
   validateCompiledMap,
   validateSpawnPoints,
@@ -92,6 +93,19 @@ const validation = validateCompiledMap(compiled, spawnPoints)
 assert.equal(compiled.width, 6)
 assert.equal(compiled.height, 5)
 assert.equal(compiled.tileSize, 32)
+const topology = squareTopologyForCompiledMap(compiled)
+assert.equal(topology.kind, "square")
+assert.deepEqual(topology.cellToWorld({ kind: "square", x: 2, y: 3 }), {
+  x: 64,
+  y: 96,
+})
+assert.deepEqual(topology.worldToCell({ x: 64, y: 96 }), {
+  kind: "square",
+  x: 2,
+  y: 3,
+})
+assert.equal(topology.inBounds({ kind: "square", x: 5, y: 4 }), true)
+assert.equal(topology.inBounds({ kind: "square", x: 6, y: 4 }), false)
 assert.equal(compiled.layers.floor.gids[0][0], 10)
 assert.equal(compiled.layers.floor.gids[4][5], 10)
 assert.equal(compiled.layers.walls.gids[0][0], 21)

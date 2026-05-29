@@ -8,6 +8,7 @@
     "build": "tsc -b"
   },
   "dependencies": {
-    "@aedventure/game-assets": "0.1.0"
+    "@aedventure/game-assets": "0.1.0",
+    "@aedventure/game-topology": "0.1.0"
   }
 }
