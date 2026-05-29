@@ -1979,3 +1979,10 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
 - Final Phase 7 verification passed with `npm run check` after the sandbox
   fixture label spacing polish. The latest engine sandbox screenshot was
   visually inspected and shows clear square and hex topology fixtures.
+- ADD migration Phase 8 moved the Rust runtime crates out of
+  `legacy/add/crates` into the aeoffice root workspace as `crates/add-core`,
+  `crates/add-web-bindings`, and `crates/add-web-worker`. The root `Cargo.toml`
+  now owns the ADD serde/wasm workspace dependencies, and the web bindings crate
+  points at `../add-core`.
+- Phase 8 verification passed with `cargo check` and `cargo test` from the
+  aeoffice root.

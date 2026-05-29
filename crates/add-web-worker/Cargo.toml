@@ -1,11 +1,7 @@
 [package]
 name = "add-web-worker"
+version.workspace = true
 edition.workspace = true
 license.workspace = true
-version.workspace = true
-
-[lib]
-path = "src/lib.rs"
 
 [dependencies]
-add-core = { path = "../add-core" }
