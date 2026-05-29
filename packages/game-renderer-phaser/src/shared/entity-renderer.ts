@@ -18,28 +18,28 @@ import {
   type AvatarAnimationDefinition,
   type AvatarAppearanceMetadata,
   type AvatarInterpolationProfile,
-} from "./avatar-registry"
+} from "../renderer/avatar-registry"
 import {
   ensureAvatarNativeAnimation,
   ensureAvatarSpriteFrameTexture,
   type ResolvedAvatarNativeAnimation,
-} from "./avatar-sprite-atlas"
+} from "../renderer/avatar-sprite-atlas"
 import {
   isLocomotionAction,
   resolveAvatarAnimationTransition,
   type AvatarAnimationTransitionPlan,
-} from "./avatar-state-machine"
+} from "../renderer/avatar-state-machine"
 import {
   AVATAR_HEIGHT,
   AVATAR_WIDTH,
-} from "./constants"
-import { avatarDepth } from "./depth"
-import { clamp } from "./math"
+} from "../renderer/constants"
+import { avatarDepth } from "../renderer/depth"
+import { clamp } from "../renderer/math"
 import {
   applyCrispWorldText,
   WORLD_TEXT_RESOLUTION,
   WORLD_TEXT_TEXTURE_FILTER,
-} from "./text-rendering"
+} from "../renderer/text-rendering"
 import type {
   AvatarAnimationAction,
   AvatarAnimationTransitionReason,
@@ -55,7 +55,7 @@ import type {
   RendererDepthPlacementBounds,
   RendererDepthPlayerInfo,
   Vector2,
-} from "./types"
+} from "../renderer/types"
 
 export interface AvatarFollowTarget {
   readonly playerId: string

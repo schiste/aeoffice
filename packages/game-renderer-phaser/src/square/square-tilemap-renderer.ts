@@ -4,8 +4,8 @@ import {
   assetPipelineInfoFromRender,
   drawTokenFrameWithFallback,
   type RuntimeAssetAtlas,
-} from "./asset-atlas"
-import { RENDERER_VERTEX_ROUND_MODE, TILESET_KEY } from "./constants"
+} from "../renderer/asset-atlas"
+import { RENDERER_VERTEX_ROUND_MODE, TILESET_KEY } from "../renderer/constants"
 import type {
   FixtureMap,
   FixtureToken,
@@ -16,7 +16,7 @@ import type {
   RendererTilemapLayerInfo,
   RendererTileLayerMode,
   TileLayer,
-} from "./types"
+} from "../renderer/types"
 
 export type StaticTileLayerGameObject =
   | Phaser.Tilemaps.TilemapLayer
@@ -27,7 +27,7 @@ export interface StaticTileLayerPaintResult {
   readonly gameObject: StaticTileLayerGameObject
 }
 
-export class TilemapRenderer {
+export class SquareTilemapRenderer {
   private lastTilesetSignature?: string
   private lastAssetInfo?: RendererAssetPipelineInfo
 

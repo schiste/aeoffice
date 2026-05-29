@@ -12,6 +12,7 @@
     "smoke": "npm run build:browser && node ../../scripts/engine-sandbox-smoke.test.cjs"
   },
   "dependencies": {
+    "@aedventure/game-renderer-phaser": "0.1.0",
     "@aedventure/game-topology": "0.1.0",
     "@aedventure/game-world": "0.1.0"
   }

@@ -11,6 +11,7 @@ import {
   type SquareCoord,
   type Vector2,
 } from "@aedventure/game-topology"
+import { hexCellPolygonPoints } from "@aedventure/game-renderer-phaser/hex-geometry"
 import {
   validateGameWorld,
   type GameEntity,
@@ -260,7 +261,7 @@ function createSquareFixtureMap(): GameMap {
         id: "interaction.square.inspect",
         kind: "inspect",
         action: "inspect-square-zone",
-        label: "Inspect square zone",
+        label: "Inspect square",
         target: {
           kind: "zone",
           id: "zone.square.workbench",
@@ -323,7 +324,7 @@ function createHexFixtureMap(): GameMap {
       {
         id: "entity.hex.scout",
         kind: "avatar",
-        label: "Hex Scout",
+        label: "Scout",
         coord: createHexCoord(0, 0),
         layerId: "hex.objects",
         blocksMovement: true,
@@ -344,7 +345,7 @@ function createHexFixtureMap(): GameMap {
         id: "interaction.hex.gather",
         kind: "gather",
         action: "gather-hex-node",
-        label: "Gather hex node",
+        label: "Gather",
         target: {
           kind: "zone",
           id: "zone.hex.node",
@@ -639,7 +640,12 @@ function drawInteraction(
   context.textBaseline = "middle"
   context.fillText("E", point.x, point.y + 0.5)
 
-  drawLabel(interaction.label ?? interaction.id, point.x, point.y + 27, "#194c3e")
+  drawLabel(
+    interaction.label ?? interaction.id,
+    point.x,
+    point.y + (kind === "hex" ? 64 : 36),
+    "#194c3e",
+  )
 
   lastRenderedInteractions.push({
     id: interaction.id,
@@ -749,18 +755,13 @@ function drawShadow(x: number, y: number, width: number, height: number): void {
 
 function drawHex(center: Vector2, radius: number): void {
   context.beginPath()
-  for (let side = 0; side < 6; side += 1) {
-    const angle = ((60 * side - 30) * Math.PI) / 180
-    const point = {
-      x: center.x + radius * Math.cos(angle),
-      y: center.y + radius * Math.sin(angle),
-    }
-    if (side === 0) {
+  hexCellPolygonPoints(center, radius).forEach((point, index) => {
+    if (index === 0) {
       context.moveTo(point.x, point.y)
     } else {
       context.lineTo(point.x, point.y)
     }
-  }
+  })
   context.closePath()
 }
 
@@ -835,7 +836,11 @@ function createTextState(): SandboxTextState {
     engineBoundary: {
       domain: "neutral-engine-fixture",
       renderer: "canvas-topology-fixture",
-      uses: ["@aedventure/game-topology", "@aedventure/game-world"],
+      uses: [
+        "@aedventure/game-topology",
+        "@aedventure/game-world",
+        "@aedventure/game-renderer-phaser/hex-geometry",
+      ],
       importsOfficeDomain: false,
     },
     world: {

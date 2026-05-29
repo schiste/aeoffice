@@ -5,7 +5,7 @@ import type {
   RendererStaticLayerBakeInfo,
   RendererTilemapLayerInfo,
 } from "./types"
-import type { StaticTileLayerPaintResult } from "./tilemap-renderer"
+import type { StaticTileLayerPaintResult } from "../square/square-tilemap-renderer"
 
 const STATIC_LAYER_BAKE_TEXTURE_KEY = "aedventure.static-architecture-bake"
 const MAX_STATIC_BAKE_TEXTURE_SIZE = 4096

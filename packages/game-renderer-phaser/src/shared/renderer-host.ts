@@ -11,16 +11,16 @@ import {
   MIN_ZOOM_FACTOR,
   PHASER_RENDERER_CONFIG,
   ZOOM_STEP,
-} from "./constants"
+} from "../renderer/constants"
 import {
   isWebGLRenderer,
   RendererCapabilityReporter,
-} from "./capability-reporter"
-import { DEFAULT_RENDERER_ASSET_PACK_CONFIG } from "./asset-atlas"
-import { DomWorldOverlayRenderer } from "./dom-world-overlay-renderer"
-import { clamp } from "./math"
-import { TileWorldScene } from "./tile-world-scene"
-import { RendererSceneManager } from "./renderer-scene-manager"
+} from "../renderer/capability-reporter"
+import { DEFAULT_RENDERER_ASSET_PACK_CONFIG } from "../renderer/asset-atlas"
+import { DomWorldOverlayRenderer } from "../renderer/dom-world-overlay-renderer"
+import { clamp } from "../renderer/math"
+import { TileWorldScene } from "../renderer/tile-world-scene"
+import { RendererSceneManager } from "../renderer/renderer-scene-manager"
 import type {
   AvatarEmoteId,
   FixtureMap,
@@ -43,7 +43,7 @@ import type {
   RendererZoneInteractionState,
   RendererZonePresentationInfo,
   RendererZoomPresetId,
-} from "./types"
+} from "../renderer/types"
 
 export interface RendererHostOptions {
   readonly assetPack?: RendererAssetPackConfig

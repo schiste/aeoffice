@@ -48,6 +48,7 @@ for (const exportedName of [
   "TileWorldScene",
   "RendererSceneManager",
   "TilemapRenderer",
+  "SquareTilemapRenderer",
   "ObjectRenderer",
   "AvatarRenderer",
   "EntityRenderer",
@@ -56,12 +57,34 @@ for (const exportedName of [
   "DomWorldOverlayRenderer",
   "InteractionRenderer",
   "RendererTelemetry",
+  "HexCellRenderer",
+  "HexZoneRenderer",
+  "HexLandmarkRenderer",
+  "hexCellPolygonPoints",
   "validateFixtureMapForRenderer",
 ]) {
   assert.match(
     publicApiSource,
     new RegExp(`\\b${exportedName}\\b`),
     `Expected @aedventure/game-renderer-phaser to export ${exportedName}.`,
+  )
+}
+
+for (const sourcePath of [
+  "src/shared/renderer-host.ts",
+  "src/shared/camera-controller.ts",
+  "src/shared/entity-renderer.ts",
+  "src/shared/zone-renderer.ts",
+  "src/shared/overlays.ts",
+  "src/shared/telemetry.ts",
+  "src/square/square-tilemap-renderer.ts",
+  "src/hex/hex-cell-renderer.ts",
+  "src/hex/hex-zone-renderer.ts",
+  "src/hex/hex-landmark-renderer.ts",
+]) {
+  assert.ok(
+    fs.existsSync(path.join(packageRoot, sourcePath)),
+    `Expected topology renderer split file ${sourcePath} to exist.`,
   )
 }
 

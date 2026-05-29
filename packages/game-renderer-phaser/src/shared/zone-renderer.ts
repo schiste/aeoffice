@@ -1,8 +1,8 @@
 import Phaser from "phaser"
 
-import { ZONE_DEPTH, ZONE_LABEL_DEPTH } from "./constants"
-import { clamp, roundTo } from "./math"
-import { applyCrispWorldText } from "./text-rendering"
+import { ZONE_DEPTH, ZONE_LABEL_DEPTH } from "../renderer/constants"
+import { clamp, roundTo } from "../renderer/math"
+import { applyCrispWorldText } from "../renderer/text-rendering"
 import type {
   FixtureZone,
   RendererZoneAvailability,
@@ -12,7 +12,7 @@ import type {
   RendererZoneInteractionState,
   RendererZonePresentationInfo,
   RendererZonePresentationOverride,
-} from "./types"
+} from "../renderer/types"
 
 interface ZoneLabelView {
   readonly zoneId: string

@@ -12,10 +12,10 @@ import {
   MIN_ZOOM_FACTOR,
   MOBILE_DEFAULT_ZOOM_FACTOR,
   MOBILE_VIEWPORT_WIDTH,
-} from "./constants"
-import { clamp, roundTo } from "./math"
-import { SecondaryCameraController } from "./secondary-camera-controller"
-import type { AvatarFollowTarget } from "./avatar-renderer"
+} from "../renderer/constants"
+import { clamp, roundTo } from "../renderer/math"
+import { SecondaryCameraController } from "../renderer/secondary-camera-controller"
+import type { AvatarFollowTarget } from "./entity-renderer"
 import type {
   RendererCameraDeadzone,
   RendererCameraFollowMotion,
@@ -25,7 +25,7 @@ import type {
   RendererViewportState,
   RendererZoomPresetId,
   Vector2,
-} from "./types"
+} from "../renderer/types"
 
 const CAMERA_WALK_LEAD_MAX_PX = 22
 const CAMERA_RUN_LEAD_MAX_PX = 42

@@ -1,0 +1,5 @@
+export { DepthDebugOverlay } from "../renderer/depth-debug-overlay"
+export { DevToolsOverlay } from "../renderer/dev-tools-overlay"
+export { DomInteractionOverlayRenderer } from "../renderer/dom-interaction-overlay-renderer"
+export { DomWorldOverlayRenderer } from "../renderer/dom-world-overlay-renderer"
+export { InteractionRenderer } from "../renderer/interaction-renderer"

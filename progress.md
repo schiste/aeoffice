@@ -1962,3 +1962,20 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   and `@aedventure/game-world`, renders one square fixture and one hex fixture
   on a shared canvas, and exposes entities, zones, labels, interactions, and
   topology coexistence through `window.render_game_to_text`.
+- ADD migration Phase 7 started the Phaser topology split. The square tilemap
+  implementation moved to `packages/game-renderer-phaser/src/square`, shared
+  host/camera/entity/zone/telemetry entry points moved to `src/shared`, and new
+  `src/hex` renderer modules define cell, zone, landmark, and geometry paths
+  for future Phaser-backed hex maps. The engine sandbox now reuses the exported
+  hex geometry helper for its nonblank hex fixture.
+- Phase 7 partial verification passed for
+  `npm --workspace @aedventure/game-renderer-phaser run build`,
+  `npm --workspace @aedventure/game-renderer-phaser test`,
+  `npm --workspace @aedventure/engine-sandbox run build`,
+  `npm run smoke:engine-sandbox:built`, `npm run smoke:office`, and
+  `npm run qa:renderer`. The standalone develop-web-game client was retried and
+  still fails before navigation with `ERR_MODULE_NOT_FOUND` for its own
+  `playwright` import.
+- Final Phase 7 verification passed with `npm run check` after the sandbox
+  fixture label spacing polish. The latest engine sandbox screenshot was
+  visually inspected and shows clear square and hex topology fixtures.

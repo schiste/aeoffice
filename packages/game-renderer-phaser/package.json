@@ -4,12 +4,26 @@
   "license": "AGPL-3.0-or-later",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./hex-geometry": {
+      "types": "./dist/hex/hex-geometry.d.ts",
+      "require": "./dist/hex/hex-geometry.js",
+      "default": "./dist/hex/hex-geometry.js"
+    }
+  },
   "scripts": {
     "build": "tsc -b",
     "test": "node test/renderer-boundary.test.js"
   },
   "dependencies": {
     "@aedventure/game-assets": "0.1.0",
+    "@aedventure/game-topology": "0.1.0",
+    "@aedventure/game-world": "0.1.0",
     "phaser": "^4.1.0"
   }
 }

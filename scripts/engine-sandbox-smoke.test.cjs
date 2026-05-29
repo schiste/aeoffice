@@ -54,6 +54,7 @@ async function main() {
     assert.deepEqual(initial.engineBoundary.uses, [
       "@aedventure/game-topology",
       "@aedventure/game-world",
+      "@aedventure/game-renderer-phaser/hex-geometry",
     ])
     assert.match(initial.coordinateSystem, /square uses x\/y/i)
     assert.match(initial.coordinateSystem, /hex uses pointy-top axial q\/r/i)

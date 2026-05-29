@@ -1,4 +1,8 @@
-import type { FixtureMap, RenderedPlayer, RendererViewportState } from "./types"
+import type {
+  FixtureMap,
+  RenderedPlayer,
+  RendererViewportState,
+} from "../renderer/types"
 
 export interface RendererTelemetrySnapshot {
   readonly mapWidth: number

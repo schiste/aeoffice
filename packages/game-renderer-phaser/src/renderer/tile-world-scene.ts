@@ -7,20 +7,20 @@ import {
 } from "./asset-atlas"
 import { AdvancedInputPlugin } from "./advanced-input-plugin"
 import { RendererAssetPackLoader } from "./asset-pack-loader"
-import { AvatarRenderer } from "./avatar-renderer"
-import { CameraController } from "./camera-controller"
+import { AvatarRenderer } from "../shared/entity-renderer"
+import { CameraController } from "../shared/camera-controller"
 import { depthInfo, emptyDepthInfo } from "./depth"
 import { DepthDebugOverlay } from "./depth-debug-overlay"
 import { DepthEffectsLayer } from "./depth-effects-layer"
 import { DevToolsOverlay } from "./dev-tools-overlay"
 import { EffectsLayer } from "./effects-layer"
 import { InteractionRenderer } from "./interaction-renderer"
-import { TilemapRenderer } from "./tilemap-renderer"
+import { SquareTilemapRenderer } from "../square/square-tilemap-renderer"
 import { ObjectRenderer } from "./object-renderer"
 import {
   RendererTelemetry,
   type RendererTelemetrySnapshot,
-} from "./renderer-telemetry"
+} from "../shared/telemetry"
 import { PhysicsAffordanceSystem } from "./physics-affordance-system"
 import { validateFixtureMapForRenderer } from "./map-render-validation"
 import { rendererPerformanceInfo } from "./performance-info"
@@ -35,7 +35,7 @@ import {
   emptyTilemapFeatureInfo,
 } from "./tilemap-feature-system"
 import { WorldAudioSystem } from "./world-audio-system"
-import { ZoneRenderer } from "./zone-renderer"
+import { ZoneRenderer } from "../shared/zone-renderer"
 import type {
   FixtureMap,
   AvatarEmoteId,
@@ -70,7 +70,7 @@ import type {
 export class TileWorldScene extends Phaser.Scene {
   private readonly avatarRenderer: AvatarRenderer
   private readonly cameraController: CameraController
-  private readonly tilemapRenderer: TilemapRenderer
+  private readonly tilemapRenderer: SquareTilemapRenderer
   private readonly objectRenderer: ObjectRenderer
   private readonly zoneRenderer: ZoneRenderer
   private readonly interactionRenderer: InteractionRenderer
@@ -107,7 +107,7 @@ export class TileWorldScene extends Phaser.Scene {
     super({ key: "TileWorldScene" })
     this.avatarRenderer = new AvatarRenderer(this)
     this.cameraController = new CameraController(this)
-    this.tilemapRenderer = new TilemapRenderer(this)
+    this.tilemapRenderer = new SquareTilemapRenderer(this)
     this.objectRenderer = new ObjectRenderer(this)
     this.zoneRenderer = new ZoneRenderer(this)
     this.interactionRenderer = new InteractionRenderer(this)
