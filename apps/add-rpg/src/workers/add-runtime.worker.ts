@@ -1,7 +1,7 @@
 /// <reference lib="webworker" />
 
-import init, { WebRuntime } from '../lib/wasm/add-web-bindings/runtime'
-import type { SimulationSnapshot, WorkerEvent, WorkerRequest } from '../lib/sim/protocol'
+import type { CatalogSnapshot, SimulationSnapshot, WorkerEvent, WorkerRequest } from "@aedventure/add-domain"
+import init, { WebRuntime } from "../generated/wasm/add-web-bindings/runtime"
 
 let runtime: WebRuntime | null = null
 let runtimeReady: Promise<void> | null = null
@@ -17,76 +17,76 @@ async function handleMessage(message: WorkerRequest) {
     switch (message.type) {
       case 'init':
         runtime = new WebRuntime()
-        postMessage({ type: 'ready', snapshot: snapshot(), catalog: catalog() } satisfies WorkerEvent)
+        postWorkerEvent({ type: 'ready', snapshot: snapshot(), catalog: catalog() })
         break
       case 'reset':
         runtime = new WebRuntime()
-        postMessage({ type: 'snapshot', snapshot: snapshot() } satisfies WorkerEvent)
+        postWorkerEvent({ type: 'snapshot', snapshot: snapshot() })
         break
       case 'tick':
         runtime?.tick(message.seconds)
-        postMessage({ type: 'snapshot', snapshot: snapshot() } satisfies WorkerEvent)
+        postWorkerEvent({ type: 'snapshot', snapshot: snapshot() })
         break
       case 'chooseStoryOption':
         runtime?.chooseStoryOption(message.beatId, message.optionId)
-        postMessage({ type: 'snapshot', snapshot: snapshot() } satisfies WorkerEvent)
+        postWorkerEvent({ type: 'snapshot', snapshot: snapshot() })
         break
       case 'assignHero':
         runtime?.assignHero(message.assigned)
-        postMessage({ type: 'snapshot', snapshot: snapshot() } satisfies WorkerEvent)
+        postWorkerEvent({ type: 'snapshot', snapshot: snapshot() })
         break
       case 'setHeroRole':
         runtime?.setHeroRole(message.roleId)
-        postMessage({ type: 'snapshot', snapshot: snapshot() } satisfies WorkerEvent)
+        postWorkerEvent({ type: 'snapshot', snapshot: snapshot() })
         break
       case 'setRoleCrew':
         runtime?.setRoleCrew(message.roleId, message.crew)
-        postMessage({ type: 'snapshot', snapshot: snapshot() } satisfies WorkerEvent)
+        postWorkerEvent({ type: 'snapshot', snapshot: snapshot() })
         break
       case 'setStationEnabled':
         runtime?.setStationEnabled(message.stationId, message.enabled)
-        postMessage({ type: 'snapshot', snapshot: snapshot() } satisfies WorkerEvent)
+        postWorkerEvent({ type: 'snapshot', snapshot: snapshot() })
         break
       case 'offlineCatchup':
         runtime?.runOfflineCatchup(message.elapsedSeconds)
-        postMessage({ type: 'snapshot', snapshot: snapshot() } satisfies WorkerEvent)
+        postWorkerEvent({ type: 'snapshot', snapshot: snapshot() })
         break
       case 'startWorldAction':
         runtime?.startWorldAction(message.actionId)
-        postMessage({ type: 'snapshot', snapshot: snapshot() } satisfies WorkerEvent)
+        postWorkerEvent({ type: 'snapshot', snapshot: snapshot() })
         break
       case 'startConstruction':
         runtime?.startConstruction(message.optionId)
-        postMessage({ type: 'snapshot', snapshot: snapshot() } satisfies WorkerEvent)
+        postWorkerEvent({ type: 'snapshot', snapshot: snapshot() })
         break
       case 'startProcessing':
         runtime?.startProcessing(message.recipeId)
-        postMessage({ type: 'snapshot', snapshot: snapshot() } satisfies WorkerEvent)
+        postWorkerEvent({ type: 'snapshot', snapshot: snapshot() })
         break
       case 'recruitFromSurvivorCave':
         runtime?.recruitFromSurvivorCave()
-        postMessage({ type: 'snapshot', snapshot: snapshot() } satisfies WorkerEvent)
+        postWorkerEvent({ type: 'snapshot', snapshot: snapshot() })
         break
       case 'spendBassline':
         runtime?.spendBassline(message.amount)
-        postMessage({ type: 'snapshot', snapshot: snapshot() } satisfies WorkerEvent)
+        postWorkerEvent({ type: 'snapshot', snapshot: snapshot() })
         break
       case 'exportSave':
-        postMessage({
+        postWorkerEvent({
           type: 'save',
           payload: runtime?.exportSave() ?? '',
-        } satisfies WorkerEvent)
+        })
         break
       case 'importSave':
         runtime?.importSave(message.payload)
-        postMessage({ type: 'snapshot', snapshot: snapshot() } satisfies WorkerEvent)
+        postWorkerEvent({ type: 'snapshot', snapshot: snapshot() })
         break
     }
   } catch (error) {
-    postMessage({
+    postWorkerEvent({
       type: 'error',
       message: error instanceof Error ? error.message : String(error),
-    } satisfies WorkerEvent)
+    })
   }
 }
 
@@ -103,8 +103,12 @@ function snapshot(): SimulationSnapshot {
   return runtime?.snapshot() as SimulationSnapshot
 }
 
-function catalog() {
-  return runtime?.catalog()
+function catalog(): CatalogSnapshot {
+  return runtime?.catalog() as CatalogSnapshot
+}
+
+function postWorkerEvent(message: WorkerEvent) {
+  postMessage(message)
 }
 
 export {}

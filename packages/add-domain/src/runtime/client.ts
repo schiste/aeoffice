@@ -5,6 +5,8 @@ export interface SimulationClientOptions {
   onReady(snapshot: SimulationSnapshot, catalog: CatalogSnapshot): void
   onSave(payload: string): void
   onError(message: string): void
+  worker?: Worker
+  createWorker?: () => Worker
 }
 
 export class SimulationClient {
@@ -13,9 +15,7 @@ export class SimulationClient {
 
   constructor(options: SimulationClientOptions) {
     this.options = options
-    this.worker = new Worker(new URL('../../workers/sim.worker.ts', import.meta.url), {
-      type: 'module',
-    })
+    this.worker = createSimulationWorker(options)
     this.worker.addEventListener('message', this.onMessage as EventListener)
   }
 
@@ -110,4 +110,13 @@ export class SimulationClient {
   private post(message: WorkerRequest) {
     this.worker.postMessage(message)
   }
+}
+
+function createSimulationWorker(options: SimulationClientOptions): Worker {
+  if (options.worker) return options.worker
+  if (options.createWorker) return options.createWorker()
+
+  throw new Error(
+    'SimulationClient requires a Worker instance or createWorker callback from the app layer.',
+  )
 }

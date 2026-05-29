@@ -189,6 +189,19 @@ or command validity.
 11. Migrate one boundary at a time: runtime, domain adapters, renderer, UI, QA.
 12. Every migration phase must end with a clear verification command list.
 
+## Generated WASM Runtime
+
+The ADD browser runtime is generated from `crates/add-web-bindings` with:
+
+```sh
+node scripts/build-add-rpg-wasm.cjs
+```
+
+The script writes `apps/add-rpg/src/generated/wasm/add-web-bindings/` before
+TypeScript or Vite build steps need the runtime module. The generated JS, type
+declarations, and `.wasm` binary are reproducible build output and are not kept
+as source-controlled product code.
+
 ## QA Contract
 
 The final baseline must cover both product apps and shared engine fixtures.

@@ -16,3 +16,6 @@ export const ADD_DOMAIN_BOUNDARY: AddDomainBoundary = {
   runtimeAuthority: "rust-wasm",
   firstTargetApp: "apps/add-rpg",
 }
+
+export * from "./runtime/client"
+export * from "./runtime/protocol"

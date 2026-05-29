@@ -12,6 +12,9 @@ else
   exit 1
 fi
 
+echo "Building ADD RPG WASM runtime..."
+node "$ROOT_DIR/scripts/build-add-rpg-wasm.cjs"
+
 echo "Building target TypeScript workspace..."
 "$TSC" -b "$ROOT_DIR/tsconfig.json"
 
@@ -100,6 +103,9 @@ node "$ROOT_DIR/apps/api/test/seeded-permission-resolver.test.js"
 echo "Running media-gateway checks..."
 node "$ROOT_DIR/apps/media-gateway/test/media-gateway.test.js"
 
+echo "Running ADD Rust cargo check..."
+cargo check --manifest-path "$ROOT_DIR/Cargo.toml"
+
 echo "Running browser app-layer checks..."
 node "$ROOT_DIR/apps/web/test/customer-office-app.test.js"
 node "$ROOT_DIR/apps/web/test/adapters.test.js"
@@ -113,11 +119,17 @@ npm --workspace @aedventure/rpg-idle-demo run build:browser
 echo "Building engine sandbox bundle..."
 npm --workspace @aedventure/engine-sandbox run build:browser
 
+echo "Building ADD RPG bundle..."
+npm --workspace @aedventure/add-rpg run build:browser
+
 echo "Running RPG idle demo smoke..."
 npm run smoke:rpg:built
 
 echo "Running engine sandbox smoke..."
 npm run smoke:engine-sandbox:built
+
+echo "Running ADD RPG smoke..."
+npm run smoke:add-rpg:built
 
 echo "Running office browser smoke..."
 npm run smoke:office:built
