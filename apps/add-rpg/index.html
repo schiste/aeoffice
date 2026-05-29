@@ -3,67 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ADD RPG Runtime Bridge</title>
+    <title>ADD RPG</title>
   </head>
   <body>
-    <main id="app" class="add-shell">
-      <section class="hero-panel">
-        <div>
-          <p class="eyebrow">ADD runtime bridge</p>
-          <h1>Rust simulation running behind a Web Worker</h1>
-        </div>
-        <span id="runtime-status" class="status-pill" data-state="booting">Booting</span>
-      </section>
-
-      <section class="runtime-grid" aria-label="ADD runtime snapshot">
-        <article class="metric-panel">
-          <span class="metric-label">Boundary</span>
-          <strong id="runtime-boundary">UI -> Worker -> Rust/WASM -> Snapshot</strong>
-        </article>
-        <article class="metric-panel">
-          <span class="metric-label">Clock</span>
-          <strong id="clock-seconds">0s</strong>
-        </article>
-        <article class="metric-panel">
-          <span class="metric-label">Hexes</span>
-          <strong id="hex-count">0</strong>
-        </article>
-        <article class="metric-panel">
-          <span class="metric-label">Catalog</span>
-          <strong id="catalog-count">0 assets</strong>
-        </article>
-      </section>
-
-      <section class="snapshot-panel">
-        <div class="panel-heading">
-          <h2>Snapshot</h2>
-          <div class="button-row">
-            <button id="tick-runtime" type="button">Advance 5s</button>
-            <button id="assign-hero" type="button">Toggle hero</button>
-            <button id="reset-runtime" type="button">Reset</button>
-          </div>
-        </div>
-        <div class="resource-grid">
-          <div>
-            <span>Bassline</span>
-            <strong id="resource-bassline">0</strong>
-          </div>
-          <div>
-            <span>Chorus</span>
-            <strong id="resource-chorus">0</strong>
-          </div>
-          <div>
-            <span>Harmonics</span>
-            <strong id="resource-harmonics">0</strong>
-          </div>
-          <div>
-            <span>Hero</span>
-            <strong id="hero-state">Idle</strong>
-          </div>
-        </div>
-        <p id="runtime-note" class="runtime-note">Waiting for first simulation snapshot.</p>
-      </section>
-    </main>
+    <div id="app"></div>
     <script type="module" src="/src/browser/main.ts"></script>
   </body>
 </html>

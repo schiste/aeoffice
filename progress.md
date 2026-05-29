@@ -217,6 +217,14 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   hit areas, emote bubble background, and server-permitted interaction state.
   Shared marker positioning lives in `world-interaction-presentation.ts`, so the
   Phaser marker and DOM text use the same candidate filtering and coordinates.
+- Phase 11 ADD shell is underway: `apps/add-rpg` now uses a Solid runtime
+  shell, keeps the `UI -> Worker -> Rust/WASM -> Snapshot` boundary, converts
+  live ADD snapshots through `add-domain`, and hosts a Phaser hex map rendered
+  from the neutral `GameWorld` adapter. The ADD smoke now checks Solid shell
+  telemetry, live resources/objective state, command buttons, and a nonblank
+  Phaser canvas screenshot. The standalone develop-web-game client was retried
+  and still fails before launch because its skill-local script cannot resolve
+  its own `playwright` ESM import.
 - QA now asserts DOM interaction prompts/hotkeys and DOM emote glyphs use native
   font metrics, whole-pixel placement, and no transform scaling. Verification
   passed with `npm --workspace @aedventure/web run build`, `npm run

@@ -36,6 +36,13 @@ async function main() {
         state.runtime?.ready === true &&
         state.runtime?.snapshotReceived === true &&
         state.runtime?.catalogReceived === true &&
+        state.shell?.framework === "solid" &&
+        state.shell?.hostsPhaserMap === true &&
+        state.map?.hostedBy === "phaser" &&
+        state.map?.ready === true &&
+        state.map?.validationValid === true &&
+        state.map?.cellInfo?.cellCount > 0 &&
+        state.map?.landmarkInfo?.landmarkCount > 0 &&
         state.snapshot?.hexCount > 0 &&
         state.catalog?.resourceCount > 0 &&
         state.catalog?.tileCount > 0,
@@ -45,6 +52,8 @@ async function main() {
     assert.equal(initial.boundary.runtimeAuthority, "rust-wasm")
     assert.equal(initial.boundary.firstTargetApp, "apps/add-rpg")
     assert.equal(initial.runtime.error, null)
+    assert.ok(initial.ui.resourceCount > 0)
+    assert.ok(initial.catalog.worldActionCount > 0)
 
     await page.locator("#tick-runtime").click()
     const ticked = await waitForTextState(
@@ -61,6 +70,7 @@ async function main() {
       consoleErrors,
     )
     assert.notEqual(toggled.snapshot.heroAssigned, ticked.snapshot.heroAssigned)
+    assert.ok(toggled.ui.enabledWorldActionIds.length > 0)
 
     await page.evaluate(() => window.advanceTime?.(1500))
     const advanced = await waitForTextState(
@@ -71,11 +81,29 @@ async function main() {
     assert.ok(advanced.snapshot.clockSeconds > toggled.snapshot.clockSeconds)
 
     await assertNonBlankAppScreenshot(page)
+    await assertNonBlankMapScreenshot(page)
     assert.deepEqual(consoleErrors, [])
   } finally {
     if (browser) await browser.close()
     await new Promise((resolve) => server.close(resolve))
   }
+}
+
+async function assertNonBlankMapScreenshot(page) {
+  fs.mkdirSync(path.dirname(SCREENSHOT_PATH), { recursive: true })
+  const mapPath = path.join(ROOT_DIR, "tmp/add-rpg-map-smoke.png")
+  await page.locator("#add-world canvas").screenshot({ path: mapPath })
+  assertNonBlankImageBuffer(
+    fs.readFileSync(mapPath),
+    "ADD RPG Phaser map screenshot",
+    {
+      minWidth: 300,
+      minHeight: 220,
+      minOpaqueSamples: 500,
+      minUniqueColors: 8,
+      minLuminanceRange: 20,
+    },
+  )
 }
 
 async function waitForTextState(page, predicate, consoleErrors = [], timeoutMs = 12000) {
