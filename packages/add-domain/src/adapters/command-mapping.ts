@@ -6,6 +6,9 @@ export type AddDomainCommand =
   | { readonly kind: "start_world_action"; readonly actionId: string }
   | { readonly kind: "choose_story_option"; readonly beatId: string; readonly optionId: string }
   | { readonly kind: "assign_hero"; readonly assigned: boolean }
+  | { readonly kind: "set_hero_role"; readonly roleId: string }
+  | { readonly kind: "set_role_crew"; readonly roleId: string; readonly crew: number }
+  | { readonly kind: "start_construction"; readonly optionId: string }
   | { readonly kind: "recruit_from_survivor_cave" }
 
 export function workerRequestForAddCommand(command: AddDomainCommand): WorkerRequest {
@@ -20,6 +23,12 @@ export function workerRequestForAddCommand(command: AddDomainCommand): WorkerReq
       }
     case "assign_hero":
       return { type: "assignHero", assigned: command.assigned }
+    case "set_hero_role":
+      return { type: "setHeroRole", roleId: command.roleId }
+    case "set_role_crew":
+      return { type: "setRoleCrew", roleId: command.roleId, crew: command.crew }
+    case "start_construction":
+      return { type: "startConstruction", optionId: command.optionId }
     case "recruit_from_survivor_cave":
       return { type: "recruitFromSurvivorCave" }
   }
@@ -44,6 +53,19 @@ export function addCommandForGameInteraction(
       const assigned = booleanMetadata(interaction, "assigned")
       return assigned === undefined ? null : { kind: "assign_hero", assigned }
     }
+    case "add.set_hero_role": {
+      const roleId = stringMetadata(interaction, "roleId")
+      return roleId ? { kind: "set_hero_role", roleId } : null
+    }
+    case "add.set_role_crew": {
+      const roleId = stringMetadata(interaction, "roleId")
+      const crew = numberMetadata(interaction, "crew")
+      return roleId && crew !== undefined ? { kind: "set_role_crew", roleId, crew } : null
+    }
+    case "add.start_construction": {
+      const optionId = stringMetadata(interaction, "optionId")
+      return optionId ? { kind: "start_construction", optionId } : null
+    }
     case "add.recruit_from_survivor_cave":
       return { kind: "recruit_from_survivor_cave" }
     default:
@@ -65,4 +87,12 @@ function booleanMetadata(
 ): boolean | undefined {
   const value = interaction.metadata?.[key]
   return typeof value === "boolean" ? value : undefined
+}
+
+function numberMetadata(
+  interaction: GameInteraction,
+  key: string,
+): number | undefined {
+  const value = interaction.metadata?.[key]
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined
 }

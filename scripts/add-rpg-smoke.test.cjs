@@ -85,32 +85,19 @@ async function main() {
     assert.equal(switched.mapMode.active, "overworld_hex")
     assert.equal(switched.map.topology.kind, "hex")
 
-    await page.locator("#tick-runtime").click()
-    const ticked = await waitForTextState(
-      page,
-      (state) => state.snapshot?.clockSeconds > initial.snapshot.clockSeconds,
-      consoleErrors,
+    const firstPlayable = await completeFirstPlayableArc(page, consoleErrors)
+    assert.equal(firstPlayable.ui.firstPlayable.complete, true)
+    assert.equal(firstPlayable.snapshot.base.studioRestored, true)
+    assert.equal(firstPlayable.snapshot.base.firePitBuilt, true)
+    assert.equal(firstPlayable.ui.recruitmentEnabled, true)
+    assert.ok(firstPlayable.snapshot.bubble.reachFromBase >= 3)
+    assert.ok(firstPlayable.snapshot.recruitment.totalRecruitedThisRun >= 1)
+    assert.ok(
+      firstPlayable.snapshot.recruitment.pendingCount > 0 ||
+        firstPlayable.snapshot.roster.totalCrew > 2,
     )
-    assert.ok(ticked.snapshot.clockSeconds > initial.snapshot.clockSeconds)
 
-    await page.locator("#assign-hero").click()
-    const toggled = await waitForTextState(
-      page,
-      (state) => state.snapshot?.heroAssigned !== ticked.snapshot.heroAssigned,
-      consoleErrors,
-    )
-    assert.notEqual(toggled.snapshot.heroAssigned, ticked.snapshot.heroAssigned)
-    assert.ok(toggled.ui.enabledWorldActionIds.length > 0)
-
-    await page.evaluate(() => window.advanceTime?.(1500))
-    const advanced = await waitForTextState(
-      page,
-      (state) => state.snapshot?.clockSeconds > toggled.snapshot.clockSeconds,
-      consoleErrors,
-    )
-    assert.ok(advanced.snapshot.clockSeconds > toggled.snapshot.clockSeconds)
-
-    const exported = await exerciseSaveReloadOfflineAndReset(page, advanced, consoleErrors)
+    const exported = await exerciseSaveReloadOfflineAndReset(page, firstPlayable, consoleErrors)
     assert.ok(exported.payload.length > 200)
 
     await assertNonBlankAppScreenshot(page)
@@ -214,6 +201,86 @@ async function assertMobilePresentation(browser, url) {
   }
 }
 
+async function completeFirstPlayableArc(page, consoleErrors) {
+  let state = await renderGameToText(page)
+  assert.ok(state.ui?.firstPlayable, "ADD first playable telemetry should be exposed")
+  assert.equal(state.ui.firstPlayable.persistenceReady, false)
+  assert.ok(state.ui.resourceFlows.some((flow) => flow.id === "resource.bassline" && flow.source))
+  assert.ok(
+    state.ui.constructionOptions.some((option) => option.id === "project.restore_studio"),
+  )
+  assert.ok(
+    state.ui.roleAssignments.some((role) => role.id === "role.crystal_bassline"),
+  )
+
+  for (let step = 0; step < 80; step += 1) {
+    state = await renderGameToText(page)
+    if (
+      state.ui?.firstPlayable?.complete === true &&
+      state.snapshot?.base?.studioRestored === true &&
+      state.snapshot?.base?.firePitBuilt === true &&
+      state.snapshot?.recruitment?.totalRecruitedThisRun >= 1
+    ) {
+      return state
+    }
+
+    const action = state.ui?.firstPlayable?.currentAction
+    assert.ok(
+      action,
+      `First playable should expose an action before completion: ${JSON.stringify(
+        state.ui?.firstPlayable,
+      )}`,
+    )
+    const beforeDigest = firstPlayableDigest(state)
+    const actionButton = page.locator("#first-playable-action")
+    if (await actionButton.isDisabled()) {
+      const completedState = await renderGameToText(page)
+      if (
+        completedState.ui?.firstPlayable?.complete === true &&
+        completedState.snapshot?.recruitment?.totalRecruitedThisRun >= 1
+      ) {
+        return completedState
+      }
+      throw new Error(
+        `First playable action disabled before completion: ${JSON.stringify(
+          completedState.ui?.firstPlayable,
+        )}`,
+      )
+    }
+    await actionButton.click()
+    await waitForTextState(
+      page,
+      (nextState) =>
+        nextState.runtime?.error === null &&
+        firstPlayableDigest(nextState) !== beforeDigest,
+      consoleErrors,
+      action.type === "tick" ? 18000 : 8000,
+    )
+  }
+
+  throw new Error(
+    `ADD first playable did not complete. Last state: ${JSON.stringify(
+      await renderGameToText(page),
+    )}`,
+  )
+}
+
+function firstPlayableDigest(state) {
+  return JSON.stringify({
+    clockSeconds: Math.round(state.snapshot?.clockSeconds ?? 0),
+    heroAssigned: state.snapshot?.heroAssigned,
+    activeWorldAction: state.snapshot?.activeWorldAction,
+    resources: state.snapshot?.resources,
+    base: state.snapshot?.base,
+    bubble: state.snapshot?.bubble,
+    recruitment: state.snapshot?.recruitment,
+    roster: state.snapshot?.roster,
+    activeConstruction: state.snapshot?.activeConstruction,
+    activeStoryBeatId: state.ui?.activeStoryBeatId,
+    firstPlayable: state.ui?.firstPlayable,
+  })
+}
+
 async function exerciseSaveReloadOfflineAndReset(page, advanced, consoleErrors) {
   await page.locator("#export-save").click()
   const saved = await waitForTextState(
@@ -270,10 +337,12 @@ async function exerciseSaveReloadOfflineAndReset(page, advanced, consoleErrors) 
     page,
     (state) =>
       state.persistence?.lastOfflineCatchupSeconds >= 3600 &&
-      state.snapshot?.clockSeconds >= imported.snapshot.clockSeconds + 3500,
+      state.snapshot?.clockSeconds >= imported.snapshot.clockSeconds + 3500 &&
+      state.ui?.firstPlayable?.persistenceReady === true,
     consoleErrors,
   )
   assert.ok(offlineTicked.snapshot.clockSeconds > imported.snapshot.clockSeconds)
+  assert.equal(offlineTicked.ui.firstPlayable.persistenceReady, true)
 
   await page.locator("#reset-runtime").click()
   const reset = await waitForTextState(

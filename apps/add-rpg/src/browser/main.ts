@@ -8,6 +8,7 @@ import {
   selectAddUiState,
   workerRequestForAddCommand,
   type AddUiState,
+  type AddFirstPlayableAction,
   type CatalogSnapshot,
   type SimulationSnapshot,
   type WorkerRequest,
@@ -34,6 +35,22 @@ import {
   type AddSaveSource,
 } from "./save-runtime"
 import "./styles.css"
+
+const ROLE_CRYSTAL_BASSLINE = "role.crystal_bassline"
+const ROLE_CONSTRUCTION = "role.construction"
+const ROLE_FIRE_PIT = "role.fire_pit"
+const ROLE_SCAVENGE = "role.scavenge"
+const ROLE_WATER = "role.water"
+const PROJECT_RESTORE_STUDIO = "project.restore_studio"
+const PROJECT_BUILD_FIRE_PIT = "project.build_fire_pit"
+
+const FIRST_PLAYABLE_ROLE_IDS = [
+  ROLE_CRYSTAL_BASSLINE,
+  ROLE_SCAVENGE,
+  ROLE_CONSTRUCTION,
+  ROLE_FIRE_PIT,
+  ROLE_WATER,
+] as const
 
 interface RuntimeTextState {
   readonly app: "add-rpg"
@@ -65,17 +82,81 @@ interface RuntimeTextState {
       readonly bassline: number
       readonly chorus: number
       readonly harmonics: number
+      readonly stone: number
       readonly water: number
       readonly vibes: number
     }
+    readonly base: {
+      readonly tutorialInvestigated: boolean
+      readonly tutorialExplored: boolean
+      readonly studioRestoreUnlocked: boolean
+      readonly studioRestored: boolean
+      readonly firePitBuilt: boolean
+      readonly bunksCapacity: number
+      readonly freeBunks: number
+    }
+    readonly roster: {
+      readonly heroRoleId: string
+      readonly totalCrew: number
+      readonly crewByRole: Record<string, number>
+    }
+    readonly bubble: {
+      readonly reachFromBase: number
+      readonly fieldBudget: number
+      readonly targetRing: number
+      readonly frontierProgress: number
+    }
+    readonly recruitment: {
+      readonly totalRecruitedThisRun: number
+      readonly pendingCount: number
+      readonly nextRecruitCost: number
+    }
+    readonly activeConstruction: {
+      readonly optionId: string
+      readonly remainingSeconds: number
+    } | null
   } | null
   readonly ui: {
     readonly resourceCount: number
+    readonly resourceFlows: readonly {
+      readonly id: string
+      readonly source: string
+      readonly sink: string
+      readonly blocker: string | null
+    }[]
     readonly noteCount: number
     readonly activeStoryBeatId: string | null
+    readonly storyChoiceIds: readonly string[]
     readonly enabledWorldActionIds: readonly string[]
+    readonly roleAssignments: readonly {
+      readonly id: string
+      readonly available: boolean
+      readonly heroAssigned: boolean
+      readonly crewAssigned: number
+    }[]
+    readonly constructionOptions: readonly {
+      readonly id: string
+      readonly complete: boolean
+      readonly enabled: boolean
+      readonly inProgress: boolean
+      readonly blockedReason: string | null
+    }[]
     readonly objectiveReachMet: boolean
     readonly recruitmentEnabled: boolean
+    readonly firstPlayable: {
+      readonly complete: boolean
+      readonly completedCount: number
+      readonly totalCount: number
+      readonly currentStepId: string | null
+      readonly currentAction: AddFirstPlayableAction | null
+      readonly steps: readonly {
+        readonly id: string
+        readonly complete: boolean
+        readonly active: boolean
+        readonly actionLabel: string | null
+      }[]
+      readonly persistenceReady: boolean
+    }
   } | null
   readonly mapMode: {
     readonly active: AddMapMode
@@ -368,6 +449,36 @@ function AddRpgApp() {
           </dl>
         </section>
 
+        <section class="panel first-playable-panel">
+          <div class="panel-heading">
+            <span>First playable</span>
+            <span class="small-chip">
+              ${() => `${uiState()?.firstPlayable.completedCount ?? 0}/${uiState()?.firstPlayable.totalCount ?? 0}`}
+            </span>
+          </div>
+          <div class="progress-track" aria-hidden="true">
+            <span style=${() => ({ width: firstPlayableProgressWidth() })} />
+          </div>
+          <p class="objective-copy">
+            ${() => firstPlayableCopy()}
+          </p>
+          <button
+            id="first-playable-action"
+            type="button"
+            class="primary-action"
+            onClick=${() => void runFirstPlayableAction()}
+            disabled=${() => !Boolean(currentFirstPlayableStep()?.action)}
+          >
+            ${() => currentFirstPlayableStep()?.actionLabel ?? "First arc complete"}
+          </button>
+          <div class="story-choice-grid">
+            ${() => storyChoiceButtons()}
+          </div>
+          <ol class="first-playable-list">
+            ${() => firstPlayableStepRows()}
+          </ol>
+        </section>
+
         <section class="panel">
           <div class="panel-heading">
             <span>Resources</span>
@@ -400,6 +511,9 @@ function AddRpgApp() {
             <button id="tick-runtime" type="button" onClick=${() => void tickRuntime(5)} disabled=${() => !ready()}>
               Advance 5s
             </button>
+            <button id="tick-runtime-fast" type="button" onClick=${() => void tickRuntime(120)} disabled=${() => !ready()}>
+              Advance 2m
+            </button>
             <button id="assign-hero" type="button" onClick=${() => void toggleHero()} disabled=${() => !ready()}>
               ${() => (snapshot()?.roster.heroAssigned ? "Unassign hero" : "Assign hero")}
             </button>
@@ -421,6 +535,12 @@ function AddRpgApp() {
             <button id="reset-runtime" type="button" class="ghost-button" onClick=${() => void resetRuntime()} disabled=${() => !ready()}>
               Reset
             </button>
+          </div>
+          <div class="quick-control-group" aria-label="First playable role controls">
+            ${() => roleQuickControls()}
+          </div>
+          <div class="quick-control-group" aria-label="First playable construction controls">
+            ${() => constructionQuickControls()}
           </div>
           ${() => (lastError() ? html`<p class="error-line">${lastError()}</p>` : null)}
         </section>
@@ -499,11 +619,131 @@ function resourceRows(): readonly unknown[] {
   return (uiState()?.resources.slice(0, 6) ?? []).map(
     (resource) => html`
       <article class="resource-row">
-        <span>${resource.label}</span>
+        <span>
+          ${resource.label}
+          ${() =>
+            resource.blocker
+              ? html`<small class="row-blocker">${resource.blocker}</small>`
+              : html`<small>${resource.source} -> ${resource.sink}</small>`}
+        </span>
         <strong>${formatResource(resource.value)} / ${formatResource(resource.cap)}</strong>
       </article>
     `,
   )
+}
+
+function currentFirstPlayableStep() {
+  return uiState()?.firstPlayable.steps.find((step) => step.active) ?? null
+}
+
+function firstPlayableProgressWidth(): string {
+  const firstPlayable = uiState()?.firstPlayable
+  if (!firstPlayable || firstPlayable.totalCount <= 0) return "0%"
+  return `${Math.round((firstPlayable.completedCount / firstPlayable.totalCount) * 100)}%`
+}
+
+function firstPlayableCopy(): string {
+  const firstPlayable = uiState()?.firstPlayable
+  if (!firstPlayable) return "Waiting for the ADD runtime."
+  if (firstPlayable.complete) {
+    return persistenceReadyForFirstPlayable()
+      ? "The first ADD arc is complete and save/offline behavior has been exercised."
+      : "The first ADD arc is complete. Save now or run offline catch-up to verify the idle layer."
+  }
+  const current = currentFirstPlayableStep()
+  return current?.detail ?? "Follow the next action to complete the first ADD arc."
+}
+
+function firstPlayableStepRows(): readonly unknown[] {
+  return (uiState()?.firstPlayable.steps ?? []).map(
+    (step) => html`
+      <li class=${step.active ? "active" : step.complete ? "complete" : ""}>
+        <span>${step.label}</span>
+        <small>${step.complete ? "Done" : step.active ? "Now" : "Next"}</small>
+      </li>
+    `,
+  )
+}
+
+function storyChoiceButtons(): readonly unknown[] {
+  const beat = uiState()?.activeStoryBeat
+  const currentSnapshot = snapshot()
+  if (!beat || !currentSnapshot || beat.choices.length === 0 || storyChoiceSelected(currentSnapshot, beat.id)) {
+    return []
+  }
+  return beat.choices.map(
+    (choice) => html`
+      <button
+        id=${`story-choice-${slugForId(choice.id)}`}
+        type="button"
+        class="story-choice-button"
+        onClick=${() => void chooseStoryOption(beat.id, choice.id)}
+        disabled=${() => !ready()}
+      >
+        ${choice.label}
+      </button>
+    `,
+  )
+}
+
+function roleQuickControls(): readonly unknown[] {
+  const assignments = uiState()?.roleAssignments ?? []
+  return FIRST_PLAYABLE_ROLE_IDS.map((roleId) => {
+    const role = assignments.find((candidate) => candidate.id === roleId)
+    if (!role) return null
+    const shortName = roleShortLabel(role.id)
+    return html`
+      <article class="quick-control-row">
+        <span>
+          ${role.label}
+          <small>${role.lockedReason ?? `${role.crewAssigned} crew`}</small>
+        </span>
+        <div>
+          <button
+            id=${`assign-${slugForRole(role.id)}`}
+            type="button"
+            class="ghost-button"
+            onClick=${() => void setHeroRole(role.id)}
+            disabled=${() => !ready() || !role.available}
+          >
+            Hero
+          </button>
+          <button
+            id=${`crew-${slugForRole(role.id)}`}
+            type="button"
+            onClick=${() => void setRoleCrew(role.id, role.suggestedCrew)}
+            disabled=${() => !ready() || !role.available || role.suggestedCrew <= 0}
+          >
+            ${shortName} crew
+          </button>
+        </div>
+      </article>
+    `
+  }).filter(Boolean)
+}
+
+function constructionQuickControls(): readonly unknown[] {
+  const options = uiState()?.constructionOptions ?? []
+  return [PROJECT_RESTORE_STUDIO, PROJECT_BUILD_FIRE_PIT].map((optionId) => {
+    const option = options.find((candidate) => candidate.id === optionId)
+    if (!option) return null
+    return html`
+      <article class="quick-control-row">
+        <span>
+          ${option.label}
+          <small>${option.complete ? "Complete" : option.blockedReason ?? option.costLabel}</small>
+        </span>
+        <button
+          id=${constructionButtonId(option.id)}
+          type="button"
+          onClick=${() => void startConstruction(option.id)}
+          disabled=${() => !ready() || !option.enabled}
+        >
+          Start
+        </button>
+      </article>
+    `
+  }).filter(Boolean)
 }
 
 function actionRows(): readonly unknown[] {
@@ -513,7 +753,7 @@ function actionRows(): readonly unknown[] {
       (action) => html`
         <li class=${action.enabled ? "" : "disabled"}>
           <span>${action.label}</span>
-          <small>${action.heroOnly ? "hero" : "crew"}</small>
+          <small>${action.blockedReason ?? (action.heroOnly ? "hero" : "crew")}</small>
         </li>
       `,
     )
@@ -726,8 +966,9 @@ function lastOfflineCopy(): string {
   return `${formatDuration(seconds)} applied`
 }
 
-async function tickRuntime(seconds: number): Promise<void> {
-  if (!ready() || requestInFlight) return
+async function tickRuntime(seconds: number, options: { readonly queue?: boolean } = {}): Promise<void> {
+  if (!ready()) return
+  if (requestInFlight && !options.queue) return
   await sendAndWaitForSnapshot(() => {
     setLastCommand(`tick:${seconds.toFixed(1)}s`)
     client.tick(seconds)
@@ -744,6 +985,34 @@ async function toggleHero(): Promise<void> {
   })
 }
 
+async function chooseStoryOption(beatId: string, optionId: string): Promise<void> {
+  await sendAndWaitForSnapshot(() => {
+    setLastCommand("choose_story_option")
+    client.chooseStoryOption(beatId, optionId)
+  })
+}
+
+async function setHeroRole(roleId: string): Promise<void> {
+  await sendAndWaitForSnapshot(() => {
+    setLastCommand(`hero_role:${roleId}`)
+    client.setHeroRole(roleId)
+  })
+}
+
+async function setRoleCrew(roleId: string, crew: number): Promise<void> {
+  await sendAndWaitForSnapshot(() => {
+    setLastCommand(`crew:${roleId}:${crew}`)
+    client.setRoleCrew(roleId, crew)
+  })
+}
+
+async function startConstruction(optionId: string): Promise<void> {
+  await sendAndWaitForSnapshot(() => {
+    setLastCommand(`construction:${optionId}`)
+    client.startConstruction(optionId)
+  })
+}
+
 async function resetRuntime(): Promise<void> {
   await sendAndWaitForSnapshot(() => {
     setLastCommand("reset")
@@ -751,6 +1020,45 @@ async function resetRuntime(): Promise<void> {
     client.reset()
   })
   if (!lastError()) void requestSave("reset")
+}
+
+async function runFirstPlayableAction(): Promise<void> {
+  const action = currentFirstPlayableStep()?.action
+  if (!action) return
+  switch (action.type) {
+    case "choose_story_option":
+      await chooseStoryOption(action.beatId, action.optionId)
+      return
+    case "assign_hero":
+      await sendAndWaitForSnapshot(() => {
+        setLastCommand(action.assigned ? "assign_hero" : "unassign_hero")
+        client.assignHero(action.assigned)
+      })
+      return
+    case "set_hero_role":
+      await setHeroRole(action.roleId)
+      return
+    case "set_role_crew":
+      await setRoleCrew(action.roleId, action.crew)
+      return
+    case "start_world_action":
+      await sendAndWaitForSnapshot(() => {
+        setLastCommand(`world_action:${action.actionId}`)
+        client.startWorldAction(action.actionId)
+      })
+      return
+    case "start_construction":
+      await startConstruction(action.optionId)
+      return
+    case "tick":
+      await tickRuntime(action.seconds, { queue: true })
+      return
+    case "recruit_from_survivor_cave":
+      await sendAndWaitForSnapshot(() => {
+        setLastCommand("recruit_from_survivor_cave")
+        client.recruitFromSurvivorCave()
+      })
+  }
 }
 
 async function runInteraction(interaction: GameInteraction | undefined): Promise<void> {
@@ -799,7 +1107,9 @@ function sendWorkerRequest(request: WorkerRequest): void {
 }
 
 async function sendAndWaitForSnapshot(send: () => void): Promise<void> {
-  if (requestInFlight) return
+  while (requestInFlight) {
+    await waitForSnapshotAfter(snapshotVersion)
+  }
   requestInFlight = true
   const waiter = waitForSnapshotAfter(snapshotVersion)
   send()
@@ -885,21 +1195,89 @@ function toTextState(): RuntimeTextState {
             bassline: currentSnapshot.resources.bassline,
             chorus: currentSnapshot.resources.chorus,
             harmonics: currentSnapshot.resources.harmonics,
+            stone: currentSnapshot.resources.stone,
             water: currentSnapshot.resources.water,
             vibes: currentSnapshot.resources.vibes,
           },
+          base: {
+            tutorialInvestigated: currentSnapshot.base.tutorialInvestigated,
+            tutorialExplored: currentSnapshot.base.tutorialExplored,
+            studioRestoreUnlocked: currentSnapshot.base.studioRestoreUnlocked,
+            studioRestored: currentSnapshot.base.studioRestored,
+            firePitBuilt: currentSnapshot.base.firePitBuilt,
+            bunksCapacity: currentSnapshot.base.bunksCapacity,
+            freeBunks: currentSnapshot.base.freeBunks,
+          },
+          roster: {
+            heroRoleId: currentSnapshot.roster.heroRoleId,
+            totalCrew: currentSnapshot.roster.totalCrew,
+            crewByRole: stringNumberRecord(currentSnapshot.roster.crewByRole),
+          },
+          bubble: {
+            reachFromBase: currentSnapshot.bubble.reachFromBase,
+            fieldBudget: currentSnapshot.bubble.fieldBudget,
+            targetRing: currentSnapshot.bubble.targetRing,
+            frontierProgress: currentSnapshot.bubble.frontierProgress,
+          },
+          recruitment: {
+            totalRecruitedThisRun: currentSnapshot.recruitment.totalRecruitedThisRun,
+            pendingCount: currentSnapshot.recruitment.pendingRecruits.length,
+            nextRecruitCost: currentSnapshot.recruitment.nextRecruitCost,
+          },
+          activeConstruction: currentSnapshot.activeConstruction
+            ? {
+                optionId: currentSnapshot.activeConstruction.optionId,
+                remainingSeconds:
+                  Math.round(currentSnapshot.activeConstruction.remainingWorkSeconds * 100) / 100,
+              }
+            : null,
         }
       : null,
     ui: currentUi
       ? {
           resourceCount: currentUi.resources.length,
+          resourceFlows: currentUi.resources.map((resource) => ({
+            id: resource.id,
+            source: resource.source,
+            sink: resource.sink,
+            blocker: resource.blocker,
+          })),
           noteCount: currentUi.notes.length,
           activeStoryBeatId: currentUi.activeStoryBeat?.id ?? null,
+          storyChoiceIds: currentUi.activeStoryBeat?.choices.map((choice) => choice.id) ?? [],
           enabledWorldActionIds: currentUi.availableWorldActions
             .filter((action) => action.enabled)
             .map((action) => action.id),
+          roleAssignments: currentUi.roleAssignments.map((role) => ({
+            id: role.id,
+            available: role.available,
+            heroAssigned: role.heroAssigned,
+            crewAssigned: role.crewAssigned,
+          })),
+          constructionOptions: currentUi.constructionOptions.map((option) => ({
+            id: option.id,
+            complete: option.complete,
+            enabled: option.enabled,
+            inProgress: option.inProgress,
+            blockedReason: option.blockedReason,
+          })),
           objectiveReachMet: currentUi.objective.reachMet,
           recruitmentEnabled: currentUi.objective.recruitmentEnabled,
+          firstPlayable: {
+            complete: currentUi.firstPlayable.complete,
+            completedCount: currentUi.firstPlayable.completedCount,
+            totalCount: currentUi.firstPlayable.totalCount,
+            currentStepId: currentUi.firstPlayable.currentStepId,
+            currentAction:
+              currentUi.firstPlayable.steps.find((step) => step.active)?.action ?? null,
+            steps: currentUi.firstPlayable.steps.map((step) => ({
+              id: step.id,
+              complete: step.complete,
+              active: step.active,
+              actionLabel: step.actionLabel,
+            })),
+            persistenceReady: persistenceReadyForFirstPlayable(),
+          },
         }
       : null,
     mapMode: {
@@ -959,8 +1337,86 @@ function objectiveCopy(): string {
   return `Reach ${objective.reachTarget}; survivor cave ${caveState} bubble at distance ${objective.survivorCaveDistance}.`
 }
 
+function persistenceReadyForFirstPlayable(): boolean {
+  return (
+    autosaveRecord() !== null &&
+    (lastManualExportAtMs() !== null || savePayload().length > 200) &&
+    lastOfflineCatchupSeconds() > 0
+  )
+}
+
 function formatResource(value: number): string {
   return Number.isInteger(value) ? `${value}` : value.toFixed(1)
+}
+
+function slugForRole(roleId: string): string {
+  switch (roleId) {
+    case ROLE_CRYSTAL_BASSLINE:
+      return "bassline"
+    case ROLE_CONSTRUCTION:
+      return "construction"
+    case ROLE_FIRE_PIT:
+      return "fire-pit"
+    case ROLE_SCAVENGE:
+      return "scavenge"
+    case ROLE_WATER:
+      return "water"
+    default:
+      return slugForId(roleId)
+  }
+}
+
+function roleShortLabel(roleId: string): string {
+  switch (roleId) {
+    case ROLE_CRYSTAL_BASSLINE:
+      return "Bassline"
+    case ROLE_CONSTRUCTION:
+      return "Build"
+    case ROLE_FIRE_PIT:
+      return "Fire"
+    case ROLE_SCAVENGE:
+      return "Scavenge"
+    case ROLE_WATER:
+      return "Water"
+    default:
+      return "Role"
+  }
+}
+
+function constructionButtonId(optionId: string): string {
+  switch (optionId) {
+    case PROJECT_RESTORE_STUDIO:
+      return "start-restore-studio"
+    case PROJECT_BUILD_FIRE_PIT:
+      return "start-fire-pit"
+    default:
+      return `start-${slugForId(optionId)}`
+  }
+}
+
+function slugForId(id: string): string {
+  return id.replace(/[^a-z0-9_-]+/gi, "-").replace(/^-|-$/g, "").toLowerCase()
+}
+
+function stringNumberRecord(
+  value: Record<string, number> | Map<string, number>,
+): Record<string, number> {
+  if (typeof (value as Map<string, number>).entries === "function") {
+    return Object.fromEntries((value as Map<string, number>).entries())
+  }
+  return value as Record<string, number>
+}
+
+function storyChoiceSelected(currentSnapshot: SimulationSnapshot, beatId: string): boolean {
+  const choiceByBeat = currentSnapshot.narrative.choiceByBeat as
+    | Record<string, string>
+    | Map<string, string>
+    | undefined
+  if (!choiceByBeat) return false
+  if (typeof (choiceByBeat as Map<string, string>).has === "function") {
+    return (choiceByBeat as Map<string, string>).has(beatId)
+  }
+  return Boolean((choiceByBeat as Record<string, string>)[beatId])
 }
 
 function requiredElement(id: string): HTMLElement {

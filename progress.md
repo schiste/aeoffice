@@ -2094,3 +2094,28 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   renderer QA ADD screenshots were visually inspected. The standalone
   develop-web-game client was retried and still fails before navigation on its
   skill-local missing `playwright` import; repo-native Playwright checks pass.
+- ADD migration Phase 18 aligned the aeoffice ADD app with the imported
+  first-playable gate. `packages/add-domain` now derives first-playable
+  checklist steps, primary next actions, resource source/sink/blocker summaries,
+  role assignment summaries, and construction readiness from the Rust/WASM
+  snapshot and catalog without moving rules into Phaser or the UI.
+- The ADD browser shell now exposes a visible first-playable panel, story-choice
+  buttons, focused role/crew controls, Studio/Fire Pit construction controls,
+  and persistence-aware `render_game_to_text` telemetry. The first-playable path
+  can guide a new run through arrival choices, Hero/crew assignment, resource
+  generation, Studio restoration, Fire Pit construction, bubble reach,
+  recruitment unlock, first recruitment, and save/offline verification.
+- Phase 18 also fixed a real web-boundary issue from `serde-wasm-bindgen`: Rust
+  maps such as `crewByRole` and `choiceByBeat` can arrive as JS `Map` instances,
+  so ADD domain selectors and browser telemetry now normalize those values at
+  the app/domain boundary. Manual first-playable actions now wait for an
+  in-flight auto tick instead of being dropped.
+- Phase 18 verification passed with `npm --workspace @aedventure/add-domain run
+  build`, `npm --workspace @aedventure/add-rpg run build:types`, `npm
+  --workspace @aedventure/add-rpg run build:browser`, `npm run
+  smoke:add-rpg:built`, `npm run qa:renderer`, and `npm run check`. The ADD
+  smoke now completes the whole first-playable arc through visible UI controls,
+  then verifies save, reload, offline catch-up, import, reset, and screenshots.
+  The standalone develop-web-game client was retried and still fails before
+  navigation on its skill-local missing `playwright` import; repo-native
+  Playwright checks pass.
