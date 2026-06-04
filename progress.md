@@ -2048,3 +2048,17 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   dungeon screenshots were visually inspected. The standalone develop-web-game
   client was retried and still fails before navigation on its skill-local
   missing `playwright` import.
+- ADD migration Phase 15 added explicit multi-app QA coverage. `npm run check`
+  now runs `qa:multi-app`, which audits that the full target-stack gate still
+  includes office smoke, RPG idle smoke, ADD smoke, engine sandbox smoke,
+  renderer QA, ADD WASM build, and root cargo check.
+- Renderer QA now records ADD topology fixtures as first-class browser artifacts:
+  the live `overworld_hex` Phaser map and the square `dungeon_square` fixture
+  both capture nonblank screenshots, report their topology, map id, cell counts,
+  landmark counts, and the authority boundary that Phaser remains visual
+  projection only. The normal smoke cadence check records timing budgets while
+  keeping strict frame-budget enforcement available through
+  `STRICT_RENDERER_TIMING=1`.
+- Phase 15 verification passed with `node scripts/multi-app-qa-contracts.test.cjs`,
+  `npm run qa:renderer`, `npm run smoke:add-rpg:built`, and `npm run check`.
+  The latest ADD hex and square renderer QA screenshots were visually inspected.

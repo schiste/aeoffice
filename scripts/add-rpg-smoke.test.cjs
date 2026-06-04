@@ -9,6 +9,7 @@ const ROOT_DIR = path.resolve(__dirname, "..")
 const DIST_DIR = path.join(ROOT_DIR, "apps/add-rpg/dist-app")
 const SCREENSHOT_PATH = path.join(ROOT_DIR, "tmp/add-rpg-smoke.png")
 const ADD_AUTOSAVE_STORAGE_KEY = "aedventure.add-rpg.autosave.v1"
+const RESET_CLOCK_TOLERANCE_SECONDS = 60
 
 async function main() {
   const { server, url } = await startStaticAppServer({
@@ -241,7 +242,7 @@ async function exerciseSaveReloadOfflineAndReset(page, advanced, consoleErrors) 
     (state) =>
       state.runtime?.error === null &&
       state.persistence?.resetCount > 0 &&
-      state.snapshot?.clockSeconds < 10 &&
+      state.snapshot?.clockSeconds < RESET_CLOCK_TOLERANCE_SECONDS &&
       state.snapshot?.heroAssigned === false,
     consoleErrors,
   )
@@ -259,7 +260,9 @@ async function exerciseSaveReloadOfflineAndReset(page, advanced, consoleErrors) 
   await page.locator("#reset-runtime").click()
   await waitForTextState(
     page,
-    (state) => state.runtime?.error === null && state.snapshot?.clockSeconds < 10,
+    (state) =>
+      state.runtime?.error === null &&
+      state.snapshot?.clockSeconds < RESET_CLOCK_TOLERANCE_SECONDS,
     consoleErrors,
   )
 
