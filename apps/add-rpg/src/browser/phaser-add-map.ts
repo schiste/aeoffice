@@ -2,8 +2,11 @@ import Phaser from "phaser"
 import { hexCellPolygonPoints } from "@aedventure/game-renderer-phaser"
 import {
   createHexTopology,
+  createSquareTopology,
+  type CellCoord,
   type GridTopology,
   type HexCoord,
+  type SquareCoord,
   type Vector2,
 } from "@aedventure/game-topology"
 import {
@@ -14,8 +17,19 @@ import {
   type GameWorld,
 } from "@aedventure/game-world"
 
-type AddHexState = "inactive" | "converting" | "stabilized" | "blocked"
-type AddTerrain = "plains" | "river" | "scrub" | "ridge" | "mountain" | "unknown"
+type AddCellState = "inactive" | "converting" | "stabilized" | "blocked"
+type AddTopologyKind = "hex" | "square"
+type AddTerrain =
+  | "plains"
+  | "river"
+  | "scrub"
+  | "ridge"
+  | "mountain"
+  | "dungeon_floor"
+  | "dungeon_wall"
+  | "base_floor"
+  | "base_wall"
+  | "unknown"
 type AddFeature = "none" | "base" | "survivor_cave" | string
 
 export interface AddPhaserMapInfo {
@@ -26,6 +40,13 @@ export interface AddPhaserMapInfo {
   readonly validationValid: boolean
   readonly validationSummary: string
   readonly rendererType: string
+  readonly topology: {
+    readonly kind: AddTopologyKind | "unknown"
+    readonly mapMode: string | null
+    readonly fixture: boolean
+    readonly radius: number | null
+    readonly cellSize: number | null
+  }
   readonly authority: {
     readonly rules: "rust_wasm_snapshot"
     readonly phaser: "visual_projection_only"
@@ -55,6 +76,8 @@ export interface AddPhaserMapInfo {
   readonly interaction: {
     readonly hoverEnabled: true
     readonly selectEnabled: true
+    readonly hoveredCell: string | null
+    readonly selectedCell: string | null
     readonly hoveredHex: string | null
     readonly selectedHex: string | null
     readonly selectedLabel: string | null
@@ -63,14 +86,16 @@ export interface AddPhaserMapInfo {
 
 interface RenderContext {
   readonly map: GameMap
-  readonly topology: GridTopology<HexCoord>
+  readonly topologyKind: AddTopologyKind
+  readonly hexTopology: GridTopology<HexCoord> | null
+  readonly squareTopology: GridTopology<SquareCoord> | null
   readonly origin: Vector2
   readonly terrainCells: readonly GameCellPlacement[]
   readonly terrainByCoord: ReadonlyMap<string, GameCellPlacement>
   readonly stateCounts: StateCounts
   readonly bubbleEdgeCoords: ReadonlySet<string>
-  readonly baseCoord: HexCoord | null
-  readonly survivorCaveCoord: HexCoord | null
+  readonly baseCoord: CellCoord | null
+  readonly survivorCaveCoord: CellCoord | null
 }
 
 interface StateCounts {
@@ -147,8 +172,9 @@ class AddRpgHexScene extends Phaser.Scene {
   private renderCount = 0
   private frameCount = 0
   private cameraInitialized = false
-  private hoveredHex: HexCoord | null = null
-  private selectedHex: HexCoord | null = null
+  private hoveredCoord: CellCoord | null = null
+  private selectedCoord: CellCoord | null = null
+  private lastRenderedMapId: string | null = null
   private dragging = false
   private dragMoved = false
   private dragStartScreen: Vector2 = { x: 0, y: 0 }
@@ -208,14 +234,21 @@ class AddRpgHexScene extends Phaser.Scene {
     const world = this.pendingWorld
     const validation = validateGameWorld(world)
     const map = world.maps.find((candidate) => candidate.id === world.activeMapId) ?? world.maps[0]
-    if (!map || map.topology.kind !== "hex") {
+    if (!map || (map.topology.kind !== "hex" && map.topology.kind !== "square")) {
       this.lastInfo = {
         ...emptyMapInfo(),
         ready: this.ready,
         validationValid: false,
-        validationSummary: "ADD world did not contain a hex map.",
+        validationSummary: "ADD world did not contain a supported map topology.",
       }
       return
+    }
+
+    if (this.lastRenderedMapId !== map.id) {
+      this.hoveredCoord = null
+      this.selectedCoord = null
+      this.cameraInitialized = false
+      this.lastRenderedMapId = map.id
     }
 
     this.context = createRenderContext(map, this.scale.width, this.scale.height)
@@ -238,11 +271,29 @@ class AddRpgHexScene extends Phaser.Scene {
     graphics.clear()
 
     for (const cell of context.terrainCells) {
-      if (cell.coord.kind !== "hex") continue
       const center = centerFor(cell.coord, context)
       const state = stateForCell(cell)
-      const radius = context.map.topology.kind === "hex" ? context.map.topology.radius : DEFAULT_RADIUS
       const style = styleForCell(cell)
+
+      if (cell.coord.kind === "square") {
+        const topLeft = squareTopLeftFor(cell.coord, context)
+        const cellSize = squareCellSize(context)
+        graphics.fillStyle(style.fill, style.alpha)
+        graphics.fillRect(topLeft.x + 1.2, topLeft.y + 1.2, cellSize - 2.4, cellSize - 2.4)
+        if (state === "stabilized" || state === "converting") {
+          graphics.fillStyle(state === "stabilized" ? 0x73b99a : 0x66a6c8, state === "stabilized" ? 0.14 : 0.16)
+          graphics.fillRect(topLeft.x + 4, topLeft.y + 4, cellSize - 8, cellSize - 8)
+        }
+        graphics.lineStyle(1, style.stroke, state === "blocked" ? 0.68 : 0.42)
+        graphics.strokeRect(topLeft.x + 1.2, topLeft.y + 1.2, cellSize - 2.4, cellSize - 2.4)
+        if (state !== "inactive" && state !== "blocked") {
+          graphics.fillStyle(0x2b5f50, 0.38)
+          graphics.fillCircle(center.x, center.y, 2.4)
+        }
+        continue
+      }
+
+      const radius = context.map.topology.kind === "hex" ? context.map.topology.radius : DEFAULT_RADIUS
       drawHexPath(graphics, center, radius - 1.2)
       graphics.fillStyle(style.fill, style.alpha)
       graphics.fillPath()
@@ -254,8 +305,8 @@ class AddRpgHexScene extends Phaser.Scene {
         graphics.fillPath()
       }
 
-      const coordKey = serializeHex(cell.coord)
-      const edge = context.bubbleEdgeCoords.has(coordKey)
+      const coordKeyValue = coordKey(cell.coord)
+      const edge = context.bubbleEdgeCoords.has(coordKeyValue)
       drawHexPath(graphics, center, radius - (edge ? 2.2 : 1.2))
       graphics.lineStyle(edge ? 3 : 1, edge ? 0x1f7fdd : style.stroke, edge ? 0.92 : 0.56)
       graphics.strokePath()
@@ -272,7 +323,7 @@ class AddRpgHexScene extends Phaser.Scene {
     this.landmarkObjects = []
 
     for (const entity of context.map.entities) {
-      if (entity.coord?.kind !== "hex") continue
+      if (!entity.coord || entity.coord.kind !== context.topologyKind) continue
       if (entity.kind === "hero") continue
 
       const center = centerFor(entity.coord, context)
@@ -295,7 +346,8 @@ class AddRpgHexScene extends Phaser.Scene {
   private drawLandmark(center: Vector2, entity: GameEntity): void {
     const sourceId = String(entity.metadata?.sourceId ?? "")
     const isCave = sourceId.includes("cave")
-    const isBase = sourceId.includes("base") || sourceId.includes("crystal")
+    const isFixture = (entity.tags ?? []).includes("fixture")
+    const isBase = !isFixture && (sourceId.includes("base") || sourceId.includes("crystal_circle"))
     const radius = isCave ? 13 : isBase ? 15 : 11
     const fill = isCave ? 0x8a4c2f : isBase ? 0x2f7d68 : 0xa05f2d
     const stroke = isCave ? 0x432315 : isBase ? 0x114538 : 0x5f371d
@@ -314,8 +366,15 @@ class AddRpgHexScene extends Phaser.Scene {
     marker.setDepth(25)
     this.landmarkObjects.push(shadow, marker)
 
-    if (!isCave && !isBase) return
-    const label = this.add.text(center.x, center.y + 28, isCave ? "Survivor Cave" : "Studio", {
+    if (!isCave && !isBase && !isFixture) return
+    const labelText = isCave
+      ? "Survivor Cave"
+      : isFixture
+        ? entity.label ?? "Fixture"
+        : isBase
+          ? "Studio"
+          : entity.label ?? "Fixture"
+    const label = this.add.text(center.x, center.y + 28, labelText, {
       color: "#1f2a25",
       fontFamily: "Aptos, Segoe UI, sans-serif",
       fontSize: "12px",
@@ -335,21 +394,29 @@ class AddRpgHexScene extends Phaser.Scene {
     if (!graphics || !context) return
     graphics.clear()
 
-    if (this.hoveredHex) {
-      this.drawSelectionHex(this.hoveredHex, 0xffffff, 0.7, 2)
+    if (this.hoveredCoord) {
+      this.drawSelectionCell(this.hoveredCoord, 0xffffff, 0.7, 2)
     }
-    if (this.selectedHex) {
-      this.drawSelectionHex(this.selectedHex, 0xe3a64a, 0.95, 3)
+    if (this.selectedCoord) {
+      this.drawSelectionCell(this.selectedCoord, 0xe3a64a, 0.95, 3)
     }
   }
 
-  private drawSelectionHex(
-    coord: HexCoord,
+  private drawSelectionCell(
+    coord: CellCoord,
     color: number,
     alpha: number,
     lineWidth: number,
   ): void {
     if (!this.overlayGraphics || !this.context) return
+    if (coord.kind === "square") {
+      const topLeft = squareTopLeftFor(coord, this.context)
+      const cellSize = squareCellSize(this.context)
+      this.overlayGraphics.lineStyle(lineWidth, color, alpha)
+      this.overlayGraphics.strokeRect(topLeft.x, topLeft.y, cellSize, cellSize)
+      return
+    }
+
     const radius = this.context.map.topology.kind === "hex" ? this.context.map.topology.radius : DEFAULT_RADIUS
     drawHexPath(this.overlayGraphics, centerFor(coord, this.context), radius + 1.8)
     this.overlayGraphics.lineStyle(lineWidth, color, alpha)
@@ -358,16 +425,17 @@ class AddRpgHexScene extends Phaser.Scene {
 
   private fitCameraToContext(context: RenderContext): void {
     const camera = this.cameras.main
-    const centers = context.terrainCells
-      .filter((cell) => cell.coord.kind === "hex")
-      .map((cell) => centerFor(cell.coord as HexCoord, context))
+    const centers = context.terrainCells.map((cell) => centerFor(cell.coord, context))
     if (centers.length === 0) return
 
-    const radius = context.map.topology.kind === "hex" ? context.map.topology.radius : DEFAULT_RADIUS
-    const minX = Math.min(...centers.map((point) => point.x)) - radius * 2
-    const maxX = Math.max(...centers.map((point) => point.x)) + radius * 2
-    const minY = Math.min(...centers.map((point) => point.y)) - radius * 2
-    const maxY = Math.max(...centers.map((point) => point.y)) + radius * 2
+    const padding =
+      context.topologyKind === "hex"
+        ? (context.map.topology.kind === "hex" ? context.map.topology.radius : DEFAULT_RADIUS) * 2
+        : squareCellSize(context) * 1.5
+    const minX = Math.min(...centers.map((point) => point.x)) - padding
+    const maxX = Math.max(...centers.map((point) => point.x)) + padding
+    const minY = Math.min(...centers.map((point) => point.y)) - padding
+    const maxY = Math.max(...centers.map((point) => point.y)) + padding
     const width = Math.max(1, maxX - minX)
     const height = Math.max(1, maxY - minY)
     const zoom = Math.min(
@@ -401,8 +469,8 @@ class AddRpgHexScene extends Phaser.Scene {
     }
 
     const nextHover = this.coordAtPointer(pointer)
-    if (sameHex(nextHover, this.hoveredHex)) return
-    this.hoveredHex = nextHover
+    if (sameCoord(nextHover, this.hoveredCoord)) return
+    this.hoveredCoord = nextHover
     this.drawOverlay()
     this.refreshInfo()
   }
@@ -410,7 +478,7 @@ class AddRpgHexScene extends Phaser.Scene {
   private onPointerUp(pointer: Phaser.Input.Pointer): void {
     this.dragging = false
     if (!this.dragMoved) {
-      this.selectedHex = this.coordAtPointer(pointer)
+      this.selectedCoord = this.coordAtPointer(pointer)
       this.drawOverlay()
     }
     this.refreshInfo()
@@ -435,16 +503,20 @@ class AddRpgHexScene extends Phaser.Scene {
     this.renderPendingWorld(true)
   }
 
-  private coordAtPointer(pointer: Phaser.Input.Pointer): HexCoord | null {
+  private coordAtPointer(pointer: Phaser.Input.Pointer): CellCoord | null {
     const context = this.context
     if (!context) return null
     const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y)
-    const coord = context.topology.worldToCell({
+    const localPoint = {
       x: worldPoint.x - context.origin.x,
       y: worldPoint.y - context.origin.y,
-    })
+    }
+    const coord =
+      context.topologyKind === "hex"
+        ? context.hexTopology?.worldToCell(localPoint)
+        : context.squareTopology?.worldToCell(localPoint)
     if (!coord) return null
-    return context.terrainByCoord.has(serializeHex(coord)) ? coord : null
+    return context.terrainByCoord.has(coordKey(coord)) ? coord : null
   }
 
   private refreshInfo(summary = this.lastInfo.validationSummary, valid = this.lastInfo.validationValid): void {
@@ -468,6 +540,7 @@ class AddRpgHexScene extends Phaser.Scene {
       validationValid: valid,
       validationSummary: summary,
       rendererType: rendererType(this.game.renderer.type),
+      topology: topologyInfo(context),
       authority: authorityInfo(),
       cells: {
         total: context.terrainCells.length,
@@ -478,9 +551,9 @@ class AddRpgHexScene extends Phaser.Scene {
         bubbleEdge: context.bubbleEdgeCoords.size,
       },
       landmarks: {
-        baseCenter: context.baseCoord ? serializeHex(context.baseCoord) : null,
+        baseCenter: context.baseCoord ? displayCoord(context.baseCoord) : null,
         studioLabelVisible: context.baseCoord !== null,
-        survivorCave: context.survivorCaveCoord ? serializeHex(context.survivorCaveCoord) : null,
+        survivorCave: context.survivorCaveCoord ? displayCoord(context.survivorCaveCoord) : null,
         survivorCaveVisible: context.survivorCaveCoord !== null,
         renderedCount: this.landmarkObjects.length,
       },
@@ -493,9 +566,11 @@ class AddRpgHexScene extends Phaser.Scene {
       interaction: {
         hoverEnabled: true,
         selectEnabled: true,
-        hoveredHex: this.hoveredHex ? serializeHex(this.hoveredHex) : null,
-        selectedHex: this.selectedHex ? serializeHex(this.selectedHex) : null,
-        selectedLabel: this.selectedHex ? labelForCoord(this.selectedHex, context) : null,
+        hoveredCell: this.hoveredCoord ? displayCell(this.hoveredCoord) : null,
+        selectedCell: this.selectedCoord ? displayCell(this.selectedCoord) : null,
+        hoveredHex: this.hoveredCoord?.kind === "hex" ? displayCoord(this.hoveredCoord) : null,
+        selectedHex: this.selectedCoord?.kind === "hex" ? displayCoord(this.selectedCoord) : null,
+        selectedLabel: this.selectedCoord ? labelForCoord(this.selectedCoord, context) : null,
       },
     }
   }
@@ -503,35 +578,47 @@ class AddRpgHexScene extends Phaser.Scene {
 
 function createRenderContext(map: GameMap, width: number, height: number): RenderContext {
   const terrainCells = terrainCellsFor(map)
-  const topology = createHexTopology({
-    radius: map.topology.kind === "hex" ? map.topology.radius : DEFAULT_RADIUS,
-    bounds: map.topology.kind === "hex" ? map.topology.bounds : undefined,
-  })
-  const origin = originForCells(terrainCells, topology, width, height)
+  const hexTopology =
+    map.topology.kind === "hex"
+      ? createHexTopology({
+          radius: map.topology.radius,
+          bounds: map.topology.bounds,
+        })
+      : null
+  const squareTopology =
+    map.topology.kind === "square"
+      ? createSquareTopology({
+          cellSize: map.topology.cellSize,
+          bounds: map.topology.bounds,
+          neighborMode: map.topology.neighborMode,
+          distanceMetric: map.topology.distanceMetric,
+        })
+      : null
+  const origin = originForCells(terrainCells, map, hexTopology, squareTopology, width, height)
   const terrainByCoord = new Map(
-    terrainCells
-      .filter((cell) => cell.coord.kind === "hex")
-      .map((cell) => [serializeHex(cell.coord as HexCoord), cell]),
+    terrainCells.map((cell) => [coordKey(cell.coord), cell]),
   )
   const stateCounts = countStates(terrainCells)
   const bubbleEdgeCoords = new Set(
     terrainCells
       .filter((cell) => cell.coord.kind === "hex" && isBubbleEdgeCell(cell, map))
-      .map((cell) => serializeHex(cell.coord as HexCoord)),
+      .map((cell) => coordKey(cell.coord)),
   )
-  const baseCell = terrainCells.find((cell) => featureForCell(cell) === "base")
+  const baseCell = terrainCells.find((cell) => isBaseFeature(featureForCell(cell)))
   const caveCell = terrainCells.find((cell) => featureForCell(cell) === "survivor_cave")
 
   return {
     map,
-    topology,
+    topologyKind: map.topology.kind,
+    hexTopology,
+    squareTopology,
     origin,
     terrainCells,
     terrainByCoord,
     stateCounts,
     bubbleEdgeCoords,
-    baseCoord: baseCell?.coord.kind === "hex" ? baseCell.coord : null,
-    survivorCaveCoord: caveCell?.coord.kind === "hex" ? caveCell.coord : null,
+    baseCoord: baseCell?.coord ?? null,
+    survivorCaveCoord: caveCell?.coord ?? null,
   }
 }
 
@@ -541,13 +628,26 @@ function terrainCellsFor(map: GameMap): readonly GameCellPlacement[] {
 
 function originForCells(
   cells: readonly GameCellPlacement[],
-  topology: GridTopology<HexCoord>,
+  map: GameMap,
+  hexTopology: GridTopology<HexCoord> | null,
+  squareTopology: GridTopology<SquareCoord> | null,
   width: number,
   height: number,
 ): Vector2 {
   const centers = cells
-    .filter((cell) => cell.coord.kind === "hex")
-    .map((cell) => topology.cellToWorld(cell.coord as HexCoord))
+    .filter((cell) => cell.coord.kind === map.topology.kind)
+    .map((cell) => {
+      if (cell.coord.kind === "hex" && hexTopology) return hexTopology.cellToWorld(cell.coord)
+      if (cell.coord.kind === "square" && squareTopology) {
+        const topLeft = squareTopology.cellToWorld(cell.coord)
+        const offset = map.topology.kind === "square" ? map.topology.cellSize / 2 : 0
+        return {
+          x: topLeft.x + offset,
+          y: topLeft.y + offset,
+        }
+      }
+      return { x: 0, y: 0 }
+    })
   if (centers.length === 0) return { x: width / 2, y: height / 2 }
 
   const minX = Math.min(...centers.map((point) => point.x))
@@ -589,7 +689,11 @@ function isBubbleEdgeCell(cell: GameCellPlacement, map: GameMap): boolean {
 function styleForCell(cell: GameCellPlacement): { fill: number; stroke: number; alpha: number } {
   const terrain = terrainForCell(cell)
   const state = stateForCell(cell)
-  if (state === "blocked") return { fill: 0x7b6048, stroke: 0x59412f, alpha: 0.94 }
+  if (state === "blocked") {
+    if (terrain === "dungeon_wall") return { fill: 0x4b453d, stroke: 0x2f2a25, alpha: 0.96 }
+    if (terrain === "base_wall") return { fill: 0x53605b, stroke: 0x33413d, alpha: 0.96 }
+    return { fill: 0x7b6048, stroke: 0x59412f, alpha: 0.94 }
+  }
 
   const base =
     terrain === "river"
@@ -600,16 +704,27 @@ function styleForCell(cell: GameCellPlacement): { fill: number; stroke: number; 
           ? 0xb8ad94
           : terrain === "mountain"
             ? 0x967d63
-            : 0xdedbbf
+            : terrain === "dungeon_floor"
+              ? 0xa89b85
+              : terrain === "base_floor"
+                ? 0xb9c3b4
+                : 0xdedbbf
 
   return {
     fill: base,
-    stroke: state === "inactive" ? 0x8a8c78 : 0x5e715f,
+    stroke:
+      terrain === "dungeon_floor"
+        ? 0x6f6252
+        : terrain === "base_floor"
+          ? 0x748177
+          : state === "inactive"
+            ? 0x8a8c78
+            : 0x5e715f,
     alpha: state === "inactive" ? 0.58 : 0.95,
   }
 }
 
-function stateForCell(cell: GameCellPlacement): AddHexState {
+function stateForCell(cell: GameCellPlacement): AddCellState {
   const value = cell.metadata?.state
   return value === "inactive" ||
     value === "converting" ||
@@ -627,7 +742,11 @@ function terrainForCell(cell: GameCellPlacement): AddTerrain {
     value === "river" ||
     value === "scrub" ||
     value === "ridge" ||
-    value === "mountain"
+    value === "mountain" ||
+    value === "dungeon_floor" ||
+    value === "dungeon_wall" ||
+    value === "base_floor" ||
+    value === "base_wall"
     ? value
     : "unknown"
 }
@@ -641,21 +760,46 @@ function progressForCell(cell: GameCellPlacement): number {
   return clamp(numberMetadata(cell, "progress") ?? 0, 0, 1)
 }
 
-function labelForCoord(coord: HexCoord, context: RenderContext): string | null {
-  const cell = context.terrainByCoord.get(serializeHex(coord))
+function labelForCoord(coord: CellCoord, context: RenderContext): string | null {
+  const cell = context.terrainByCoord.get(coordKey(coord))
   if (!cell) return null
   const feature = featureForCell(cell)
   if (feature === "base") return "Studio"
+  if (feature === "base_core") return "Base Core"
   if (feature === "survivor_cave") return "Survivor Cave"
+  if (feature !== "none") return titleCase(feature)
   return `${titleCase(stateForCell(cell))} ${titleCase(terrainForCell(cell))}`
 }
 
-function centerFor(coord: HexCoord, context: RenderContext): Vector2 {
-  const point = context.topology.cellToWorld(coord)
+function centerFor(coord: CellCoord, context: RenderContext): Vector2 {
+  if (coord.kind === "square") {
+    const topLeft = squareTopLeftFor(coord, context)
+    const offset = squareCellSize(context) / 2
+    return {
+      x: topLeft.x + offset,
+      y: topLeft.y + offset,
+    }
+  }
+
+  if (!context.hexTopology) return context.origin
+  const point = context.hexTopology.cellToWorld(coord)
   return {
     x: point.x + context.origin.x,
     y: point.y + context.origin.y,
   }
+}
+
+function squareTopLeftFor(coord: SquareCoord, context: RenderContext): Vector2 {
+  if (!context.squareTopology) return context.origin
+  const point = context.squareTopology.cellToWorld(coord)
+  return {
+    x: point.x + context.origin.x,
+    y: point.y + context.origin.y,
+  }
+}
+
+function squareCellSize(context: RenderContext): number {
+  return context.map.topology.kind === "square" ? context.map.topology.cellSize : 32
 }
 
 function drawHexPath(
@@ -691,8 +835,37 @@ function authorityInfo(): AddPhaserMapInfo["authority"] {
   }
 }
 
-function sameHex(a: HexCoord | null, b: HexCoord | null): boolean {
-  return a?.q === b?.q && a?.r === b?.r
+function topologyInfo(context: RenderContext): AddPhaserMapInfo["topology"] {
+  return {
+    kind: context.topologyKind,
+    mapMode: typeof context.map.metadata?.mapMode === "string" ? context.map.metadata.mapMode : null,
+    fixture: context.map.metadata?.fixture === true,
+    radius: context.map.topology.kind === "hex" ? context.map.topology.radius : null,
+    cellSize: context.map.topology.kind === "square" ? context.map.topology.cellSize : null,
+  }
+}
+
+function isBaseFeature(feature: AddFeature): boolean {
+  return feature === "base" || feature === "base_core"
+}
+
+function sameCoord(a: CellCoord | null, b: CellCoord | null): boolean {
+  if (!a || !b || a.kind !== b.kind) return a === b
+  return a.kind === "hex" && b.kind === "hex"
+    ? a.q === b.q && a.r === b.r
+    : a.kind === "square" && b.kind === "square" && a.x === b.x && a.y === b.y
+}
+
+function coordKey(coord: CellCoord): string {
+  return coord.kind === "hex" ? `hex:${coord.q}:${coord.r}` : `square:${coord.x}:${coord.y}`
+}
+
+function displayCell(coord: CellCoord): string {
+  return `${coord.kind}:${displayCoord(coord)}`
+}
+
+function displayCoord(coord: CellCoord): string {
+  return coord.kind === "hex" ? serializeHex(coord) : `${coord.x},${coord.y}`
 }
 
 function serializeHex(coord: HexCoord): string {
@@ -726,6 +899,13 @@ function emptyMapInfo(): AddPhaserMapInfo {
     validationValid: false,
     validationSummary: "Map has not rendered yet.",
     rendererType: "unknown",
+    topology: {
+      kind: "unknown",
+      mapMode: null,
+      fixture: false,
+      radius: null,
+      cellSize: null,
+    },
     authority: authorityInfo(),
     cells: {
       total: 0,
@@ -751,6 +931,8 @@ function emptyMapInfo(): AddPhaserMapInfo {
     interaction: {
       hoverEnabled: true,
       selectEnabled: true,
+      hoveredCell: null,
+      selectedCell: null,
       hoveredHex: null,
       selectedHex: null,
       selectedLabel: null,

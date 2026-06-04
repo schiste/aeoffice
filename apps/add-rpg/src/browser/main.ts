@@ -5,7 +5,6 @@ import {
   ADD_DOMAIN_BOUNDARY,
   SimulationClient,
   addCommandForGameInteraction,
-  addSnapshotToGameWorld,
   selectAddUiState,
   workerRequestForAddCommand,
   type AddUiState,
@@ -15,6 +14,12 @@ import {
 } from "@aedventure/add-domain"
 import type { GameInteraction, GameWorld } from "@aedventure/game-world"
 
+import {
+  ADD_MAP_MODE_OPTIONS,
+  addMapModeLabel,
+  createAddWorldForMapMode,
+  type AddMapMode,
+} from "./add-map-modes"
 import { AddRpgPhaserMapHost, type AddPhaserMapInfo } from "./phaser-add-map"
 import {
   ADD_AUTOSAVE_STORAGE_KEY,
@@ -32,7 +37,7 @@ import "./styles.css"
 
 interface RuntimeTextState {
   readonly app: "add-rpg"
-  readonly coordinateSystem: "hex axial q/r projected through Phaser"
+  readonly coordinateSystem: "active ADD map mode projected through Phaser"
   readonly shell: {
     readonly framework: "solid"
     readonly surface: "thin_add_management_shell"
@@ -72,6 +77,13 @@ interface RuntimeTextState {
     readonly objectiveReachMet: boolean
     readonly recruitmentEnabled: boolean
   } | null
+  readonly mapMode: {
+    readonly active: AddMapMode
+    readonly label: string
+    readonly available: readonly AddMapMode[]
+    readonly topology: "hex" | "square" | "unknown"
+    readonly fixture: boolean
+  }
   readonly map: AddPhaserMapInfo
   readonly persistence: {
     readonly storageKey: string
@@ -118,6 +130,7 @@ let lastAutosaveRequestMs = 0
 const [snapshot, setSnapshot] = createSignal<SimulationSnapshot | null>(null)
 const [catalog, setCatalog] = createSignal<CatalogSnapshot | null>(null)
 const [world, setWorld] = createSignal<GameWorld | null>(null)
+const [mapMode, setMapMode] = createSignal<AddMapMode>("overworld_hex")
 const [mapInfo, setMapInfo] = createSignal<AddPhaserMapInfo>(emptyMapInfo())
 const [autosaveRecord, setAutosaveRecord] = createSignal<AddBrowserSaveRecord | null>(readAutosave())
 const [autosaveEnabled, setAutosaveEnabled] = createSignal(true)
@@ -206,11 +219,7 @@ createEffect(() => {
   const currentCatalog = catalog()
   if (!currentSnapshot || !currentCatalog) return
 
-  const nextWorld = addSnapshotToGameWorld(currentSnapshot, currentCatalog, {
-    worldId: "add.rpg.live-world",
-    mapId: "add.rpg.hex-overworld",
-    hexRadius: 26,
-  })
+  const nextWorld = createAddWorldForMapMode(mapMode(), currentSnapshot, currentCatalog)
   setWorld(nextWorld)
   mapHost?.renderWorld(nextWorld)
   refreshMapInfo()
@@ -268,13 +277,18 @@ function AddRpgApp() {
         <div class="world-toolbar">
           <div>
             <p class="eyebrow">ADD live runtime</p>
-            <h1>Overworld command deck</h1>
+            <h1>${() => `${addMapModeLabel(mapMode())} command deck`}</h1>
           </div>
-          <div class="status-stack">
-            <span class="status-pill" data-state=${() => statusState()}>
-              ${() => statusLabel()}
-            </span>
-            <span class="status-pill quiet">${() => `${Math.round(snapshot()?.clockSeconds ?? 0)}s`}</span>
+          <div class="toolbar-controls">
+            <div class="map-mode-switcher" role="tablist" aria-label="ADD map mode">
+              ${() => mapModeButtons()}
+            </div>
+            <div class="status-stack">
+              <span class="status-pill" data-state=${() => statusState()}>
+                ${() => statusLabel()}
+              </span>
+              <span class="status-pill quiet">${() => `${Math.round(snapshot()?.clockSeconds ?? 0)}s`}</span>
+            </div>
           </div>
         </div>
         <div id="add-world" class="add-world" ref=${(node: HTMLDivElement) => (mapElement = node)}>
@@ -503,6 +517,29 @@ function actionRows(): readonly unknown[] {
         </li>
       `,
     )
+}
+
+function mapModeButtons(): readonly unknown[] {
+  return ADD_MAP_MODE_OPTIONS.map(
+    (option) => html`
+      <button
+        id=${`map-mode-${option.id}`}
+        type="button"
+        class=${() => (mapMode() === option.id ? "map-mode-button active" : "map-mode-button")}
+        role="tab"
+        aria-selected=${() => mapMode() === option.id}
+        onClick=${() => switchMapMode(option.id)}
+      >
+        ${option.label}
+      </button>
+    `,
+  )
+}
+
+function switchMapMode(nextMode: AddMapMode): void {
+  if (mapMode() === nextMode) return
+  setMapMode(nextMode)
+  setLastCommand(`map:${nextMode}`)
 }
 
 function refreshMapInfo(): void {
@@ -816,9 +853,10 @@ function toTextState(): RuntimeTextState {
   const currentSnapshot = snapshot()
   const currentCatalog = catalog()
   const currentUi = uiState()
+  const currentMapInfo = mapHost?.getInfo() ?? mapInfo()
   return {
     app: "add-rpg",
-    coordinateSystem: "hex axial q/r projected through Phaser",
+    coordinateSystem: "active ADD map mode projected through Phaser",
     shell: {
       framework: "solid",
       surface: "thin_add_management_shell",
@@ -864,7 +902,14 @@ function toTextState(): RuntimeTextState {
           recruitmentEnabled: currentUi.objective.recruitmentEnabled,
         }
       : null,
-    map: mapHost?.getInfo() ?? mapInfo(),
+    mapMode: {
+      active: mapMode(),
+      label: addMapModeLabel(mapMode()),
+      available: ADD_MAP_MODE_OPTIONS.map((option) => option.id),
+      topology: currentMapInfo.topology.kind,
+      fixture: currentMapInfo.topology.fixture,
+    },
+    map: currentMapInfo,
     persistence: {
       storageKey: ADD_AUTOSAVE_STORAGE_KEY,
       autosaveEnabled: autosaveEnabled(),
@@ -933,6 +978,13 @@ function emptyMapInfo(): AddPhaserMapInfo {
     validationValid: false,
     validationSummary: "Map has not rendered yet.",
     rendererType: "unknown",
+    topology: {
+      kind: "unknown",
+      mapMode: null,
+      fixture: false,
+      radius: null,
+      cellSize: null,
+    },
     authority: {
       rules: "rust_wasm_snapshot",
       phaser: "visual_projection_only",
@@ -962,6 +1014,8 @@ function emptyMapInfo(): AddPhaserMapInfo {
     interaction: {
       hoverEnabled: true,
       selectEnabled: true,
+      hoveredCell: null,
+      selectedCell: null,
       hoveredHex: null,
       selectedHex: null,
       selectedLabel: null,

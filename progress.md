@@ -2029,3 +2029,22 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   were visually inspected. The standalone develop-web-game client was retried
   and still exits before navigation because the skill-local script cannot
   resolve its own `playwright` import.
+- ADD migration Phase 14 added the square dungeon renderer foundation. The ADD
+  browser app now exposes map modes for `overworld_hex`, `dungeon_square`, and
+  `base_square`; overworld remains live snapshot-driven, while dungeon and base
+  are square `GameWorld` fixtures that prove the same app and Phaser host can
+  render future square spaces.
+- The ADD Phaser map host now supports both hex and square topology contexts,
+  reports topology/mode/fixture telemetry, keeps legacy hex interaction fields
+  while adding neutral selected/hovered cell fields, resets camera/selection on
+  map switches, and renders square terrain, blockers, landmarks, labels, zones,
+  and selection outlines without adding fake runtime authority.
+- Phase 14 verification passed with `npm --workspace @aedventure/add-rpg run
+  build:types`, `npm --workspace @aedventure/add-rpg run build:browser`, `npm
+  run smoke:add-rpg:built`, and `npm run check`. The ADD smoke now switches
+  hex overworld -> square dungeon -> square base -> hex overworld, asserts
+  topology/fixture telemetry, square blocked cells, square selection, and
+  captures a nonblank square dungeon screenshot. The latest overworld and
+  dungeon screenshots were visually inspected. The standalone develop-web-game
+  client was retried and still fails before navigation on its skill-local
+  missing `playwright` import.

@@ -113,6 +113,46 @@ button:disabled {
   padding: 16px 18px;
 }
 
+.toolbar-controls {
+  display: flex;
+  align-items: flex-end;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.map-mode-switcher {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px;
+  border: 1px solid rgb(36 46 41 / 14%);
+  border-radius: 8px;
+  padding: 4px;
+  background: rgb(39 54 48 / 8%);
+}
+
+.map-mode-button {
+  min-height: 1.9rem;
+  border: 0;
+  border-radius: 6px;
+  padding: 0 0.7rem;
+  background: transparent;
+  color: #40504a;
+  box-shadow: none;
+  font-size: 0.76rem;
+}
+
+.map-mode-button:hover:not(:disabled) {
+  background: rgb(255 250 232 / 72%);
+  color: #23332f;
+  transform: none;
+}
+
+.map-mode-button.active {
+  background: #1d302d;
+  color: #fff8e5;
+}
+
 .eyebrow {
   margin: 0 0 0.3rem;
   color: #647064;
@@ -461,6 +501,19 @@ h1 {
   .world-toolbar {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .toolbar-controls {
+    align-items: stretch;
+    width: 100%;
+  }
+
+  .map-mode-switcher {
+    justify-content: stretch;
+  }
+
+  .map-mode-button {
+    flex: 1 1 auto;
   }
 
   .status-stack,

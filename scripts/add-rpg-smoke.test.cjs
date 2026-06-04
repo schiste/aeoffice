@@ -44,9 +44,13 @@ async function main() {
         state.runtime?.catalogReceived === true &&
         state.shell?.framework === "solid" &&
         state.shell?.hostsPhaserMap === true &&
+        state.mapMode?.active === "overworld_hex" &&
+        state.mapMode?.topology === "hex" &&
         state.map?.hostedBy === "phaser" &&
         state.map?.ready === true &&
         state.map?.validationValid === true &&
+        state.map?.topology?.kind === "hex" &&
+        state.map?.topology?.fixture === false &&
         state.snapshot?.hexCount > 0 &&
         state.map?.cells?.total === state.snapshot.hexCount &&
         state.map?.cells?.bubbleEdge > 0 &&
@@ -69,6 +73,10 @@ async function main() {
     const interacted = await interactWithMap(page, consoleErrors)
     assert.ok(interacted.map.interaction.selectedHex)
     assert.ok(interacted.map.interaction.selectedLabel)
+
+    const switched = await exerciseMapModeSwitching(page, consoleErrors)
+    assert.equal(switched.mapMode.active, "overworld_hex")
+    assert.equal(switched.map.topology.kind, "hex")
 
     await page.locator("#tick-runtime").click()
     const ticked = await waitForTextState(
@@ -105,6 +113,65 @@ async function main() {
     if (browser) await browser.close()
     await new Promise((resolve) => server.close(resolve))
   }
+}
+
+async function exerciseMapModeSwitching(page, consoleErrors) {
+  await page.locator("#map-mode-dungeon_square").click()
+  const dungeon = await waitForTextState(
+    page,
+    (state) =>
+      state.mapMode?.active === "dungeon_square" &&
+      state.mapMode?.topology === "square" &&
+      state.mapMode?.fixture === true &&
+      state.map?.topology?.kind === "square" &&
+      state.map?.topology?.fixture === true &&
+      state.map?.mapId === "add.rpg.square-dungeon-fixture" &&
+      state.map?.cells?.total > 100 &&
+      state.map?.cells?.blocked > 0 &&
+      state.map?.cells?.bubbleEdge === 0 &&
+      state.map?.landmarks?.renderedCount > 0,
+    consoleErrors,
+  )
+  assert.ok(dungeon.map.cells.total !== dungeon.snapshot.hexCount)
+  await assertNonBlankNamedMapScreenshot(
+    page,
+    "add-rpg-dungeon-map-smoke.png",
+    "ADD RPG square dungeon map screenshot",
+  )
+
+  await selectMapCenter(page)
+  await waitForTextState(
+    page,
+    (state) =>
+      state.mapMode?.active === "dungeon_square" &&
+      typeof state.map?.interaction?.selectedCell === "string" &&
+      state.map.interaction.selectedCell.startsWith("square:"),
+    consoleErrors,
+  )
+
+  await page.locator("#map-mode-base_square").click()
+  await waitForTextState(
+    page,
+    (state) =>
+      state.mapMode?.active === "base_square" &&
+      state.map?.topology?.kind === "square" &&
+      state.map?.mapId === "add.rpg.square-base-fixture" &&
+      state.map?.cells?.blocked > 0 &&
+      state.map?.landmarks?.renderedCount > 0,
+    consoleErrors,
+  )
+
+  await page.locator("#map-mode-overworld_hex").click()
+  return waitForTextState(
+    page,
+    (state) =>
+      state.mapMode?.active === "overworld_hex" &&
+      state.mapMode?.topology === "hex" &&
+      state.map?.topology?.kind === "hex" &&
+      state.map?.cells?.total === state.snapshot?.hexCount &&
+      state.map?.cells?.bubbleEdge > 0,
+    consoleErrors,
+  )
 }
 
 async function exerciseSaveReloadOfflineAndReset(page, advanced, consoleErrors) {
@@ -258,13 +325,29 @@ async function interactWithMap(page, consoleErrors) {
   return panned
 }
 
+async function selectMapCenter(page) {
+  const canvas = page.locator("#add-world canvas")
+  await canvas.waitFor({ state: "visible" })
+  const box = await canvas.boundingBox()
+  assert.ok(box, "ADD RPG Phaser canvas should have a browser box")
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2)
+}
+
 async function assertNonBlankMapScreenshot(page) {
+  await assertNonBlankNamedMapScreenshot(
+    page,
+    "add-rpg-map-smoke.png",
+    "ADD RPG Phaser map screenshot",
+  )
+}
+
+async function assertNonBlankNamedMapScreenshot(page, filename, label) {
   fs.mkdirSync(path.dirname(SCREENSHOT_PATH), { recursive: true })
-  const mapPath = path.join(ROOT_DIR, "tmp/add-rpg-map-smoke.png")
+  const mapPath = path.join(ROOT_DIR, "tmp", filename)
   await page.locator("#add-world canvas").screenshot({ path: mapPath })
   assertNonBlankImageBuffer(
     fs.readFileSync(mapPath),
-    "ADD RPG Phaser map screenshot",
+    label,
     {
       minWidth: 300,
       minHeight: 220,
