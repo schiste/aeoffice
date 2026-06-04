@@ -8,6 +8,7 @@ const { startStaticAppServer } = require("./app-qa-server.cjs")
 const ROOT_DIR = path.resolve(__dirname, "..")
 const DIST_DIR = path.join(ROOT_DIR, "apps/add-rpg/dist-app")
 const SCREENSHOT_PATH = path.join(ROOT_DIR, "tmp/add-rpg-smoke.png")
+const ADD_AUTOSAVE_STORAGE_KEY = "aedventure.add-rpg.autosave.v1"
 
 async function main() {
   const { server, url } = await startStaticAppServer({
@@ -26,6 +27,11 @@ async function main() {
     page.on("pageerror", (error) => {
       consoleErrors.push(error.stack || error.message)
     })
+    await page.addInitScript((storageKey) => {
+      if (window.sessionStorage.getItem("add-rpg-smoke-storage-ready") === "1") return
+      window.localStorage.removeItem(storageKey)
+      window.sessionStorage.setItem("add-rpg-smoke-storage-ready", "1")
+    }, ADD_AUTOSAVE_STORAGE_KEY)
 
     await page.goto(`${url}/app`, { waitUntil: "domcontentloaded" })
     const initial = await waitForTextState(
@@ -89,6 +95,9 @@ async function main() {
     )
     assert.ok(advanced.snapshot.clockSeconds > toggled.snapshot.clockSeconds)
 
+    const exported = await exerciseSaveReloadOfflineAndReset(page, advanced, consoleErrors)
+    assert.ok(exported.payload.length > 200)
+
     await assertNonBlankAppScreenshot(page)
     await assertNonBlankMapScreenshot(page)
     assert.deepEqual(consoleErrors, [])
@@ -96,6 +105,98 @@ async function main() {
     if (browser) await browser.close()
     await new Promise((resolve) => server.close(resolve))
   }
+}
+
+async function exerciseSaveReloadOfflineAndReset(page, advanced, consoleErrors) {
+  await page.locator("#export-save").click()
+  const saved = await waitForTextState(
+    page,
+    (state) =>
+      state.persistence?.autosaveAvailable === true &&
+      state.persistence?.lastManualExportAtMs !== null &&
+      state.persistence?.savePayloadLength > 200,
+    consoleErrors,
+  )
+  const payload = await page.locator("#save-payload").inputValue()
+  assert.equal(typeof JSON.parse(payload), "object")
+  const exportedClock = saved.snapshot.clockSeconds
+
+  await page.evaluate(
+    ({ key }) => {
+      const raw = window.localStorage.getItem(key)
+      if (!raw) throw new Error("Missing ADD autosave after export")
+      const record = JSON.parse(raw)
+      record.savedAtMs = Date.now() - 60 * 60 * 1000
+      window.localStorage.setItem(key, JSON.stringify(record))
+    },
+    { key: ADD_AUTOSAVE_STORAGE_KEY },
+  )
+  await page.reload({ waitUntil: "domcontentloaded" })
+  const reloaded = await waitForTextState(
+    page,
+    (state) =>
+      state.runtime?.ready === true &&
+      state.runtime?.error === null &&
+      state.snapshot?.heroAssigned === advanced.snapshot.heroAssigned &&
+      state.persistence?.autosaveAvailable === true &&
+      state.persistence?.lastOfflineCatchupSeconds >= 3500 &&
+      state.snapshot?.clockSeconds >= exportedClock + 3500,
+    consoleErrors,
+    16000,
+  )
+  assert.ok(reloaded.snapshot.clockSeconds > exportedClock)
+
+  await page.locator("#save-payload").fill(payload)
+  await page.locator("#import-save").click()
+  const imported = await waitForTextState(
+    page,
+    (state) =>
+      state.runtime?.error === null &&
+      state.persistence?.lastImportAtMs !== null &&
+      state.snapshot?.clockSeconds < reloaded.snapshot.clockSeconds - 1000,
+    consoleErrors,
+  )
+  assert.ok(imported.persistence.lastImportAtMs)
+
+  await page.locator("#offline-catchup").click()
+  const offlineTicked = await waitForTextState(
+    page,
+    (state) =>
+      state.persistence?.lastOfflineCatchupSeconds >= 3600 &&
+      state.snapshot?.clockSeconds >= imported.snapshot.clockSeconds + 3500,
+    consoleErrors,
+  )
+  assert.ok(offlineTicked.snapshot.clockSeconds > imported.snapshot.clockSeconds)
+
+  await page.locator("#reset-runtime").click()
+  const reset = await waitForTextState(
+    page,
+    (state) =>
+      state.runtime?.error === null &&
+      state.persistence?.resetCount > 0 &&
+      state.snapshot?.clockSeconds < 10 &&
+      state.snapshot?.heroAssigned === false,
+    consoleErrors,
+  )
+  assert.equal(reset.snapshot.heroAssigned, false)
+
+  await page.locator("#save-payload").fill("{ invalid add save")
+  await page.locator("#import-save").click()
+  const errored = await waitForTextState(
+    page,
+    (state) => typeof state.runtime?.error === "string" && state.runtime.error.length > 0,
+    consoleErrors,
+  )
+  assert.ok(errored.runtime.error)
+
+  await page.locator("#reset-runtime").click()
+  await waitForTextState(
+    page,
+    (state) => state.runtime?.error === null && state.snapshot?.clockSeconds < 10,
+    consoleErrors,
+  )
+
+  return { payload }
 }
 
 async function interactWithMap(page, consoleErrors) {

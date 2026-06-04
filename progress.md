@@ -2010,3 +2010,22 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   smoke now asserts snapshot cell parity, bubble edge presence, Studio and
   Survivor Cave visibility, hover/select, zoom, pan, reset, and nonblank map/app
   screenshots. The latest ADD RPG screenshots were visually inspected.
+- ADD migration Phase 13 preserved ADD save/offline runtime behavior in the
+  Phaser app shell. `apps/add-rpg` now autosaves the worker-exported Rust/WASM
+  save payload to browser storage, restores autosave on reload, applies capped
+  offline catch-up from the stored timestamp, exposes manual export/import text,
+  supports explicit offline catch-up, keeps reset durable, and surfaces runtime
+  import errors in app state.
+- The browser save wrapper is deliberately metadata-only: localStorage stores an
+  opaque `exportSave()` payload plus browser metadata such as save timestamp,
+  source, snapshot schema version, and clock. Rust/WASM remains the only owner of
+  import validation, offline progression rules, and reset semantics.
+- Phase 13 verification passed with `npm --workspace @aedventure/add-rpg run
+  build:browser`, `npm run smoke:add-rpg:built`, and `npm run check` after
+  forcing the stale TypeScript project-reference declaration cache to rebuild.
+  The ADD smoke now covers manual save, reload restore, automatic offline
+  catch-up, valid import, explicit offline tick, reset, invalid import error
+  state, recovery reset, and nonblank screenshots. The latest ADD RPG screenshots
+  were visually inspected. The standalone develop-web-game client was retried
+  and still exits before navigation because the skill-local script cannot
+  resolve its own `playwright` import.

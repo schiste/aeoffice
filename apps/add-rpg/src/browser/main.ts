@@ -16,6 +16,18 @@ import {
 import type { GameInteraction, GameWorld } from "@aedventure/game-world"
 
 import { AddRpgPhaserMapHost, type AddPhaserMapInfo } from "./phaser-add-map"
+import {
+  ADD_AUTOSAVE_STORAGE_KEY,
+  clearAutosave,
+  createSaveRecord,
+  formatDuration,
+  formatSaveTimestamp,
+  offlineCatchupSecondsFor,
+  readAutosave,
+  writeAutosave,
+  type AddBrowserSaveRecord,
+  type AddSaveSource,
+} from "./save-runtime"
 import "./styles.css"
 
 interface RuntimeTextState {
@@ -33,6 +45,7 @@ interface RuntimeTextState {
     readonly snapshotReceived: boolean
     readonly catalogReceived: boolean
     readonly autoTick: boolean
+    readonly online: boolean
     readonly lastEvent: string
     readonly lastCommand: string | null
     readonly error: string | null
@@ -60,6 +73,21 @@ interface RuntimeTextState {
     readonly recruitmentEnabled: boolean
   } | null
   readonly map: AddPhaserMapInfo
+  readonly persistence: {
+    readonly storageKey: string
+    readonly autosaveEnabled: boolean
+    readonly autosaveAvailable: boolean
+    readonly lastAutosaveAtMs: number | null
+    readonly lastAutosaveClockSeconds: number | null
+    readonly lastAutosaveSource: AddSaveSource | null
+    readonly lastManualExportAtMs: number | null
+    readonly lastImportAtMs: number | null
+    readonly lastOfflineCatchupSeconds: number
+    readonly resetCount: number
+    readonly savePayloadLength: number
+    readonly status: string
+    readonly storageError: string | null
+  }
   readonly catalog: {
     readonly resourceCount: number
     readonly roleCount: number
@@ -78,11 +106,29 @@ declare global {
 let snapshotVersion = 0
 let snapshotWaiters: Array<{ afterVersion: number; resolve: () => void }> = []
 let requestInFlight = false
+let saveVersion = 0
+let saveWaiters: Array<{ afterVersion: number; resolve: (payload: string | null) => void }> = []
+let saveRequestInFlight = false
+let pendingSaveSource: AddSaveSource = "autosave"
+let lastSavePayload: string | null = null
+let autosaveRestoreAttempted = false
+let queuedOfflineCatchupSeconds = 0
+let lastAutosaveRequestMs = 0
 
 const [snapshot, setSnapshot] = createSignal<SimulationSnapshot | null>(null)
 const [catalog, setCatalog] = createSignal<CatalogSnapshot | null>(null)
 const [world, setWorld] = createSignal<GameWorld | null>(null)
 const [mapInfo, setMapInfo] = createSignal<AddPhaserMapInfo>(emptyMapInfo())
+const [autosaveRecord, setAutosaveRecord] = createSignal<AddBrowserSaveRecord | null>(readAutosave())
+const [autosaveEnabled, setAutosaveEnabled] = createSignal(true)
+const [savePayload, setSavePayload] = createSignal(autosaveRecord()?.payload ?? "")
+const [saveStatus, setSaveStatus] = createSignal(formatSaveTimestamp(autosaveRecord()))
+const [storageError, setStorageError] = createSignal<string | null>(null)
+const [lastManualExportAtMs, setLastManualExportAtMs] = createSignal<number | null>(null)
+const [lastImportAtMs, setLastImportAtMs] = createSignal<number | null>(null)
+const [lastOfflineCatchupSeconds, setLastOfflineCatchupSeconds] = createSignal(0)
+const [resetCount, setResetCount] = createSignal(0)
+const [online, setOnline] = createSignal(typeof navigator === "undefined" ? true : navigator.onLine)
 const [ready, setReady] = createSignal(false)
 const [autoTick, setAutoTick] = createSignal(true)
 const [lastEvent, setLastEvent] = createSignal("booting")
@@ -104,6 +150,7 @@ const client = new SimulationClient({
     setLastEvent("ready")
     setLastError(null)
     resolveSnapshotWaiters()
+    maybeRestoreAutosaveOnBoot(nextSnapshot)
   },
   onSnapshot(nextSnapshot) {
     snapshotVersion += 1
@@ -111,13 +158,22 @@ const client = new SimulationClient({
     setLastEvent("snapshot")
     setLastError(null)
     resolveSnapshotWaiters()
+    const catchupStarted = maybeRunQueuedOfflineCatchup()
+    if (!catchupStarted) maybeRequestAutosave()
   },
-  onSave() {
+  onSave(payload) {
+    saveVersion += 1
+    lastSavePayload = payload
+    saveRequestInFlight = false
     setLastEvent("save")
+    persistSavePayload(payload, pendingSaveSource)
+    resolveSaveWaiters(payload)
   },
   onError(message) {
     setLastEvent("error")
     setLastError(message)
+    saveRequestInFlight = false
+    resolveSaveWaiters(null)
     resolveSnapshotWaiters()
   },
 })
@@ -175,6 +231,7 @@ function AddRpgApp() {
   let mapElement: HTMLDivElement | undefined
   let autoTickTimer: number | undefined
   let mapInfoTimer: number | undefined
+  let autosaveTimer: number | undefined
 
   onMount(() => {
     if (!mapElement) return
@@ -190,11 +247,17 @@ function AddRpgApp() {
       }
     }, 1000)
     mapInfoTimer = window.setInterval(refreshMapInfo, 180)
+    autosaveTimer = window.setInterval(maybeRequestAutosave, 3500)
+    window.addEventListener("online", handleOnline)
+    window.addEventListener("offline", handleOffline)
   })
 
   onCleanup(() => {
     if (autoTickTimer !== undefined) window.clearInterval(autoTickTimer)
     if (mapInfoTimer !== undefined) window.clearInterval(mapInfoTimer)
+    if (autosaveTimer !== undefined) window.clearInterval(autosaveTimer)
+    window.removeEventListener("online", handleOnline)
+    window.removeEventListener("offline", handleOffline)
     mapHost?.destroy()
     client.dispose()
   })
@@ -284,6 +347,10 @@ function AddRpgApp() {
               <dt>Renderer</dt>
               <dd>${() => `${mapInfo().rendererType} / ${mapInfo().cells.total} cells`}</dd>
             </div>
+            <div>
+              <dt>Save</dt>
+              <dd>${() => saveStatus()}</dd>
+            </div>
           </dl>
         </section>
 
@@ -342,6 +409,62 @@ function AddRpgApp() {
             </button>
           </div>
           ${() => (lastError() ? html`<p class="error-line">${lastError()}</p>` : null)}
+        </section>
+
+        <section class="panel run-panel">
+          <div class="panel-heading">
+            <span>Run</span>
+            <button
+              id="toggle-autosave"
+              type="button"
+              class="ghost-button"
+              onClick=${() => setAutosaveEnabled(!autosaveEnabled())}
+              aria-pressed=${() => autosaveEnabled()}
+            >
+              ${() => (autosaveEnabled() ? "Autosave" : "Manual")}
+            </button>
+          </div>
+          <dl class="runtime-list">
+            <div>
+              <dt>Autosave</dt>
+              <dd>${() => formatSaveTimestamp(autosaveRecord())}</dd>
+            </div>
+            <div>
+              <dt>Offline</dt>
+              <dd>${() => lastOfflineCopy()}</dd>
+            </div>
+          </dl>
+          <textarea
+            id="save-payload"
+            class="save-payload"
+            spellcheck="false"
+            value=${() => savePayload()}
+            onInput=${(event: InputEvent) => setSavePayload((event.currentTarget as HTMLTextAreaElement).value)}
+            aria-label="ADD save payload"
+          />
+          <div class="run-grid">
+            <button id="export-save" type="button" onClick=${() => void exportSaveNow()} disabled=${() => !ready()}>
+              Save now
+            </button>
+            <button
+              id="load-autosave"
+              type="button"
+              onClick=${() => void loadAutosave()}
+              disabled=${() => !ready() || !autosaveRecord()}
+            >
+              Load autosave
+            </button>
+            <button id="import-save" type="button" onClick=${() => void importSaveText()} disabled=${() => !ready()}>
+              Import text
+            </button>
+            <button id="offline-catchup" type="button" onClick=${() => void runOfflineCatchup(3600)} disabled=${() => !ready()}>
+              Offline 1h
+            </button>
+            <button id="clear-autosave" type="button" class="ghost-button" onClick=${clearBrowserAutosave}>
+              Clear save
+            </button>
+          </div>
+          ${() => (storageError() ? html`<p class="error-line">${storageError()}</p>` : null)}
         </section>
 
         <section class="panel compact-panel">
@@ -405,6 +528,167 @@ function mapFocusCopy(): string {
   return "Waiting for map"
 }
 
+function handleOnline(): void {
+  setOnline(true)
+}
+
+function handleOffline(): void {
+  setOnline(false)
+}
+
+function maybeRestoreAutosaveOnBoot(_initialSnapshot: SimulationSnapshot): void {
+  if (autosaveRestoreAttempted) return
+  autosaveRestoreAttempted = true
+
+  const record = refreshAutosaveFromStorage()
+  if (!record) {
+    setSaveStatus("No autosave")
+    maybeRequestAutosave()
+    return
+  }
+
+  queuedOfflineCatchupSeconds = offlineCatchupSecondsFor(record)
+  setSavePayload(record.payload)
+  setLastCommand("load_autosave")
+  setSaveStatus(
+    queuedOfflineCatchupSeconds > 0
+      ? `Loading autosave +${formatDuration(queuedOfflineCatchupSeconds)}`
+      : "Loading autosave",
+  )
+  client.importSave(record.payload)
+}
+
+function maybeRunQueuedOfflineCatchup(): boolean {
+  if (queuedOfflineCatchupSeconds <= 0) return false
+
+  const seconds = queuedOfflineCatchupSeconds
+  queuedOfflineCatchupSeconds = 0
+  setLastOfflineCatchupSeconds(seconds)
+  setLastCommand(`offline:${formatDuration(seconds)}`)
+  setSaveStatus(`Catching up ${formatDuration(seconds)}`)
+  client.runOfflineCatchup(seconds)
+  return true
+}
+
+function maybeRequestAutosave(): void {
+  if (!ready() || !autosaveEnabled() || saveRequestInFlight) return
+  const now = Date.now()
+  if (now - lastAutosaveRequestMs < 3000) return
+  lastAutosaveRequestMs = now
+  void requestSave("autosave")
+}
+
+async function exportSaveNow(): Promise<void> {
+  await requestSave("manual")
+}
+
+async function loadAutosave(): Promise<void> {
+  const record = refreshAutosaveFromStorage()
+  if (!record) {
+    setStorageError("No browser autosave is available.")
+    return
+  }
+
+  queuedOfflineCatchupSeconds = offlineCatchupSecondsFor(record)
+  setSavePayload(record.payload)
+  setLastImportAtMs(Date.now())
+  await sendAndWaitForSnapshot(() => {
+    setLastCommand("load_autosave")
+    setSaveStatus(
+      queuedOfflineCatchupSeconds > 0
+        ? `Loading autosave +${formatDuration(queuedOfflineCatchupSeconds)}`
+        : "Loading autosave",
+    )
+    client.importSave(record.payload)
+  })
+}
+
+async function importSaveText(): Promise<void> {
+  const payload = savePayload().trim()
+  if (!payload) {
+    setStorageError("Paste a save payload before importing.")
+    return
+  }
+
+  queuedOfflineCatchupSeconds = 0
+  await sendAndWaitForSnapshot(() => {
+    setLastCommand("import_save")
+    setStorageError(null)
+    client.importSave(payload)
+  })
+
+  if (!lastError()) {
+    setLastImportAtMs(Date.now())
+    await requestSave("import")
+  }
+}
+
+async function runOfflineCatchup(seconds: number): Promise<void> {
+  await sendAndWaitForSnapshot(() => {
+    setLastOfflineCatchupSeconds(seconds)
+    setLastCommand(`offline:${formatDuration(seconds)}`)
+    setSaveStatus(`Catching up ${formatDuration(seconds)}`)
+    client.runOfflineCatchup(seconds)
+  })
+  if (!lastError()) void requestSave("offline_catchup")
+}
+
+function clearBrowserAutosave(): void {
+  try {
+    clearAutosave()
+    setAutosaveRecord(null)
+    setSavePayload("")
+    setSaveStatus("No autosave")
+    setStorageError(null)
+  } catch (error) {
+    setStorageError(error instanceof Error ? error.message : String(error))
+  }
+}
+
+async function requestSave(source: AddSaveSource): Promise<string | null> {
+  if (!ready() || saveRequestInFlight) return lastSavePayload
+  saveRequestInFlight = true
+  pendingSaveSource = source
+  const afterVersion = saveVersion
+  const waiter = waitForSaveAfter(afterVersion)
+  client.exportSave()
+  const payload = await waiter
+  if (saveVersion <= afterVersion) saveRequestInFlight = false
+  return payload
+}
+
+function persistSavePayload(payload: string, source: AddSaveSource): void {
+  const record = createSaveRecord(payload, snapshot(), source)
+  try {
+    writeAutosave(record)
+    setAutosaveRecord(record)
+    if (source !== "autosave" || savePayload().trim().length === 0) {
+      setSavePayload(payload)
+    }
+    if (source === "manual") setLastManualExportAtMs(record.savedAtMs)
+    if (source === "import") setLastImportAtMs(record.savedAtMs)
+    setSaveStatus(`${source === "autosave" ? "Autosaved" : "Saved"} ${formatSaveTimestamp(record)}`)
+    setStorageError(null)
+  } catch (error) {
+    setStorageError(error instanceof Error ? error.message : String(error))
+  } finally {
+    pendingSaveSource = "autosave"
+  }
+}
+
+function refreshAutosaveFromStorage(): AddBrowserSaveRecord | null {
+  const record = readAutosave()
+  setAutosaveRecord(record)
+  if (record) setSaveStatus(formatSaveTimestamp(record))
+  return record
+}
+
+function lastOfflineCopy(): string {
+  const seconds = lastOfflineCatchupSeconds()
+  if (seconds <= 0) return online() ? "Ready" : "Browser offline"
+  return `${formatDuration(seconds)} applied`
+}
+
 async function tickRuntime(seconds: number): Promise<void> {
   if (!ready() || requestInFlight) return
   await sendAndWaitForSnapshot(() => {
@@ -426,8 +710,10 @@ async function toggleHero(): Promise<void> {
 async function resetRuntime(): Promise<void> {
   await sendAndWaitForSnapshot(() => {
     setLastCommand("reset")
+    setResetCount((count) => count + 1)
     client.reset()
   })
+  if (!lastError()) void requestSave("reset")
 }
 
 async function runInteraction(interaction: GameInteraction | undefined): Promise<void> {
@@ -446,8 +732,17 @@ function sendWorkerRequest(request: WorkerRequest): void {
     case "tick":
       client.tick(request.seconds)
       return
+    case "offlineCatchup":
+      client.runOfflineCatchup(request.elapsedSeconds)
+      return
     case "reset":
       client.reset()
+      return
+    case "importSave":
+      client.importSave(request.payload)
+      return
+    case "exportSave":
+      client.exportSave()
       return
     case "assignHero":
       client.assignHero(request.assigned)
@@ -496,6 +791,27 @@ function resolveSnapshotWaiters(): void {
   snapshotWaiters = pending
 }
 
+async function waitForSaveAfter(afterVersion: number): Promise<string | null> {
+  if (saveVersion > afterVersion || lastError()) return lastSavePayload
+
+  return new Promise<string | null>((resolve) => {
+    saveWaiters.push({ afterVersion, resolve })
+    window.setTimeout(() => resolve(lastSavePayload), 4000)
+  })
+}
+
+function resolveSaveWaiters(payload: string | null): void {
+  const pending: typeof saveWaiters = []
+  saveWaiters.forEach((waiter) => {
+    if (saveVersion > waiter.afterVersion || lastError()) {
+      waiter.resolve(payload)
+      return
+    }
+    pending.push(waiter)
+  })
+  saveWaiters = pending
+}
+
 function toTextState(): RuntimeTextState {
   const currentSnapshot = snapshot()
   const currentCatalog = catalog()
@@ -515,6 +831,7 @@ function toTextState(): RuntimeTextState {
       snapshotReceived: currentSnapshot !== null,
       catalogReceived: currentCatalog !== null,
       autoTick: autoTick(),
+      online: online(),
       lastEvent: lastEvent(),
       lastCommand: lastCommand(),
       error: lastError(),
@@ -548,6 +865,21 @@ function toTextState(): RuntimeTextState {
         }
       : null,
     map: mapHost?.getInfo() ?? mapInfo(),
+    persistence: {
+      storageKey: ADD_AUTOSAVE_STORAGE_KEY,
+      autosaveEnabled: autosaveEnabled(),
+      autosaveAvailable: autosaveRecord() !== null,
+      lastAutosaveAtMs: autosaveRecord()?.savedAtMs ?? null,
+      lastAutosaveClockSeconds: autosaveRecord()?.clockSeconds ?? null,
+      lastAutosaveSource: autosaveRecord()?.source ?? null,
+      lastManualExportAtMs: lastManualExportAtMs(),
+      lastImportAtMs: lastImportAtMs(),
+      lastOfflineCatchupSeconds: lastOfflineCatchupSeconds(),
+      resetCount: resetCount(),
+      savePayloadLength: savePayload().length,
+      status: saveStatus(),
+      storageError: storageError(),
+    },
     catalog: currentCatalog
       ? {
           resourceCount: currentCatalog.resources.length,
