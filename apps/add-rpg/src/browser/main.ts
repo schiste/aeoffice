@@ -1019,7 +1019,7 @@ async function resetRuntime(): Promise<void> {
     setResetCount((count) => count + 1)
     client.reset()
   })
-  if (!lastError()) void requestSave("reset")
+  if (!lastError()) await requestSave("reset")
 }
 
 async function runFirstPlayableAction(): Promise<void> {

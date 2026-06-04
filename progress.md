@@ -225,6 +225,18 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   Phaser canvas screenshot. The standalone develop-web-game client was retried
   and still fails before launch because its skill-local script cannot resolve
   its own `playwright` ESM import.
+- ADD local dev was restarted on `http://127.0.0.1:8108/app/` and a browser
+  readiness probe confirmed `runtime.ready`, `map.ready`, and no console/page
+  errors. A systems parity audit now documents which ADD data/calculation
+  systems are live in `crates/add-core`, which browser/domain layers are
+  presentation-only, and which legacy ADD docs remain future reference. The
+  Rust suite also now guards the current first-playable catalog surface and the
+  offline rule split between allowed idle systems and online-only world actions.
+  During verification, a reset/save race was fixed by awaiting the reset save
+  export before allowing subsequent import edits; `cargo test -p add-core`,
+  `npm --workspace @aedventure/add-domain run build`, `npm --workspace
+  @aedventure/add-domain run test`, `npm run smoke:add-rpg:built`, `npm run
+  check`, and `git diff --check` all passed.
 - QA now asserts DOM interaction prompts/hotkeys and DOM emote glyphs use native
   font metrics, whole-pixel placement, and no transform scaling. Verification
   passed with `npm --workspace @aedventure/web run build`, `npm run

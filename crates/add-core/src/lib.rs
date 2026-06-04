@@ -42,16 +42,26 @@ mod tests {
         export_save, import_save,
         game_data::{
             CONSTRUCTION_OUTPUT, CONSTRUCTION_REMOVING_MOSS, CONSTRUCTION_STORAGE, PROJECT_BUILD_FIRE_PIT,
-            PROJECT_RESTORE_STUDIO, RECIPE_MIX_SIGNAL_BALANCING, RECIPE_RESEARCH_CHORUS_ROUTING,
-            RECIPE_RESONANCE_FIELD_CALIBRATION, RECIPE_WORKSHOP_WATER_CONDENSERS,
+            PROJECT_BUILD_MIX_CONSOLE, PROJECT_BUILD_RESEARCH_BOOTH, PROJECT_BUILD_RESONANCE_CHAMBER,
+            PROJECT_BUILD_WORKSHOP, PROJECT_RESTORE_STUDIO, RECIPE_MIX_SIGNAL_BALANCING,
+            RECIPE_RESEARCH_CHORUS_ROUTING, RECIPE_RESEARCH_HARMONIC_STUDY,
+            RECIPE_RESONANCE_FIELD_CALIBRATION, RECIPE_WORKSHOP_BUILDER_TOOLS,
+            RECIPE_WORKSHOP_WATER_CONDENSERS, RESOURCE_BASSLINE, RESOURCE_CHORUS,
+            RESOURCE_HARMONICS, RESOURCE_STONE, RESOURCE_VIBES, RESOURCE_WATER,
             ROLE_CONSTRUCTION, ROLE_CRYSTAL_BASSLINE, ROLE_CRYSTAL_CHORUS,
             ROLE_CRYSTAL_HARMONICS, ROLE_FIRE_PIT, ROLE_SCAVENGE, ROLE_WATER,
+            STATION_CRYSTAL_CIRCLE, STATION_FIRE_PIT, STATION_MIX_CONSOLE,
+            STATION_RESEARCH_BOOTH, STATION_RESONANCE_CHAMBER, STATION_WORKSHOP,
+            STORY_BEAT_AWAIT_SURVIVOR_ARRIVAL, STORY_BEAT_BUILD_FIRE_PIT,
             STORY_BEAT_ENTER_THE_BUBBLE, STORY_BEAT_EXPLORE_BASE, STORY_BEAT_FIRST_GLIMPSE,
-            STORY_BEAT_INVESTIGATE_BASE, STORY_BEAT_ROAD_TO_BASE,
+            STORY_BEAT_FIRST_RECRUIT, STORY_BEAT_INVESTIGATE_BASE, STORY_BEAT_REACH_SURVIVOR_CAVE,
+            STORY_BEAT_RESTORE_STUDIO, STORY_BEAT_ROAD_TO_BASE, STORY_BEAT_STABILIZE_BASE,
+            STRUCTURE_BASE, STRUCTURE_CAVE, STRUCTURE_CRYSTAL_CIRCLE, TILE_BASE_CORE,
+            TILE_MOUNTAIN_WALL, TILE_SURVIVOR_CAVE,
             WORLD_ACTION_EXPLORE_BASE, WORLD_ACTION_INVESTIGATE_BASE,
         },
         ForcedReturnPhase, ForcedReturnState, GameCommand, GameState, HeroLocationState,
-        Simulation,
+        RecruitTravel, Simulation, DEFAULT_TOTAL_CREW,
     };
 
     fn advance_intro_to_investigate(simulation: &mut Simulation) {
@@ -1056,5 +1066,151 @@ mod tests {
             (240..=360).contains(&total_elapsed),
             "expected reach gate around 4-6 minutes, got {total_elapsed}s"
         );
+    }
+
+    #[test]
+    fn phase_zero_catalog_contains_current_playable_systems() {
+        let catalog = super::catalog_snapshot();
+
+        assert_catalog_ids("resources", catalog.resources.iter().map(|item| item.id), &[
+            RESOURCE_BASSLINE,
+            RESOURCE_CHORUS,
+            RESOURCE_HARMONICS,
+            RESOURCE_STONE,
+            RESOURCE_WATER,
+            RESOURCE_VIBES,
+        ]);
+        assert_catalog_ids("roles", catalog.roles.iter().map(|item| item.id), &[
+            ROLE_CRYSTAL_BASSLINE,
+            ROLE_CRYSTAL_CHORUS,
+            ROLE_CRYSTAL_HARMONICS,
+            ROLE_CONSTRUCTION,
+            ROLE_FIRE_PIT,
+            ROLE_SCAVENGE,
+            ROLE_WATER,
+        ]);
+        assert_catalog_ids("stations", catalog.stations.iter().map(|item| item.id), &[
+            STATION_CRYSTAL_CIRCLE,
+            STATION_FIRE_PIT,
+            STATION_RESONANCE_CHAMBER,
+            STATION_MIX_CONSOLE,
+            STATION_WORKSHOP,
+            STATION_RESEARCH_BOOTH,
+        ]);
+        assert_catalog_ids("construction options", catalog.construction_options.iter().map(|item| item.id), &[
+            CONSTRUCTION_STORAGE,
+            CONSTRUCTION_OUTPUT,
+            CONSTRUCTION_REMOVING_MOSS,
+            PROJECT_RESTORE_STUDIO,
+            PROJECT_BUILD_FIRE_PIT,
+            PROJECT_BUILD_RESONANCE_CHAMBER,
+            PROJECT_BUILD_MIX_CONSOLE,
+            PROJECT_BUILD_WORKSHOP,
+            PROJECT_BUILD_RESEARCH_BOOTH,
+        ]);
+        assert_catalog_ids("processing recipes", catalog.processing_recipes.iter().map(|item| item.id), &[
+            RECIPE_RESONANCE_FIELD_CALIBRATION,
+            RECIPE_MIX_SIGNAL_BALANCING,
+            RECIPE_WORKSHOP_BUILDER_TOOLS,
+            RECIPE_WORKSHOP_WATER_CONDENSERS,
+            RECIPE_RESEARCH_CHORUS_ROUTING,
+            RECIPE_RESEARCH_HARMONIC_STUDY,
+        ]);
+        assert_catalog_ids("world actions", catalog.world_actions.iter().map(|item| item.id), &[
+            WORLD_ACTION_INVESTIGATE_BASE,
+            WORLD_ACTION_EXPLORE_BASE,
+        ]);
+        assert_catalog_ids("story beats", catalog.story_beats.iter().map(|item| item.id), &[
+            STORY_BEAT_ROAD_TO_BASE,
+            STORY_BEAT_FIRST_GLIMPSE,
+            STORY_BEAT_ENTER_THE_BUBBLE,
+            STORY_BEAT_INVESTIGATE_BASE,
+            STORY_BEAT_EXPLORE_BASE,
+            STORY_BEAT_RESTORE_STUDIO,
+            STORY_BEAT_BUILD_FIRE_PIT,
+            STORY_BEAT_REACH_SURVIVOR_CAVE,
+            STORY_BEAT_FIRST_RECRUIT,
+            STORY_BEAT_AWAIT_SURVIVOR_ARRIVAL,
+            STORY_BEAT_STABILIZE_BASE,
+        ]);
+        assert_catalog_ids("tiles", catalog.tiles.iter().map(|item| item.id), &[
+            TILE_BASE_CORE,
+            TILE_SURVIVOR_CAVE,
+            TILE_MOUNTAIN_WALL,
+        ]);
+        assert_catalog_ids("structures", catalog.structures.iter().map(|item| item.id), &[
+            STRUCTURE_CRYSTAL_CIRCLE,
+            STRUCTURE_BASE,
+            STRUCTURE_CAVE,
+        ]);
+
+        assert!(catalog.balance.bubble.field_k_base > 0.0);
+        assert!(catalog.balance.crystal.output_per_worker_base > 0.0);
+        assert!(catalog.balance.power.life_support_upkeep_per_staff_per_second > 0.0);
+        assert!(catalog.balance.recruitment.t1_minutes > 0.0);
+        assert!(super::recruit_cost_for_index(1) > 0.0);
+        assert!(catalog.balance.survival.hero_time_seconds_0_to_1 > 0.0);
+    }
+
+    #[test]
+    fn offline_catchup_progresses_allowed_systems_and_freezes_online_world_actions() {
+        let mut state = GameState::new();
+        state
+            .roster
+            .crew_by_role
+            .insert(ROLE_CRYSTAL_BASSLINE.to_string(), 1);
+        state.recruitment.pending_recruits.push(RecruitTravel {
+            total_seconds: 5.0,
+            remaining_seconds: 5.0,
+        });
+        let mut simulation = Simulation::from_state(state);
+
+        simulation.apply(GameCommand::RunOfflineCatchup { elapsed_seconds: 10.0 });
+
+        assert!(simulation.state().resources.bassline > 0.0);
+        assert_eq!(simulation.state().recruitment.pending_recruits.len(), 0);
+        assert_eq!(simulation.state().roster.total_crew, DEFAULT_TOTAL_CREW + 1);
+
+        let mut online_only = Simulation::new();
+        advance_intro_to_investigate(&mut online_only);
+        online_only.apply(GameCommand::ChooseStoryOption {
+            beat_id: STORY_BEAT_INVESTIGATE_BASE.to_string(),
+            option_id: "story.choice.investigate.search_power".to_string(),
+        });
+        online_only.apply(GameCommand::StartWorldAction {
+            action_id: WORLD_ACTION_INVESTIGATE_BASE.to_string(),
+        });
+        let remaining = online_only
+            .state()
+            .active_world_action
+            .as_ref()
+            .expect("world action should be active")
+            .remaining_seconds;
+
+        online_only.apply(GameCommand::RunOfflineCatchup { elapsed_seconds: 10.0 });
+
+        assert_eq!(
+            online_only
+                .state()
+                .active_world_action
+                .as_ref()
+                .expect("online-only world action should remain active")
+                .remaining_seconds,
+            remaining
+        );
+    }
+
+    fn assert_catalog_ids<'a>(
+        label: &str,
+        ids: impl Iterator<Item = &'a str>,
+        expected: &[&str],
+    ) {
+        let actual = ids.collect::<HashSet<_>>();
+        for expected_id in expected {
+            assert!(
+                actual.contains(expected_id),
+                "missing {label} catalog id {expected_id}"
+            );
+        }
     }
 }
