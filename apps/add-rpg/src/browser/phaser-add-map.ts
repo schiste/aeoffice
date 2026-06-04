@@ -32,7 +32,16 @@ type AddTerrain =
   | "base_wall"
   | "unknown"
 type AddFeature = "none" | "base" | "survivor_cave" | string
-type AddCharacterMoveDirection = "up" | "right" | "down" | "left" | "north_east" | "south_west"
+type AddCharacterMoveDirection =
+  | "up"
+  | "right"
+  | "down"
+  | "left"
+  | "north_east"
+  | "north_west"
+  | "south_east"
+  | "south_west"
+type AddCharacterMoveKey = "up" | "right" | "down" | "left" | "north_east" | "south_west"
 
 interface AddDungeonLinkInfo {
   readonly id: string
@@ -172,6 +181,8 @@ interface CellStyle {
 const DEFAULT_RADIUS = 28
 const MIN_ZOOM = 0.55
 const MAX_ZOOM = 2.2
+const KEY_CHORD_DELAY_MS = 55
+const KEY_REPEAT_MOVE_MS = 130
 
 export class AddRpgPhaserMapHost {
   private readonly scene: AddRpgHexScene
@@ -260,6 +271,10 @@ class AddRpgHexScene extends Phaser.Scene {
     accepted: null,
     blockedReason: null,
   }
+  private readonly heldCharacterKeys = new Set<AddCharacterMoveKey>()
+  private readonly pendingCharacterKeys = new Set<AddCharacterMoveKey>()
+  private pendingCharacterMoveTimer: number | null = null
+  private lastKeyboardMoveAt = 0
   private lastInfo: AddPhaserMapInfo = emptyMapInfo()
 
   constructor() {
@@ -283,6 +298,7 @@ class AddRpgHexScene extends Phaser.Scene {
     this.input.on("pointerup", this.onPointerUp, this)
     this.input.on("wheel", this.onWheel, this)
     this.input.keyboard?.on("keydown", this.onKeyDown, this)
+    this.input.keyboard?.on("keyup", this.onKeyUp, this)
     this.scale.on("resize", this.onResize, this)
     this.renderPendingWorld(true)
   }
@@ -916,9 +932,20 @@ class AddRpgHexScene extends Phaser.Scene {
       1.45,
       Math.max(0.64, Math.min(this.scale.width / width, this.scale.height / height) * 0.9),
     )
-    camera.setBounds(minX, minY, width, height)
+    const focus = context.baseCoord ? centerFor(context.baseCoord, context) : {
+      x: minX + width / 2,
+      y: minY + height / 2,
+    }
     camera.setZoom(zoom)
-    camera.centerOn(minX + width / 2, minY + height / 2)
+    const visibleWidth = this.scale.width / zoom
+    const visibleHeight = this.scale.height / zoom
+    camera.setBounds(
+      minX - visibleWidth / 2,
+      minY - visibleHeight / 2,
+      width + visibleWidth,
+      height + visibleHeight,
+    )
+    camera.centerOn(focus.x, focus.y)
   }
 
   private onPointerDown(pointer: Phaser.Input.Pointer): void {
@@ -978,9 +1005,46 @@ class AddRpgHexScene extends Phaser.Scene {
   }
 
   private onKeyDown(event: KeyboardEvent): void {
-    const direction = directionForKey(event.key)
-    if (!direction) return
+    const key = characterMoveKeyForKeyboardKey(event.key)
+    if (!key) return
     event.preventDefault()
+    this.heldCharacterKeys.add(key)
+    if (!event.repeat) this.pendingCharacterKeys.add(key)
+
+    if (event.repeat) {
+      const now = this.time.now
+      if (now - this.lastKeyboardMoveAt >= KEY_REPEAT_MOVE_MS) {
+        this.executeCharacterMoveFromKeys()
+      }
+      return
+    }
+
+    this.scheduleCharacterMove()
+  }
+
+  private onKeyUp(event: KeyboardEvent): void {
+    const key = characterMoveKeyForKeyboardKey(event.key)
+    if (!key) return
+    event.preventDefault()
+    this.heldCharacterKeys.delete(key)
+  }
+
+  private scheduleCharacterMove(): void {
+    if (this.pendingCharacterMoveTimer !== null) return
+    this.pendingCharacterMoveTimer = window.setTimeout(() => {
+      this.pendingCharacterMoveTimer = null
+      this.executeCharacterMoveFromKeys()
+    }, KEY_CHORD_DELAY_MS)
+  }
+
+  private executeCharacterMoveFromKeys(): void {
+    const direction = directionForCharacterKeys(
+      new Set([...this.pendingCharacterKeys, ...this.heldCharacterKeys]),
+      this.context?.topologyKind ?? "hex",
+    )
+    this.pendingCharacterKeys.clear()
+    if (!direction) return
+    this.lastKeyboardMoveAt = this.time.now
     this.moveMainCharacter(direction)
   }
 
@@ -1152,6 +1216,23 @@ function originForCells(
   width: number,
   height: number,
 ): Vector2 {
+  const baseCell = cells.find((cell) => isBaseFeature(featureForCell(cell)))
+  if (baseCell?.coord.kind === "hex" && hexTopology) {
+    const point = hexTopology.cellToWorld(baseCell.coord)
+    return {
+      x: width / 2 - point.x,
+      y: height / 2 - point.y,
+    }
+  }
+  if (baseCell?.coord.kind === "square" && squareTopology) {
+    const point = squareTopology.cellToWorld(baseCell.coord)
+    const offset = map.topology.kind === "square" ? map.topology.cellSize / 2 : 0
+    return {
+      x: width / 2 - point.x - offset,
+      y: height / 2 - point.y - offset,
+    }
+  }
+
   const centers = cells
     .filter((cell) => cell.coord.kind === map.topology.kind)
     .map((cell) => {
@@ -1340,13 +1421,13 @@ function nextCharacterCoord(
 ): CellCoord | null {
   if (coord.kind === "square" && context.squareTopology) {
     const next =
-      direction === "up"
+      direction === "up" || direction === "north_west"
         ? { kind: "square" as const, x: coord.x, y: coord.y - 1 }
         : direction === "right" || direction === "north_east"
           ? { kind: "square" as const, x: coord.x + 1, y: coord.y }
-          : direction === "down"
+          : direction === "down" || direction === "south_east"
             ? { kind: "square" as const, x: coord.x, y: coord.y + 1 }
-            : direction === "left" || direction === "south_west"
+          : direction === "left" || direction === "south_west"
               ? { kind: "square" as const, x: coord.x - 1, y: coord.y }
               : null
     return next && context.squareTopology.inBounds(next) ? next : null
@@ -1354,13 +1435,13 @@ function nextCharacterCoord(
 
   if (coord.kind === "hex" && context.hexTopology) {
     const next =
-      direction === "up"
+      direction === "up" || direction === "north_west"
         ? { kind: "hex" as const, q: coord.q, r: coord.r - 1 }
         : direction === "north_east"
           ? { kind: "hex" as const, q: coord.q + 1, r: coord.r - 1 }
           : direction === "right"
             ? { kind: "hex" as const, q: coord.q + 1, r: coord.r }
-            : direction === "down"
+            : direction === "down" || direction === "south_east"
               ? { kind: "hex" as const, q: coord.q, r: coord.r + 1 }
               : direction === "south_west"
                 ? { kind: "hex" as const, q: coord.q - 1, r: coord.r + 1 }
@@ -1373,7 +1454,7 @@ function nextCharacterCoord(
   return null
 }
 
-function directionForKey(key: string): AddCharacterMoveDirection | null {
+function characterMoveKeyForKeyboardKey(key: string): AddCharacterMoveKey | null {
   switch (key) {
     case "ArrowUp":
     case "w":
@@ -1400,6 +1481,36 @@ function directionForKey(key: string): AddCharacterMoveDirection | null {
     default:
       return null
   }
+}
+
+function directionForCharacterKeys(
+  keys: ReadonlySet<AddCharacterMoveKey>,
+  topologyKind: AddTopologyKind,
+): AddCharacterMoveDirection | null {
+  const up = keys.has("up")
+  const right = keys.has("right")
+  const down = keys.has("down")
+  const left = keys.has("left")
+
+  if (topologyKind === "hex") {
+    if (up && right) return "north_east"
+    if (up && left) return "north_west"
+    if (down && right) return "south_east"
+    if (down && left) return "south_west"
+    if (keys.has("north_east")) return "north_east"
+    if (keys.has("south_west")) return "south_west"
+    if (right) return "right"
+    if (left) return "left"
+    if (up) return "north_west"
+    if (down) return "south_east"
+    return null
+  }
+
+  if (up) return "up"
+  if (right || keys.has("north_east")) return "right"
+  if (down) return "down"
+  if (left || keys.has("south_west")) return "left"
+  return null
 }
 
 function hasDungeonLinks(cell: GameCellPlacement): boolean {

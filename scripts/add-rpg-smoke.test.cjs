@@ -84,6 +84,7 @@ async function main() {
     assert.equal(initial.runtime.error, null)
     assert.ok(initial.ui.resourceCount > 0)
     assert.ok(initial.catalog.worldActionCount > 0)
+    await assertStudioCentered(page, initial)
     await assertMobilePresentation(browser, url)
     const questHud = await exerciseQuestHud(page, consoleErrors)
     assert.equal(questHud.shell.questPanel.collapsed, false)
@@ -468,6 +469,30 @@ async function exerciseQuestHud(page, consoleErrors) {
   )
 }
 
+async function assertStudioCentered(page, state) {
+  const canvas = page.locator("#add-world canvas")
+  await canvas.waitFor({ state: "visible" })
+  const box = await canvas.boundingBox()
+  assert.ok(box, "ADD RPG Phaser canvas should have a browser box")
+  const character = state.map?.character
+  const camera = state.map?.camera
+  assert.equal(character?.cell, "hex:0,0")
+  const cameraOrigin = {
+    x: box.width / 2,
+    y: box.height / 2,
+  }
+  const screenX = (character.x - camera.scrollX - cameraOrigin.x) * camera.zoom + cameraOrigin.x
+  const screenY = (character.y - camera.scrollY - cameraOrigin.y) * camera.zoom + cameraOrigin.y
+  assert.ok(
+    Math.abs(screenX - box.width / 2) <= 10,
+    `Studio/hero should start horizontally centered, got ${screenX} for ${box.width}`,
+  )
+  assert.ok(
+    Math.abs(screenY - box.height / 2) <= 10,
+    `Studio/hero should start vertically centered, got ${screenY} for ${box.height}`,
+  )
+}
+
 async function exerciseMainCharacterMovement(page, consoleErrors) {
   const before = await renderGameToText(page)
   assert.equal(before.map?.character?.visible, true)
@@ -484,15 +509,32 @@ async function exerciseMainCharacterMovement(page, consoleErrors) {
   )
 
   await page.keyboard.press("ArrowLeft")
-  await waitForTextState(
+  const returned = await waitForTextState(
     page,
     (state) =>
       state.map?.character?.lastMoveDirection === "left" &&
-      state.map?.character?.lastMoveAccepted === true,
+      state.map?.character?.lastMoveAccepted === true &&
+      state.map?.character?.cell === before.map.character.cell,
+    consoleErrors,
+  )
+  assert.equal(returned.map.character.cell, "hex:0,0")
+
+  await page.keyboard.down("ArrowUp")
+  await page.keyboard.down("ArrowLeft")
+  await page.waitForTimeout(90)
+  await page.keyboard.up("ArrowLeft")
+  await page.keyboard.up("ArrowUp")
+
+  const upperLeft = await waitForTextState(
+    page,
+    (state) =>
+      state.map?.character?.lastMoveDirection === "north_west" &&
+      state.map?.character?.lastMoveAccepted === true &&
+      state.map?.character?.cell === "hex:0,-1",
     consoleErrors,
   )
 
-  return moved
+  return upperLeft
 }
 
 async function interactWithMap(page, consoleErrors) {

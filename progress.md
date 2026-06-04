@@ -2140,3 +2140,15 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   The standalone develop-web-game client was retried and still fails before
   navigation on its skill-local missing `playwright` import; repo-native
   Playwright checks pass.
+- ADD character navigation now treats keyboard chords as one hex movement
+  intent instead of applying each keydown as an immediate step. `Up+Left`
+  resolves to `north_west` and lands on `hex:0,-1`; `Up+Right` resolves to
+  `north_east`. The map origin and camera reset prefer the Studio/base cell, so
+  a fresh overworld starts with the Hero/Studio centered in the Phaser world.
+- Verification for the hex navigation fix passed with `npm --workspace
+  @aedventure/add-rpg run build:browser`, `npm run smoke:add-rpg:built`, and
+  `npm run check`. The ADD smoke now asserts Studio centering and the `Up+Left`
+  chord. The skill-local develop-web-game Playwright client still cannot import
+  its own `playwright` dependency, so the live 8108 keyboard check used the
+  repo Playwright dependency directly and captured
+  `tmp/add-rpg-live-hex-chord.png`.
