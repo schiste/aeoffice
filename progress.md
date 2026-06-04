@@ -2062,3 +2062,17 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
 - Phase 15 verification passed with `node scripts/multi-app-qa-contracts.test.cjs`,
   `npm run qa:renderer`, `npm run smoke:add-rpg:built`, and `npm run check`.
   The latest ADD hex and square renderer QA screenshots were visually inspected.
+- ADD migration Phase 16 retired the placeholder RPG/idle demo. The tracked
+  `apps/rpg-idle-demo`, `packages/rpg-domain`, and
+  `scripts/rpg-idle-demo-smoke.test.cjs` files were removed, stale local build
+  output directories were deleted, and root workspace scripts/TypeScript
+  references/package-lock entries no longer list those retired workspaces.
+- The active app matrix is now office + engine sandbox + ADD RPG. `qa:renderer`
+  builds the engine sandbox instead of the retired toy app, and renderer QA
+  records `engineSandboxFixtures` for the neutral square/hex topology fixture
+  while ADD remains the real RPG/idle app through `smoke:add-rpg`.
+- Phase 16 verification passed with `node scripts/multi-app-qa-contracts.test.cjs`,
+  `npm run qa:renderer`, and `npm run check`. The replacement engine sandbox
+  topology screenshot was visually inspected. The standalone develop-web-game
+  client was retried and still fails before navigation on its skill-local
+  missing `playwright` import; repo-native Playwright checks pass.

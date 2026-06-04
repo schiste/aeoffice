@@ -303,7 +303,8 @@ Acceptance for the demo:
 ```txt
 apps/
   virtual-office/
-  rpg-idle-demo/
+  engine-sandbox/
+  add-rpg/
 
 packages/
   game-assets/
@@ -315,7 +316,7 @@ packages/
   game-telemetry/
 
   office-domain/
-  rpg-domain/
+  add-domain/
 ```
 
 The existing `apps/web` can stay in place during extraction, but its long-term
@@ -336,11 +337,12 @@ Every extraction phase must keep:
 - `npm run qa:responsive` passing
 - `git diff --check` clean
 
-When the RPG/idle demo exists, add:
+After the placeholder RPG/idle demo is retired, keep:
 
-- RPG smoke test
-- shared renderer nonblank screenshot check
-- import boundary checks for `office-domain` and `rpg-domain`
+- ADD smoke test as the real RPG/idle app check
+- engine sandbox square/hex nonblank screenshot check
+- import boundary checks for `office-domain`, `add-domain`, and neutral engine
+  packages
 
 ## Immediate Next Implementation Task
 

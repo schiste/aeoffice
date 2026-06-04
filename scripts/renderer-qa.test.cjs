@@ -7,14 +7,13 @@ const { PNG } = require("pngjs")
 const {
   assertNonBlankImageBuffer,
   assertOfficeRenderGameContract,
-  assertRpgRenderGameContract,
 } = require("./app-qa-contracts.cjs")
 const { startStaticAppServer } = require("./app-qa-server.cjs")
 const { startDevelopmentServer } = require("./dev-http-host.cjs")
 
 const ARTIFACT_DIR =
   process.env.RENDERER_QA_ARTIFACT_DIR ?? join(tmpdir(), "aedventure-renderer-qa")
-const RPG_APP_DIST_DIR = join(__dirname, "../apps/rpg-idle-demo/dist-app")
+const ENGINE_SANDBOX_APP_DIST_DIR = join(__dirname, "../apps/engine-sandbox/dist-app")
 const ADD_APP_DIST_DIR = join(__dirname, "../apps/add-rpg/dist-app")
 const ADD_TOPOLOGY_QA_FIXTURE_FILES = {
   hex: "add-rpg-hex-renderer-fixture-canvas.png",
@@ -82,14 +81,14 @@ async function main() {
       depthEffects: undefined,
       tilemapFeatures: undefined,
       audio: undefined,
-      neutralFixtures: [],
+      engineSandboxFixtures: [],
       topologyChecks: [],
     }
 
     await verifyRendererRuntime(browser, url, report)
     await verifyResponsiveScreenshots(browser, url, report)
     await verifyDevTools(browser, url, report)
-    await verifyNeutralRendererFixtures(browser, report)
+    await verifyEngineSandboxFixtures(browser, report)
     await verifyAddRendererTopologyFixtures(browser, report)
 
     writeFileSync(
@@ -937,9 +936,9 @@ async function verifyDevTools(browser, url, report) {
   }
 }
 
-async function verifyNeutralRendererFixtures(browser, report) {
+async function verifyEngineSandboxFixtures(browser, report) {
   const { server, url } = await startStaticAppServer({
-    directory: RPG_APP_DIST_DIR,
+    directory: ENGINE_SANDBOX_APP_DIST_DIR,
     basePath: "/app",
   })
   const page = await newQaPage(browser, { width: 1180, height: 760 })
@@ -949,15 +948,19 @@ async function verifyNeutralRendererFixtures(browser, report) {
     const state = await waitForTextState(
       page,
       (current) =>
-        current.app === "rpg-idle-demo" &&
-        current.map?.rendererValidationValid === true &&
-        current.assets?.catalogValid === true &&
-        current.renderer?.performance?.mapRenderCount >= 1 &&
-        current.renderer?.performance?.objectCount > 0,
+        current.app === "engine-sandbox" &&
+        current.world?.validationValid === true &&
+        current.world?.mapCount === 2 &&
+        current.coexistence?.sharedCanvas === true &&
+        current.coexistence?.squareRendered === true &&
+        current.coexistence?.hexRendered === true &&
+        current.square?.topology === "square" &&
+        current.hex?.topology === "hex" &&
+        current.square?.cells > 0 &&
+        current.hex?.cells > 0,
       9000,
     )
 
-    assertRpgRenderGameContract(state)
     await page.evaluate(() => {
       const canvas = document.querySelector("#world canvas")
       if (canvas instanceof HTMLCanvasElement) {
@@ -965,11 +968,11 @@ async function verifyNeutralRendererFixtures(browser, report) {
       }
     })
 
-    const path = join(ARTIFACT_DIR, "neutral-rpg-idle-fixture-canvas.png")
+    const path = join(ARTIFACT_DIR, "engine-sandbox-topology-fixture-canvas.png")
     const buffer = await page.locator("#world canvas").screenshot({ path })
     const stats = assertNonBlankImageBuffer(
       buffer,
-      "neutral RPG renderer fixture canvas",
+      "engine sandbox topology fixture canvas",
       {
         minWidth: 300,
         minHeight: 220,
@@ -978,23 +981,36 @@ async function verifyNeutralRendererFixtures(browser, report) {
       },
     )
 
-    report.neutralFixtures.push({
+    report.engineSandboxFixtures.push({
       app: state.app,
       domain: state.engineBoundary.domain,
       renderer: state.engineBoundary.renderer,
       importsOfficeDomain: state.engineBoundary.importsOfficeDomain,
       sharedPackages: state.engineBoundary.uses,
-      mapId: state.map.id,
-      mapSize: `${state.map.width}x${state.map.height}`,
-      rendererPrimarySource: state.assets.rendererPrimarySource,
+      mapCount: state.world.mapCount,
+      topologyKinds: state.coexistence.topologyKinds,
+      square: {
+        mapId: state.square.mapId,
+        cells: state.square.cells,
+        entities: state.square.entities,
+        zones: state.square.zones,
+        interactions: state.square.interactions.length,
+      },
+      hex: {
+        mapId: state.hex.mapId,
+        cells: state.hex.cells,
+        entities: state.hex.entities,
+        zones: state.hex.zones,
+        interactions: state.hex.interactions.length,
+      },
       screenshot: {
-        label: "neutral-rpg-idle-fixture-canvas",
+        label: "engine-sandbox-topology-fixture-canvas",
         path,
         stats,
       },
     })
   } finally {
-    assertNoConsoleErrors(page, "neutral RPG renderer fixture")
+    assertNoConsoleErrors(page, "engine sandbox topology fixture")
     await page.close()
     await new Promise((resolve, reject) => {
       server.close((error) => (error ? reject(error) : resolve()))

@@ -49,9 +49,6 @@
       "@aedventure/game-renderer-phaser/hex-geometry": [
         "packages/game-renderer-phaser/src/hex/hex-geometry"
       ],
-      "@aedventure/rpg-domain": [
-        "packages/rpg-domain/src"
-      ],
       "@aedventure/office-domain": [
         "packages/office-domain/src"
       ],

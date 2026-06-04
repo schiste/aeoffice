@@ -265,7 +265,7 @@ This target proves the architecture before larger UI or content work.
 - Full dungeon gameplay.
 - TypeScript rewrite of ADD simulation.
 - SaaS/account/admin integration.
-- Replacing ADD's product mechanics with current RPG demo mechanics.
+- Replacing ADD's product mechanics with retired placeholder RPG demo mechanics.
 
 ## Open Architecture Decisions
 
@@ -277,5 +277,6 @@ This target proves the architecture before larger UI or content work.
   source copy plus remote reference tags.
 - Whether ADD checked-in WASM artifacts remain checked in after migration or are
   generated exclusively during build.
-- Whether the current `apps/rpg-idle-demo` becomes `engine-sandbox` or is
-  removed after ADD becomes the real RPG/idle app.
+- Phase 16 decision: the placeholder `apps/rpg-idle-demo` and
+  `packages/rpg-domain` are removed. `apps/engine-sandbox` owns neutral engine
+  topology fixtures, while `apps/add-rpg` is the real RPG/idle application.

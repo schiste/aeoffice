@@ -30,7 +30,6 @@ ln -sfn "../../packages/game-assets" "$ROOT_DIR/node_modules/@aedventure/game-as
 ln -sfn "../../packages/game-map" "$ROOT_DIR/node_modules/@aedventure/game-map"
 ln -sfn "../../packages/game-input" "$ROOT_DIR/node_modules/@aedventure/game-input"
 ln -sfn "../../packages/game-renderer-phaser" "$ROOT_DIR/node_modules/@aedventure/game-renderer-phaser"
-ln -sfn "../../packages/rpg-domain" "$ROOT_DIR/node_modules/@aedventure/rpg-domain"
 ln -sfn "../../packages/office-domain" "$ROOT_DIR/node_modules/@aedventure/office-domain"
 ln -sfn "../../packages/asset-registry" "$ROOT_DIR/node_modules/@aedventure/asset-registry"
 ln -sfn "../../packages/auth-wikimedia" "$ROOT_DIR/node_modules/@aedventure/auth-wikimedia"
@@ -40,7 +39,6 @@ ln -sfn "../../apps/add-rpg" "$ROOT_DIR/node_modules/@aedventure/add-rpg"
 ln -sfn "../../apps/api" "$ROOT_DIR/node_modules/@aedventure/api"
 ln -sfn "../../apps/engine-sandbox" "$ROOT_DIR/node_modules/@aedventure/engine-sandbox"
 ln -sfn "../../apps/media-gateway" "$ROOT_DIR/node_modules/@aedventure/media-gateway"
-ln -sfn "../../apps/rpg-idle-demo" "$ROOT_DIR/node_modules/@aedventure/rpg-idle-demo"
 ln -sfn "../../apps/web" "$ROOT_DIR/node_modules/@aedventure/web"
 ln -sfn "../../apps/world-server" "$ROOT_DIR/node_modules/@aedventure/world-server"
 
@@ -73,9 +71,6 @@ node "$ROOT_DIR/packages/game-input/test/input.test.js"
 
 echo "Running game-renderer-phaser checks..."
 node "$ROOT_DIR/packages/game-renderer-phaser/test/renderer-boundary.test.js"
-
-echo "Running RPG domain checks..."
-node "$ROOT_DIR/packages/rpg-domain/test/rpg-domain.test.js"
 
 echo "Running asset-registry checks..."
 node "$ROOT_DIR/packages/asset-registry/test/catalog.test.js"
@@ -119,17 +114,11 @@ npm run qa:multi-app
 echo "Building browser frontend bundle..."
 npm --workspace @aedventure/web run build:browser
 
-echo "Building RPG idle demo bundle..."
-npm --workspace @aedventure/rpg-idle-demo run build:browser
-
 echo "Building engine sandbox bundle..."
 npm --workspace @aedventure/engine-sandbox run build:browser
 
 echo "Building ADD RPG bundle..."
 npm --workspace @aedventure/add-rpg run build:browser
-
-echo "Running RPG idle demo smoke..."
-npm run smoke:rpg:built
 
 echo "Running engine sandbox smoke..."
 npm run smoke:engine-sandbox:built

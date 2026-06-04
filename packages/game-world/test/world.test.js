@@ -251,10 +251,7 @@ assert.ok(invalid.errors.some((error) => /Zone cell errors/.test(error)))
 assert.ok(invalid.errors.some((error) => /Interaction target errors/.test(error)))
 assert.ok(invalid.errors.some((error) => /hex topology radius must be positive/.test(error)))
 
-for (const appPath of [
-  "../../../apps/web",
-  "../../../apps/rpg-idle-demo",
-]) {
+for (const appPath of ["../../../apps/web"]) {
   assertNoCurrentAppDependency(appPath)
 }
 

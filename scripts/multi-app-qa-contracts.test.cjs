@@ -3,9 +3,17 @@ const fs = require("node:fs")
 const path = require("node:path")
 
 const ROOT_DIR = path.resolve(__dirname, "..")
+const RETIRED_RPG_DEMO_FRAGMENTS = [
+  "apps/rpg-idle-demo",
+  "packages/rpg-domain",
+  "rpg-idle-demo-smoke",
+  "@aedventure/rpg-idle-demo",
+  "@aedventure/rpg-domain",
+]
 
 function main() {
   const packageJson = readJson("package.json")
+  const packageLock = readText("package-lock.json")
   const verifyTargetStack = readText("scripts/verify-target-stack.sh")
 
   assert.equal(
@@ -14,37 +22,33 @@ function main() {
     "npm run check must remain the full target-stack verification gate.",
   )
   assertScript(packageJson, "smoke:office", "scripts/frontend-smoke.test.cjs")
-  assertScript(packageJson, "smoke:rpg", "@aedventure/rpg-idle-demo")
   assertScript(packageJson, "smoke:engine-sandbox", "@aedventure/engine-sandbox")
   assertScript(packageJson, "smoke:add-rpg", "@aedventure/add-rpg")
   assertScript(packageJson, "smoke:office:built", "scripts/frontend-smoke.test.cjs")
-  assertScript(packageJson, "smoke:rpg:built", "scripts/rpg-idle-demo-smoke.test.cjs")
   assertScript(packageJson, "smoke:engine-sandbox:built", "scripts/engine-sandbox-smoke.test.cjs")
   assertScript(packageJson, "smoke:add-rpg:built", "scripts/add-rpg-smoke.test.cjs")
   assertScript(packageJson, "smoke:apps", "smoke:add-rpg")
+  assertScript(packageJson, "smoke:apps", "smoke:engine-sandbox")
   assertScript(packageJson, "qa:renderer", "scripts/renderer-qa.test.cjs")
   assertScript(packageJson, "qa:multi-app", "scripts/multi-app-qa-contracts.test.cjs")
+  assertRetiredFragmentsAbsent("package.json", JSON.stringify(packageJson, null, 2))
+  assertRetiredFragmentsAbsent("package-lock.json", packageLock)
 
   assertStackStep(verifyTargetStack, "node \"$ROOT_DIR/scripts/build-add-rpg-wasm.cjs\"")
   assertStackStep(verifyTargetStack, "cargo check --manifest-path \"$ROOT_DIR/Cargo.toml\"")
   assertStackStep(verifyTargetStack, "npm run qa:multi-app")
   assertStackStep(verifyTargetStack, "npm --workspace @aedventure/web run build:browser")
-  assertStackStep(verifyTargetStack, "npm --workspace @aedventure/rpg-idle-demo run build:browser")
   assertStackStep(verifyTargetStack, "npm --workspace @aedventure/engine-sandbox run build:browser")
   assertStackStep(verifyTargetStack, "npm --workspace @aedventure/add-rpg run build:browser")
-  assertStackStep(verifyTargetStack, "npm run smoke:rpg:built")
   assertStackStep(verifyTargetStack, "npm run smoke:engine-sandbox:built")
   assertStackStep(verifyTargetStack, "npm run smoke:add-rpg:built")
   assertStackStep(verifyTargetStack, "npm run smoke:office:built")
   assertStackStep(verifyTargetStack, "npm run qa:renderer:built")
+  assertRetiredFragmentsAbsent("scripts/verify-target-stack.sh", verifyTargetStack)
 
   assertScreenshotContract("scripts/frontend-smoke.test.cjs", [
     "assertNonBlankImageBuffer",
     "office map screenshot",
-  ])
-  assertScreenshotContract("scripts/rpg-idle-demo-smoke.test.cjs", [
-    "assertNonBlankImageBuffer",
-    "rpg-idle-demo-smoke.png",
   ])
   assertScreenshotContract("scripts/engine-sandbox-smoke.test.cjs", [
     "assertNonBlankImageBuffer",
@@ -66,6 +70,9 @@ function main() {
     "Renderer QA must include a nonblank hex topology render.",
     "Renderer QA must include a nonblank square topology render.",
   ])
+  assertRetiredPathMissing("apps/rpg-idle-demo")
+  assertRetiredPathMissing("packages/rpg-domain")
+  assertRetiredPathMissing("scripts/rpg-idle-demo-smoke.test.cjs")
 
   console.log("Multi-app QA contract checks passed.")
 }
@@ -98,6 +105,24 @@ function assertScreenshotContract(relativePath, expectedFragments) {
     assert.ok(
       scriptText.includes(fragment),
       `Expected ${relativePath} to include ${fragment}.`,
+    )
+  })
+}
+
+function assertRetiredPathMissing(relativePath) {
+  assert.equal(
+    fs.existsSync(path.join(ROOT_DIR, relativePath)),
+    false,
+    `Retired placeholder RPG path must stay removed: ${relativePath}.`,
+  )
+}
+
+function assertRetiredFragmentsAbsent(label, text) {
+  RETIRED_RPG_DEMO_FRAGMENTS.forEach((fragment) => {
+    assert.equal(
+      text.includes(fragment),
+      false,
+      `${label} must not reference retired placeholder RPG fragment ${fragment}.`,
     )
   })
 }

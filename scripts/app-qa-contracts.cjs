@@ -26,23 +26,6 @@ function assertOfficeRenderGameContract(state) {
   assert.ok(Array.isArray(state.players), "Office app must expose players.")
 }
 
-function assertRpgRenderGameContract(state) {
-  assertCommonRenderGameContract(state, {
-    app: "rpg-idle-demo",
-    domain: "@aedventure/rpg-domain",
-  })
-  assert.equal(state.map?.id, "rpg_idle_grove")
-  assert.equal(state.map?.rendererValidationValid, true)
-  assert.equal(state.map?.validationValid, true)
-  assert.equal(state.assets?.catalogValid, true)
-  assert.ok(Array.isArray(state.entities), "RPG demo must expose entities.")
-  assert.equal(typeof state.resources?.wood, "number")
-  assert.equal(typeof state.action?.available, "boolean")
-  assert.equal(typeof state.hero?.x, "number")
-  assert.equal(typeof state.hero?.y, "number")
-  assert.equal(typeof state.renderer?.performance?.mapRenderCount, "number")
-}
-
 function assertCommonRenderGameContract(state, options) {
   assert.equal(state.app, options.app)
   assert.match(
@@ -123,5 +106,4 @@ module.exports = {
   SHARED_ENGINE_PACKAGES,
   assertNonBlankImageBuffer,
   assertOfficeRenderGameContract,
-  assertRpgRenderGameContract,
 }
