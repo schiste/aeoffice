@@ -1020,5 +1020,15 @@ function emptyMapInfo(): AddPhaserMapInfo {
       selectedHex: null,
       selectedLabel: null,
     },
+    presentation: {
+      terrainArt: "procedural_painterly_topology",
+      bubbleEffects: "animated_halo_edge",
+      landmarkSprites: "procedural_sprite_stack",
+      labelRendering: "high_resolution_phaser_text",
+      ambience: "subtle_motes_and_topographic_scan",
+      transitionState: "idle",
+      transitionProgress: 1,
+      responsiveLayout: "desktop",
+    },
   }
 }

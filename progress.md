@@ -2076,3 +2076,21 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   topology screenshot was visually inspected. The standalone develop-web-game
   client was retried and still fails before navigation on its skill-local
   missing `playwright` import; repo-native Playwright checks pass.
+- ADD migration Phase 17 upgraded the ADD Phaser presentation. The ADD map host
+  now uses separate terrain, ambience, overlay, and transition graphics layers;
+  terrain cells render with procedural painterly motifs, bubble edges animate
+  with halo effects, landmarks use stacked procedural sprite shapes, and labels
+  use high-resolution Phaser text. Map info now reports presentation telemetry
+  for terrain art, bubble effects, landmark sprites, label rendering, ambience,
+  transition state, and responsive layout.
+- The ADD browser shell was restyled from a diagnostic tan dashboard into a
+  darker field-command game surface with compact controls, stronger map focus,
+  and mobile-safe world sizing. The ADD smoke now asserts the presentation
+  contract and includes a mobile viewport readiness check.
+- Phase 17 verification passed with `npm --workspace @aedventure/add-rpg run
+  build:types`, `npm --workspace @aedventure/add-rpg run build:browser`,
+  `npm run smoke:add-rpg:built`, `npm run qa:renderer`, `npm run check`, and
+  `git diff --check`. The updated overworld, dungeon, full app shell, and
+  renderer QA ADD screenshots were visually inspected. The standalone
+  develop-web-game client was retried and still fails before navigation on its
+  skill-local missing `playwright` import; repo-native Playwright checks pass.

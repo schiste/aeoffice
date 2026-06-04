@@ -82,6 +82,16 @@ export interface AddPhaserMapInfo {
     readonly selectedHex: string | null
     readonly selectedLabel: string | null
   }
+  readonly presentation: {
+    readonly terrainArt: "procedural_painterly_topology"
+    readonly bubbleEffects: "animated_halo_edge"
+    readonly landmarkSprites: "procedural_sprite_stack"
+    readonly labelRendering: "high_resolution_phaser_text"
+    readonly ambience: "subtle_motes_and_topographic_scan"
+    readonly transitionState: "idle" | "entering"
+    readonly transitionProgress: number
+    readonly responsiveLayout: "desktop" | "mobile"
+  }
 }
 
 interface RenderContext {
@@ -103,6 +113,15 @@ interface StateCounts {
   readonly converting: number
   readonly stabilized: number
   readonly blocked: number
+}
+
+interface CellStyle {
+  readonly fill: number
+  readonly stroke: number
+  readonly alpha: number
+  readonly accent: number
+  readonly highlight: number
+  readonly shadow: number
 }
 
 const DEFAULT_RADIUS = 28
@@ -164,7 +183,9 @@ export class AddRpgPhaserMapHost {
 
 class AddRpgHexScene extends Phaser.Scene {
   private terrainGraphics?: Phaser.GameObjects.Graphics
+  private ambienceGraphics?: Phaser.GameObjects.Graphics
   private overlayGraphics?: Phaser.GameObjects.Graphics
+  private transitionGraphics?: Phaser.GameObjects.Graphics
   private landmarkObjects: Phaser.GameObjects.GameObject[] = []
   private pendingWorld?: GameWorld
   private context?: RenderContext
@@ -179,6 +200,8 @@ class AddRpgHexScene extends Phaser.Scene {
   private dragMoved = false
   private dragStartScreen: Vector2 = { x: 0, y: 0 }
   private dragStartScroll: Vector2 = { x: 0, y: 0 }
+  private transitionState: "idle" | "entering" = "idle"
+  private transitionProgress = 1
   private lastInfo: AddPhaserMapInfo = emptyMapInfo()
 
   constructor() {
@@ -187,9 +210,14 @@ class AddRpgHexScene extends Phaser.Scene {
 
   create(): void {
     this.terrainGraphics = this.add.graphics()
+    this.ambienceGraphics = this.add.graphics()
     this.overlayGraphics = this.add.graphics()
+    this.transitionGraphics = this.add.graphics()
     this.terrainGraphics.setDepth(0)
+    this.ambienceGraphics.setDepth(10)
     this.overlayGraphics.setDepth(30)
+    this.transitionGraphics.setDepth(80)
+    this.transitionGraphics.setScrollFactor(0)
     this.ready = true
     this.cameras.main.setRoundPixels(false)
     this.input.on("pointermove", this.onPointerMove, this)
@@ -198,6 +226,18 @@ class AddRpgHexScene extends Phaser.Scene {
     this.input.on("wheel", this.onWheel, this)
     this.scale.on("resize", this.onResize, this)
     this.renderPendingWorld(true)
+  }
+
+  update(_time: number, delta: number): void {
+    if (!this.ready || !this.context) return
+    this.frameCount += Math.max(1, Math.round(delta / 16))
+    if (this.transitionState === "entering") {
+      this.transitionProgress = clamp(this.transitionProgress + delta / 520, 0, 1)
+      if (this.transitionProgress >= 1) this.transitionState = "idle"
+    }
+    this.drawAmbience(this.context)
+    this.drawOverlay()
+    this.refreshInfo()
   }
 
   renderWorld(world: GameWorld): void {
@@ -249,10 +289,13 @@ class AddRpgHexScene extends Phaser.Scene {
       this.selectedCoord = null
       this.cameraInitialized = false
       this.lastRenderedMapId = map.id
+      this.transitionState = "entering"
+      this.transitionProgress = 0
     }
 
     this.context = createRenderContext(map, this.scale.width, this.scale.height)
     this.drawTerrain(this.context)
+    this.drawAmbience(this.context)
     this.drawLandmarks(this.context)
     this.drawOverlay()
     this.renderCount += 1
@@ -276,45 +319,133 @@ class AddRpgHexScene extends Phaser.Scene {
       const style = styleForCell(cell)
 
       if (cell.coord.kind === "square") {
-        const topLeft = squareTopLeftFor(cell.coord, context)
-        const cellSize = squareCellSize(context)
-        graphics.fillStyle(style.fill, style.alpha)
-        graphics.fillRect(topLeft.x + 1.2, topLeft.y + 1.2, cellSize - 2.4, cellSize - 2.4)
-        if (state === "stabilized" || state === "converting") {
-          graphics.fillStyle(state === "stabilized" ? 0x73b99a : 0x66a6c8, state === "stabilized" ? 0.14 : 0.16)
-          graphics.fillRect(topLeft.x + 4, topLeft.y + 4, cellSize - 8, cellSize - 8)
-        }
-        graphics.lineStyle(1, style.stroke, state === "blocked" ? 0.68 : 0.42)
-        graphics.strokeRect(topLeft.x + 1.2, topLeft.y + 1.2, cellSize - 2.4, cellSize - 2.4)
-        if (state !== "inactive" && state !== "blocked") {
-          graphics.fillStyle(0x2b5f50, 0.38)
-          graphics.fillCircle(center.x, center.y, 2.4)
-        }
+        this.drawSquareTerrainCell(graphics, cell, context, center, style)
         continue
       }
 
-      const radius = context.map.topology.kind === "hex" ? context.map.topology.radius : DEFAULT_RADIUS
-      drawHexPath(graphics, center, radius - 1.2)
-      graphics.fillStyle(style.fill, style.alpha)
+      this.drawHexTerrainCell(graphics, cell, context, center, style)
+    }
+  }
+
+  private drawSquareTerrainCell(
+    graphics: Phaser.GameObjects.Graphics,
+    cell: GameCellPlacement,
+    context: RenderContext,
+    center: Vector2,
+    style: CellStyle,
+  ): void {
+    const topLeft = squareTopLeftFor(cell.coord as SquareCoord, context)
+    const cellSize = squareCellSize(context)
+    const state = stateForCell(cell)
+    const terrain = terrainForCell(cell)
+
+    graphics.fillStyle(style.shadow, state === "blocked" ? 0.24 : 0.13)
+    graphics.fillRect(topLeft.x + 2.8, topLeft.y + 4.2, cellSize - 3.4, cellSize - 3.4)
+    graphics.fillStyle(style.fill, style.alpha)
+    graphics.fillRect(topLeft.x + 1.2, topLeft.y + 1.2, cellSize - 2.4, cellSize - 2.4)
+
+    graphics.fillStyle(style.highlight, state === "inactive" ? 0.08 : 0.14)
+    graphics.fillRect(topLeft.x + 3.8, topLeft.y + 3.8, cellSize - 7.6, Math.max(5, cellSize * 0.28))
+
+    if (state === "stabilized" || state === "converting") {
+      graphics.fillStyle(style.accent, state === "stabilized" ? 0.12 : 0.18)
+      graphics.fillRect(topLeft.x + 5.4, topLeft.y + 5.4, cellSize - 10.8, cellSize - 10.8)
+    }
+
+    if (terrain === "dungeon_wall" || terrain === "base_wall") {
+      graphics.lineStyle(1.2, 0x1f211d, 0.26)
+      for (let offset = 7; offset < cellSize - 4; offset += 9) {
+        graphics.lineBetween(topLeft.x + offset, topLeft.y + 4, topLeft.x + offset - 7, topLeft.y + cellSize - 5)
+      }
+    } else if (terrain === "dungeon_floor" || terrain === "base_floor") {
+      graphics.lineStyle(1, style.stroke, 0.18)
+      graphics.lineBetween(topLeft.x + 6, center.y, topLeft.x + cellSize - 6, center.y)
+      graphics.lineBetween(center.x, topLeft.y + 6, center.x, topLeft.y + cellSize - 6)
+    }
+
+    graphics.lineStyle(1.2, style.stroke, state === "blocked" ? 0.72 : 0.42)
+    graphics.strokeRect(topLeft.x + 1.2, topLeft.y + 1.2, cellSize - 2.4, cellSize - 2.4)
+    if (state !== "inactive" && state !== "blocked") {
+      graphics.fillStyle(style.accent, 0.52)
+      graphics.fillCircle(center.x, center.y, 2.4)
+    }
+  }
+
+  private drawHexTerrainCell(
+    graphics: Phaser.GameObjects.Graphics,
+    cell: GameCellPlacement,
+    context: RenderContext,
+    center: Vector2,
+    style: CellStyle,
+  ): void {
+    const radius = context.map.topology.kind === "hex" ? context.map.topology.radius : DEFAULT_RADIUS
+    const state = stateForCell(cell)
+    const progress = progressForCell(cell)
+    const edge = context.bubbleEdgeCoords.has(coordKey(cell.coord))
+
+    drawHexPath(graphics, { x: center.x + 2, y: center.y + 4 }, radius - 1.2)
+    graphics.fillStyle(style.shadow, state === "inactive" ? 0.10 : 0.18)
+    graphics.fillPath()
+    drawHexPath(graphics, center, radius - 1.2)
+    graphics.fillStyle(style.fill, style.alpha)
+    graphics.fillPath()
+    drawHexPath(graphics, { x: center.x - 2, y: center.y - 2 }, radius - 7)
+    graphics.fillStyle(style.highlight, state === "inactive" ? 0.08 : 0.15)
+    graphics.fillPath()
+
+    if (state === "stabilized" || state === "converting") {
+      drawHexPath(graphics, center, radius - 4)
+      graphics.fillStyle(style.accent, state === "stabilized" ? 0.20 : 0.08 + progress * 0.30)
       graphics.fillPath()
+    }
 
-      const progress = progressForCell(cell)
-      if (state === "stabilized" || state === "converting") {
-        drawHexPath(graphics, center, radius - 4)
-        graphics.fillStyle(state === "stabilized" ? 0x5fbf9a : 0x66a6c8, state === "stabilized" ? 0.23 : 0.08 + progress * 0.26)
-        graphics.fillPath()
+    this.drawTerrainMotif(graphics, cell, center, radius, style)
+    drawHexPath(graphics, center, radius - (edge ? 2.2 : 1.2))
+    graphics.lineStyle(edge ? 2.4 : 1.2, edge ? 0x45c8ff : style.stroke, edge ? 0.88 : 0.52)
+    graphics.strokePath()
+
+    if (state !== "inactive" && state !== "blocked") {
+      graphics.fillStyle(edge ? 0x45c8ff : style.accent, edge ? 0.82 : 0.48)
+      graphics.fillCircle(center.x, center.y, edge ? 3.8 : 2.4)
+    }
+  }
+
+  private drawTerrainMotif(
+    graphics: Phaser.GameObjects.Graphics,
+    cell: GameCellPlacement,
+    center: Vector2,
+    radius: number,
+    style: CellStyle,
+  ): void {
+    const terrain = terrainForCell(cell)
+    if (terrain === "river") {
+      graphics.lineStyle(3.2, 0xc8ecf0, 0.52)
+      graphics.lineBetween(center.x - radius * 0.45, center.y + 3, center.x + radius * 0.36, center.y - 4)
+      graphics.lineStyle(1.4, 0x508fa4, 0.56)
+      graphics.lineBetween(center.x - radius * 0.5, center.y + 7, center.x + radius * 0.42, center.y)
+      return
+    }
+    if (terrain === "scrub") {
+      graphics.fillStyle(0x7d8c55, 0.45)
+      graphics.fillCircle(center.x - 7, center.y + 4, 2.3)
+      graphics.fillCircle(center.x + 6, center.y - 3, 1.9)
+      graphics.fillCircle(center.x + 2, center.y + 8, 1.6)
+      return
+    }
+    if (terrain === "ridge" || terrain === "mountain") {
+      graphics.lineStyle(1.4, 0x6e604e, 0.42)
+      graphics.lineBetween(center.x - 9, center.y + 6, center.x, center.y - 8)
+      graphics.lineBetween(center.x, center.y - 8, center.x + 9, center.y + 5)
+      if (terrain === "mountain") {
+        graphics.fillStyle(0xf0ead0, 0.42)
+        graphics.fillTriangle(center.x - 3, center.y - 3, center.x, center.y - 8, center.x + 3, center.y - 3)
       }
-
-      const coordKeyValue = coordKey(cell.coord)
-      const edge = context.bubbleEdgeCoords.has(coordKeyValue)
-      drawHexPath(graphics, center, radius - (edge ? 2.2 : 1.2))
-      graphics.lineStyle(edge ? 3 : 1, edge ? 0x1f7fdd : style.stroke, edge ? 0.92 : 0.56)
-      graphics.strokePath()
-
-      if (state !== "inactive" && state !== "blocked") {
-        graphics.fillStyle(edge ? 0x1f7fdd : 0x2b5f50, edge ? 0.85 : 0.46)
-        graphics.fillCircle(center.x, center.y, edge ? 3.8 : 2.3)
-      }
+      return
+    }
+    if (stateForCell(cell) === "blocked") {
+      graphics.lineStyle(1, style.stroke, 0.25)
+      graphics.lineBetween(center.x - 9, center.y - 5, center.x + 9, center.y + 5)
+      graphics.lineBetween(center.x - 8, center.y + 6, center.x + 8, center.y - 6)
     }
   }
 
@@ -337,10 +468,13 @@ class AddRpgHexScene extends Phaser.Scene {
   }
 
   private drawFlora(center: Vector2, entity: GameEntity): void {
-    const color = (entity.tags ?? []).includes("scrub") ? 0xa76737 : 0x6f9476
-    const dot = this.add.ellipse(center.x, center.y + 3, 10, 5, color, 0.7)
-    dot.setDepth(20)
-    this.landmarkObjects.push(dot)
+    const scrub = (entity.tags ?? []).includes("scrub")
+    const shadow = this.add.ellipse(center.x, center.y + 8, 13, 5, 0x1d2118, 0.14)
+    const trunk = this.add.rectangle(center.x, center.y + 4, 3, 10, scrub ? 0x8f5c35 : 0x6b573f, 0.72)
+    const crown = this.add.ellipse(center.x, center.y - 1, scrub ? 11 : 13, scrub ? 7 : 11, scrub ? 0xa97745 : 0x5f946f, 0.78)
+    const highlight = this.add.ellipse(center.x - 3, center.y - 4, 4, 3, 0xe2d7a3, 0.20)
+    ;[shadow, trunk, crown, highlight].forEach((object, index) => object.setDepth(18 + index))
+    this.landmarkObjects.push(shadow, trunk, crown, highlight)
   }
 
   private drawLandmark(center: Vector2, entity: GameEntity): void {
@@ -348,23 +482,41 @@ class AddRpgHexScene extends Phaser.Scene {
     const isCave = sourceId.includes("cave")
     const isFixture = (entity.tags ?? []).includes("fixture")
     const isBase = !isFixture && (sourceId.includes("base") || sourceId.includes("crystal_circle"))
+    const isCrystal = sourceId.includes("crystal")
+    const isDoor = sourceId.includes("door") || sourceId.includes("gate") || sourceId.includes("exit")
     const radius = isCave ? 13 : isBase ? 15 : 11
     const fill = isCave ? 0x8a4c2f : isBase ? 0x2f7d68 : 0xa05f2d
     const stroke = isCave ? 0x432315 : isBase ? 0x114538 : 0x5f371d
     const shadow = this.add.ellipse(center.x, center.y + 14, radius * 1.6, 7, 0x1f1b14, 0.18)
     shadow.setDepth(24)
-    const marker = this.add.polygon(
-      center.x,
-      center.y,
-      isCave
-        ? [0, -radius, radius, 0, 0, radius, -radius, 0]
-        : [0, -radius, radius * 0.9, -3, radius * 0.5, radius, -radius * 0.5, radius, -radius * 0.9, -3],
-      fill,
-      0.96,
-    )
+    const markerPoints = isCave
+      ? [0, -radius, radius, 0, 0, radius, -radius, 0]
+      : isDoor
+        ? [-radius * 0.72, radius, -radius * 0.72, -radius * 0.36, 0, -radius, radius * 0.72, -radius * 0.36, radius * 0.72, radius]
+        : [0, -radius, radius * 0.9, -3, radius * 0.5, radius, -radius * 0.5, radius, -radius * 0.9, -3]
+    const marker = this.add.polygon(center.x, center.y, markerPoints, fill, 0.96)
     marker.setStrokeStyle(2, stroke, 0.86)
     marker.setDepth(25)
     this.landmarkObjects.push(shadow, marker)
+
+    if (isBase || isCrystal) {
+      const glow = this.add.ellipse(center.x, center.y + 1, radius * 1.65, radius * 1.2, 0x84e4d3, isBase ? 0.15 : 0.22)
+      const core = this.add.polygon(center.x, center.y - 3, [0, -9, 6, 0, 0, 11, -6, 0], isBase ? 0x7de5cb : 0x88d8ff, 0.94)
+      glow.setDepth(23)
+      core.setDepth(26)
+      core.setStrokeStyle(1.4, 0xffffff, 0.58)
+      this.landmarkObjects.push(glow, core)
+    } else if (isCave) {
+      const mouth = this.add.ellipse(center.x, center.y + 2, radius * 1.05, radius * 0.62, 0x2b1b14, 0.72)
+      const ridge = this.add.arc(center.x, center.y - 1, radius * 0.82, 205, 335, false, 0xd28a52, 0.26)
+      mouth.setDepth(26)
+      ridge.setDepth(27)
+      this.landmarkObjects.push(mouth, ridge)
+    } else if (isDoor) {
+      const seam = this.add.line(center.x, center.y + 2, 0, -8, 0, 10, 0x3b2b21, 0.7)
+      seam.setDepth(27)
+      this.landmarkObjects.push(seam)
+    }
 
     if (!isCave && !isBase && !isFixture) return
     const labelText = isCave
@@ -380,12 +532,42 @@ class AddRpgHexScene extends Phaser.Scene {
       fontSize: "12px",
       fontStyle: "800",
       align: "center",
-      backgroundColor: "rgba(255, 250, 226, 0.70)",
-      padding: { x: 4, y: 2 },
+      backgroundColor: "rgba(255, 250, 226, 0.86)",
+      stroke: "rgba(255, 255, 255, 0.42)",
+      strokeThickness: 2,
+      padding: { x: 6, y: 3 },
     })
+    setCrispText(label)
+    label.setShadow(0, 1, "rgba(255, 255, 255, 0.65)", 0, true, true)
     label.setOrigin(0.5, 0.5)
     label.setDepth(26)
     this.landmarkObjects.push(label)
+  }
+
+  private drawAmbience(context: RenderContext): void {
+    const graphics = this.ambienceGraphics
+    if (!graphics) return
+    graphics.clear()
+    if (context.terrainCells.length === 0) return
+
+    const phase = this.frameCount / 42
+    for (const cell of context.terrainCells) {
+      const state = stateForCell(cell)
+      if (state === "inactive" || state === "blocked") continue
+      const center = centerFor(cell.coord, context)
+      const seed = hashCoord(cell.coord)
+      const drift = Math.sin(phase + seed * 0.07)
+      const alpha = 0.08 + (seed % 7) * 0.012
+      graphics.fillStyle(0xf6e8ad, alpha)
+      graphics.fillCircle(center.x + ((seed % 9) - 4) + drift * 1.5, center.y - 10 + ((seed % 5) - 2), 1.2)
+    }
+
+    if (context.topologyKind === "hex") {
+      graphics.lineStyle(1, 0x315f63, 0.05)
+      for (let offset = -120; offset < this.scale.width + 180; offset += 44) {
+        graphics.lineBetween(context.origin.x + offset, context.origin.y - 240, context.origin.x + offset + 180, context.origin.y + this.scale.height + 120)
+      }
+    }
   }
 
   private drawOverlay(): void {
@@ -394,12 +576,46 @@ class AddRpgHexScene extends Phaser.Scene {
     if (!graphics || !context) return
     graphics.clear()
 
+    this.drawBubbleEffects(context)
     if (this.hoveredCoord) {
       this.drawSelectionCell(this.hoveredCoord, 0xffffff, 0.7, 2)
     }
     if (this.selectedCoord) {
       this.drawSelectionCell(this.selectedCoord, 0xe3a64a, 0.95, 3)
     }
+    this.drawTransitionOverlay()
+  }
+
+  private drawBubbleEffects(context: RenderContext): void {
+    const graphics = this.overlayGraphics
+    if (!graphics || context.topologyKind !== "hex") return
+    const radius = context.map.topology.kind === "hex" ? context.map.topology.radius : DEFAULT_RADIUS
+    const pulse = (Math.sin(this.frameCount / 18) + 1) / 2
+
+    for (const key of context.bubbleEdgeCoords) {
+      const cell = context.terrainByCoord.get(key)
+      if (!cell || cell.coord.kind !== "hex") continue
+      const center = centerFor(cell.coord, context)
+      drawHexPath(graphics, center, radius + 1.5 + pulse * 3.2)
+      graphics.lineStyle(1.2, 0x63dcff, 0.20 + pulse * 0.20)
+      graphics.strokePath()
+      drawHexPath(graphics, center, radius - 5)
+      graphics.fillStyle(0x7ee6ff, 0.035 + pulse * 0.035)
+      graphics.fillPath()
+    }
+  }
+
+  private drawTransitionOverlay(): void {
+    const graphics = this.transitionGraphics
+    if (!graphics) return
+    graphics.clear()
+    if (this.transitionState === "idle") return
+
+    const remaining = 1 - this.transitionProgress
+    graphics.fillStyle(0x0f1b18, 0.34 * remaining)
+    graphics.fillRect(0, 0, this.scale.width, this.scale.height)
+    graphics.fillStyle(0xf4dd99, 0.16 * remaining)
+    graphics.fillRect(0, 0, this.scale.width, Math.max(4, this.scale.height * 0.08 * remaining))
   }
 
   private drawSelectionCell(
@@ -572,6 +788,16 @@ class AddRpgHexScene extends Phaser.Scene {
         selectedHex: this.selectedCoord?.kind === "hex" ? displayCoord(this.selectedCoord) : null,
         selectedLabel: this.selectedCoord ? labelForCoord(this.selectedCoord, context) : null,
       },
+      presentation: {
+        terrainArt: "procedural_painterly_topology",
+        bubbleEffects: "animated_halo_edge",
+        landmarkSprites: "procedural_sprite_stack",
+        labelRendering: "high_resolution_phaser_text",
+        ambience: "subtle_motes_and_topographic_scan",
+        transitionState: this.transitionState,
+        transitionProgress: round(this.transitionProgress),
+        responsiveLayout: this.scale.width < 640 || this.scale.height < 520 ? "mobile" : "desktop",
+      },
     }
   }
 }
@@ -686,16 +912,16 @@ function isBubbleEdgeCell(cell: GameCellPlacement, map: GameMap): boolean {
   )
 }
 
-function styleForCell(cell: GameCellPlacement): { fill: number; stroke: number; alpha: number } {
+function styleForCell(cell: GameCellPlacement): CellStyle {
   const terrain = terrainForCell(cell)
   const state = stateForCell(cell)
   if (state === "blocked") {
-    if (terrain === "dungeon_wall") return { fill: 0x4b453d, stroke: 0x2f2a25, alpha: 0.96 }
-    if (terrain === "base_wall") return { fill: 0x53605b, stroke: 0x33413d, alpha: 0.96 }
-    return { fill: 0x7b6048, stroke: 0x59412f, alpha: 0.94 }
+    if (terrain === "dungeon_wall") return { fill: 0x4b453d, stroke: 0x2f2a25, alpha: 0.96, accent: 0x9a7651, highlight: 0x6b5f50, shadow: 0x17130f }
+    if (terrain === "base_wall") return { fill: 0x53605b, stroke: 0x33413d, alpha: 0.96, accent: 0x9bb7a4, highlight: 0x748177, shadow: 0x18211f }
+    return { fill: 0x7b6048, stroke: 0x59412f, alpha: 0.94, accent: 0xb58a5c, highlight: 0xa18467, shadow: 0x25180f }
   }
 
-  const base =
+  const fill =
     terrain === "river"
       ? 0x8eb8c5
       : terrain === "scrub"
@@ -709,9 +935,23 @@ function styleForCell(cell: GameCellPlacement): { fill: number; stroke: number; 
               : terrain === "base_floor"
                 ? 0xb9c3b4
                 : 0xdedbbf
+  const accent =
+    terrain === "river"
+      ? 0x5fb9d0
+      : terrain === "scrub"
+        ? 0xa58d4b
+        : terrain === "ridge"
+          ? 0x8c7660
+          : terrain === "mountain"
+            ? 0xded7c4
+            : terrain === "dungeon_floor"
+              ? 0xc8b889
+              : terrain === "base_floor"
+                ? 0x78b89a
+                : 0x7cbf8c
 
   return {
-    fill: base,
+    fill,
     stroke:
       terrain === "dungeon_floor"
         ? 0x6f6252
@@ -721,6 +961,9 @@ function styleForCell(cell: GameCellPlacement): { fill: number; stroke: number; 
             ? 0x8a8c78
             : 0x5e715f,
     alpha: state === "inactive" ? 0.58 : 0.95,
+    accent,
+    highlight: 0xfff5d0,
+    shadow: 0x1d2118,
   }
 }
 
@@ -817,6 +1060,21 @@ function drawHexPath(
     }
   })
   graphics.closePath()
+}
+
+function setCrispText(text: Phaser.GameObjects.Text): void {
+  const deviceScale = typeof window === "undefined" ? 2 : Math.min(3, Math.max(2, window.devicePixelRatio || 2))
+  const target = text as Phaser.GameObjects.Text & {
+    setResolution?: (resolution: number) => Phaser.GameObjects.Text
+  }
+  target.setResolution?.(deviceScale)
+}
+
+function hashCoord(coord: CellCoord): number {
+  const first = coord.kind === "hex" ? coord.q : coord.x
+  const second = coord.kind === "hex" ? coord.r : coord.y
+  const value = Math.imul(first + 97, 73856093) ^ Math.imul(second - 31, 19349663)
+  return Math.abs(value)
 }
 
 function numberMetadata(
@@ -936,6 +1194,16 @@ function emptyMapInfo(): AddPhaserMapInfo {
       hoveredHex: null,
       selectedHex: null,
       selectedLabel: null,
+    },
+    presentation: {
+      terrainArt: "procedural_painterly_topology",
+      bubbleEffects: "animated_halo_edge",
+      landmarkSprites: "procedural_sprite_stack",
+      labelRendering: "high_resolution_phaser_text",
+      ambience: "subtle_motes_and_topographic_scan",
+      transitionState: "idle",
+      transitionProgress: 1,
+      responsiveLayout: "desktop",
     },
   }
 }

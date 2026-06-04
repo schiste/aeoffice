@@ -60,6 +60,11 @@ async function main() {
         state.map?.landmarks?.survivorCaveVisible === true &&
         state.map?.authority?.rules === "rust_wasm_snapshot" &&
         state.map?.authority?.mutatesSimulation === false &&
+        state.map?.presentation?.terrainArt === "procedural_painterly_topology" &&
+        state.map?.presentation?.bubbleEffects === "animated_halo_edge" &&
+        state.map?.presentation?.landmarkSprites === "procedural_sprite_stack" &&
+        state.map?.presentation?.labelRendering === "high_resolution_phaser_text" &&
+        state.map?.presentation?.ambience === "subtle_motes_and_topographic_scan" &&
         state.catalog?.resourceCount > 0 &&
         state.catalog?.tileCount > 0,
       consoleErrors,
@@ -70,6 +75,7 @@ async function main() {
     assert.equal(initial.runtime.error, null)
     assert.ok(initial.ui.resourceCount > 0)
     assert.ok(initial.catalog.worldActionCount > 0)
+    await assertMobilePresentation(browser, url)
 
     const interacted = await interactWithMap(page, consoleErrors)
     assert.ok(interacted.map.interaction.selectedHex)
@@ -130,7 +136,9 @@ async function exerciseMapModeSwitching(page, consoleErrors) {
       state.map?.cells?.total > 100 &&
       state.map?.cells?.blocked > 0 &&
       state.map?.cells?.bubbleEdge === 0 &&
-      state.map?.landmarks?.renderedCount > 0,
+      state.map?.landmarks?.renderedCount > 0 &&
+      state.map?.presentation?.transitionState &&
+      state.map?.presentation?.landmarkSprites === "procedural_sprite_stack",
     consoleErrors,
   )
   assert.ok(dungeon.map.cells.total !== dungeon.snapshot.hexCount)
@@ -173,6 +181,37 @@ async function exerciseMapModeSwitching(page, consoleErrors) {
       state.map?.cells?.bubbleEdge > 0,
     consoleErrors,
   )
+}
+
+async function assertMobilePresentation(browser, url) {
+  const page = await browser.newPage({ viewport: { width: 390, height: 760 } })
+  const consoleErrors = []
+  page.on("console", (message) => {
+    if (message.type() === "error") consoleErrors.push(message.text())
+  })
+  page.on("pageerror", (error) => {
+    consoleErrors.push(error.stack || error.message)
+  })
+  await page.addInitScript((storageKey) => {
+    window.localStorage.removeItem(storageKey)
+  }, ADD_AUTOSAVE_STORAGE_KEY)
+
+  try {
+    await page.goto(`${url}/app`, { waitUntil: "domcontentloaded" })
+    await waitForTextState(
+      page,
+      (state) =>
+        state.app === "add-rpg" &&
+        state.runtime?.ready === true &&
+        state.map?.ready === true &&
+        state.map?.presentation?.responsiveLayout === "mobile" &&
+        state.map?.presentation?.terrainArt === "procedural_painterly_topology",
+      consoleErrors,
+    )
+    assert.deepEqual(consoleErrors, [])
+  } finally {
+    await page.close()
+  }
 }
 
 async function exerciseSaveReloadOfflineAndReset(page, advanced, consoleErrors) {
