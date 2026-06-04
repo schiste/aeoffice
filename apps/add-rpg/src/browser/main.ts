@@ -52,13 +52,24 @@ const FIRST_PLAYABLE_ROLE_IDS = [
   ROLE_WATER,
 ] as const
 
+interface QuestPanelPosition {
+  readonly x: number
+  readonly y: number
+}
+
 interface RuntimeTextState {
   readonly app: "add-rpg"
   readonly coordinateSystem: "active ADD map mode projected through Phaser"
   readonly shell: {
     readonly framework: "solid"
-    readonly surface: "thin_add_management_shell"
+    readonly surface: "fullscreen_map_shell"
     readonly hostsPhaserMap: boolean
+    readonly adminOpen: boolean
+    readonly questPanel: {
+      readonly collapsed: boolean
+      readonly x: number
+      readonly y: number
+    }
   }
   readonly boundary: typeof ADD_DOMAIN_BOUNDARY
   readonly runtime: {
@@ -225,11 +236,23 @@ const [resetCount, setResetCount] = createSignal(0)
 const [online, setOnline] = createSignal(typeof navigator === "undefined" ? true : navigator.onLine)
 const [ready, setReady] = createSignal(false)
 const [autoTick, setAutoTick] = createSignal(true)
+const [adminOpen, setAdminOpen] = createSignal(false)
+const [firstPlayableCollapsed, setFirstPlayableCollapsed] = createSignal(false)
+const [questPanelPosition, setQuestPanelPosition] = createSignal(defaultQuestPanelPosition())
 const [lastEvent, setLastEvent] = createSignal("booting")
 const [lastCommand, setLastCommand] = createSignal<string | null>(null)
 const [lastError, setLastError] = createSignal<string | null>(null)
 
 let mapHost: AddRpgPhaserMapHost | null = null
+let questPanelDrag:
+  | {
+      readonly pointerId: number
+      readonly startX: number
+      readonly startY: number
+      readonly originX: number
+      readonly originY: number
+    }
+  | null = null
 
 const client = new SimulationClient({
   createWorker: () =>
@@ -353,14 +376,13 @@ function AddRpgApp() {
   })
 
   return html`
-    <main class="add-app-shell">
+    <main class=${() => (adminOpen() ? "add-app-shell admin-open" : "add-app-shell")}>
       <section class="world-pane">
-        <div class="world-toolbar">
-          <div>
-            <p class="eyebrow">ADD live runtime</p>
-            <h1>${() => `${addMapModeLabel(mapMode())} command deck`}</h1>
+        <div id="add-world" class="add-world" ref=${(node: HTMLDivElement) => (mapElement = node)}>
+          <div class=${() => (mapInfo().ready ? "map-loading hidden" : "map-loading")}>
+            Initializing map
           </div>
-          <div class="toolbar-controls">
+          <div class="map-topbar" aria-label="ADD map navigation">
             <div class="map-mode-switcher" role="tablist" aria-label="ADD map mode">
               ${() => mapModeButtons()}
             </div>
@@ -369,13 +391,80 @@ function AddRpgApp() {
                 ${() => statusLabel()}
               </span>
               <span class="status-pill quiet">${() => `${Math.round(snapshot()?.clockSeconds ?? 0)}s`}</span>
+              <button
+                id="open-admin"
+                type="button"
+                class="admin-toggle"
+                onClick=${() => setAdminOpen(true)}
+                aria-controls="admin-view"
+                aria-expanded=${() => adminOpen()}
+              >
+                Admin
+              </button>
             </div>
           </div>
-        </div>
-        <div id="add-world" class="add-world" ref=${(node: HTMLDivElement) => (mapElement = node)}>
-          <div class=${() => (mapInfo().ready ? "map-loading hidden" : "map-loading")}>
-            Initializing map
-          </div>
+          <section
+            id="first-playable-panel"
+            class=${() =>
+              firstPlayableCollapsed()
+                ? "panel first-playable-panel first-playable-overlay collapsed"
+                : "panel first-playable-panel first-playable-overlay"}
+            style=${() => questPanelStyle()}
+            aria-label="First playable objective"
+          >
+            <div
+              class="panel-heading first-playable-drag-handle"
+              onPointerDown=${beginQuestPanelDrag}
+              onPointerMove=${dragQuestPanel}
+              onPointerUp=${endQuestPanelDrag}
+              onPointerCancel=${endQuestPanelDrag}
+            >
+              <span>First playable</span>
+              <div class="panel-heading-actions">
+                <span class="small-chip">
+                  ${() => `${uiState()?.firstPlayable.completedCount ?? 0}/${uiState()?.firstPlayable.totalCount ?? 0}`}
+                </span>
+                <button
+                  id="toggle-first-playable-panel"
+                  type="button"
+                  class="panel-icon-button"
+                  onClick=${() => setFirstPlayableCollapsed(!firstPlayableCollapsed())}
+                  aria-expanded=${() => !firstPlayableCollapsed()}
+                  aria-controls="first-playable-body"
+                  aria-label=${() => (firstPlayableCollapsed() ? "Expand first playable tasks" : "Collapse first playable tasks")}
+                >
+                  ${() => (firstPlayableCollapsed() ? "Show" : "Hide")}
+                </button>
+              </div>
+            </div>
+            <div
+              id="first-playable-body"
+              class="first-playable-body"
+              hidden=${() => firstPlayableCollapsed()}
+            >
+              <div class="progress-track" aria-hidden="true">
+                <span style=${() => ({ width: firstPlayableProgressWidth() })} />
+              </div>
+              <p class="objective-copy">
+                ${() => firstPlayableCopy()}
+              </p>
+              <button
+                id="first-playable-action"
+                type="button"
+                class="primary-action"
+                onClick=${() => void runFirstPlayableAction()}
+                disabled=${() => !Boolean(currentFirstPlayableStep()?.action)}
+              >
+                ${() => currentFirstPlayableStep()?.actionLabel ?? "First arc complete"}
+              </button>
+              <div class="story-choice-grid">
+                ${() => storyChoiceButtons()}
+              </div>
+              <ol class="first-playable-list">
+                ${() => firstPlayableStepRows()}
+              </ol>
+            </div>
+          </section>
           <div class="map-hud" aria-label="ADD map controls">
             <div class="map-camera-controls">
               <button
@@ -416,10 +505,37 @@ function AddRpgApp() {
         </div>
       </section>
 
-      <aside class="management-rail" aria-label="ADD management controls">
+      <div
+        class=${() => (adminOpen() ? "admin-backdrop visible" : "admin-backdrop")}
+        onClick=${() => setAdminOpen(false)}
+        aria-hidden="true"
+      />
+
+      <aside
+        id="admin-view"
+        class=${() => (adminOpen() ? "admin-view open" : "admin-view")}
+        aria-label="ADD admin controls"
+        aria-hidden=${() => !adminOpen()}
+      >
+        <div class="admin-header">
+          <div>
+            <span class="admin-title">Admin</span>
+            <small>Runtime, saves, resources, and manual controls</small>
+          </div>
+          <button
+            id="close-admin"
+            type="button"
+            class="ghost-button"
+            onClick=${() => setAdminOpen(false)}
+            aria-label="Close admin"
+          >
+            Close
+          </button>
+        </div>
+
         <section class="panel runtime-panel">
           <div class="panel-heading">
-            <span>Runtime</span>
+            <span>System</span>
             <button
               type="button"
               class="ghost-button"
@@ -447,36 +563,6 @@ function AddRpgApp() {
               <dd>${() => saveStatus()}</dd>
             </div>
           </dl>
-        </section>
-
-        <section class="panel first-playable-panel">
-          <div class="panel-heading">
-            <span>First playable</span>
-            <span class="small-chip">
-              ${() => `${uiState()?.firstPlayable.completedCount ?? 0}/${uiState()?.firstPlayable.totalCount ?? 0}`}
-            </span>
-          </div>
-          <div class="progress-track" aria-hidden="true">
-            <span style=${() => ({ width: firstPlayableProgressWidth() })} />
-          </div>
-          <p class="objective-copy">
-            ${() => firstPlayableCopy()}
-          </p>
-          <button
-            id="first-playable-action"
-            type="button"
-            class="primary-action"
-            onClick=${() => void runFirstPlayableAction()}
-            disabled=${() => !Boolean(currentFirstPlayableStep()?.action)}
-          >
-            ${() => currentFirstPlayableStep()?.actionLabel ?? "First arc complete"}
-          </button>
-          <div class="story-choice-grid">
-            ${() => storyChoiceButtons()}
-          </div>
-          <ol class="first-playable-list">
-            ${() => firstPlayableStepRows()}
-          </ol>
         </section>
 
         <section class="panel">
@@ -613,6 +699,76 @@ function AddRpgApp() {
       </aside>
     </main>
   `
+}
+
+function defaultQuestPanelPosition(): QuestPanelPosition {
+  if (typeof window !== "undefined" && window.innerWidth <= 520) {
+    return { x: 10, y: 104 }
+  }
+  return { x: 14, y: 64 }
+}
+
+function questPanelStyle(): Record<string, string> {
+  const position = questPanelPosition()
+  return {
+    "--quest-panel-x": `${position.x}px`,
+    "--quest-panel-y": `${position.y}px`,
+  }
+}
+
+function beginQuestPanelDrag(event: PointerEvent): void {
+  if (event.button !== 0) return
+  const target = event.target instanceof Element ? event.target : null
+  if (target?.closest("button")) return
+
+  event.preventDefault()
+  event.stopPropagation()
+
+  const current = questPanelPosition()
+  questPanelDrag = {
+    pointerId: event.pointerId,
+    startX: event.clientX,
+    startY: event.clientY,
+    originX: current.x,
+    originY: current.y,
+  }
+  const handle = event.currentTarget as HTMLElement
+  handle.setPointerCapture(event.pointerId)
+  handle.classList.add("dragging")
+}
+
+function dragQuestPanel(event: PointerEvent): void {
+  if (!questPanelDrag || questPanelDrag.pointerId !== event.pointerId) return
+  event.preventDefault()
+  event.stopPropagation()
+  const nextX = questPanelDrag.originX + event.clientX - questPanelDrag.startX
+  const nextY = questPanelDrag.originY + event.clientY - questPanelDrag.startY
+  setQuestPanelPosition(clampQuestPanelPosition(nextX, nextY))
+}
+
+function endQuestPanelDrag(event: PointerEvent): void {
+  if (!questPanelDrag || questPanelDrag.pointerId !== event.pointerId) return
+  event.preventDefault()
+  event.stopPropagation()
+  const handle = event.currentTarget as HTMLElement
+  handle.releasePointerCapture(event.pointerId)
+  handle.classList.remove("dragging")
+  questPanelDrag = null
+}
+
+function clampQuestPanelPosition(x: number, y: number): QuestPanelPosition {
+  const panel = document.getElementById("first-playable-panel")
+  const panelWidth = panel?.offsetWidth ?? 390
+  const panelHeight = panel?.offsetHeight ?? (firstPlayableCollapsed() ? 64 : 360)
+  const viewportWidth = window.innerWidth || 1024
+  const viewportHeight = window.innerHeight || 768
+  const gutter = viewportWidth <= 520 ? 10 : 12
+  const maxX = Math.max(gutter, viewportWidth - panelWidth - gutter)
+  const maxY = Math.max(gutter, viewportHeight - panelHeight - gutter)
+  return {
+    x: Math.round(Math.min(maxX, Math.max(gutter, x))),
+    y: Math.round(Math.min(maxY, Math.max(gutter, y))),
+  }
 }
 
 function resourceRows(): readonly unknown[] {
@@ -1169,8 +1325,14 @@ function toTextState(): RuntimeTextState {
     coordinateSystem: "active ADD map mode projected through Phaser",
     shell: {
       framework: "solid",
-      surface: "thin_add_management_shell",
+      surface: "fullscreen_map_shell",
       hostsPhaserMap: true,
+      adminOpen: adminOpen(),
+      questPanel: {
+        collapsed: firstPlayableCollapsed(),
+        x: questPanelPosition().x,
+        y: questPanelPosition().y,
+      },
     },
     boundary: ADD_DOMAIN_BOUNDARY,
     runtime: {

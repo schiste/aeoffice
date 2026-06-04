@@ -44,7 +44,12 @@ async function main() {
         state.runtime?.snapshotReceived === true &&
         state.runtime?.catalogReceived === true &&
         state.shell?.framework === "solid" &&
+        state.shell?.surface === "fullscreen_map_shell" &&
         state.shell?.hostsPhaserMap === true &&
+        state.shell?.adminOpen === false &&
+        state.shell?.questPanel?.collapsed === false &&
+        Number.isFinite(state.shell?.questPanel?.x) &&
+        Number.isFinite(state.shell?.questPanel?.y) &&
         state.mapMode?.active === "overworld_hex" &&
         state.mapMode?.topology === "hex" &&
         state.map?.hostedBy === "phaser" &&
@@ -76,6 +81,10 @@ async function main() {
     assert.ok(initial.ui.resourceCount > 0)
     assert.ok(initial.catalog.worldActionCount > 0)
     await assertMobilePresentation(browser, url)
+    const questHud = await exerciseQuestHud(page, consoleErrors)
+    assert.equal(questHud.shell.questPanel.collapsed, false)
+    assert.ok(questHud.shell.questPanel.x !== initial.shell.questPanel.x)
+    assert.ok(questHud.shell.questPanel.y !== initial.shell.questPanel.y)
 
     const interacted = await interactWithMap(page, consoleErrors)
     assert.ok(interacted.map.interaction.selectedHex)
@@ -99,6 +108,7 @@ async function main() {
 
     const exported = await exerciseSaveReloadOfflineAndReset(page, firstPlayable, consoleErrors)
     assert.ok(exported.payload.length > 200)
+    await closeAdmin(page, consoleErrors)
 
     await assertNonBlankAppScreenshot(page)
     await assertNonBlankMapScreenshot(page)
@@ -282,6 +292,7 @@ function firstPlayableDigest(state) {
 }
 
 async function exerciseSaveReloadOfflineAndReset(page, advanced, consoleErrors) {
+  await openAdmin(page, consoleErrors)
   await page.locator("#export-save").click()
   const saved = await waitForTextState(
     page,
@@ -320,6 +331,7 @@ async function exerciseSaveReloadOfflineAndReset(page, advanced, consoleErrors) 
   )
   assert.ok(reloaded.snapshot.clockSeconds > exportedClock)
 
+  await openAdmin(page, consoleErrors)
   await page.locator("#save-payload").fill(payload)
   await page.locator("#import-save").click()
   const imported = await waitForTextState(
@@ -375,6 +387,79 @@ async function exerciseSaveReloadOfflineAndReset(page, advanced, consoleErrors) 
   )
 
   return { payload }
+}
+
+async function openAdmin(page, consoleErrors) {
+  const state = await renderGameToText(page)
+  if (state.shell?.adminOpen === true) return state
+
+  await page.locator("#open-admin").click()
+  await page.locator("#admin-view.open").waitFor({ state: "visible" })
+  await page.locator("#save-payload").waitFor({ state: "visible" })
+  return waitForTextState(
+    page,
+    (nextState) => nextState.shell?.adminOpen === true,
+    consoleErrors,
+  )
+}
+
+async function closeAdmin(page, consoleErrors) {
+  const state = await renderGameToText(page)
+  if (state.shell?.adminOpen !== true) return state
+
+  await page.locator("#close-admin").click()
+  return waitForTextState(
+    page,
+    (nextState) => nextState.shell?.adminOpen === false,
+    consoleErrors,
+  )
+}
+
+async function exerciseQuestHud(page, consoleErrors) {
+  const handle = page.locator(".first-playable-drag-handle")
+  await handle.waitFor({ state: "visible" })
+  const before = await renderGameToText(page)
+  assert.equal(before.shell?.questPanel?.collapsed, false)
+  const box = await handle.boundingBox()
+  assert.ok(box, "First playable drag handle should have a browser box")
+  const start = {
+    x: box.x + 24,
+    y: box.y + box.height / 2,
+  }
+
+  await page.mouse.move(start.x, start.y)
+  await page.mouse.down()
+  await page.mouse.move(start.x + 110, start.y + 42, { steps: 6 })
+  await page.mouse.up()
+
+  const dragged = await waitForTextState(
+    page,
+    (state) =>
+      Math.abs((state.shell?.questPanel?.x ?? 0) - before.shell.questPanel.x) > 20 &&
+      Math.abs((state.shell?.questPanel?.y ?? 0) - before.shell.questPanel.y) > 10,
+    consoleErrors,
+  )
+
+  await page.locator("#toggle-first-playable-panel").click()
+  await page.locator("#first-playable-action").waitFor({ state: "hidden" })
+  const collapsed = await waitForTextState(
+    page,
+    (state) => state.shell?.questPanel?.collapsed === true,
+    consoleErrors,
+  )
+  assert.equal(collapsed.shell.questPanel.x, dragged.shell.questPanel.x)
+  assert.equal(collapsed.shell.questPanel.y, dragged.shell.questPanel.y)
+
+  await page.locator("#toggle-first-playable-panel").click()
+  await page.locator("#first-playable-action").waitFor({ state: "visible" })
+  return waitForTextState(
+    page,
+    (state) =>
+      state.shell?.questPanel?.collapsed === false &&
+      state.shell.questPanel.x === dragged.shell.questPanel.x &&
+      state.shell.questPanel.y === dragged.shell.questPanel.y,
+    consoleErrors,
+  )
 }
 
 async function interactWithMap(page, consoleErrors) {
