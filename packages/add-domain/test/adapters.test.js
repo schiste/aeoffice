@@ -44,6 +44,16 @@ const terrain = map.layers.find((layer) => layer.id === "add.layer.terrain")
 const collision = map.layers.find((layer) => layer.id === "add.layer.collision")
 const bubble = map.layers.find((layer) => layer.id === "add.layer.bubble")
 assert.equal(terrain.cells.length, snapshot.hexes.length)
+const survivorCaveCell = terrain.cells.find((cell) => cell.tokenId === "tile.survivor_cave")
+assert.equal(survivorCaveCell.links.length, 1)
+assert.equal(survivorCaveCell.links[0].kind, "dungeon")
+assert.equal(survivorCaveCell.links[0].targetMapId, "add.rpg.square-dungeon-fixture")
+assert.deepEqual(survivorCaveCell.links[0].targetCoord, {
+  kind: "square",
+  x: 2,
+  y: 4,
+})
+assert.equal(survivorCaveCell.metadata.dungeonCount, 1)
 assert.equal(collision.cells.length, 1)
 assert.equal(collision.cells[0].coord.q, -1)
 assert.equal(bubble.cells.length, 3)
@@ -190,9 +200,16 @@ function createCatalogFixture() {
         "flora.reeds",
       ]),
       tile("tile.mountain_wall", "Mountain Wall", "mountain", "none", true),
-      tile("tile.survivor_cave", "Survivor Cave", "plains", "survivor_cave", false, [], [
-        "structure.cave",
-      ]),
+      tile(
+        "tile.survivor_cave",
+        "Survivor Cave",
+        "plains",
+        "survivor_cave",
+        false,
+        [],
+        ["structure.cave"],
+        ["dungeon.survivor_cave"],
+      ),
       tile("tile.plains_open", "Open Plains", "plains", "none", false),
     ],
     entitySchemas: [],
@@ -307,6 +324,7 @@ function tile(
   isBlocker,
   floraIds = [],
   structureIds = [],
+  dungeonIds = [],
 ) {
   return {
     id,
@@ -319,6 +337,7 @@ function tile(
     tags: isBlocker ? ["blocker"] : ["open_ground"],
     floraIds,
     structureIds,
+    dungeonIds,
     buildingCapacity: isBlocker ? 0 : 1,
   }
 }

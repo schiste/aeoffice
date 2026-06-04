@@ -225,6 +225,15 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   Phaser canvas screenshot. The standalone develop-web-game client was retried
   and still fails before launch because its skill-local script cannot resolve
   its own `playwright` ESM import.
+- ADD map playability now has a local main-character navigation layer:
+  `add.entity.hero` renders as a movable Phaser character, arrow/WASD keys move
+  it across non-blocked square/hex cells, and `render_game_to_text` exposes
+  character position, movement result, and local-preview authority.
+- Tile-to-dungeon data now enters through the neutral `GameCellPlacement.links`
+  model. The Rust ADD catalog exposes `dungeonIds`, the ADD domain adapter maps
+  Survivor Cave tiles to a dungeon link targeting the square dungeon fixture, and
+  Phaser renders a dungeon-entry glyph plus link telemetry for selected/occupied
+  cells.
 - ADD local dev was restarted on `http://127.0.0.1:8108/app/` and a browser
   readiness probe confirmed `runtime.ready`, `map.ready`, and no console/page
   errors. A systems parity audit now documents which ADD data/calculation

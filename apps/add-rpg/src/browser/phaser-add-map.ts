@@ -12,6 +12,7 @@ import {
 import {
   validateGameWorld,
   type GameCellPlacement,
+  type GameCellLink,
   type GameEntity,
   type GameMap,
   type GameWorld,
@@ -31,6 +32,16 @@ type AddTerrain =
   | "base_wall"
   | "unknown"
 type AddFeature = "none" | "base" | "survivor_cave" | string
+type AddCharacterMoveDirection = "up" | "right" | "down" | "left" | "north_east" | "south_west"
+
+interface AddDungeonLinkInfo {
+  readonly id: string
+  readonly kind: string
+  readonly label: string
+  readonly targetMapId: string
+  readonly targetCoord: string | null
+  readonly enabled: boolean
+}
 
 export interface AddPhaserMapInfo {
   readonly hostedBy: "phaser"
@@ -59,6 +70,26 @@ export interface AddPhaserMapInfo {
     readonly stabilized: number
     readonly blocked: number
     readonly bubbleEdge: number
+  }
+  readonly dungeonLinks: {
+    readonly total: number
+    readonly cellsWithLinks: number
+    readonly selected: readonly AddDungeonLinkInfo[]
+  }
+  readonly character: {
+    readonly id: string
+    readonly label: string
+    readonly visible: boolean
+    readonly coord: string | null
+    readonly cell: string | null
+    readonly x: number | null
+    readonly y: number | null
+    readonly moving: boolean
+    readonly lastMoveDirection: string | null
+    readonly lastMoveAccepted: boolean | null
+    readonly blockedReason: string | null
+    readonly dungeonLinksAtCell: readonly AddDungeonLinkInfo[]
+    readonly authority: "local_browser_navigation_preview"
   }
   readonly landmarks: {
     readonly baseCenter: string | null
@@ -106,6 +137,20 @@ interface RenderContext {
   readonly bubbleEdgeCoords: ReadonlySet<string>
   readonly baseCoord: CellCoord | null
   readonly survivorCaveCoord: CellCoord | null
+}
+
+interface CharacterObjectSet {
+  readonly shadow: Phaser.GameObjects.Ellipse
+  readonly body: Phaser.GameObjects.Ellipse
+  readonly head: Phaser.GameObjects.Ellipse
+  readonly scarf: Phaser.GameObjects.Triangle
+  readonly label: Phaser.GameObjects.Text
+}
+
+interface CharacterMoveStatus {
+  readonly direction: string | null
+  readonly accepted: boolean | null
+  readonly blockedReason: string | null
 }
 
 interface StateCounts {
@@ -172,6 +217,10 @@ export class AddRpgPhaserMapHost {
     this.scene.resetCamera()
   }
 
+  moveMainCharacter(direction: AddCharacterMoveDirection): boolean {
+    return this.scene.moveMainCharacter(direction)
+  }
+
   getInfo(): AddPhaserMapInfo {
     return this.scene.getInfo()
   }
@@ -187,6 +236,7 @@ class AddRpgHexScene extends Phaser.Scene {
   private overlayGraphics?: Phaser.GameObjects.Graphics
   private transitionGraphics?: Phaser.GameObjects.Graphics
   private landmarkObjects: Phaser.GameObjects.GameObject[] = []
+  private characterObjects?: CharacterObjectSet
   private pendingWorld?: GameWorld
   private context?: RenderContext
   private ready = false
@@ -202,6 +252,14 @@ class AddRpgHexScene extends Phaser.Scene {
   private dragStartScroll: Vector2 = { x: 0, y: 0 }
   private transitionState: "idle" | "entering" = "idle"
   private transitionProgress = 1
+  private characterCoord: CellCoord | null = null
+  private characterPosition: Vector2 | null = null
+  private characterTarget: Vector2 | null = null
+  private characterMoveStatus: CharacterMoveStatus = {
+    direction: null,
+    accepted: null,
+    blockedReason: null,
+  }
   private lastInfo: AddPhaserMapInfo = emptyMapInfo()
 
   constructor() {
@@ -224,6 +282,7 @@ class AddRpgHexScene extends Phaser.Scene {
     this.input.on("pointerdown", this.onPointerDown, this)
     this.input.on("pointerup", this.onPointerUp, this)
     this.input.on("wheel", this.onWheel, this)
+    this.input.keyboard?.on("keydown", this.onKeyDown, this)
     this.scale.on("resize", this.onResize, this)
     this.renderPendingWorld(true)
   }
@@ -235,6 +294,7 @@ class AddRpgHexScene extends Phaser.Scene {
       this.transitionProgress = clamp(this.transitionProgress + delta / 520, 0, 1)
       if (this.transitionProgress >= 1) this.transitionState = "idle"
     }
+    this.updateMainCharacter(delta)
     this.drawAmbience(this.context)
     this.drawOverlay()
     this.refreshInfo()
@@ -263,6 +323,73 @@ class AddRpgHexScene extends Phaser.Scene {
     this.refreshInfo()
   }
 
+  moveMainCharacter(direction: AddCharacterMoveDirection): boolean {
+    if (!this.context) {
+      this.characterMoveStatus = {
+        direction,
+        accepted: false,
+        blockedReason: "map_not_ready",
+      }
+      this.refreshInfo()
+      return false
+    }
+
+    this.syncMainCharacter(this.context, false)
+    if (!this.characterCoord) {
+      this.characterMoveStatus = {
+        direction,
+        accepted: false,
+        blockedReason: "no_character_coord",
+      }
+      this.refreshInfo()
+      return false
+    }
+
+    const nextCoord = nextCharacterCoord(this.characterCoord, direction, this.context)
+    if (!nextCoord) {
+      this.characterMoveStatus = {
+        direction,
+        accepted: false,
+        blockedReason: "unsupported_direction",
+      }
+      this.refreshInfo()
+      return false
+    }
+
+    const nextCell = this.context.terrainByCoord.get(coordKey(nextCoord))
+    if (!nextCell) {
+      this.characterMoveStatus = {
+        direction,
+        accepted: false,
+        blockedReason: "outside_map",
+      }
+      this.refreshInfo()
+      return false
+    }
+    if (nextCell.blocked || stateForCell(nextCell) === "blocked") {
+      this.characterMoveStatus = {
+        direction,
+        accepted: false,
+        blockedReason: "blocked_tile",
+      }
+      this.drawOverlay()
+      this.refreshInfo()
+      return false
+    }
+
+    this.characterCoord = nextCoord
+    this.characterTarget = centerFor(nextCoord, this.context)
+    this.selectedCoord = nextCoord
+    this.characterMoveStatus = {
+      direction,
+      accepted: true,
+      blockedReason: null,
+    }
+    this.drawOverlay()
+    this.refreshInfo()
+    return true
+  }
+
   getInfo(): AddPhaserMapInfo {
     this.refreshInfo()
     return this.lastInfo
@@ -284,9 +411,13 @@ class AddRpgHexScene extends Phaser.Scene {
       return
     }
 
-    if (this.lastRenderedMapId !== map.id) {
+    const mapChanged = this.lastRenderedMapId !== map.id
+    if (mapChanged) {
       this.hoveredCoord = null
       this.selectedCoord = null
+      this.characterCoord = null
+      this.characterPosition = null
+      this.characterTarget = null
       this.cameraInitialized = false
       this.lastRenderedMapId = map.id
       this.transitionState = "entering"
@@ -297,6 +428,7 @@ class AddRpgHexScene extends Phaser.Scene {
     this.drawTerrain(this.context)
     this.drawAmbience(this.context)
     this.drawLandmarks(this.context)
+    this.syncMainCharacter(this.context, mapChanged)
     this.drawOverlay()
     this.renderCount += 1
 
@@ -369,6 +501,7 @@ class AddRpgHexScene extends Phaser.Scene {
       graphics.fillStyle(style.accent, 0.52)
       graphics.fillCircle(center.x, center.y, 2.4)
     }
+    if (hasDungeonLinks(cell)) this.drawDungeonLinkGlyph(graphics, center, cellSize * 0.62)
   }
 
   private drawHexTerrainCell(
@@ -408,6 +541,43 @@ class AddRpgHexScene extends Phaser.Scene {
       graphics.fillStyle(edge ? 0x45c8ff : style.accent, edge ? 0.82 : 0.48)
       graphics.fillCircle(center.x, center.y, edge ? 3.8 : 2.4)
     }
+    if (hasDungeonLinks(cell)) this.drawDungeonLinkGlyph(graphics, center, radius * 0.86)
+  }
+
+  private drawDungeonLinkGlyph(
+    graphics: Phaser.GameObjects.Graphics,
+    center: Vector2,
+    size: number,
+  ): void {
+    const width = Math.max(11, size * 0.42)
+    const height = Math.max(12, size * 0.48)
+    const y = center.y + size * 0.08
+    graphics.fillStyle(0x1e1612, 0.34)
+    graphics.fillEllipse(center.x, y + height * 0.54, width * 1.45, height * 0.42)
+    graphics.fillStyle(0x9b5637, 0.88)
+    graphics.fillTriangle(
+      center.x - width * 0.62,
+      y + height * 0.12,
+      center.x,
+      y - height * 0.58,
+      center.x + width * 0.62,
+      y + height * 0.12,
+    )
+    graphics.fillRect(center.x - width * 0.55, y + height * 0.04, width * 1.1, height * 0.54)
+    graphics.lineStyle(2.2, 0x4b2a1d, 0.82)
+    graphics.strokeTriangle(
+      center.x - width * 0.62,
+      y + height * 0.12,
+      center.x,
+      y - height * 0.58,
+      center.x + width * 0.62,
+      y + height * 0.12,
+    )
+    graphics.strokeRect(center.x - width * 0.55, y + height * 0.04, width * 1.1, height * 0.54)
+    graphics.fillStyle(0x241611, 0.78)
+    graphics.fillEllipse(center.x, y + height * 0.18, width * 0.54, height * 0.55)
+    graphics.lineStyle(1.2, 0xf0b95d, 0.55)
+    graphics.strokeEllipse(center.x, y + height * 0.18, width * 0.62, height * 0.64)
   }
 
   private drawTerrainMotif(
@@ -465,6 +635,94 @@ class AddRpgHexScene extends Phaser.Scene {
       }
       this.drawLandmark(center, entity)
     }
+  }
+
+  private syncMainCharacter(context: RenderContext, forceReset: boolean): void {
+    const currentValid =
+      this.characterCoord?.kind === context.topologyKind &&
+      context.terrainByCoord.has(coordKey(this.characterCoord))
+    if (forceReset || !currentValid) {
+      this.characterCoord = initialCharacterCoord(context)
+      this.characterMoveStatus = {
+        direction: null,
+        accepted: null,
+        blockedReason: null,
+      }
+    }
+
+    if (!this.characterCoord) return
+    const center = centerFor(this.characterCoord, context)
+    if (!this.characterPosition || forceReset) {
+      this.characterPosition = center
+    }
+    this.characterTarget = center
+    this.ensureMainCharacterObjects()
+    this.updateMainCharacterObjects()
+  }
+
+  private updateMainCharacter(delta: number): void {
+    if (!this.context) return
+    this.syncMainCharacter(this.context, false)
+    if (!this.characterPosition || !this.characterTarget) return
+
+    const distance = distanceBetween(this.characterPosition, this.characterTarget)
+    if (distance <= 0.25) {
+      this.characterPosition = this.characterTarget
+      this.updateMainCharacterObjects()
+      return
+    }
+
+    const travel = Math.min(1, delta / 145)
+    this.characterPosition = {
+      x: Phaser.Math.Linear(this.characterPosition.x, this.characterTarget.x, travel),
+      y: Phaser.Math.Linear(this.characterPosition.y, this.characterTarget.y, travel),
+    }
+    this.updateMainCharacterObjects()
+  }
+
+  private ensureMainCharacterObjects(): void {
+    if (this.characterObjects) return
+
+    const shadow = this.add.ellipse(0, 0, 24, 8, 0x101815, 0.25)
+    const body = this.add.ellipse(0, 0, 18, 22, 0x2f7d68, 0.98)
+    const head = this.add.ellipse(0, 0, 12, 12, 0xf1d0a5, 0.98)
+    const scarf = this.add.triangle(0, 0, 0, -8, 14, 0, 0, 8, 0xe6a84e, 0.96)
+    const label = this.add.text(0, 0, "Hero", {
+      color: "#16221e",
+      fontFamily: "Aptos, Segoe UI, sans-serif",
+      fontSize: "12px",
+      fontStyle: "800",
+      align: "center",
+      backgroundColor: "rgba(255, 250, 226, 0.9)",
+      stroke: "rgba(255, 255, 255, 0.54)",
+      strokeThickness: 2,
+      padding: { x: 6, y: 3 },
+    })
+    setCrispText(label)
+    label.setOrigin(0.5, 0.5)
+
+    shadow.setDepth(44)
+    body.setDepth(45)
+    head.setDepth(46)
+    scarf.setDepth(47)
+    label.setDepth(48)
+    this.characterObjects = { shadow, body, head, scarf, label }
+  }
+
+  private updateMainCharacterObjects(): void {
+    if (!this.characterObjects || !this.characterPosition) return
+    const { x, y } = this.characterPosition
+    const bob = Math.sin(this.frameCount / 5) * (this.characterIsMoving() ? 1.8 : 0.5)
+    this.characterObjects.shadow.setPosition(x, y + 14)
+    this.characterObjects.body.setPosition(x, y + 2 + bob)
+    this.characterObjects.head.setPosition(x, y - 12 + bob)
+    this.characterObjects.scarf.setPosition(x + 7, y + 1 + bob)
+    this.characterObjects.label.setPosition(x, y - 36 + bob * 0.35)
+  }
+
+  private characterIsMoving(): boolean {
+    if (!this.characterPosition || !this.characterTarget) return false
+    return distanceBetween(this.characterPosition, this.characterTarget) > 0.35
   }
 
   private drawFlora(center: Vector2, entity: GameEntity): void {
@@ -719,6 +977,13 @@ class AddRpgHexScene extends Phaser.Scene {
     this.renderPendingWorld(true)
   }
 
+  private onKeyDown(event: KeyboardEvent): void {
+    const direction = directionForKey(event.key)
+    if (!direction) return
+    event.preventDefault()
+    this.moveMainCharacter(direction)
+  }
+
   private coordAtPointer(pointer: Phaser.Input.Pointer): CellCoord | null {
     const context = this.context
     if (!context) return null
@@ -765,6 +1030,33 @@ class AddRpgHexScene extends Phaser.Scene {
         stabilized: context.stateCounts.stabilized,
         blocked: context.stateCounts.blocked,
         bubbleEdge: context.bubbleEdgeCoords.size,
+      },
+      dungeonLinks: {
+        total: context.terrainCells.reduce(
+          (count, cell) => count + dungeonLinksForCell(cell).length,
+          0,
+        ),
+        cellsWithLinks: context.terrainCells.filter(hasDungeonLinks).length,
+        selected: this.selectedCoord
+          ? dungeonLinksForCoord(this.selectedCoord, context).map(dungeonLinkInfo)
+          : [],
+      },
+      character: {
+        id: "add.entity.hero",
+        label: "Hero",
+        visible: this.characterCoord !== null && this.characterPosition !== null,
+        coord: this.characterCoord ? displayCoord(this.characterCoord) : null,
+        cell: this.characterCoord ? displayCell(this.characterCoord) : null,
+        x: this.characterPosition ? round(this.characterPosition.x) : null,
+        y: this.characterPosition ? round(this.characterPosition.y) : null,
+        moving: this.characterIsMoving(),
+        lastMoveDirection: this.characterMoveStatus.direction,
+        lastMoveAccepted: this.characterMoveStatus.accepted,
+        blockedReason: this.characterMoveStatus.blockedReason,
+        dungeonLinksAtCell: this.characterCoord
+          ? dungeonLinksForCoord(this.characterCoord, context).map(dungeonLinkInfo)
+          : [],
+        authority: "local_browser_navigation_preview",
       },
       landmarks: {
         baseCenter: context.baseCoord ? displayCoord(context.baseCoord) : null,
@@ -1006,12 +1298,135 @@ function progressForCell(cell: GameCellPlacement): number {
 function labelForCoord(coord: CellCoord, context: RenderContext): string | null {
   const cell = context.terrainByCoord.get(coordKey(coord))
   if (!cell) return null
+  const dungeonLinks = dungeonLinksForCell(cell)
   const feature = featureForCell(cell)
-  if (feature === "base") return "Studio"
-  if (feature === "base_core") return "Base Core"
-  if (feature === "survivor_cave") return "Survivor Cave"
-  if (feature !== "none") return titleCase(feature)
-  return `${titleCase(stateForCell(cell))} ${titleCase(terrainForCell(cell))}`
+  const baseLabel =
+    feature === "base"
+      ? "Studio"
+      : feature === "base_core"
+        ? "Base Core"
+        : feature === "survivor_cave"
+          ? "Survivor Cave"
+          : feature !== "none"
+            ? titleCase(feature)
+            : `${titleCase(stateForCell(cell))} ${titleCase(terrainForCell(cell))}`
+
+  if (dungeonLinks.length === 0) return baseLabel
+  return `${baseLabel} -> ${dungeonLinks.map((link) => link.label ?? link.id).join(", ")}`
+}
+
+function initialCharacterCoord(context: RenderContext): CellCoord | null {
+  const hero = context.map.entities.find((entity) => entity.kind === "hero" && entity.coord)
+  if (
+    hero?.coord &&
+    hero.coord.kind === context.topologyKind &&
+    context.terrainByCoord.has(coordKey(hero.coord))
+  ) {
+    return hero.coord
+  }
+  if (context.baseCoord && context.terrainByCoord.has(coordKey(context.baseCoord))) {
+    return context.baseCoord
+  }
+  return (
+    context.terrainCells.find((cell) => !cell.blocked && stateForCell(cell) !== "blocked")
+      ?.coord ?? null
+  )
+}
+
+function nextCharacterCoord(
+  coord: CellCoord,
+  direction: AddCharacterMoveDirection,
+  context: RenderContext,
+): CellCoord | null {
+  if (coord.kind === "square" && context.squareTopology) {
+    const next =
+      direction === "up"
+        ? { kind: "square" as const, x: coord.x, y: coord.y - 1 }
+        : direction === "right" || direction === "north_east"
+          ? { kind: "square" as const, x: coord.x + 1, y: coord.y }
+          : direction === "down"
+            ? { kind: "square" as const, x: coord.x, y: coord.y + 1 }
+            : direction === "left" || direction === "south_west"
+              ? { kind: "square" as const, x: coord.x - 1, y: coord.y }
+              : null
+    return next && context.squareTopology.inBounds(next) ? next : null
+  }
+
+  if (coord.kind === "hex" && context.hexTopology) {
+    const next =
+      direction === "up"
+        ? { kind: "hex" as const, q: coord.q, r: coord.r - 1 }
+        : direction === "north_east"
+          ? { kind: "hex" as const, q: coord.q + 1, r: coord.r - 1 }
+          : direction === "right"
+            ? { kind: "hex" as const, q: coord.q + 1, r: coord.r }
+            : direction === "down"
+              ? { kind: "hex" as const, q: coord.q, r: coord.r + 1 }
+              : direction === "south_west"
+                ? { kind: "hex" as const, q: coord.q - 1, r: coord.r + 1 }
+                : direction === "left"
+                  ? { kind: "hex" as const, q: coord.q - 1, r: coord.r }
+                  : null
+    return next && context.hexTopology.inBounds(next) ? next : null
+  }
+
+  return null
+}
+
+function directionForKey(key: string): AddCharacterMoveDirection | null {
+  switch (key) {
+    case "ArrowUp":
+    case "w":
+    case "W":
+      return "up"
+    case "ArrowRight":
+    case "d":
+    case "D":
+      return "right"
+    case "ArrowDown":
+    case "s":
+    case "S":
+      return "down"
+    case "ArrowLeft":
+    case "a":
+    case "A":
+      return "left"
+    case "e":
+    case "E":
+      return "north_east"
+    case "q":
+    case "Q":
+      return "south_west"
+    default:
+      return null
+  }
+}
+
+function hasDungeonLinks(cell: GameCellPlacement): boolean {
+  return dungeonLinksForCell(cell).length > 0
+}
+
+function dungeonLinksForCell(cell: GameCellPlacement): readonly GameCellLink[] {
+  return (cell.links ?? []).filter((link) => link.kind === "dungeon")
+}
+
+function dungeonLinksForCoord(
+  coord: CellCoord,
+  context: RenderContext,
+): readonly GameCellLink[] {
+  const cell = context.terrainByCoord.get(coordKey(coord))
+  return cell ? dungeonLinksForCell(cell) : []
+}
+
+function dungeonLinkInfo(link: GameCellLink): AddDungeonLinkInfo {
+  return {
+    id: link.id,
+    kind: link.kind,
+    label: link.label ?? link.id,
+    targetMapId: link.targetMapId,
+    targetCoord: link.targetCoord ? displayCell(link.targetCoord) : null,
+    enabled: link.enabled ?? true,
+  }
 }
 
 function centerFor(coord: CellCoord, context: RenderContext): Vector2 {
@@ -1075,6 +1490,12 @@ function hashCoord(coord: CellCoord): number {
   const second = coord.kind === "hex" ? coord.r : coord.y
   const value = Math.imul(first + 97, 73856093) ^ Math.imul(second - 31, 19349663)
   return Math.abs(value)
+}
+
+function distanceBetween(a: Vector2, b: Vector2): number {
+  const dx = a.x - b.x
+  const dy = a.y - b.y
+  return Math.sqrt(dx * dx + dy * dy)
 }
 
 function numberMetadata(
@@ -1172,6 +1593,26 @@ function emptyMapInfo(): AddPhaserMapInfo {
       stabilized: 0,
       blocked: 0,
       bubbleEdge: 0,
+    },
+    dungeonLinks: {
+      total: 0,
+      cellsWithLinks: 0,
+      selected: [],
+    },
+    character: {
+      id: "add.entity.hero",
+      label: "Hero",
+      visible: false,
+      coord: null,
+      cell: null,
+      x: null,
+      y: null,
+      moving: false,
+      lastMoveDirection: null,
+      lastMoveAccepted: null,
+      blockedReason: null,
+      dungeonLinksAtCell: [],
+      authority: "local_browser_navigation_preview",
     },
     landmarks: {
       baseCenter: null,

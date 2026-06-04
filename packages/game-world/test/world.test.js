@@ -45,7 +45,19 @@ const validWorld = {
           kind: "terrain",
           cells: [
             { coord: squareCoord(0, 0), tokenId: "tile.floor" },
-            { coord: squareCoord(1, 0), tokenId: "tile.floor" },
+            {
+              coord: squareCoord(1, 0),
+              tokenId: "tile.floor",
+              links: [
+                {
+                  id: "link.square-room.hex-overworld",
+                  kind: "map",
+                  label: "Hex overworld",
+                  targetMapId: "map.hex-overworld",
+                  targetCoord: hexCoord(1, -1),
+                },
+              ],
+            },
           ],
         },
         {
@@ -181,7 +193,18 @@ const invalidWorld = {
         {
           id: "layer.bad",
           kind: "terrain",
-          cells: [{ coord: hexCoord(0, 0) }],
+          cells: [
+            {
+              coord: hexCoord(0, 0),
+              links: [
+                {
+                  id: "",
+                  kind: "",
+                  targetMapId: "",
+                },
+              ],
+            },
+          ],
         },
         {
           id: "layer.bad",
@@ -246,6 +269,7 @@ assert.ok(invalid.errors.some((error) => /cellSize must be positive/.test(error)
 assert.ok(invalid.errors.some((error) => /layer ids contain duplicates/.test(error)))
 assert.ok(invalid.errors.some((error) => /entity ids contain duplicates/.test(error)))
 assert.ok(invalid.errors.some((error) => /Layer cells outside topology/.test(error)))
+assert.ok(invalid.errors.some((error) => /Cell link errors/.test(error)))
 assert.ok(invalid.errors.some((error) => /Entity coordinate\/layer errors/.test(error)))
 assert.ok(invalid.errors.some((error) => /Zone cell errors/.test(error)))
 assert.ok(invalid.errors.some((error) => /Interaction target errors/.test(error)))

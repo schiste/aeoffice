@@ -1042,6 +1042,14 @@ async function importSaveText(): Promise<void> {
     setStorageError("Paste a save payload before importing.")
     return
   }
+  try {
+    JSON.parse(payload)
+  } catch {
+    setLastEvent("error")
+    setLastError("Save payload is not valid JSON.")
+    setStorageError("Save payload is not valid JSON.")
+    return
+  }
 
   queuedOfflineCatchupSeconds = 0
   await sendAndWaitForSnapshot(() => {
@@ -1615,6 +1623,26 @@ function emptyMapInfo(): AddPhaserMapInfo {
       stabilized: 0,
       blocked: 0,
       bubbleEdge: 0,
+    },
+    dungeonLinks: {
+      total: 0,
+      cellsWithLinks: 0,
+      selected: [],
+    },
+    character: {
+      id: "add.entity.hero",
+      label: "Hero",
+      visible: false,
+      coord: null,
+      cell: null,
+      x: null,
+      y: null,
+      moving: false,
+      lastMoveDirection: null,
+      lastMoveAccepted: null,
+      blockedReason: null,
+      dungeonLinksAtCell: [],
+      authority: "local_browser_navigation_preview",
     },
     landmarks: {
       baseCenter: null,

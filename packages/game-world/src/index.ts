@@ -14,6 +14,7 @@ import {
 export type GameMapTopologyKind = CellCoord["kind"]
 export type GameLayerKind = "terrain" | "objects" | "overlay" | "collision"
 export type GameInteractionTargetKind = "entity" | "zone" | "map"
+export type GameCellLinkKind = "dungeon" | "portal" | "map" | string
 export type GamePrimitiveValue = string | number | boolean
 export type GameMetadata = Readonly<Record<string, GamePrimitiveValue>>
 
@@ -70,6 +71,17 @@ export interface GameCellPlacement {
   readonly tokenId?: string
   readonly value?: GamePrimitiveValue
   readonly blocked?: boolean
+  readonly links?: readonly GameCellLink[]
+  readonly metadata?: GameMetadata
+}
+
+export interface GameCellLink {
+  readonly id: string
+  readonly kind: GameCellLinkKind
+  readonly targetMapId: string
+  readonly label?: string
+  readonly targetCoord?: CellCoord
+  readonly enabled?: boolean
   readonly metadata?: GameMetadata
 }
 
@@ -133,6 +145,7 @@ export type GameWorldValidationCheckId =
   | "zone_ids"
   | "interaction_ids"
   | "layer_cells"
+  | "cell_links"
   | "entity_coords"
   | "zone_cells"
   | "interaction_targets"
@@ -177,6 +190,7 @@ export function validateGameWorld(world: GameWorld): GameWorldValidation {
     validateMapCoordinates(map, fail, pass)
     validateInteractions(map, fail, pass)
   }
+  validateCellLinks(world, fail, pass)
 
   return {
     valid: errors.length === 0,
@@ -186,6 +200,56 @@ export function validateGameWorld(world: GameWorld): GameWorldValidation {
       errors.length === 0
         ? `GameWorld ${world.id} is valid with ${world.maps.length} map(s).`
         : `GameWorld ${world.id || "(missing id)"} has ${errors.length} validation error(s).`,
+  }
+}
+
+function validateCellLinks(
+  world: GameWorld,
+  fail: (id: GameWorldValidationCheckId, message: string) => void,
+  pass: (id: GameWorldValidationCheckId, message: string) => void,
+): void {
+  const mapById = new Map(world.maps.map((map) => [map.id, map]))
+  const errors: string[] = []
+
+  for (const map of world.maps) {
+    for (const layer of map.layers) {
+      for (const cell of layer.cells ?? []) {
+        const linkIds = new Set<string>()
+        for (const link of cell.links ?? []) {
+          const source = `${map.id}:${layer.id}:${formatCoord(cell.coord)}`
+          if (link.id.trim() === "") {
+            errors.push(`${source}:empty-link-id`)
+          }
+          if (linkIds.has(link.id)) {
+            errors.push(`${source}:duplicate-link:${link.id}`)
+          }
+          linkIds.add(link.id)
+          if (link.kind.trim() === "") {
+            errors.push(`${source}:${link.id}:empty-kind`)
+          }
+          if (link.targetMapId.trim() === "") {
+            errors.push(`${source}:${link.id}:empty-target-map`)
+          }
+
+          const targetMap = mapById.get(link.targetMapId)
+          if (
+            targetMap &&
+            link.targetCoord &&
+            !coordInTopologyBounds(link.targetCoord, targetMap.topology)
+          ) {
+            errors.push(
+              `${source}:${link.id}:target-out-of-bounds:${formatCoord(link.targetCoord)}`,
+            )
+          }
+        }
+      }
+    }
+  }
+
+  if (errors.length > 0) {
+    fail("cell_links", `Cell link errors: ${errors.join(", ")}.`)
+  } else {
+    pass("cell_links", `GameWorld ${world.id} cell links are structurally valid.`)
   }
 }
 

@@ -269,6 +269,7 @@ export interface TileDef {
   tags: TileTag[]
   floraIds: string[]
   structureIds: string[]
+  dungeonIds: string[]
   buildingCapacity: number
 }
 

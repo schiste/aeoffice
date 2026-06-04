@@ -61,6 +61,10 @@ async function main() {
         state.map?.cells?.total === state.snapshot.hexCount &&
         state.map?.cells?.bubbleEdge > 0 &&
         state.map?.cells?.stabilized > 0 &&
+        state.map?.dungeonLinks?.total > 0 &&
+        state.map?.dungeonLinks?.cellsWithLinks > 0 &&
+        state.map?.character?.visible === true &&
+        state.map?.character?.authority === "local_browser_navigation_preview" &&
         state.map?.landmarks?.studioLabelVisible === true &&
         state.map?.landmarks?.survivorCaveVisible === true &&
         state.map?.authority?.rules === "rust_wasm_snapshot" &&
@@ -85,6 +89,8 @@ async function main() {
     assert.equal(questHud.shell.questPanel.collapsed, false)
     assert.ok(questHud.shell.questPanel.x !== initial.shell.questPanel.x)
     assert.ok(questHud.shell.questPanel.y !== initial.shell.questPanel.y)
+    const characterMoved = await exerciseMainCharacterMovement(page, consoleErrors)
+    assert.equal(characterMoved.map.character.lastMoveAccepted, true)
 
     const interacted = await interactWithMap(page, consoleErrors)
     assert.ok(interacted.map.interaction.selectedHex)
@@ -460,6 +466,33 @@ async function exerciseQuestHud(page, consoleErrors) {
       state.shell.questPanel.y === dragged.shell.questPanel.y,
     consoleErrors,
   )
+}
+
+async function exerciseMainCharacterMovement(page, consoleErrors) {
+  const before = await renderGameToText(page)
+  assert.equal(before.map?.character?.visible, true)
+  assert.ok(before.map?.character?.cell, "Main character should report a cell")
+
+  await page.keyboard.press("ArrowRight")
+  const moved = await waitForTextState(
+    page,
+    (state) =>
+      state.map?.character?.lastMoveDirection === "right" &&
+      state.map?.character?.lastMoveAccepted === true &&
+      state.map?.character?.cell !== before.map.character.cell,
+    consoleErrors,
+  )
+
+  await page.keyboard.press("ArrowLeft")
+  await waitForTextState(
+    page,
+    (state) =>
+      state.map?.character?.lastMoveDirection === "left" &&
+      state.map?.character?.lastMoveAccepted === true,
+    consoleErrors,
+  )
+
+  return moved
 }
 
 async function interactWithMap(page, consoleErrors) {

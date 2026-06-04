@@ -81,6 +81,8 @@ pub const TILE_RIDGE_LINE: &str = "tile.ridge_line";
 pub const TILE_MOUNTAIN_WALL: &str = "tile.mountain_wall";
 pub const TILE_SURVIVOR_CAVE: &str = "tile.survivor_cave";
 
+pub const DUNGEON_SURVIVOR_CAVE: &str = "dungeon.survivor_cave";
+
 pub const FLORA_REEDS: &str = "flora.reeds";
 pub const FLORA_SCRUB: &str = "flora.scrub";
 
@@ -960,6 +962,7 @@ pub struct TileDef {
     pub tags: &'static [TileTag],
     pub flora_ids: &'static [&'static str],
     pub structure_ids: &'static [&'static str],
+    pub dungeon_ids: &'static [&'static str],
     pub building_capacity: u8,
 }
 
@@ -1951,6 +1954,7 @@ const TILES: &[TileDef] = &[
         tags: TILE_TAGS_BASE,
         flora_ids: &[],
         structure_ids: &[STRUCTURE_CRYSTAL_CIRCLE, STRUCTURE_BASE],
+        dungeon_ids: &[],
         building_capacity: 3,
     },
     TileDef {
@@ -1964,6 +1968,7 @@ const TILES: &[TileDef] = &[
         tags: TILE_TAGS_PLAINS,
         flora_ids: &[],
         structure_ids: &[],
+        dungeon_ids: &[],
         building_capacity: 1,
     },
     TileDef {
@@ -1977,6 +1982,7 @@ const TILES: &[TileDef] = &[
         tags: TILE_TAGS_RIVER,
         flora_ids: &[FLORA_REEDS],
         structure_ids: &[],
+        dungeon_ids: &[],
         building_capacity: 0,
     },
     TileDef {
@@ -1990,6 +1996,7 @@ const TILES: &[TileDef] = &[
         tags: TILE_TAGS_SCRUB,
         flora_ids: &[FLORA_SCRUB],
         structure_ids: &[],
+        dungeon_ids: &[],
         building_capacity: 1,
     },
     TileDef {
@@ -2003,6 +2010,7 @@ const TILES: &[TileDef] = &[
         tags: TILE_TAGS_RIDGE,
         flora_ids: &[],
         structure_ids: &[],
+        dungeon_ids: &[],
         building_capacity: 0,
     },
     TileDef {
@@ -2016,6 +2024,7 @@ const TILES: &[TileDef] = &[
         tags: TILE_TAGS_MOUNTAIN,
         flora_ids: &[],
         structure_ids: &[],
+        dungeon_ids: &[],
         building_capacity: 0,
     },
     TileDef {
@@ -2029,6 +2038,7 @@ const TILES: &[TileDef] = &[
         tags: TILE_TAGS_CAVE,
         flora_ids: &[],
         structure_ids: &[STRUCTURE_CAVE],
+        dungeon_ids: &[DUNGEON_SURVIVOR_CAVE],
         building_capacity: 0,
     },
 ];

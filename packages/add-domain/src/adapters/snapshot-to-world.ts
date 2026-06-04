@@ -1,5 +1,6 @@
 import type {
   GameCellPlacement,
+  GameCellLink,
   GameEntity,
   GameInteraction,
   GameMap,
@@ -31,6 +32,8 @@ const TERRAIN_LAYER_ID = "add.layer.terrain"
 const COLLISION_LAYER_ID = "add.layer.collision"
 const BUBBLE_LAYER_ID = "add.layer.bubble"
 const OBJECT_LAYER_ID = "add.layer.landmarks"
+const SURVIVOR_CAVE_DUNGEON_ID = "dungeon.survivor_cave"
+const SURVIVOR_CAVE_DUNGEON_MAP_ID = "add.rpg.square-dungeon-fixture"
 
 export function addSnapshotToGameWorld(
   snapshot: SimulationSnapshot,
@@ -120,10 +123,12 @@ export function terrainLayerCells(
   const indexes = createAddCatalogIndexes(catalog)
   return snapshot.hexes.map((hex) => {
     const tile = indexes.tilesById.get(hex.tileId)
+    const links = dungeonLinksForTile(hex, tile)
     return {
       coord: hexCoord(hex),
       tokenId: hex.tileId,
       blocked: tile?.isBlocker ?? hex.state === "blocked",
+      ...(links.length > 0 ? { links } : {}),
       metadata: tileMetadata(hex, tile),
     }
   })
@@ -413,7 +418,51 @@ function tileMetadata(hex: HexSnapshot, tile: TileDef | undefined): GameMetadata
     feature: tile?.feature ?? "none",
     impedance: tile?.impedance ?? 0,
     isBlocker: tile?.isBlocker ?? hex.state === "blocked",
+    dungeonCount: tile?.dungeonIds.length ?? 0,
   }
+}
+
+function dungeonLinksForTile(
+  hex: HexSnapshot,
+  tile: TileDef | undefined,
+): readonly GameCellLink[] {
+  if (!tile || tile.dungeonIds.length === 0) return []
+
+  return tile.dungeonIds.map((dungeonId) => ({
+    id: `add.link.${dungeonId}.${hex.q}.${hex.r}`,
+    kind: "dungeon",
+    targetMapId: targetMapIdForDungeon(dungeonId),
+    targetCoord: targetEntryCoordForDungeon(dungeonId),
+    label: labelForDungeon(dungeonId),
+    enabled: hex.state !== "inactive" && hex.state !== "blocked",
+    metadata: {
+      dungeonId,
+      homeTileId: tile.id,
+      homeCoord: `${hex.q},${hex.r}`,
+    },
+  }))
+}
+
+function targetMapIdForDungeon(dungeonId: string): string {
+  return dungeonId === SURVIVOR_CAVE_DUNGEON_ID
+    ? SURVIVOR_CAVE_DUNGEON_MAP_ID
+    : `add.rpg.dungeon.${dungeonId.replace(/^dungeon\./, "").replace(/_/g, "-")}`
+}
+
+function targetEntryCoordForDungeon(dungeonId: string) {
+  return dungeonId === SURVIVOR_CAVE_DUNGEON_ID
+    ? { kind: "square" as const, x: 2, y: 4 }
+    : undefined
+}
+
+function labelForDungeon(dungeonId: string): string {
+  if (dungeonId === SURVIVOR_CAVE_DUNGEON_ID) return "Survivor Cave Dungeon"
+  return dungeonId
+    .replace(/^dungeon\./, "")
+    .split(/[_-]+/)
+    .filter(Boolean)
+    .map((part) => `${part.slice(0, 1).toUpperCase()}${part.slice(1)}`)
+    .join(" ")
 }
 
 function hexBoundsFor(hexes: readonly HexSnapshot[]) {
