@@ -306,6 +306,9 @@ interface TravelRevealPreview {
   readonly progress: number
   readonly cells: ReadonlySet<string>
   readonly destinationCell: string | null
+  readonly center: Vector2 | null
+  readonly radius: number
+  readonly feather: number
 }
 
 const DEFAULT_RADIUS = 28
@@ -313,6 +316,8 @@ const MIN_ZOOM = 0.55
 const MAX_ZOOM = 2.2
 const KEY_CHORD_DELAY_MS = 55
 const REVEAL_TRANSITION_MS = 1180
+const TRAVEL_REVEAL_HALO_RADIUS_MULTIPLIER = 1.95
+const TRAVEL_REVEAL_HALO_FEATHER_MULTIPLIER = 0.90
 const VISIBILITY_POLISH: AddPhaserMapInfo["presentation"]["visibilityPolish"] = {
   fogEdge: "soft_feathered_visibility_boundary",
   revealEffect: "expanding_ripple",
@@ -1175,6 +1180,10 @@ class AddRpgHexScene extends Phaser.Scene {
       this.drawRevealTransition(graphics, cell, context, progress)
       if (progress >= 1) this.revealTransitions.delete(key)
     }
+
+    if (travelRevealPreview.active && travelRevealPreview.center) {
+      this.drawTravelRevealHalo(graphics, context, travelRevealPreview)
+    }
   }
 
   private drawSquareFogCell(
@@ -1316,21 +1325,40 @@ class AddRpgHexScene extends Phaser.Scene {
     graphics.strokePath()
   }
 
+  private drawTravelRevealHalo(
+    graphics: Phaser.GameObjects.Graphics,
+    context: RenderContext,
+    preview: TravelRevealPreview,
+  ): void {
+    if (!preview.center) return
+    const progressAlpha = smoothStep(clamp(preview.progress / 0.22, 0, 1))
+    const pulse = (Math.sin(this.frameCount / 7) + 1) / 2
+    const radius = preview.radius + preview.feather * 0.42 + pulse * 1.8
+    graphics.fillStyle(0xf7dda0, 0.045 * progressAlpha)
+    graphics.fillCircle(preview.center.x, preview.center.y, radius)
+    graphics.lineStyle(1.6, 0xf5d36c, 0.20 * progressAlpha)
+    graphics.strokeCircle(preview.center.x, preview.center.y, radius * 0.72)
+    if (context.topologyKind === "hex") {
+      graphics.lineStyle(1.1, 0xffffff, 0.10 * progressAlpha)
+      graphics.strokeCircle(preview.center.x, preview.center.y, radius * 0.42)
+    }
+  }
+
   private travelRevealPreviewForContext(context: RenderContext): TravelRevealPreview {
     const travel = this.characterTravel
-    if (!travel || travel.toCoord.kind !== context.topologyKind) {
-      return {
-        active: false,
-        progress: 0,
-        cells: new Set<string>(),
-        destinationCell: null,
-      }
+    const characterCenter = this.characterPosition
+    if (!travel || !characterCenter || travel.toCoord.kind !== context.topologyKind) {
+      return inactiveTravelRevealPreview()
     }
 
+    const baseRadius = visualCellRadius(context)
+    const haloRadius = baseRadius * TRAVEL_REVEAL_HALO_RADIUS_MULTIPLIER
+    const haloFeather = baseRadius * TRAVEL_REVEAL_HALO_FEATHER_MULTIPLIER
     const cells = new Set<string>()
     for (const cell of context.terrainCells) {
-      const distance = topologyDistance(context, cell.coord, travel.toCoord)
-      if (distance !== null && distance <= 1) cells.add(coordKey(cell.coord))
+      const cellCenter = centerFor(cell.coord, context)
+      const distance = distanceBetween(characterCenter, cellCenter)
+      if (distance <= haloRadius + haloFeather) cells.add(coordKey(cell.coord))
     }
 
     return {
@@ -1338,6 +1366,9 @@ class AddRpgHexScene extends Phaser.Scene {
       progress: this.currentTravelProgress(),
       cells,
       destinationCell: displayCell(travel.toCoord),
+      center: characterCenter,
+      radius: haloRadius,
+      feather: haloFeather,
     }
   }
 
@@ -1350,10 +1381,15 @@ class AddRpgHexScene extends Phaser.Scene {
       return 0
     }
 
-    const distance = topologyDistance(context, cell.coord, this.characterTravel.toCoord)
-    if (distance === null || distance > 1) return 0
-    const start = distance <= 0 ? 0.10 : 0.42
-    return smoothStep(clamp((preview.progress - start) / (1 - start), 0, 1))
+    if (!preview.center) return 0
+    const cellCenter = centerFor(cell.coord, context)
+    const distance = distanceBetween(preview.center, cellCenter)
+    const haloCoverage = clamp(
+      (preview.radius + preview.feather - distance) / Math.max(1, preview.feather),
+      0,
+      1,
+    )
+    return smoothStep(haloCoverage) * smoothStep(clamp(preview.progress / 0.18, 0, 1))
   }
 
   private currentTravelProgress(): number {
@@ -2132,20 +2168,16 @@ function inactiveTravelRevealPreview(): TravelRevealPreview {
     progress: 0,
     cells: new Set<string>(),
     destinationCell: null,
+    center: null,
+    radius: 0,
+    feather: 0,
   }
 }
 
-function topologyDistance(
-  context: RenderContext,
-  a: CellCoord,
-  b: CellCoord,
-): number | null {
-  if (a.kind !== b.kind || a.kind !== context.topologyKind) return null
-  if (a.kind === "hex" && b.kind === "hex") return context.hexTopology?.distance(a, b) ?? null
-  if (a.kind === "square" && b.kind === "square") {
-    return context.squareTopology?.distance(a, b) ?? null
-  }
-  return null
+function visualCellRadius(context: RenderContext): number {
+  if (context.map.topology.kind === "hex") return context.map.topology.radius
+  if (context.map.topology.kind === "square") return context.map.topology.cellSize / 2
+  return DEFAULT_RADIUS
 }
 
 function visibilityCounts(cells: readonly GameCellPlacement[]): VisibilityCounts {
