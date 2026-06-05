@@ -138,6 +138,10 @@ export interface AddPhaserMapInfo {
     readonly visibleCells: number
     readonly staleCells: number
     readonly revealTransitionsActive: number
+    readonly travelRevealPreviewActive: boolean
+    readonly travelRevealPreviewCells: number
+    readonly travelRevealPreviewProgress: number
+    readonly travelRevealDestinationCell: string | null
     readonly fogRendering: "phaser_visual_overlay"
     readonly affectsAuthority: false
   }
@@ -216,6 +220,7 @@ export interface AddPhaserMapInfo {
       readonly fogEdge: "soft_feathered_visibility_boundary"
       readonly revealEffect: "expanding_ripple"
       readonly caveMouthSilhouettes: true
+      readonly travelReveal: "progressive_in_travel_radius"
       readonly authority: "visual_only"
       readonly laterModifiers: readonly [
         "day_night_radius",
@@ -259,6 +264,8 @@ interface CharacterMoveStatus {
 
 interface CharacterTravelState {
   readonly direction: AddCharacterMoveDirection
+  readonly fromCoord: CellCoord
+  readonly toCoord: CellCoord
   readonly fromCell: string
   readonly toCell: string
   readonly destinationLabel: string
@@ -294,6 +301,13 @@ interface VisibilityCounts {
   readonly stale: number
 }
 
+interface TravelRevealPreview {
+  readonly active: boolean
+  readonly progress: number
+  readonly cells: ReadonlySet<string>
+  readonly destinationCell: string | null
+}
+
 const DEFAULT_RADIUS = 28
 const MIN_ZOOM = 0.55
 const MAX_ZOOM = 2.2
@@ -303,6 +317,7 @@ const VISIBILITY_POLISH: AddPhaserMapInfo["presentation"]["visibilityPolish"] = 
   fogEdge: "soft_feathered_visibility_boundary",
   revealEffect: "expanding_ripple",
   caveMouthSilhouettes: true,
+  travelReveal: "progressive_in_travel_radius",
   authority: "visual_only",
   laterModifiers: ["day_night_radius", "weather_season", "scouting_buildings_items"],
 }
@@ -586,6 +601,8 @@ class AddRpgHexScene extends Phaser.Scene {
     this.characterTarget = toPosition
     this.characterTravel = {
       direction,
+      fromCoord,
+      toCoord: nextCoord,
       fromCell: displayCell(fromCoord),
       toCell: displayCell(nextCoord),
       destinationLabel,
@@ -1133,14 +1150,23 @@ class AddRpgHexScene extends Phaser.Scene {
     const graphics = this.fogGraphics
     if (!graphics) return
     graphics.clear()
+    const travelRevealPreview = this.travelRevealPreviewForContext(context)
 
     for (const cell of context.terrainCells) {
       const key = coordKey(cell.coord)
       const visibilityState = visibilityStateForCell(cell)
+      const travelRevealProgress = this.travelRevealProgressForCell(
+        cell,
+        context,
+        travelRevealPreview,
+      )
       if (cell.coord.kind === "square") {
-        this.drawSquareFogCell(graphics, cell, context, visibilityState)
+        this.drawSquareFogCell(graphics, cell, context, visibilityState, travelRevealProgress)
       } else {
-        this.drawHexFogCell(graphics, cell, context, visibilityState)
+        this.drawHexFogCell(graphics, cell, context, visibilityState, travelRevealProgress)
+      }
+      if (travelRevealProgress > 0 && visibilityState !== "visible") {
+        this.drawTravelRevealPreview(graphics, cell, context, travelRevealProgress)
       }
 
       const revealStartedAt = this.revealTransitions.get(key)
@@ -1156,24 +1182,26 @@ class AddRpgHexScene extends Phaser.Scene {
     cell: GameCellPlacement,
     context: RenderContext,
     visibilityState: AddVisibilityRenderState,
+    travelRevealProgress: number,
   ): void {
     const topLeft = squareTopLeftFor(cell.coord as SquareCoord, context)
     const cellSize = squareCellSize(context)
     if (visibilityState === "visible") return
+    const revealFade = 1 - smoothStep(travelRevealProgress) * 0.82
 
     if (visibilityState === "hidden") {
-      graphics.fillStyle(0x0b1110, 0.18)
+      graphics.fillStyle(0x0b1110, 0.18 * revealFade)
       graphics.fillRect(topLeft.x - 2.4, topLeft.y - 2.4, cellSize + 4.8, cellSize + 4.8)
-      graphics.fillStyle(0x111817, 0.34)
+      graphics.fillStyle(0x111817, 0.34 * revealFade)
       graphics.fillRect(topLeft.x - 0.4, topLeft.y - 0.4, cellSize + 0.8, cellSize + 0.8)
-      graphics.fillStyle(0x111817, 0.66)
+      graphics.fillStyle(0x111817, 0.66 * revealFade)
       graphics.fillRect(topLeft.x + 1.5, topLeft.y + 1.5, cellSize - 3, cellSize - 3)
       graphics.lineStyle(1.2, 0x9c9275, 0.16)
       graphics.strokeRect(topLeft.x + 5, topLeft.y + 5, cellSize - 10, cellSize - 10)
       return
     }
 
-    const alpha = visibilityState === "stale" ? 0.38 : 0.26
+    const alpha = (visibilityState === "stale" ? 0.38 : 0.26) * (1 - travelRevealProgress * 0.58)
     graphics.fillStyle(0x2b302b, alpha * 0.34)
     graphics.fillRect(topLeft.x - 1.8, topLeft.y - 1.8, cellSize + 3.6, cellSize + 3.6)
     graphics.fillStyle(0x3f4039, alpha)
@@ -1187,20 +1215,22 @@ class AddRpgHexScene extends Phaser.Scene {
     cell: GameCellPlacement,
     context: RenderContext,
     visibilityState: AddVisibilityRenderState,
+    travelRevealProgress: number,
   ): void {
     if (visibilityState === "visible") return
 
     const center = centerFor(cell.coord, context)
     const radius = context.map.topology.kind === "hex" ? context.map.topology.radius : DEFAULT_RADIUS
+    const revealFade = 1 - smoothStep(travelRevealProgress) * 0.82
     if (visibilityState === "hidden") {
       drawHexPath(graphics, center, radius + 3.2)
-      graphics.fillStyle(0x0a1110, 0.14)
+      graphics.fillStyle(0x0a1110, 0.14 * revealFade)
       graphics.fillPath()
       drawHexPath(graphics, center, radius + 1.4)
-      graphics.fillStyle(0x0c1413, 0.26)
+      graphics.fillStyle(0x0c1413, 0.26 * revealFade)
       graphics.fillPath()
       drawHexPath(graphics, center, radius - 1.3)
-      graphics.fillStyle(0x0f1716, 0.68)
+      graphics.fillStyle(0x0f1716, 0.68 * revealFade)
       graphics.fillPath()
       drawHexPath(graphics, { x: center.x - radius * 0.12, y: center.y - radius * 0.10 }, radius * 0.42)
       graphics.lineStyle(1.3, 0xa89c78, 0.14)
@@ -1210,7 +1240,7 @@ class AddRpgHexScene extends Phaser.Scene {
       return
     }
 
-    const alpha = visibilityState === "stale" ? 0.40 : 0.27
+    const alpha = (visibilityState === "stale" ? 0.40 : 0.27) * (1 - travelRevealProgress * 0.58)
     drawHexPath(graphics, center, radius + 2.5)
     graphics.fillStyle(0x262d2a, alpha * 0.30)
     graphics.fillPath()
@@ -1255,6 +1285,84 @@ class AddRpgHexScene extends Phaser.Scene {
       graphics.lineStyle(2.2 - ring * 0.35, 0xf5d36c, (0.52 - ring * 0.12) * alpha)
       graphics.strokePath()
     }
+  }
+
+  private drawTravelRevealPreview(
+    graphics: Phaser.GameObjects.Graphics,
+    cell: GameCellPlacement,
+    context: RenderContext,
+    progress: number,
+  ): void {
+    const eased = smoothStep(progress)
+    const pulse = Math.sin(eased * Math.PI)
+    if (cell.coord.kind === "square") {
+      const topLeft = squareTopLeftFor(cell.coord as SquareCoord, context)
+      const cellSize = squareCellSize(context)
+      const inset = cellSize * (0.34 - eased * 0.26)
+      graphics.fillStyle(0xf8e4a4, 0.05 + pulse * 0.08)
+      graphics.fillRect(topLeft.x + inset, topLeft.y + inset, cellSize - inset * 2, cellSize - inset * 2)
+      graphics.lineStyle(1.4, 0xf5d36c, 0.24 + pulse * 0.32)
+      graphics.strokeRect(topLeft.x + inset, topLeft.y + inset, cellSize - inset * 2, cellSize - inset * 2)
+      return
+    }
+
+    const center = centerFor(cell.coord, context)
+    const radius = context.map.topology.kind === "hex" ? context.map.topology.radius : DEFAULT_RADIUS
+    drawHexPath(graphics, center, radius * (0.34 + eased * 0.62))
+    graphics.fillStyle(0xf8e4a4, 0.04 + pulse * 0.07)
+    graphics.fillPath()
+    drawHexPath(graphics, center, radius * (0.42 + eased * 0.58))
+    graphics.lineStyle(1.6, 0xf5d36c, 0.24 + pulse * 0.34)
+    graphics.strokePath()
+  }
+
+  private travelRevealPreviewForContext(context: RenderContext): TravelRevealPreview {
+    const travel = this.characterTravel
+    if (!travel || travel.toCoord.kind !== context.topologyKind) {
+      return {
+        active: false,
+        progress: 0,
+        cells: new Set<string>(),
+        destinationCell: null,
+      }
+    }
+
+    const cells = new Set<string>()
+    for (const cell of context.terrainCells) {
+      const distance = topologyDistance(context, cell.coord, travel.toCoord)
+      if (distance !== null && distance <= 1) cells.add(coordKey(cell.coord))
+    }
+
+    return {
+      active: true,
+      progress: this.currentTravelProgress(),
+      cells,
+      destinationCell: displayCell(travel.toCoord),
+    }
+  }
+
+  private travelRevealProgressForCell(
+    cell: GameCellPlacement,
+    context: RenderContext,
+    preview: TravelRevealPreview,
+  ): number {
+    if (!preview.active || !preview.cells.has(coordKey(cell.coord)) || !this.characterTravel) {
+      return 0
+    }
+
+    const distance = topologyDistance(context, cell.coord, this.characterTravel.toCoord)
+    if (distance === null || distance > 1) return 0
+    const start = distance <= 0 ? 0.10 : 0.42
+    return smoothStep(clamp((preview.progress - start) / (1 - start), 0, 1))
+  }
+
+  private currentTravelProgress(): number {
+    if (!this.characterTravel) return 0
+    return clamp(
+      (this.time.now - this.characterTravel.startedAtMs) / this.characterTravel.durationMs,
+      0,
+      1,
+    )
   }
 
   private drawOverlay(): void {
@@ -1491,6 +1599,7 @@ class AddRpgHexScene extends Phaser.Scene {
     const selectedDetail = this.selectedCoord
       ? tileInteractionDetailForCoord(this.selectedCoord, context)
       : null
+    const travelRevealPreview = this.travelRevealPreviewForContext(context)
 
     this.lastInfo = {
       hostedBy: "phaser",
@@ -1521,7 +1630,11 @@ class AddRpgHexScene extends Phaser.Scene {
           : [],
       },
       knownFacts: knownFactsInfo(context.terrainCells),
-      visibility: visibilityInfo(context.terrainCells, this.revealTransitions.size),
+      visibility: visibilityInfo(
+        context.terrainCells,
+        this.revealTransitions.size,
+        travelRevealPreview,
+      ),
       character: {
         id: "add.entity.hero",
         label: "Hero",
@@ -1995,6 +2108,7 @@ function knownFactsInfo(cells: readonly GameCellPlacement[]): AddPhaserMapInfo["
 function visibilityInfo(
   cells: readonly GameCellPlacement[],
   revealTransitionsActive: number,
+  travelRevealPreview: TravelRevealPreview = inactiveTravelRevealPreview(),
 ): AddPhaserMapInfo["visibility"] {
   const counts = visibilityCounts(cells)
   return {
@@ -2003,9 +2117,35 @@ function visibilityInfo(
     visibleCells: counts.visible,
     staleCells: counts.stale,
     revealTransitionsActive,
+    travelRevealPreviewActive: travelRevealPreview.active,
+    travelRevealPreviewCells: travelRevealPreview.cells.size,
+    travelRevealPreviewProgress: round(travelRevealPreview.progress),
+    travelRevealDestinationCell: travelRevealPreview.destinationCell,
     fogRendering: "phaser_visual_overlay",
     affectsAuthority: false,
   }
+}
+
+function inactiveTravelRevealPreview(): TravelRevealPreview {
+  return {
+    active: false,
+    progress: 0,
+    cells: new Set<string>(),
+    destinationCell: null,
+  }
+}
+
+function topologyDistance(
+  context: RenderContext,
+  a: CellCoord,
+  b: CellCoord,
+): number | null {
+  if (a.kind !== b.kind || a.kind !== context.topologyKind) return null
+  if (a.kind === "hex" && b.kind === "hex") return context.hexTopology?.distance(a, b) ?? null
+  if (a.kind === "square" && b.kind === "square") {
+    return context.squareTopology?.distance(a, b) ?? null
+  }
+  return null
 }
 
 function visibilityCounts(cells: readonly GameCellPlacement[]): VisibilityCounts {
@@ -2389,6 +2529,10 @@ function emptyMapInfo(): AddPhaserMapInfo {
       visibleCells: 0,
       staleCells: 0,
       revealTransitionsActive: 0,
+      travelRevealPreviewActive: false,
+      travelRevealPreviewCells: 0,
+      travelRevealPreviewProgress: 0,
+      travelRevealDestinationCell: null,
       fogRendering: "phaser_visual_overlay",
       affectsAuthority: false,
     },

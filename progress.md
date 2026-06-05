@@ -108,6 +108,11 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   exposes `presentation.visibilityPolish` with future hooks for day/night radius,
   weather/season, and scouting/building/item vision modifiers, but those later
   systems do not affect authority yet.
+- ADD travel now visually unveils the destination vision radius while the Hero
+  is crossing a tile instead of waiting for all fog to switch at landing. Phaser
+  computes a visual-only `travelRevealPreview` from movement progress: the target
+  hex starts fading first, adjacent radius-1 cells fade later, and authoritative
+  discovery still happens only when Rust/WASM accepts the arrival snapshot.
 - The debug-style event feed is no longer visible in the primary app UI. It has
   been replaced with compact session/world/media status pills, a compact room
   chat transcript, and transient toast feedback for join/reset/error-like events.

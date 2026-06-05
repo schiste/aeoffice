@@ -76,6 +76,8 @@ async function main() {
         state.map?.visibility?.discoveredCells > 0 &&
         state.map?.visibility?.fogRendering === "phaser_visual_overlay" &&
         state.map?.visibility?.affectsAuthority === false &&
+        state.map?.visibility?.travelRevealPreviewActive === false &&
+        state.map?.visibility?.travelRevealPreviewCells === 0 &&
         state.map?.character?.visible === true &&
         state.map?.character?.authority === "browser_navigation_triggers_rust_time" &&
         state.map?.travel?.costGameMinutes === 60 &&
@@ -95,6 +97,8 @@ async function main() {
           "soft_feathered_visibility_boundary" &&
         state.map?.presentation?.visibilityPolish?.revealEffect === "expanding_ripple" &&
         state.map?.presentation?.visibilityPolish?.caveMouthSilhouettes === true &&
+        state.map?.presentation?.visibilityPolish?.travelReveal ===
+          "progressive_in_travel_radius" &&
         state.map?.presentation?.visibilityPolish?.authority === "visual_only" &&
         state.map?.presentation?.visibilityPolish?.laterModifiers?.includes(
           "day_night_radius",
@@ -667,13 +671,18 @@ async function exerciseMainCharacterMovement(page, consoleErrors) {
     consoleErrors,
   )
   await page.locator("#travel-dialog-venture").click()
+  await assertTravelRevealPreview(page, consoleErrors)
   const minimumArrivalClockSeconds = before.snapshot.clockSeconds + 59
   const observedTravelClockTimes = new Set()
+  const observedTravelRevealProgress = new Set()
   const moved = await waitForTextState(
     page,
     (state) => {
       if (state.ui?.worldTime?.animating && state.ui.worldTime.localTime) {
         observedTravelClockTimes.add(state.ui.worldTime.localTime)
+      }
+      if (state.map?.visibility?.travelRevealPreviewActive) {
+        observedTravelRevealProgress.add(state.map.visibility.travelRevealPreviewProgress)
       }
       const presentationClockSeconds =
         state.ui?.worldTime?.presentationClockSeconds ?? state.snapshot?.clockSeconds ?? 0
@@ -692,6 +701,7 @@ async function exerciseMainCharacterMovement(page, consoleErrors) {
         state.travel?.confirmation?.dramaState === "complete" &&
         state.travel?.confirmation?.dialogOpen === false &&
         state.ui?.worldTime?.animating === false &&
+        state.map?.visibility?.travelRevealPreviewActive === false &&
         presentationCaughtUp &&
         observedTravelClockTimes.size >= 3
       )
@@ -718,6 +728,12 @@ async function exerciseMainCharacterMovement(page, consoleErrors) {
   assert.ok(
     observedTravelClockTimes.size >= 3,
     `Travel clock should show multiple minute values, saw ${Array.from(observedTravelClockTimes).join(", ")}`,
+  )
+  assert.ok(
+    Array.from(observedTravelRevealProgress).some((progress) => progress > 0 && progress < 1),
+    `Travel should visually unveil cells before arrival, saw reveal progress values ${Array.from(
+      observedTravelRevealProgress,
+    ).join(", ")}`,
   )
   const settledTravelClockSeconds = moved.snapshot.clockSeconds
   await page.waitForTimeout(1300)
@@ -949,6 +965,27 @@ async function assertNonBlankFogMapScreenshot(page, state) {
     "add-rpg-fog-map-smoke.png",
     "ADD RPG fog overlay map screenshot",
   )
+}
+
+async function assertTravelRevealPreview(page, consoleErrors) {
+  const state = await waitForTextState(
+    page,
+    (candidate) =>
+      candidate.map?.character?.moving === true &&
+      candidate.map?.visibility?.travelRevealPreviewActive === true &&
+      candidate.map.visibility.travelRevealPreviewCells > 0 &&
+      candidate.map.visibility.travelRevealPreviewProgress > 0 &&
+      candidate.map.visibility.travelRevealPreviewProgress < 1 &&
+      candidate.map.visibility.travelRevealDestinationCell === candidate.map.travel.toCell,
+    consoleErrors,
+    2600,
+  )
+  await assertNonBlankNamedMapScreenshot(
+    page,
+    "add-rpg-travel-reveal-smoke.png",
+    "ADD RPG in-travel fog reveal screenshot",
+  )
+  return state
 }
 
 async function assertNonBlankNamedMapScreenshot(page, filename, label) {
