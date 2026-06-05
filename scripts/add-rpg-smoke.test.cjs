@@ -71,6 +71,11 @@ async function main() {
         typeof state.map?.knownFacts?.sampleHiddenTravelLabel === "string" &&
         state.map.knownFacts.sampleHiddenTravelLabel.length > 0 &&
         state.map.knownFacts.dynamicRiskKnownCells < state.map.cells.total &&
+        state.map?.visibility?.hiddenCells === state.map.knownFacts.hiddenCells &&
+        state.map?.visibility?.visibleCells > 0 &&
+        state.map?.visibility?.discoveredCells > 0 &&
+        state.map?.visibility?.fogRendering === "phaser_visual_overlay" &&
+        state.map?.visibility?.affectsAuthority === false &&
         state.map?.character?.visible === true &&
         state.map?.character?.authority === "browser_navigation_triggers_rust_time" &&
         state.map?.travel?.costGameMinutes === 60 &&
@@ -200,7 +205,7 @@ async function exerciseMapModeSwitching(page, consoleErrors) {
       state.mapMode?.topology === "hex" &&
       state.map?.topology?.kind === "hex" &&
       state.map?.cells?.total === state.snapshot?.hexCount &&
-      state.map?.knownFacts?.hiddenCells > 0,
+      state.map?.visibility?.hiddenCells > 0,
     consoleErrors,
   )
 }

@@ -35,6 +35,7 @@ type AddTerrain =
   | "unknown"
 type AddFeature = "none" | "base" | "survivor_cave" | string
 type AddTravelExposureRisk = "studio" | "safe_field" | "fringe" | "toxic" | "unknown"
+type AddVisibilityRenderState = "hidden" | "discovered" | "visible" | "stale"
 type AddCharacterMoveDirection =
   | "up"
   | "right"
@@ -115,6 +116,15 @@ export interface AddPhaserMapInfo {
     readonly dynamicRiskKnownCells: number
     readonly vagueTravelLabels: number
     readonly sampleHiddenTravelLabel: string | null
+  }
+  readonly visibility: {
+    readonly hiddenCells: number
+    readonly discoveredCells: number
+    readonly visibleCells: number
+    readonly staleCells: number
+    readonly revealTransitionsActive: number
+    readonly fogRendering: "phaser_visual_overlay"
+    readonly affectsAuthority: false
   }
   readonly character: {
     readonly id: string
@@ -243,10 +253,18 @@ interface CellStyle {
   readonly shadow: number
 }
 
+interface VisibilityCounts {
+  readonly hidden: number
+  readonly discovered: number
+  readonly visible: number
+  readonly stale: number
+}
+
 const DEFAULT_RADIUS = 28
 const MIN_ZOOM = 0.55
 const MAX_ZOOM = 2.2
 const KEY_CHORD_DELAY_MS = 55
+const REVEAL_TRANSITION_MS = 860
 
 export class AddRpgPhaserMapHost {
   private readonly scene: AddRpgHexScene
@@ -313,6 +331,7 @@ class AddRpgHexScene extends Phaser.Scene {
   private readonly hostOptions: AddRpgPhaserMapHostOptions
   private terrainGraphics?: Phaser.GameObjects.Graphics
   private ambienceGraphics?: Phaser.GameObjects.Graphics
+  private fogGraphics?: Phaser.GameObjects.Graphics
   private overlayGraphics?: Phaser.GameObjects.Graphics
   private transitionGraphics?: Phaser.GameObjects.Graphics
   private landmarkObjects: Phaser.GameObjects.GameObject[] = []
@@ -332,6 +351,8 @@ class AddRpgHexScene extends Phaser.Scene {
   private dragStartScroll: Vector2 = { x: 0, y: 0 }
   private transitionState: "idle" | "entering" = "idle"
   private transitionProgress = 1
+  private previousVisibilityStates = new Map<string, AddVisibilityRenderState>()
+  private revealTransitions = new Map<string, number>()
   private characterCoord: CellCoord | null = null
   private characterPosition: Vector2 | null = null
   private characterTarget: Vector2 | null = null
@@ -356,10 +377,12 @@ class AddRpgHexScene extends Phaser.Scene {
   create(): void {
     this.terrainGraphics = this.add.graphics()
     this.ambienceGraphics = this.add.graphics()
+    this.fogGraphics = this.add.graphics()
     this.overlayGraphics = this.add.graphics()
     this.transitionGraphics = this.add.graphics()
     this.terrainGraphics.setDepth(0)
     this.ambienceGraphics.setDepth(10)
+    this.fogGraphics.setDepth(12)
     this.overlayGraphics.setDepth(30)
     this.transitionGraphics.setDepth(80)
     this.transitionGraphics.setScrollFactor(0)
@@ -384,6 +407,7 @@ class AddRpgHexScene extends Phaser.Scene {
     }
     this.updateMainCharacter(delta)
     this.drawAmbience(this.context)
+    this.drawFog(this.context)
     this.drawOverlay()
     this.refreshInfo()
   }
@@ -395,6 +419,7 @@ class AddRpgHexScene extends Phaser.Scene {
 
   advanceTime(milliseconds: number): void {
     this.frameCount += Math.max(1, Math.round(milliseconds / 16))
+    if (this.context) this.drawFog(this.context)
     this.drawOverlay()
     this.refreshInfo()
   }
@@ -578,11 +603,15 @@ class AddRpgHexScene extends Phaser.Scene {
       this.lastRenderedMapId = map.id
       this.transitionState = "entering"
       this.transitionProgress = 0
+      this.previousVisibilityStates.clear()
+      this.revealTransitions.clear()
     }
 
     this.context = createRenderContext(map, this.scale.width, this.scale.height)
+    this.trackVisibilityTransitions(this.context)
     this.drawTerrain(this.context)
     this.drawAmbience(this.context)
+    this.drawFog(this.context)
     this.drawLandmarks(this.context)
     this.syncMainCharacter(this.context, mapChanged)
     this.drawOverlay()
@@ -1012,6 +1041,126 @@ class AddRpgHexScene extends Phaser.Scene {
     }
   }
 
+  private trackVisibilityTransitions(context: RenderContext): void {
+    const nextStates = new Map<string, AddVisibilityRenderState>()
+    for (const cell of context.terrainCells) {
+      const key = coordKey(cell.coord)
+      const current = visibilityStateForCell(cell)
+      const previous = this.previousVisibilityStates.get(key)
+      if (previous === "hidden" && current !== "hidden") {
+        this.revealTransitions.set(key, this.time.now)
+      }
+      nextStates.set(key, current)
+    }
+    this.previousVisibilityStates = nextStates
+  }
+
+  private drawFog(context: RenderContext): void {
+    const graphics = this.fogGraphics
+    if (!graphics) return
+    graphics.clear()
+
+    for (const cell of context.terrainCells) {
+      const key = coordKey(cell.coord)
+      const visibilityState = visibilityStateForCell(cell)
+      if (cell.coord.kind === "square") {
+        this.drawSquareFogCell(graphics, cell, context, visibilityState)
+      } else {
+        this.drawHexFogCell(graphics, cell, context, visibilityState)
+      }
+
+      const revealStartedAt = this.revealTransitions.get(key)
+      if (revealStartedAt === undefined || visibilityState === "hidden") continue
+      const progress = clamp((this.time.now - revealStartedAt) / REVEAL_TRANSITION_MS, 0, 1)
+      this.drawRevealTransition(graphics, cell, context, progress)
+      if (progress >= 1) this.revealTransitions.delete(key)
+    }
+  }
+
+  private drawSquareFogCell(
+    graphics: Phaser.GameObjects.Graphics,
+    cell: GameCellPlacement,
+    context: RenderContext,
+    visibilityState: AddVisibilityRenderState,
+  ): void {
+    const topLeft = squareTopLeftFor(cell.coord as SquareCoord, context)
+    const cellSize = squareCellSize(context)
+    if (visibilityState === "visible") return
+
+    if (visibilityState === "hidden") {
+      graphics.fillStyle(0x111817, 0.76)
+      graphics.fillRect(topLeft.x + 1.2, topLeft.y + 1.2, cellSize - 2.4, cellSize - 2.4)
+      graphics.lineStyle(1.2, 0x9c9275, 0.16)
+      graphics.strokeRect(topLeft.x + 5, topLeft.y + 5, cellSize - 10, cellSize - 10)
+      return
+    }
+
+    const alpha = visibilityState === "stale" ? 0.38 : 0.26
+    graphics.fillStyle(0x3f4039, alpha)
+    graphics.fillRect(topLeft.x + 1.2, topLeft.y + 1.2, cellSize - 2.4, cellSize - 2.4)
+    graphics.lineStyle(1, 0xf0dfac, 0.10)
+    graphics.lineBetween(topLeft.x + 5, topLeft.y + 6, topLeft.x + cellSize - 5, topLeft.y + cellSize - 6)
+  }
+
+  private drawHexFogCell(
+    graphics: Phaser.GameObjects.Graphics,
+    cell: GameCellPlacement,
+    context: RenderContext,
+    visibilityState: AddVisibilityRenderState,
+  ): void {
+    if (visibilityState === "visible") return
+
+    const center = centerFor(cell.coord, context)
+    const radius = context.map.topology.kind === "hex" ? context.map.topology.radius : DEFAULT_RADIUS
+    if (visibilityState === "hidden") {
+      drawHexPath(graphics, center, radius - 1.6)
+      graphics.fillStyle(0x0f1716, 0.78)
+      graphics.fillPath()
+      drawHexPath(graphics, { x: center.x - radius * 0.12, y: center.y - radius * 0.10 }, radius * 0.42)
+      graphics.lineStyle(1.3, 0xa89c78, 0.14)
+      graphics.strokePath()
+      graphics.fillStyle(0xf0e4b4, 0.10)
+      graphics.fillCircle(center.x + radius * 0.30, center.y - radius * 0.24, 1.8)
+      return
+    }
+
+    const alpha = visibilityState === "stale" ? 0.40 : 0.27
+    drawHexPath(graphics, center, radius - 1.5)
+    graphics.fillStyle(0x3d4139, alpha)
+    graphics.fillPath()
+    drawHexPath(graphics, center, radius - 6)
+    graphics.lineStyle(1.1, 0xf1dfaa, visibilityState === "stale" ? 0.13 : 0.09)
+    graphics.strokePath()
+  }
+
+  private drawRevealTransition(
+    graphics: Phaser.GameObjects.Graphics,
+    cell: GameCellPlacement,
+    context: RenderContext,
+    progress: number,
+  ): void {
+    const eased = smoothStep(progress)
+    const alpha = 1 - eased
+    if (cell.coord.kind === "square") {
+      const topLeft = squareTopLeftFor(cell.coord as SquareCoord, context)
+      const cellSize = squareCellSize(context)
+      graphics.fillStyle(0xf6e5a9, 0.22 * alpha)
+      graphics.fillRect(topLeft.x + cellSize * 0.12, topLeft.y + cellSize * 0.12, cellSize * 0.76, cellSize * 0.76)
+      graphics.lineStyle(2.2, 0xf9d978, 0.52 * alpha)
+      graphics.strokeRect(topLeft.x + cellSize * 0.08, topLeft.y + cellSize * 0.08, cellSize * 0.84, cellSize * 0.84)
+      return
+    }
+
+    const center = centerFor(cell.coord, context)
+    const radius = context.map.topology.kind === "hex" ? context.map.topology.radius : DEFAULT_RADIUS
+    drawHexPath(graphics, center, radius * (0.35 + eased * 0.62))
+    graphics.fillStyle(0xf9e4a1, 0.18 * alpha)
+    graphics.fillPath()
+    drawHexPath(graphics, center, radius * (0.42 + eased * 0.70))
+    graphics.lineStyle(2.4, 0xf5d36c, 0.58 * alpha)
+    graphics.strokePath()
+  }
+
   private drawOverlay(): void {
     const graphics = this.overlayGraphics
     const context = this.context
@@ -1270,6 +1419,7 @@ class AddRpgHexScene extends Phaser.Scene {
           : [],
       },
       knownFacts: knownFactsInfo(context.terrainCells),
+      visibility: visibilityInfo(context.terrainCells, this.revealTransitions.size),
       character: {
         id: "add.entity.hero",
         label: "Hero",
@@ -1671,6 +1821,47 @@ function knownFactsInfo(cells: readonly GameCellPlacement[]): AddPhaserMapInfo["
   }
 }
 
+function visibilityInfo(
+  cells: readonly GameCellPlacement[],
+  revealTransitionsActive: number,
+): AddPhaserMapInfo["visibility"] {
+  const counts = visibilityCounts(cells)
+  return {
+    hiddenCells: counts.hidden,
+    discoveredCells: counts.discovered,
+    visibleCells: counts.visible,
+    staleCells: counts.stale,
+    revealTransitionsActive,
+    fogRendering: "phaser_visual_overlay",
+    affectsAuthority: false,
+  }
+}
+
+function visibilityCounts(cells: readonly GameCellPlacement[]): VisibilityCounts {
+  return cells.reduce<VisibilityCounts>(
+    (counts, cell) => {
+      const state = visibilityStateForCell(cell)
+      return {
+        hidden: counts.hidden + (state === "hidden" ? 1 : 0),
+        discovered: counts.discovered + (state === "discovered" ? 1 : 0),
+        visible: counts.visible + (state === "visible" ? 1 : 0),
+        stale: counts.stale + (state === "stale" ? 1 : 0),
+      }
+    },
+    { hidden: 0, discovered: 0, visible: 0, stale: 0 },
+  )
+}
+
+function visibilityStateForCell(cell: GameCellPlacement): AddVisibilityRenderState {
+  const value = stringMetadata(cell, "visibilityState")
+  return value === "visible" ||
+    value === "discovered" ||
+    value === "stale" ||
+    value === "hidden"
+    ? value
+    : "hidden"
+}
+
 function initialCharacterCoord(context: RenderContext): CellCoord | null {
   const hero = context.map.entities.find((entity) => entity.kind === "hero" && entity.coord)
   if (
@@ -2018,6 +2209,15 @@ function emptyMapInfo(): AddPhaserMapInfo {
       dynamicRiskKnownCells: 0,
       vagueTravelLabels: 0,
       sampleHiddenTravelLabel: null,
+    },
+    visibility: {
+      hiddenCells: 0,
+      discoveredCells: 0,
+      visibleCells: 0,
+      staleCells: 0,
+      revealTransitionsActive: 0,
+      fogRendering: "phaser_visual_overlay",
+      affectsAuthority: false,
     },
     character: {
       id: "add.entity.hero",

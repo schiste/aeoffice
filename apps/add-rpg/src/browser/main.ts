@@ -2361,6 +2361,15 @@ function emptyMapInfo(): AddPhaserMapInfo {
       vagueTravelLabels: 0,
       sampleHiddenTravelLabel: null,
     },
+    visibility: {
+      hiddenCells: 0,
+      discoveredCells: 0,
+      visibleCells: 0,
+      staleCells: 0,
+      revealTransitionsActive: 0,
+      fogRendering: "phaser_visual_overlay",
+      affectsAuthority: false,
+    },
     character: {
       id: "add.entity.hero",
       label: "Hero",

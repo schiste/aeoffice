@@ -1041,9 +1041,16 @@ async function verifyAddRendererTopologyFixtures(browser, report) {
         state.map?.topology?.kind === "hex" &&
         state.map?.cells?.total === state.snapshot?.hexCount &&
         state.map?.knownFacts?.hiddenCells > 0 &&
-        state.map?.knownFacts?.dynamicRiskKnownCells > 0,
+        state.map?.knownFacts?.dynamicRiskKnownCells > 0 &&
+        state.map?.visibility?.hiddenCells === state.map.knownFacts.hiddenCells &&
+        state.map?.visibility?.visibleCells > 0 &&
+        state.map?.visibility?.discoveredCells > 0 &&
+        state.map?.visibility?.fogRendering === "phaser_visual_overlay" &&
+        state.map?.visibility?.affectsAuthority === false,
       16000,
     )
+    await page.locator("#toggle-first-playable-panel").click({ timeout: 2500 })
+    await page.waitForTimeout(180)
     report.topologyChecks.push(
       await captureAddTopologyCanvas(page, hexState, "hex", "overworld_hex"),
     )
@@ -1109,6 +1116,8 @@ async function captureAddTopologyCanvas(page, state, topology, mode) {
       minLuminanceRange: 20,
     },
   )
+  const fogPalette =
+    topology === "hex" ? assertAddFogPalette(buffer, "ADD RPG hex fog canvas") : null
 
   return {
     app: state.app,
@@ -1118,6 +1127,8 @@ async function captureAddTopologyCanvas(page, state, topology, mode) {
     mapId: state.map.mapId,
     fixture: state.map.topology.fixture,
     cells: state.map.cells,
+    visibility: state.map.visibility,
+    fogPalette,
     landmarks: state.map.landmarks,
     authority: state.map.authority,
     screenshot: {
@@ -1125,6 +1136,51 @@ async function captureAddTopologyCanvas(page, state, topology, mode) {
       path,
       stats,
     },
+  }
+}
+
+function assertAddFogPalette(buffer, label) {
+  const image = PNG.sync.read(buffer)
+  let opaquePixels = 0
+  let darkFogPixels = 0
+  let mutedKnownPixels = 0
+  let brightVisiblePixels = 0
+
+  for (let y = 0; y < image.height; y += 2) {
+    for (let x = 0; x < image.width; x += 2) {
+      const offset = (image.width * y + x) << 2
+      const red = image.data[offset]
+      const green = image.data[offset + 1]
+      const blue = image.data[offset + 2]
+      const alpha = image.data[offset + 3]
+      if (alpha < 90) continue
+      opaquePixels += 1
+
+      const luminance = 0.2126 * red + 0.7152 * green + 0.0722 * blue
+      const maxChannel = Math.max(red, green, blue)
+      const minChannel = Math.min(red, green, blue)
+      const channelSpread = maxChannel - minChannel
+
+      if (luminance < 54) {
+        darkFogPixels += 1
+      } else if (luminance >= 54 && luminance < 128 && channelSpread < 72) {
+        mutedKnownPixels += 1
+      } else if (luminance >= 150 && red >= 120 && green >= 120) {
+        brightVisiblePixels += 1
+      }
+    }
+  }
+
+  assert.ok(opaquePixels > 500, `${label}: expected enough opaque canvas pixels.`)
+  assert.ok(darkFogPixels > 120, `${label}: expected dark hidden fog pixels.`)
+  assert.ok(mutedKnownPixels > 80, `${label}: expected muted discovered/stale terrain pixels.`)
+  assert.ok(brightVisiblePixels > 80, `${label}: expected bright visible terrain pixels.`)
+
+  return {
+    opaquePixels,
+    darkFogPixels,
+    mutedKnownPixels,
+    brightVisiblePixels,
   }
 }
 

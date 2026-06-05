@@ -83,6 +83,12 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   cells expose current facts, and dungeon links/landmark entities stay hidden
   until visibility allows them. Phaser telemetry now reports `knownFacts` so QA
   can assert the fog-of-war contract instead of raw simulation-only state.
+- ADD Phaser fog rendering now uses a visual-only graphics layer above terrain
+  and below landmarks. Hidden cells draw as dark silhouettes, discovered/stale
+  cells get a muted overlay, visible cells render normally, and hidden-to-known
+  changes trigger a short reveal pulse. `render_game_to_text` exposes
+  `visibility` counts plus `affectsAuthority: false`, and renderer QA samples the
+  ADD canvas for dark, muted, and bright regions.
 - The debug-style event feed is no longer visible in the primary app UI. It has
   been replaced with compact session/world/media status pills, a compact room
   chat transcript, and transient toast feedback for join/reset/error-like events.
