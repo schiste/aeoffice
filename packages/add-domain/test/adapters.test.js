@@ -1,10 +1,14 @@
 const assert = require("node:assert")
 const {
   addCommandForGameInteraction,
+  addVisibilityAllowsDungeonLinks,
+  addVisibilityAllowsDynamicDetails,
+  addVisibilityAllowsVagueHints,
   addSnapshotToGameWorld,
   ADD_TRAVEL_GAME_MINUTES_PER_TILE,
   ADD_TRAVEL_RUNTIME_SECONDS_PER_TILE,
   createAddCatalogIndexes,
+  selectAddVisibilitySummary,
   selectAddTile,
   selectAddUiState,
   selectAddWorldTimeForClockSeconds,
@@ -48,6 +52,8 @@ const collision = map.layers.find((layer) => layer.id === "add.layer.collision")
 const bubble = map.layers.find((layer) => layer.id === "add.layer.bubble")
 assert.equal(terrain.cells.length, snapshot.hexes.length)
 const survivorCaveCell = terrain.cells.find((cell) => cell.tokenId === "tile.survivor_cave")
+assert.equal(survivorCaveCell.visibility.state, "visible")
+assert.equal(survivorCaveCell.metadata.dynamicDetailsHidden, false)
 assert.equal(survivorCaveCell.links.length, 1)
 assert.equal(survivorCaveCell.links[0].kind, "dungeon")
 assert.equal(survivorCaveCell.links[0].targetMapId, "add.rpg.square-dungeon-fixture")
@@ -57,6 +63,23 @@ assert.deepEqual(survivorCaveCell.links[0].targetCoord, {
   y: 4,
 })
 assert.equal(survivorCaveCell.metadata.dungeonCount, 1)
+const baseCell = terrain.cells.find((cell) => cell.tokenId === "tile.base_core")
+assert.equal(baseCell.visibility.state, "discovered")
+const hiddenDungeonCell = terrain.cells.find((cell) => cell.tokenId === "tile.forgotten_gate")
+assert.equal(hiddenDungeonCell.visibility.state, "hidden")
+assert.equal(hiddenDungeonCell.links, undefined)
+assert.equal(hiddenDungeonCell.metadata.dungeonCount, 1)
+assert.equal(hiddenDungeonCell.metadata.vagueHint, true)
+const visibilitySummary = selectAddVisibilitySummary(snapshot, catalog)
+assert.equal(visibilitySummary.visibleCount, 3)
+assert.equal(visibilitySummary.discoveredCount, 1)
+assert.equal(visibilitySummary.hiddenCount, 2)
+assert.equal(visibilitySummary.vagueHintCount, 2)
+assert.equal(addVisibilityAllowsDungeonLinks({ state: "hidden" }), false)
+assert.equal(addVisibilityAllowsDungeonLinks({ state: "discovered" }), true)
+assert.equal(addVisibilityAllowsDynamicDetails({ state: "stale" }), false)
+assert.equal(addVisibilityAllowsDynamicDetails({ state: "visible" }), true)
+assert.equal(addVisibilityAllowsVagueHints({ state: "hidden" }), true)
 assert.equal(collision.cells.length, 1)
 assert.equal(collision.cells[0].coord.q, -1)
 assert.equal(bubble.cells.length, 3)
@@ -221,6 +244,16 @@ function createCatalogFixture() {
       ]),
       tile("tile.mountain_wall", "Mountain Wall", "mountain", "none", true),
       tile(
+        "tile.forgotten_gate",
+        "Forgotten Gate",
+        "ridge",
+        "none",
+        false,
+        [],
+        [],
+        ["dungeon.forgotten_gate"],
+      ),
+      tile(
         "tile.survivor_cave",
         "Survivor Cave",
         "plains",
@@ -300,6 +333,7 @@ function createSnapshotFixture() {
       hex(-1, 1, 1, "tile.mountain_wall", "blocked", 0),
       hex(2, -1, 2, "tile.survivor_cave", "stabilized", 1),
       hex(1, 0, 1, "tile.plains_open", "inactive", 0),
+      hex(-1, 0, 1, "tile.forgotten_gate", "inactive", 0),
     ],
     activeConstruction: null,
     activeWorldAction: null,

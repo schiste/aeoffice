@@ -8,6 +8,7 @@ import type {
   GameWorld,
   GameZone,
 } from "@aedventure/game-world"
+import type { VisibilityEntry } from "@aedventure/game-visibility"
 
 import type {
   CatalogSnapshot,
@@ -19,6 +20,14 @@ import type {
   WorldActionDef,
 } from "../runtime/protocol"
 import { createAddCatalogIndexes } from "./catalog-selectors"
+import {
+  addVisibilityAllowsDungeonLinks,
+  addVisibilityAllowsDynamicDetails,
+  addVisibilityForHex,
+  selectAddVagueVisibilityHints,
+  selectAddVisibilitySummary,
+  type AddVisibilitySummary,
+} from "./visibility-selectors"
 
 export interface AddSnapshotWorldAdapterOptions {
   readonly worldId?: string
@@ -42,7 +51,8 @@ export function addSnapshotToGameWorld(
 ): GameWorld {
   const mapId = options.mapId ?? DEFAULT_MAP_ID
   const bounds = hexBoundsFor(snapshot.hexes)
-  const terrainCells = terrainLayerCells(snapshot, catalog)
+  const visibility = selectAddVisibilitySummary(snapshot, catalog)
+  const terrainCells = terrainLayerCells(snapshot, catalog, { visibility })
   const collisionCells = collisionLayerCells(snapshot, catalog)
   const bubbleCells = bubbleOverlayCells(snapshot)
   const entities = landmarkEntities(snapshot, catalog)
@@ -101,6 +111,11 @@ export function addSnapshotToGameWorld(
       targetRing: snapshot.bubble.targetRing,
       frontierProgress: snapshot.bubble.frontierProgress,
       fieldBudget: snapshot.bubble.fieldBudget,
+      visibilityVisibleCount: visibility.visibleCount,
+      visibilityDiscoveredCount: visibility.discoveredCount,
+      visibilityHiddenCount: visibility.hiddenCount,
+      visibilityStaleCount: visibility.staleCount,
+      visibilityVagueHintCount: visibility.vagueHintCount,
     },
   }
 
@@ -119,17 +134,33 @@ export function addSnapshotToGameWorld(
 export function terrainLayerCells(
   snapshot: SimulationSnapshot,
   catalog: CatalogSnapshot,
+  options: { readonly visibility?: AddVisibilitySummary } = {},
 ): readonly GameCellPlacement[] {
   const indexes = createAddCatalogIndexes(catalog)
+  const visibility = options.visibility ?? selectAddVisibilitySummary(snapshot, catalog)
+  const vagueHintKeys = new Set(
+    selectAddVagueVisibilityHints(snapshot.hexes, visibility.visibility).map((hint) =>
+      hexKey(hint.coord.q, hint.coord.r),
+    ),
+  )
   return snapshot.hexes.map((hex) => {
     const tile = indexes.tilesById.get(hex.tileId)
-    const links = dungeonLinksForTile(hex, tile)
+    const cellVisibility = addVisibilityForHex(visibility.visibility, hex)
+    const links = addVisibilityAllowsDungeonLinks(cellVisibility)
+      ? dungeonLinksForTile(hex, tile)
+      : []
     return {
       coord: hexCoord(hex),
       tokenId: hex.tileId,
       blocked: tile?.isBlocker ?? hex.state === "blocked",
       ...(links.length > 0 ? { links } : {}),
-      metadata: tileMetadata(hex, tile),
+      visibility: cellVisibility,
+      metadata: tileMetadata(
+        hex,
+        tile,
+        cellVisibility,
+        vagueHintKeys.has(hexKey(hex.q, hex.r)),
+      ),
     }
   })
 }
@@ -409,7 +440,12 @@ function pushZone(zones: GameZone[], zone: GameZone): void {
   if (zone.cells.length > 0) zones.push(zone)
 }
 
-function tileMetadata(hex: HexSnapshot, tile: TileDef | undefined): GameMetadata {
+function tileMetadata(
+  hex: HexSnapshot,
+  tile: TileDef | undefined,
+  visibility: VisibilityEntry,
+  vagueHint: boolean,
+): GameMetadata {
   return {
     tileId: hex.tileId,
     state: hex.state,
@@ -420,6 +456,10 @@ function tileMetadata(hex: HexSnapshot, tile: TileDef | undefined): GameMetadata
     impedance: tile?.impedance ?? 0,
     isBlocker: tile?.isBlocker ?? hex.state === "blocked",
     dungeonCount: tile?.dungeonIds.length ?? 0,
+    visibilityState: visibility.state,
+    visibilityRevealSource: visibility.revealSource ?? "",
+    dynamicDetailsHidden: !addVisibilityAllowsDynamicDetails(visibility),
+    vagueHint,
   }
 }
 
@@ -491,4 +531,8 @@ function hexBoundsFor(hexes: readonly HexSnapshot[]) {
 
 function hexCoord(hex: HexSnapshot) {
   return { kind: "hex" as const, q: hex.q, r: hex.r }
+}
+
+function hexKey(q: number, r: number): string {
+  return `${q},${r}`
 }
