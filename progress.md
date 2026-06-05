@@ -111,9 +111,15 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
 - ADD travel now visually unveils fog through a player-centered soft halo while
   the Hero is crossing a tile instead of waiting for all fog to switch at
   landing. Phaser computes a visual-only `travelRevealPreview` from the Hero's
-  interpolated world position; nearby cell centers fade by halo coverage and a
+  interpolated world position; nearby cell centers fade by halo coverage,
+  recently lit cells decay through a short trail as the halo leaves them, and a
   subtle glow follows the Hero, while authoritative discovery still happens only
   when Rust/WASM accepts the arrival snapshot.
+- Verification for the travel halo trail: `npm --workspace @aedventure/add-rpg
+  run build:browser` and `npm run smoke:add-rpg` pass. The broader
+  `npm run check` is currently blocked by unrelated dirty ADD dungeon work
+  resolving `@aedventure/game-dungeon`; keep that out of targeted travel-reveal
+  commits until the dungeon package is intentionally staged.
 - The debug-style event feed is no longer visible in the primary app UI. It has
   been replaced with compact session/world/media status pills, a compact room
   chat transcript, and transient toast feedback for join/reset/error-like events.

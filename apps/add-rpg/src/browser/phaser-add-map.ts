@@ -311,11 +311,17 @@ interface TravelRevealPreview {
   readonly feather: number
 }
 
+interface TravelRevealTrailEntry {
+  readonly strength: number
+  readonly updatedAtMs: number
+}
+
 const DEFAULT_RADIUS = 28
 const MIN_ZOOM = 0.55
 const MAX_ZOOM = 2.2
 const KEY_CHORD_DELAY_MS = 55
 const REVEAL_TRANSITION_MS = 1180
+const TRAVEL_REVEAL_TRAIL_MS = 620
 const TRAVEL_REVEAL_HALO_RADIUS_MULTIPLIER = 1.95
 const TRAVEL_REVEAL_HALO_FEATHER_MULTIPLIER = 0.90
 const VISIBILITY_POLISH: AddPhaserMapInfo["presentation"]["visibilityPolish"] = {
@@ -414,6 +420,7 @@ class AddRpgHexScene extends Phaser.Scene {
   private transitionProgress = 1
   private previousVisibilityStates = new Map<string, AddVisibilityRenderState>()
   private revealTransitions = new Map<string, number>()
+  private travelRevealTrail = new Map<string, TravelRevealTrailEntry>()
   private characterCoord: CellCoord | null = null
   private characterPosition: Vector2 | null = null
   private characterTarget: Vector2 | null = null
@@ -670,6 +677,7 @@ class AddRpgHexScene extends Phaser.Scene {
       this.transitionProgress = 0
       this.previousVisibilityStates.clear()
       this.revealTransitions.clear()
+      this.travelRevealTrail.clear()
     }
 
     this.context = createRenderContext(map, this.scale.width, this.scale.height)
@@ -1377,19 +1385,50 @@ class AddRpgHexScene extends Phaser.Scene {
     context: RenderContext,
     preview: TravelRevealPreview,
   ): number {
-    if (!preview.active || !preview.cells.has(coordKey(cell.coord)) || !this.characterTravel) {
+    const key = coordKey(cell.coord)
+    let liveProgress = 0
+
+    if (preview.active && preview.cells.has(key) && this.characterTravel && preview.center) {
+      const cellCenter = centerFor(cell.coord, context)
+      const distance = distanceBetween(preview.center, cellCenter)
+      const haloCoverage = clamp(
+        (preview.radius + preview.feather - distance) / Math.max(1, preview.feather),
+        0,
+        1,
+      )
+      liveProgress =
+        smoothStep(haloCoverage) * smoothStep(clamp(preview.progress / 0.18, 0, 1))
+    }
+
+    return this.blendTravelRevealTrail(key, liveProgress)
+  }
+
+  private blendTravelRevealTrail(key: string, liveProgress: number): number {
+    const existing = this.travelRevealTrail.get(key)
+
+    if (liveProgress > 0) {
+      this.travelRevealTrail.set(key, {
+        strength: liveProgress,
+        updatedAtMs: this.time.now,
+      })
+      return liveProgress
+    }
+
+    if (!existing) return 0
+
+    const elapsedMs = this.time.now - existing.updatedAtMs
+    if (elapsedMs >= TRAVEL_REVEAL_TRAIL_MS) {
+      this.travelRevealTrail.delete(key)
       return 0
     }
 
-    if (!preview.center) return 0
-    const cellCenter = centerFor(cell.coord, context)
-    const distance = distanceBetween(preview.center, cellCenter)
-    const haloCoverage = clamp(
-      (preview.radius + preview.feather - distance) / Math.max(1, preview.feather),
-      0,
-      1,
-    )
-    return smoothStep(haloCoverage) * smoothStep(clamp(preview.progress / 0.18, 0, 1))
+    const trailProgress = clamp(elapsedMs / TRAVEL_REVEAL_TRAIL_MS, 0, 1)
+    const trailStrength = existing.strength * (1 - smoothStep(trailProgress))
+    if (trailStrength <= 0.015) {
+      this.travelRevealTrail.delete(key)
+      return 0
+    }
+    return trailStrength
   }
 
   private currentTravelProgress(): number {
