@@ -336,7 +336,11 @@ const [lastOfflineCatchupSeconds, setLastOfflineCatchupSeconds] = createSignal(0
 const [resetCount, setResetCount] = createSignal(0)
 const [online, setOnline] = createSignal(typeof navigator === "undefined" ? true : navigator.onLine)
 const [ready, setReady] = createSignal(false)
-const [autoTick, setAutoTick] = createSignal(false)
+// Ambient world clock runs by default at 1 game-minute per real second
+// (the autoTick interval ticks the runtime 1s every 1000ms). It pauses only
+// while the Hero crosses a tile (gated on travelExperience phase) so the
+// per-hex +1h stays exact, then resumes on arrival.
+const [autoTick, setAutoTick] = createSignal(true)
 const [adminOpen, setAdminOpen] = createSignal(false)
 const [firstPlayableCollapsed, setFirstPlayableCollapsed] = createSignal(false)
 const [questPanelPosition, setQuestPanelPosition] = createSignal(defaultQuestPanelPosition())
@@ -350,7 +354,7 @@ const [lastError, setLastError] = createSignal<string | null>(null)
 
 let mapHost: AddRpgPhaserMapHost | null = null
 let travelClearTimer: number | undefined
-let clockAnimationTimer: number | undefined
+let clockAnimationFrameId: number | undefined
 let travelDramaState: TravelDramaState = "fresh"
 let questPanelDrag:
   | {
@@ -381,7 +385,15 @@ const client = new SimulationClient({
   onSnapshot(nextSnapshot) {
     snapshotVersion += 1
     setSnapshot(nextSnapshot)
-    animatePresentationClockTo(nextSnapshot.clockSeconds, "snapshot")
+    if (travelExperience()?.phase === "traveling") {
+      // A travel reveal owns the presentation clock; let it run to arrival.
+      // Truth (nextSnapshot.clockSeconds) is recorded above and settled on arrival.
+    } else {
+      // Boot import, offline catch-up, autoTick, and manual advances all snap
+      // the display straight to truth — no animation, no fast-forward crawl.
+      cancelClockAnimation()
+      setDisplayClockSeconds(nextSnapshot.clockSeconds)
+    }
     setLastEvent("snapshot")
     setLastError(null)
     resolveSnapshotWaiters()
@@ -1098,6 +1110,11 @@ function mapModeButtons(): readonly unknown[] {
   )
 }
 
+// Smoothly animates the *presentation* clock toward a target. Only the explicit
+// per-hex travel reveal uses this; every other authoritative change snaps the
+// display directly (see onSnapshot). Driven by real elapsed time via rAF so it
+// finishes exactly with the Hero and can never drift past arrival or crawl
+// through a large jump.
 function animatePresentationClockTo(targetClockSeconds: number, reason: string): void {
   const currentClockSeconds = displayClockSeconds()
   if (currentClockSeconds === null || targetClockSeconds <= currentClockSeconds) {
@@ -1106,30 +1123,26 @@ function animatePresentationClockTo(targetClockSeconds: number, reason: string):
     return
   }
 
-  const currentAnimation = clockAnimation()
-  if (
-    currentAnimation &&
-    targetClockSeconds <= currentAnimation.toClockSeconds &&
-    targetClockSeconds > currentClockSeconds
-  ) {
-    return
-  }
-
   const timing = createAddClockAdvancePresentationTiming(
     currentClockSeconds,
     targetClockSeconds,
   )
-  if (timing.visibleGameMinutes <= 0) {
+  if (timing.visibleGameMinutes <= 0 || timing.durationMs <= 0) {
+    cancelClockAnimation()
     setDisplayClockSeconds(targetClockSeconds)
     return
   }
 
+  // Cancel any in-flight animation so a new travel restarts cleanly from the
+  // current mid-interpolation value (e.g. rapid consecutive moves).
   cancelClockAnimation()
-  let elapsedVisibleMinutes = 0
+  const fromClockSeconds = currentClockSeconds
+  const span = targetClockSeconds - fromClockSeconds
+  const startedAtMs = performance.now()
   setClockAnimation({
-    fromClockSeconds: currentClockSeconds,
+    fromClockSeconds,
     toClockSeconds: targetClockSeconds,
-    currentClockSeconds,
+    currentClockSeconds: fromClockSeconds,
     remainingMinutes: timing.visibleGameMinutes,
     totalMinutes: timing.visibleGameMinutes,
     durationMs: timing.durationMs,
@@ -1137,16 +1150,12 @@ function animatePresentationClockTo(targetClockSeconds: number, reason: string):
     reason,
   })
 
-  const step = () => {
-    elapsedVisibleMinutes += 1
-    const nextClockSeconds = Math.min(
-      targetClockSeconds,
-      currentClockSeconds +
-        elapsedVisibleMinutes * timing.runtimeSecondsPerVisibleMinute,
-    )
+  const frame = (nowMs: number) => {
+    const progress = Math.min(1, Math.max(0, (nowMs - startedAtMs) / timing.durationMs))
+    const nextClockSeconds = fromClockSeconds + progress * span
     const remainingMinutes = Math.max(
       0,
-      timing.visibleGameMinutes - elapsedVisibleMinutes,
+      Math.round(timing.visibleGameMinutes * (1 - progress)),
     )
     setDisplayClockSeconds(nextClockSeconds)
     setClockAnimation((current) =>
@@ -1159,23 +1168,23 @@ function animatePresentationClockTo(targetClockSeconds: number, reason: string):
         : current,
     )
 
-    if (elapsedVisibleMinutes >= timing.visibleGameMinutes) {
+    if (progress >= 1) {
       setDisplayClockSeconds(targetClockSeconds)
       setClockAnimation(null)
-      clockAnimationTimer = undefined
+      clockAnimationFrameId = undefined
       return
     }
 
-    clockAnimationTimer = window.setTimeout(step, timing.msPerVisibleMinute)
+    clockAnimationFrameId = requestAnimationFrame(frame)
   }
 
-  clockAnimationTimer = window.setTimeout(step, timing.msPerVisibleMinute)
+  clockAnimationFrameId = requestAnimationFrame(frame)
 }
 
 function cancelClockAnimation(): void {
-  if (clockAnimationTimer !== undefined) {
-    window.clearTimeout(clockAnimationTimer)
-    clockAnimationTimer = undefined
+  if (clockAnimationFrameId !== undefined) {
+    cancelAnimationFrame(clockAnimationFrameId)
+    clockAnimationFrameId = undefined
   }
   setClockAnimation(null)
 }
@@ -1691,7 +1700,6 @@ async function handleCharacterTravel(event: AddCharacterTravelEvent): Promise<vo
   const travelTiming = ADD_TILE_TRAVEL_PRESENTATION
   const arrivalAtMs = startedAtMs + travelTiming.durationMs
 
-  setAutoTick(false)
   setTravelExperience({
     phase: "traveling",
     event,
@@ -1718,7 +1726,10 @@ async function handleCharacterTravel(event: AddCharacterTravelEvent): Promise<vo
     ])
   } finally {
     mapHost?.setTravelLocked(false)
-    setAutoTick(false)
+    // Settle the presentation clock to the authoritative clock at arrival so the
+    // tile-hour lands exactly; ambient ticking resumes from here.
+    cancelClockAnimation()
+    setDisplayClockSeconds(snapshot()?.clockSeconds ?? toClockSeconds)
   }
 
   await revealHeroDestination(event)
@@ -2211,7 +2222,8 @@ function statusState(): string {
 function statusLabel(): string {
   if (lastError()) return "Runtime error"
   if (!ready()) return "Booting"
-  return autoTick() ? "Live" : "Ready"
+  // Ambient world clock runs by default ("Live"); the toggle pauses it ("Paused").
+  return autoTick() ? "Live" : "Paused"
 }
 
 function objectiveState(): string {

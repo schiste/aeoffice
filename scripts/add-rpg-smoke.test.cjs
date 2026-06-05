@@ -41,7 +41,7 @@ async function main() {
         state.app === "add-rpg" &&
         state.runtime?.workerBoundary === "ui-worker-rust-wasm-snapshot" &&
         state.runtime?.ready === true &&
-        state.runtime?.autoTick === false &&
+        state.runtime?.autoTick === true &&
         state.runtime?.snapshotReceived === true &&
         state.runtime?.catalogReceived === true &&
         state.shell?.framework === "solid" &&
@@ -135,6 +135,7 @@ async function main() {
     )
     assert.ok(initial.ui.resourceCount > 0)
     assert.ok(initial.catalog.worldActionCount > 0)
+    await assertIdleAmbientClockAdvances(page)
     await assertHeroStartsAtSurvivorCave(page, initial)
     const hiddenSelection = await selectHiddenMapCell(page, consoleErrors)
     assert.equal(hiddenSelection.map.interaction.selectedLabel, "Unknown region")
@@ -416,6 +417,18 @@ async function exerciseSaveReloadOfflineAndReset(page, advanced, consoleErrors) 
     16000,
   )
   assert.ok(reloaded.snapshot.clockSeconds > exportedClock)
+  assert.equal(
+    reloaded.ui.worldTime.animating,
+    false,
+    "Offline catch-up on reload should snap the clock, not animate the jump.",
+  )
+  assert.ok(
+    Math.abs(
+      reloaded.ui.worldTime.presentationClockSeconds -
+        reloaded.ui.worldTime.authoritativeClockSeconds,
+    ) <= 1.1,
+    "Offline catch-up should leave the presentation clock snapped to authoritative, not crawling.",
+  )
   assert.deepEqual(
     sortedCells(reloaded.snapshot.discoveredCells),
     exportedDiscoveredCells,
@@ -558,6 +571,31 @@ async function exerciseQuestHud(page, consoleErrors) {
   )
 }
 
+async function assertIdleAmbientClockAdvances(page) {
+  // Idle (no input): ambient world clock runs at ~1 game-minute per real second,
+  // snapping each tick (presentation tracks authoritative, never animating).
+  const before = await renderGameToText(page)
+  await page.waitForTimeout(2500)
+  const after = await renderGameToText(page)
+  const advance = after.snapshot.clockSeconds - before.snapshot.clockSeconds
+  assert.ok(
+    advance >= 1 && advance <= 6,
+    `Idle ambient clock should advance ~1 game-min/sec (saw ${advance}s over ~2.5s).`,
+  )
+  assert.equal(
+    after.ui.worldTime.animating,
+    false,
+    "Idle ambient ticks should snap the clock, not animate it.",
+  )
+  assert.ok(
+    Math.abs(
+      after.ui.worldTime.presentationClockSeconds -
+        after.ui.worldTime.authoritativeClockSeconds,
+    ) <= 1.1,
+    "Idle presentation clock should track the authoritative clock.",
+  )
+}
+
 async function assertHeroStartsAtSurvivorCave(page, state) {
   const canvas = page.locator("#add-world canvas")
   await canvas.waitFor({ state: "visible" })
@@ -682,20 +720,25 @@ async function exerciseMainCharacterMovement(page, consoleErrors) {
     `Travel clock should show multiple minute values, saw ${Array.from(observedTravelClockTimes).join(", ")}`,
   )
   const settledTravelClockSeconds = moved.snapshot.clockSeconds
-  const settledPresentationClockSeconds = moved.ui.worldTime.presentationClockSeconds
   await page.waitForTimeout(1300)
   const afterTravelIdle = await renderGameToText(page)
-  assert.equal(afterTravelIdle.runtime.autoTick, false)
-  assert.equal(afterTravelIdle.ui.worldTime.animating, false)
+  assert.equal(afterTravelIdle.runtime.autoTick, true)
   assert.equal(
-    afterTravelIdle.ui.worldTime.presentationClockSeconds,
-    settledPresentationClockSeconds,
-    "Travel should not leave the displayed clock animating after the crossing is finished.",
+    afterTravelIdle.ui.worldTime.animating,
+    false,
+    "Travel reveal should not leave the displayed clock animating after the crossing.",
   )
-  assert.equal(
-    afterTravelIdle.snapshot.clockSeconds,
-    settledTravelClockSeconds,
-    "Travel should not leave the clock advancing after the crossing is finished.",
+  assert.ok(
+    Math.abs(
+      afterTravelIdle.ui.worldTime.presentationClockSeconds -
+        afterTravelIdle.ui.worldTime.authoritativeClockSeconds,
+    ) <= 1.1,
+    "After the crossing the presentation clock should track the authoritative clock (snapped, not drifting).",
+  )
+  assert.ok(
+    afterTravelIdle.snapshot.clockSeconds >= settledTravelClockSeconds &&
+      afterTravelIdle.snapshot.clockSeconds < settledTravelClockSeconds + 60,
+    "After the crossing the clock should resume ambient ticking, not jump another tile-hour.",
   )
 
   await page.keyboard.down("ArrowRight")
@@ -720,13 +763,18 @@ async function exerciseMainCharacterMovement(page, consoleErrors) {
     (state) =>
       state.map?.character?.cell === returned.map.character.cell &&
       state.map?.character?.moving === false &&
-      state.snapshot?.clockSeconds === returned.snapshot.clockSeconds &&
+      state.snapshot?.clockSeconds >= returned.snapshot.clockSeconds &&
+      state.snapshot?.clockSeconds < returned.snapshot.clockSeconds + 60 &&
       state.ui?.worldTime?.animating === false,
     consoleErrors,
   )
   assert.equal(afterHeldReturn.map.character.cell, returned.map.character.cell)
   assert.equal(afterHeldReturn.map.character.moving, false)
-  assert.equal(afterHeldReturn.snapshot.clockSeconds, returned.snapshot.clockSeconds)
+  assert.ok(
+    afterHeldReturn.snapshot.clockSeconds >= returned.snapshot.clockSeconds &&
+      afterHeldReturn.snapshot.clockSeconds < returned.snapshot.clockSeconds + 60,
+    "Held movement may pass ambient time but must not queue a chained tile-hour.",
+  )
   assert.equal(afterHeldReturn.snapshot.discoveredCellCount, returned.snapshot.discoveredCellCount)
   assert.deepEqual(
     sortedCells(afterHeldReturn.snapshot.discoveredCells),

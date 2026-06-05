@@ -14,6 +14,7 @@ export default defineConfig({
       "@aedventure/game-assets": packageSource("game-assets"),
       "@aedventure/game-renderer-phaser": packageSource("game-renderer-phaser"),
       "@aedventure/game-topology": packageSource("game-topology"),
+      "@aedventure/game-visibility": packageSource("game-visibility"),
       "@aedventure/game-world": packageSource("game-world"),
     },
   },

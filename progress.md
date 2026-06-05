@@ -2285,6 +2285,26 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   build:browser`, `npm run smoke:add-rpg:built`, `npm run check`, and
   `git diff --check`. The smoke now asserts both authoritative and displayed
   clocks stay stopped after travel and that held-key repeats do not chain moves.
+- Reworked the ADD time mechanic into a single authoritative clock with a
+  presentation layer that only smooths the explicit per-hex travel reveal.
+  `onSnapshot` now snaps the displayed clock straight to truth for every
+  non-travel change (boot import, offline catch-up, ambient ticks, manual
+  advances); `animatePresentationClockTo` was rewritten as a real-time
+  requestAnimationFrame interpolation used solely by the travel reveal, so the
+  display can no longer crawl through large jumps or drift past arrival. This
+  fixed the "clock fast-forwards on load" bug (the old setTimeout animator
+  crawled the whole saved/caught-up span at 30ms/minute). Ambient time is now
+  ON by default at 1 game-minute per real second (`autoTick` defaults to `true`,
+  superseding the earlier "paused by default / Live is admin-only" note above);
+  it pauses only while the Hero crosses a tile (the travel phase gate) so the
+  tile-hour stays exact, then resumes on arrival. The topbar reads `Live` while
+  ambient time flows and `Paused` when toggled off. Also added
+  `@aedventure/game-visibility` to the add-rpg Vite alias map so the dev server
+  loads its `src` like the other workspace packages instead of a stale CJS
+  `dist`. Verified live in-browser and via `npm --workspace @aedventure/add-rpg
+  run build:types` + `npm run smoke:add-rpg`; the smoke now asserts idle ambient
+  advance (~1min/sec, snapped), travel = exact +1h then ambient resumes, and
+  offline catch-up snaps without crawling.
 - Phase 1 field-of-vision foundation has started with
   `packages/game-visibility`. The package is topology-neutral and exports
   visibility states, visibility maps keyed by serialized neutral cell
