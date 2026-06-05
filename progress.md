@@ -89,6 +89,13 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   changes trigger a short reveal pulse. `render_game_to_text` exposes
   `visibility` counts plus `affectsAuthority: false`, and renderer QA samples the
   ADD canvas for dark, muted, and bright regions.
+- ADD map interaction UX now respects visibility through one tile-detail
+  formatter. Hidden tile selection says "Unknown region" with unknown terrain,
+  risk, and no dungeon actions; discovered/stale tiles show static name/terrain
+  with uncertain current conditions; visible tiles show current state/terrain;
+  and renderer-side dungeon links are guarded to only appear for discovered or
+  visible cells. ADD smoke clicks a hidden map tile through the real canvas to
+  verify movement preview remains possible without leaking hidden dungeon links.
 - The debug-style event feed is no longer visible in the primary app UI. It has
   been replaced with compact session/world/media status pills, a compact room
   chat transcript, and transient toast feedback for join/reset/error-like events.

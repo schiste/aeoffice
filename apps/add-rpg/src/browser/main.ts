@@ -2426,6 +2426,14 @@ function emptyMapInfo(): AddPhaserMapInfo {
       hoveredHex: null,
       selectedHex: null,
       selectedLabel: null,
+      hoveredDetail: null,
+      selectedDetail: null,
+      visibilitySamples: {
+        hidden: null,
+        discovered: null,
+        visible: null,
+        stale: null,
+      },
     },
     presentation: {
       terrainArt: "procedural_painterly_topology",

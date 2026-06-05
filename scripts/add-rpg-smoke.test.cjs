@@ -105,9 +105,27 @@ async function main() {
     assert.equal(initial.boundary.firstTargetApp, "apps/add-rpg")
     assert.equal(initial.runtime.error, null)
     assert.equal(initial.snapshot.heroMap, initial.map.landmarks.survivorCave)
+    assert.equal(initial.map.interaction.visibilitySamples.hidden.label, "Unknown region")
+    assert.equal(initial.map.interaction.visibilitySamples.hidden.knownInfoLevel, "unknown")
+    assert.equal(initial.map.interaction.visibilitySamples.hidden.dungeonLinks.length, 0)
+    assert.equal(initial.map.interaction.visibilitySamples.hidden.dungeonActionsVisible, false)
+    assert.equal(
+      initial.map.interaction.visibilitySamples.discovered.knownInfoLevel,
+      "known_static",
+    )
+    assert.match(initial.map.interaction.visibilitySamples.discovered.label, /·/)
+    assert.equal(initial.map.interaction.visibilitySamples.visible.knownInfoLevel, "full_current")
     assert.ok(initial.ui.resourceCount > 0)
     assert.ok(initial.catalog.worldActionCount > 0)
     await assertHeroStartsAtSurvivorCave(page, initial)
+    const hiddenSelection = await selectHiddenMapCell(page, consoleErrors)
+    assert.equal(hiddenSelection.map.interaction.selectedLabel, "Unknown region")
+    assert.equal(hiddenSelection.map.interaction.selectedDetail.visibility, "hidden")
+    assert.equal(hiddenSelection.map.interaction.selectedDetail.knownInfoLevel, "unknown")
+    assert.equal(hiddenSelection.map.interaction.selectedDetail.dungeonLinks.length, 0)
+    assert.equal(hiddenSelection.map.interaction.selectedDetail.dungeonActionsVisible, false)
+    assert.equal(hiddenSelection.map.travel.previewLabel, "Unknown region")
+    assert.equal(hiddenSelection.map.travel.previewExposureRisk, "unknown")
     await assertMobilePresentation(browser, url)
     const questHud = await exerciseQuestHud(page, consoleErrors)
     assert.equal(questHud.shell.questPanel.collapsed, false)
@@ -323,14 +341,16 @@ function firstPlayableDigest(state) {
 
 async function exerciseSaveReloadOfflineAndReset(page, advanced, consoleErrors) {
   await openAdmin(page, consoleErrors)
-  await page.locator("#export-save").click()
-  const saved = await waitForTextState(
+  const saved = await clickUntilTextState(
     page,
+    "#export-save",
     (state) =>
       state.persistence?.autosaveAvailable === true &&
       state.persistence?.lastManualExportAtMs !== null &&
       state.persistence?.savePayloadLength > 200,
     consoleErrors,
+    8,
+    2200,
   )
   const payload = await page.locator("#save-payload").inputValue()
   assert.equal(typeof JSON.parse(payload), "object")
@@ -751,6 +771,65 @@ async function interactWithMap(page, consoleErrors) {
   return panned
 }
 
+async function selectHiddenMapCell(page, consoleErrors) {
+  const before = await renderGameToText(page)
+  const restorePanel = before.shell?.questPanel?.collapsed === false
+  if (restorePanel) {
+    await page.locator("#toggle-first-playable-panel").click()
+    await waitForTextState(
+      page,
+      (state) => state.shell?.questPanel?.collapsed === true,
+      consoleErrors,
+    )
+  }
+
+  const canvas = page.locator("#add-world canvas")
+  await canvas.waitFor({ state: "visible" })
+  const box = await canvas.boundingBox()
+  assert.ok(box, "ADD RPG Phaser canvas should have a browser box")
+
+  const candidates = [
+    { x: 0.12, y: 0.50 },
+    { x: 0.18, y: 0.42 },
+    { x: 0.24, y: 0.62 },
+    { x: 0.33, y: 0.36 },
+  ]
+
+  for (const point of candidates) {
+    await page.mouse.click(box.x + box.width * point.x, box.y + box.height * point.y)
+    await page.waitForTimeout(180)
+    const state = await renderGameToText(page)
+    if (state.map?.interaction?.selectedDetail?.visibility === "hidden") {
+      if (!restorePanel) return state
+      await page.locator("#toggle-first-playable-panel").click()
+      return waitForTextState(
+        page,
+        (candidate) =>
+          candidate.shell?.questPanel?.collapsed === false &&
+          candidate.map?.interaction?.selectedDetail?.visibility === "hidden",
+        consoleErrors,
+      )
+    }
+  }
+
+  const latest = await renderGameToText(page)
+  if (restorePanel) {
+    await page.locator("#toggle-first-playable-panel").click()
+    await waitForTextState(
+      page,
+      (state) => state.shell?.questPanel?.collapsed === false,
+      consoleErrors,
+    )
+  }
+  assert.fail(
+    `Expected a hidden tile selection candidate. Latest selection: ${JSON.stringify(
+      latest.map?.interaction,
+      null,
+      2,
+    )}`,
+  )
+}
+
 async function selectMapCenter(page) {
   const canvas = page.locator("#add-world canvas")
   await canvas.waitFor({ state: "visible" })
@@ -813,6 +892,35 @@ async function repeatHeldKey(page, key, count, intervalMs) {
     await page.waitForTimeout(intervalMs)
     await page.keyboard.down(key)
   }
+}
+
+async function clickUntilTextState(
+  page,
+  selector,
+  predicate,
+  consoleErrors = [],
+  attempts = 4,
+  timeoutPerAttemptMs = 1800,
+) {
+  let lastState
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    await page.locator(selector).click()
+    const startedAt = Date.now()
+    while (Date.now() - startedAt < timeoutPerAttemptMs) {
+      lastState = await renderGameToText(page)
+      if (predicate(lastState)) return lastState
+      await page.waitForTimeout(120)
+    }
+  }
+
+  assert.fail(
+    `Timed out after ${attempts} clicks waiting for state from ${selector}. ` +
+      `Console errors: ${JSON.stringify(consoleErrors)}. Last state:\n${JSON.stringify(
+        lastState,
+        null,
+        2,
+      )}`,
+  )
 }
 
 async function renderGameToText(page) {

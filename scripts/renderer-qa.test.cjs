@@ -1046,7 +1046,12 @@ async function verifyAddRendererTopologyFixtures(browser, report) {
         state.map?.visibility?.visibleCells > 0 &&
         state.map?.visibility?.discoveredCells > 0 &&
         state.map?.visibility?.fogRendering === "phaser_visual_overlay" &&
-        state.map?.visibility?.affectsAuthority === false,
+        state.map?.visibility?.affectsAuthority === false &&
+        state.map?.interaction?.visibilitySamples?.hidden?.label === "Unknown region" &&
+        state.map.interaction.visibilitySamples.hidden.dungeonLinks.length === 0 &&
+        state.map.interaction.visibilitySamples.hidden.dungeonActionsVisible === false &&
+        state.map.interaction.visibilitySamples.discovered.knownInfoLevel === "known_static" &&
+        state.map.interaction.visibilitySamples.visible.knownInfoLevel === "full_current",
       16000,
     )
     await page.locator("#toggle-first-playable-panel").click({ timeout: 2500 })
@@ -1128,6 +1133,7 @@ async function captureAddTopologyCanvas(page, state, topology, mode) {
     fixture: state.map.topology.fixture,
     cells: state.map.cells,
     visibility: state.map.visibility,
+    interactionSamples: state.map.interaction.visibilitySamples,
     fogPalette,
     landmarks: state.map.landmarks,
     authority: state.map.authority,

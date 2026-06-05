@@ -36,6 +36,8 @@ type AddTerrain =
 type AddFeature = "none" | "base" | "survivor_cave" | string
 type AddTravelExposureRisk = "studio" | "safe_field" | "fringe" | "toxic" | "unknown"
 type AddVisibilityRenderState = "hidden" | "discovered" | "visible" | "stale"
+type AddTileKnownInfoLevel = "unknown" | "known_static" | "full_current"
+type AddTileInteractionState = AddCellState | "unknown"
 type AddCharacterMoveDirection =
   | "up"
   | "right"
@@ -54,6 +56,19 @@ interface AddDungeonLinkInfo {
   readonly targetMapId: string
   readonly targetCoord: string | null
   readonly enabled: boolean
+}
+
+interface AddTileInteractionDetail {
+  readonly cell: string
+  readonly label: string
+  readonly visibility: AddVisibilityRenderState
+  readonly knownInfoLevel: AddTileKnownInfoLevel
+  readonly terrain: AddTerrain
+  readonly state: AddTileInteractionState
+  readonly exposureRisk: AddTravelExposureRisk
+  readonly dungeonActionsVisible: boolean
+  readonly dungeonLinks: readonly AddDungeonLinkInfo[]
+  readonly travelCopy: string
 }
 
 export interface AddCharacterTravelEvent {
@@ -182,6 +197,14 @@ export interface AddPhaserMapInfo {
     readonly hoveredHex: string | null
     readonly selectedHex: string | null
     readonly selectedLabel: string | null
+    readonly hoveredDetail: AddTileInteractionDetail | null
+    readonly selectedDetail: AddTileInteractionDetail | null
+    readonly visibilitySamples: {
+      readonly hidden: AddTileInteractionDetail | null
+      readonly discovered: AddTileInteractionDetail | null
+      readonly visible: AddTileInteractionDetail | null
+      readonly stale: AddTileInteractionDetail | null
+    }
   }
   readonly presentation: {
     readonly terrainArt: "procedural_painterly_topology"
@@ -502,11 +525,13 @@ class AddRpgHexScene extends Phaser.Scene {
 
     const fromPosition = this.characterPosition ?? centerFor(fromCoord, this.context)
     const toPosition = centerFor(nextCoord, this.context)
-    const destinationLinks = dungeonLinksForCell(nextCell).map(dungeonLinkInfo)
-    const destinationLabel = labelForCoord(nextCoord, this.context) ?? "Unknown tile"
-    const destinationState = stateForCell(nextCell)
-    const destinationTerrain = terrainForCell(nextCell)
-    const exposureRisk = exposureRiskForCell(nextCell)
+    const destinationDetail = tileInteractionDetailForCoord(nextCoord, this.context)
+    const destinationLinks = destinationDetail?.dungeonLinks ?? []
+    const destinationLabel = destinationDetail?.label ?? "Unknown region"
+    const destinationState =
+      destinationDetail?.state === "unknown" ? "inactive" : destinationDetail?.state ?? "inactive"
+    const destinationTerrain = destinationDetail?.terrain ?? "unknown"
+    const exposureRisk = destinationDetail?.exposureRisk ?? "unknown"
     const travelEvent: AddCharacterTravelEvent = {
       direction,
       fromCoord,
@@ -1389,6 +1414,12 @@ class AddRpgHexScene extends Phaser.Scene {
       }
       return
     }
+    const hoveredDetail = this.hoveredCoord
+      ? tileInteractionDetailForCoord(this.hoveredCoord, context)
+      : null
+    const selectedDetail = this.selectedCoord
+      ? tileInteractionDetailForCoord(this.selectedCoord, context)
+      : null
 
     this.lastInfo = {
       hostedBy: "phaser",
@@ -1458,7 +1489,10 @@ class AddRpgHexScene extends Phaser.Scene {
         selectedCell: this.selectedCoord ? displayCell(this.selectedCoord) : null,
         hoveredHex: this.hoveredCoord?.kind === "hex" ? displayCoord(this.hoveredCoord) : null,
         selectedHex: this.selectedCoord?.kind === "hex" ? displayCoord(this.selectedCoord) : null,
-        selectedLabel: this.selectedCoord ? labelForCoord(this.selectedCoord, context) : null,
+        selectedLabel: selectedDetail?.label ?? null,
+        hoveredDetail,
+        selectedDetail,
+        visibilitySamples: tileInteractionVisibilitySamples(context),
       },
       presentation: {
         terrainArt: "procedural_painterly_topology",
@@ -1476,6 +1510,7 @@ class AddRpgHexScene extends Phaser.Scene {
   private travelInfo(context: RenderContext): AddPhaserMapInfo["travel"] {
     const previewCoord = this.selectedCoord ?? this.hoveredCoord
     const previewCell = previewCoord ? context.terrainByCoord.get(coordKey(previewCoord)) : null
+    const previewDetail = previewCoord ? tileInteractionDetailForCoord(previewCoord, context) : null
     const previewAdjacent =
       this.characterCoord !== null && previewCoord !== null
         ? coordsAreAdjacent(this.characterCoord, previewCoord, context)
@@ -1500,9 +1535,9 @@ class AddRpgHexScene extends Phaser.Scene {
       destinationTerrain: activeTravel?.destinationTerrain ?? null,
       exposureRisk: activeTravel?.exposureRisk ?? null,
       previewCell: previewCoord ? displayCell(previewCoord) : null,
-      previewLabel: previewCoord ? labelForCoord(previewCoord, context) : null,
+      previewLabel: previewDetail?.label ?? null,
       previewAdjacent,
-      previewExposureRisk: previewCell ? exposureRiskForCell(previewCell) : null,
+      previewExposureRisk: previewCell ? previewDetail?.exposureRisk ?? "unknown" : null,
       blockedReason: this.characterMoveStatus.blockedReason,
     }
   }
@@ -1755,32 +1790,96 @@ function exposureRiskForCell(cell: GameCellPlacement): AddTravelExposureRisk {
   return "toxic"
 }
 
-function labelForCoord(coord: CellCoord, context: RenderContext): string | null {
+function tileInteractionDetailForCoord(
+  coord: CellCoord,
+  context: RenderContext,
+): AddTileInteractionDetail | null {
   const cell = context.terrainByCoord.get(coordKey(coord))
   if (!cell) return null
-  const dungeonLinks = dungeonLinksForCell(cell)
-  const knownLabel = stringMetadata(cell, "label")
-  const vagueTravelLabel = stringMetadata(cell, "vagueTravelLabel")
-  if (knownLabel) {
-    if (dungeonLinks.length === 0) return knownLabel
-    return `${knownLabel} -> ${dungeonLinks.map((link) => link.label ?? link.id).join(", ")}`
+
+  const visibility = visibilityStateForCell(cell)
+  if (visibility === "hidden") {
+    return {
+      cell: displayCell(coord),
+      label: "Unknown region",
+      visibility,
+      knownInfoLevel: "unknown",
+      terrain: "unknown",
+      state: "unknown",
+      exposureRisk: "unknown",
+      dungeonActionsVisible: false,
+      dungeonLinks: [],
+      travelCopy: "Unknown region. Adjacent travel is possible, but terrain and entrances are unknown.",
+    }
   }
-  if (vagueTravelLabel) return vagueTravelLabel
 
+  const terrain = terrainForCell(cell)
+  const state = visibility === "visible" ? stateForCell(cell) : "unknown"
+  const exposureRisk = visibility === "visible" ? exposureRiskForCell(cell) : "unknown"
+  const knownInfoLevel: AddTileKnownInfoLevel =
+    visibility === "visible" ? "full_current" : "known_static"
+  const baseLabel = knownTileLabel(cell)
+  const staticLabel =
+    terrain === "unknown" ? baseLabel : `${baseLabel} · ${titleCase(terrain)}`
+  const currentLabel =
+    state === "unknown" ? staticLabel : `${baseLabel} · ${titleCase(state)} ${titleCase(terrain)}`
+  const dungeonLinks = dungeonLinksForCell(cell).map(dungeonLinkInfo)
+  const labelWithLinks =
+    dungeonLinks.length === 0
+      ? currentLabel
+      : `${currentLabel} -> ${dungeonLinks.map((link) => link.label).join(", ")}`
+
+  return {
+    cell: displayCell(coord),
+    label: labelWithLinks,
+    visibility,
+    knownInfoLevel,
+    terrain,
+    state,
+    exposureRisk,
+    dungeonActionsVisible: dungeonLinks.length > 0,
+    dungeonLinks,
+    travelCopy:
+      visibility === "visible"
+        ? `${currentLabel}. Current conditions are known.`
+        : `${staticLabel}. Current risk and activity may have changed.`,
+  }
+}
+
+function tileInteractionVisibilitySamples(
+  context: RenderContext,
+): AddPhaserMapInfo["interaction"]["visibilitySamples"] {
+  const samples: {
+    hidden: AddTileInteractionDetail | null
+    discovered: AddTileInteractionDetail | null
+    visible: AddTileInteractionDetail | null
+    stale: AddTileInteractionDetail | null
+  } = {
+    hidden: null,
+    discovered: null,
+    visible: null,
+    stale: null,
+  }
+
+  for (const cell of context.terrainCells) {
+    const visibility = visibilityStateForCell(cell)
+    if (samples[visibility]) continue
+    samples[visibility] = tileInteractionDetailForCoord(cell.coord, context)
+  }
+
+  return samples
+}
+
+function knownTileLabel(cell: GameCellPlacement): string {
+  const knownLabel = stringMetadata(cell, "label")
+  if (knownLabel) return knownLabel
   const feature = featureForCell(cell)
-  const baseLabel =
-    feature === "base"
-      ? "Studio"
-      : feature === "base_core"
-        ? "Base Core"
-        : feature === "survivor_cave"
-          ? "Survivor Cave"
-          : feature !== "none"
-            ? titleCase(feature)
-            : `${titleCase(stateForCell(cell))} ${titleCase(terrainForCell(cell))}`
-
-  if (dungeonLinks.length === 0) return baseLabel
-  return `${baseLabel} -> ${dungeonLinks.map((link) => link.label ?? link.id).join(", ")}`
+  if (feature === "base") return "Studio"
+  if (feature === "base_core") return "Base Core"
+  if (feature === "survivor_cave") return "Survivor Cave"
+  if (feature !== "none") return titleCase(feature)
+  const terrain = terrainForCell(cell)
+  return terrain === "unknown" ? "Known region" : `${titleCase(terrain)} region`
 }
 
 function knownFactsInfo(cells: readonly GameCellPlacement[]): AddPhaserMapInfo["knownFacts"] {
@@ -1995,6 +2094,8 @@ function hasDungeonLinks(cell: GameCellPlacement): boolean {
 }
 
 function dungeonLinksForCell(cell: GameCellPlacement): readonly GameCellLink[] {
+  const visibility = visibilityStateForCell(cell)
+  if (visibility !== "discovered" && visibility !== "visible") return []
   return (cell.links ?? []).filter((link) => link.kind === "dungeon")
 }
 
@@ -2275,6 +2376,14 @@ function emptyMapInfo(): AddPhaserMapInfo {
       hoveredHex: null,
       selectedHex: null,
       selectedLabel: null,
+      hoveredDetail: null,
+      selectedDetail: null,
+      visibilitySamples: {
+        hidden: null,
+        discovered: null,
+        visible: null,
+        stale: null,
+      },
     },
     presentation: {
       terrainArt: "procedural_painterly_topology",
