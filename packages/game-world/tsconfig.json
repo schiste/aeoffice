@@ -8,6 +8,9 @@
   "references": [
     {
       "path": "../game-topology"
+    },
+    {
+      "path": "../game-visibility"
     }
   ],
   "include": [

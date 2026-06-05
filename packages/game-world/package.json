@@ -9,6 +9,7 @@
     "test": "node test/world.test.js"
   },
   "dependencies": {
-    "@aedventure/game-topology": "0.1.0"
+    "@aedventure/game-topology": "0.1.0",
+    "@aedventure/game-visibility": "0.1.0"
   }
 }

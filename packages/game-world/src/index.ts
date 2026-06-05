@@ -10,6 +10,10 @@ import {
   hexCoordInBounds,
   squareCoordInBounds,
 } from "@aedventure/game-topology"
+import {
+  validateVisibilityEntry,
+  type VisibilityEntry,
+} from "@aedventure/game-visibility"
 
 export type GameMapTopologyKind = CellCoord["kind"]
 export type GameLayerKind = "terrain" | "objects" | "overlay" | "collision"
@@ -17,6 +21,7 @@ export type GameInteractionTargetKind = "entity" | "zone" | "map"
 export type GameCellLinkKind = "dungeon" | "portal" | "map" | string
 export type GamePrimitiveValue = string | number | boolean
 export type GameMetadata = Readonly<Record<string, GamePrimitiveValue>>
+export type GameCellVisibility = VisibilityEntry
 
 export type GameTopologyReference =
   | SquareGameTopologyReference
@@ -72,6 +77,7 @@ export interface GameCellPlacement {
   readonly value?: GamePrimitiveValue
   readonly blocked?: boolean
   readonly links?: readonly GameCellLink[]
+  readonly visibility?: GameCellVisibility
   readonly metadata?: GameMetadata
 }
 
@@ -148,6 +154,7 @@ export type GameWorldValidationCheckId =
   | "cell_links"
   | "entity_coords"
   | "zone_cells"
+  | "cell_visibility"
   | "interaction_targets"
 
 export function validateGameWorld(world: GameWorld): GameWorldValidation {
@@ -344,6 +351,26 @@ function validateMapCoordinates(
     layerCoordErrors,
     `Map ${map.id} layer cells match topology and bounds.`,
     "Layer cells outside topology",
+    fail,
+    pass,
+  )
+
+  const cellVisibilityErrors: string[] = []
+  for (const layer of map.layers) {
+    for (const cell of layer.cells ?? []) {
+      if (!cell.visibility) continue
+      const validation = validateVisibilityEntry(
+        cell.visibility,
+        `${layer.id}:${formatCoord(cell.coord)} visibility`,
+      )
+      cellVisibilityErrors.push(...validation.errors)
+    }
+  }
+  reportCoordinateCheck(
+    "cell_visibility",
+    cellVisibilityErrors,
+    `Map ${map.id} cell visibility metadata is valid.`,
+    "Cell visibility errors",
     fail,
     pass,
   )

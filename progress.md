@@ -2258,3 +2258,13 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   `npm --workspace @aedventure/game-visibility run build`,
   `npm --workspace @aedventure/game-visibility run test`, and
   `git diff --check`.
+- Phase 2 field-of-vision world-model support is in place. `GameCellPlacement`
+  now accepts optional `visibility?: GameCellVisibility`, which aliases the
+  neutral `VisibilityEntry` shape from `@aedventure/game-visibility`. Existing
+  maps remain valid without visibility metadata, while square and hex cells can
+  now carry `hidden`/`discovered`/`visible`/`stale` metadata.
+- `game-world` validation now checks optional cell visibility metadata
+  structurally through `validateVisibilityEntry()` without deciding product
+  reveal rules. Verification passed with `npm --workspace @aedventure/game-world
+  run build`, `npm --workspace @aedventure/game-world run test`, `npm run
+  check`, and `git diff --check`.

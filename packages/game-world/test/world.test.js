@@ -44,7 +44,16 @@ const validWorld = {
           id: "layer.terrain",
           kind: "terrain",
           cells: [
-            { coord: squareCoord(0, 0), tokenId: "tile.floor" },
+            {
+              coord: squareCoord(0, 0),
+              tokenId: "tile.floor",
+              visibility: {
+                state: "visible",
+                discoveredAt: 3,
+                lastVisibleAt: 3,
+                revealSource: "neutral-fixture",
+              },
+            },
             {
               coord: squareCoord(1, 0),
               tokenId: "tile.floor",
@@ -105,7 +114,15 @@ const validWorld = {
           id: "layer.hex-terrain",
           kind: "terrain",
           cells: [
-            { coord: hexCoord(0, 0), tokenId: "hex.base" },
+            {
+              coord: hexCoord(0, 0),
+              tokenId: "hex.base",
+              visibility: {
+                state: "discovered",
+                discoveredAt: 1,
+                revealSource: "neutral-fixture",
+              },
+            },
             { coord: hexCoord(1, -1), tokenId: "hex.path" },
           ],
         },
@@ -196,6 +213,10 @@ const invalidWorld = {
           cells: [
             {
               coord: hexCoord(0, 0),
+              visibility: {
+                state: "hidden",
+                lastVisibleAt: 9,
+              },
               links: [
                 {
                   id: "",
@@ -269,6 +290,7 @@ assert.ok(invalid.errors.some((error) => /cellSize must be positive/.test(error)
 assert.ok(invalid.errors.some((error) => /layer ids contain duplicates/.test(error)))
 assert.ok(invalid.errors.some((error) => /entity ids contain duplicates/.test(error)))
 assert.ok(invalid.errors.some((error) => /Layer cells outside topology/.test(error)))
+assert.ok(invalid.errors.some((error) => /Cell visibility errors/.test(error)))
 assert.ok(invalid.errors.some((error) => /Cell link errors/.test(error)))
 assert.ok(invalid.errors.some((error) => /Entity coordinate\/layer errors/.test(error)))
 assert.ok(invalid.errors.some((error) => /Zone cell errors/.test(error)))
