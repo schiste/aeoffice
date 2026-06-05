@@ -32,6 +32,7 @@ type AddTerrain =
   | "base_wall"
   | "unknown"
 type AddFeature = "none" | "base" | "survivor_cave" | string
+type AddTravelExposureRisk = "studio" | "safe_field" | "fringe" | "toxic"
 type AddCharacterMoveDirection =
   | "up"
   | "right"
@@ -50,6 +51,21 @@ interface AddDungeonLinkInfo {
   readonly targetMapId: string
   readonly targetCoord: string | null
   readonly enabled: boolean
+}
+
+export interface AddCharacterTravelEvent {
+  readonly direction: AddCharacterMoveDirection
+  readonly fromCell: string
+  readonly toCell: string
+  readonly destinationLabel: string
+  readonly destinationState: AddCellState
+  readonly destinationTerrain: AddTerrain
+  readonly exposureRisk: AddTravelExposureRisk
+  readonly dungeonLinksAtDestination: readonly AddDungeonLinkInfo[]
+}
+
+export interface AddRpgPhaserMapHostOptions {
+  readonly onCharacterTravel?: (event: AddCharacterTravelEvent) => void
 }
 
 export interface AddPhaserMapInfo {
@@ -98,7 +114,25 @@ export interface AddPhaserMapInfo {
     readonly lastMoveAccepted: boolean | null
     readonly blockedReason: string | null
     readonly dungeonLinksAtCell: readonly AddDungeonLinkInfo[]
-    readonly authority: "local_browser_navigation_preview"
+    readonly authority: "browser_navigation_triggers_rust_time"
+  }
+  readonly travel: {
+    readonly costGameMinutes: 60
+    readonly costRuntimeSeconds: 60
+    readonly active: boolean
+    readonly progress: number
+    readonly direction: string | null
+    readonly fromCell: string | null
+    readonly toCell: string | null
+    readonly destinationLabel: string | null
+    readonly destinationState: AddCellState | null
+    readonly destinationTerrain: AddTerrain | null
+    readonly exposureRisk: AddTravelExposureRisk | null
+    readonly previewCell: string | null
+    readonly previewLabel: string | null
+    readonly previewAdjacent: boolean
+    readonly previewExposureRisk: AddTravelExposureRisk | null
+    readonly blockedReason: string | null
   }
   readonly landmarks: {
     readonly baseCenter: string | null
@@ -162,6 +196,20 @@ interface CharacterMoveStatus {
   readonly blockedReason: string | null
 }
 
+interface CharacterTravelState {
+  readonly direction: AddCharacterMoveDirection
+  readonly fromCell: string
+  readonly toCell: string
+  readonly destinationLabel: string
+  readonly destinationState: AddCellState
+  readonly destinationTerrain: AddTerrain
+  readonly exposureRisk: AddTravelExposureRisk
+  readonly startedAtMs: number
+  readonly durationMs: number
+  readonly fromPosition: Vector2
+  readonly toPosition: Vector2
+}
+
 interface StateCounts {
   readonly inactive: number
   readonly converting: number
@@ -183,13 +231,14 @@ const MIN_ZOOM = 0.55
 const MAX_ZOOM = 2.2
 const KEY_CHORD_DELAY_MS = 55
 const KEY_REPEAT_MOVE_MS = 130
+const CHARACTER_TRAVEL_DURATION_MS = 1850
 
 export class AddRpgPhaserMapHost {
   private readonly scene: AddRpgHexScene
   private readonly game: Phaser.Game
 
-  constructor(parent: HTMLElement) {
-    this.scene = new AddRpgHexScene()
+  constructor(parent: HTMLElement, options: AddRpgPhaserMapHostOptions = {}) {
+    this.scene = new AddRpgHexScene(options)
     this.game = new Phaser.Game({
       type: Phaser.WEBGL,
       parent,
@@ -232,6 +281,10 @@ export class AddRpgPhaserMapHost {
     return this.scene.moveMainCharacter(direction)
   }
 
+  setTravelLocked(locked: boolean): void {
+    this.scene.setTravelLocked(locked)
+  }
+
   getInfo(): AddPhaserMapInfo {
     return this.scene.getInfo()
   }
@@ -242,6 +295,7 @@ export class AddRpgPhaserMapHost {
 }
 
 class AddRpgHexScene extends Phaser.Scene {
+  private readonly hostOptions: AddRpgPhaserMapHostOptions
   private terrainGraphics?: Phaser.GameObjects.Graphics
   private ambienceGraphics?: Phaser.GameObjects.Graphics
   private overlayGraphics?: Phaser.GameObjects.Graphics
@@ -266,6 +320,8 @@ class AddRpgHexScene extends Phaser.Scene {
   private characterCoord: CellCoord | null = null
   private characterPosition: Vector2 | null = null
   private characterTarget: Vector2 | null = null
+  private characterTravel: CharacterTravelState | null = null
+  private travelRuntimeLocked = false
   private characterMoveStatus: CharacterMoveStatus = {
     direction: null,
     accepted: null,
@@ -277,8 +333,9 @@ class AddRpgHexScene extends Phaser.Scene {
   private lastKeyboardMoveAt = 0
   private lastInfo: AddPhaserMapInfo = emptyMapInfo()
 
-  constructor() {
+  constructor(options: AddRpgPhaserMapHostOptions) {
     super("add-rpg-hex-map")
+    this.hostOptions = options
   }
 
   create(): void {
@@ -351,6 +408,15 @@ class AddRpgHexScene extends Phaser.Scene {
     }
 
     this.syncMainCharacter(this.context, false)
+    if (this.travelRuntimeLocked || this.characterIsMoving()) {
+      this.characterMoveStatus = {
+        direction,
+        accepted: false,
+        blockedReason: "travel_in_progress",
+      }
+      this.refreshInfo()
+      return false
+    }
     if (!this.characterCoord) {
       this.characterMoveStatus = {
         direction,
@@ -361,6 +427,7 @@ class AddRpgHexScene extends Phaser.Scene {
       return false
     }
 
+    const fromCoord = this.characterCoord
     const nextCoord = nextCharacterCoord(this.characterCoord, direction, this.context)
     if (!nextCoord) {
       this.characterMoveStatus = {
@@ -393,8 +460,30 @@ class AddRpgHexScene extends Phaser.Scene {
       return false
     }
 
+    const fromPosition = this.characterPosition ?? centerFor(fromCoord, this.context)
+    const toPosition = centerFor(nextCoord, this.context)
+    const destinationLinks = dungeonLinksForCell(nextCell).map(dungeonLinkInfo)
+    const destinationLabel = labelForCoord(nextCoord, this.context) ?? "Unknown tile"
+    const destinationState = stateForCell(nextCell)
+    const destinationTerrain = terrainForCell(nextCell)
+    const exposureRisk = exposureRiskForCell(nextCell)
+
     this.characterCoord = nextCoord
-    this.characterTarget = centerFor(nextCoord, this.context)
+    this.characterPosition = fromPosition
+    this.characterTarget = toPosition
+    this.characterTravel = {
+      direction,
+      fromCell: displayCell(fromCoord),
+      toCell: displayCell(nextCoord),
+      destinationLabel,
+      destinationState,
+      destinationTerrain,
+      exposureRisk,
+      startedAtMs: this.time.now,
+      durationMs: CHARACTER_TRAVEL_DURATION_MS,
+      fromPosition,
+      toPosition,
+    }
     this.selectedCoord = nextCoord
     this.characterMoveStatus = {
       direction,
@@ -403,7 +492,22 @@ class AddRpgHexScene extends Phaser.Scene {
     }
     this.drawOverlay()
     this.refreshInfo()
+    this.hostOptions.onCharacterTravel?.({
+      direction,
+      fromCell: displayCell(fromCoord),
+      toCell: displayCell(nextCoord),
+      destinationLabel,
+      destinationState,
+      destinationTerrain,
+      exposureRisk,
+      dungeonLinksAtDestination: destinationLinks,
+    })
     return true
+  }
+
+  setTravelLocked(locked: boolean): void {
+    this.travelRuntimeLocked = locked
+    this.refreshInfo()
   }
 
   getInfo(): AddPhaserMapInfo {
@@ -681,6 +785,33 @@ class AddRpgHexScene extends Phaser.Scene {
     this.syncMainCharacter(this.context, false)
     if (!this.characterPosition || !this.characterTarget) return
 
+    if (this.characterTravel) {
+      const rawProgress = clamp(
+        (this.time.now - this.characterTravel.startedAtMs) / this.characterTravel.durationMs,
+        0,
+        1,
+      )
+      const eased = smoothStep(rawProgress)
+      this.characterPosition = {
+        x: Phaser.Math.Linear(
+          this.characterTravel.fromPosition.x,
+          this.characterTravel.toPosition.x,
+          eased,
+        ),
+        y: Phaser.Math.Linear(
+          this.characterTravel.fromPosition.y,
+          this.characterTravel.toPosition.y,
+          eased,
+        ),
+      }
+      if (rawProgress >= 1) {
+        this.characterPosition = this.characterTravel.toPosition
+        this.characterTravel = null
+      }
+      this.updateMainCharacterObjects()
+      return
+    }
+
     const distance = distanceBetween(this.characterPosition, this.characterTarget)
     if (distance <= 0.25) {
       this.characterPosition = this.characterTarget
@@ -737,6 +868,7 @@ class AddRpgHexScene extends Phaser.Scene {
   }
 
   private characterIsMoving(): boolean {
+    if (this.characterTravel) return true
     if (!this.characterPosition || !this.characterTarget) return false
     return distanceBetween(this.characterPosition, this.characterTarget) > 0.35
   }
@@ -1120,8 +1252,9 @@ class AddRpgHexScene extends Phaser.Scene {
         dungeonLinksAtCell: this.characterCoord
           ? dungeonLinksForCoord(this.characterCoord, context).map(dungeonLinkInfo)
           : [],
-        authority: "local_browser_navigation_preview",
+        authority: "browser_navigation_triggers_rust_time",
       },
+      travel: this.travelInfo(context),
       landmarks: {
         baseCenter: context.baseCoord ? displayCoord(context.baseCoord) : null,
         studioLabelVisible: context.baseCoord !== null,
@@ -1154,6 +1287,38 @@ class AddRpgHexScene extends Phaser.Scene {
         transitionProgress: round(this.transitionProgress),
         responsiveLayout: this.scale.width < 640 || this.scale.height < 520 ? "mobile" : "desktop",
       },
+    }
+  }
+
+  private travelInfo(context: RenderContext): AddPhaserMapInfo["travel"] {
+    const previewCoord = this.selectedCoord ?? this.hoveredCoord
+    const previewCell = previewCoord ? context.terrainByCoord.get(coordKey(previewCoord)) : null
+    const previewAdjacent =
+      this.characterCoord !== null && previewCoord !== null
+        ? coordsAreAdjacent(this.characterCoord, previewCoord, context)
+        : false
+    const activeTravel = this.characterTravel
+    const rawProgress = activeTravel
+      ? clamp((this.time.now - activeTravel.startedAtMs) / activeTravel.durationMs, 0, 1)
+      : 0
+
+    return {
+      costGameMinutes: 60,
+      costRuntimeSeconds: 60,
+      active: activeTravel !== null || this.travelRuntimeLocked,
+      progress: round(rawProgress),
+      direction: activeTravel?.direction ?? this.characterMoveStatus.direction,
+      fromCell: activeTravel?.fromCell ?? null,
+      toCell: activeTravel?.toCell ?? null,
+      destinationLabel: activeTravel?.destinationLabel ?? null,
+      destinationState: activeTravel?.destinationState ?? null,
+      destinationTerrain: activeTravel?.destinationTerrain ?? null,
+      exposureRisk: activeTravel?.exposureRisk ?? null,
+      previewCell: previewCoord ? displayCell(previewCoord) : null,
+      previewLabel: previewCoord ? labelForCoord(previewCoord, context) : null,
+      previewAdjacent,
+      previewExposureRisk: previewCell ? exposureRiskForCell(previewCell) : null,
+      blockedReason: this.characterMoveStatus.blockedReason,
     }
   }
 }
@@ -1376,6 +1541,15 @@ function progressForCell(cell: GameCellPlacement): number {
   return clamp(numberMetadata(cell, "progress") ?? 0, 0, 1)
 }
 
+function exposureRiskForCell(cell: GameCellPlacement): AddTravelExposureRisk {
+  const feature = featureForCell(cell)
+  const state = stateForCell(cell)
+  if (isBaseFeature(feature)) return "studio"
+  if (state === "stabilized") return "safe_field"
+  if (state === "converting") return "fringe"
+  return "toxic"
+}
+
 function labelForCoord(coord: CellCoord, context: RenderContext): string | null {
   const cell = context.terrainByCoord.get(coordKey(coord))
   if (!cell) return null
@@ -1412,6 +1586,17 @@ function initialCharacterCoord(context: RenderContext): CellCoord | null {
     context.terrainCells.find((cell) => !cell.blocked && stateForCell(cell) !== "blocked")
       ?.coord ?? null
   )
+}
+
+function coordsAreAdjacent(a: CellCoord, b: CellCoord, context: RenderContext): boolean {
+  if (a.kind !== b.kind) return false
+  if (a.kind === "hex" && b.kind === "hex" && context.hexTopology) {
+    return context.hexTopology.distance(a, b) === 1
+  }
+  if (a.kind === "square" && b.kind === "square" && context.squareTopology) {
+    return context.squareTopology.distance(a, b) === 1
+  }
+  return false
 }
 
 function nextCharacterCoord(
@@ -1674,6 +1859,11 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value))
 }
 
+function smoothStep(value: number): number {
+  const clamped = clamp(value, 0, 1)
+  return clamped * clamped * (3 - 2 * clamped)
+}
+
 function rendererType(type: number): string {
   if (type === Phaser.WEBGL) return "webgl"
   if (type === Phaser.CANVAS) return "canvas"
@@ -1723,7 +1913,25 @@ function emptyMapInfo(): AddPhaserMapInfo {
       lastMoveAccepted: null,
       blockedReason: null,
       dungeonLinksAtCell: [],
-      authority: "local_browser_navigation_preview",
+      authority: "browser_navigation_triggers_rust_time",
+    },
+    travel: {
+      costGameMinutes: 60,
+      costRuntimeSeconds: 60,
+      active: false,
+      progress: 0,
+      direction: null,
+      fromCell: null,
+      toCell: null,
+      destinationLabel: null,
+      destinationState: null,
+      destinationTerrain: null,
+      exposureRisk: null,
+      previewCell: null,
+      previewLabel: null,
+      previewAdjacent: false,
+      previewExposureRisk: null,
+      blockedReason: null,
     },
     landmarks: {
       baseCenter: null,

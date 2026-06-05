@@ -64,7 +64,11 @@ async function main() {
         state.map?.dungeonLinks?.total > 0 &&
         state.map?.dungeonLinks?.cellsWithLinks > 0 &&
         state.map?.character?.visible === true &&
-        state.map?.character?.authority === "local_browser_navigation_preview" &&
+        state.map?.character?.authority === "browser_navigation_triggers_rust_time" &&
+        state.map?.travel?.costGameMinutes === 60 &&
+        state.map?.travel?.costRuntimeSeconds === 60 &&
+        state.travel?.costGameMinutes === 60 &&
+        state.travel?.costRuntimeSeconds === 60 &&
         state.map?.landmarks?.studioLabelVisible === true &&
         state.map?.landmarks?.survivorCaveVisible === true &&
         state.map?.authority?.rules === "rust_wasm_snapshot" &&
@@ -509,9 +513,17 @@ async function exerciseMainCharacterMovement(page, consoleErrors) {
     (state) =>
       state.map?.character?.lastMoveDirection === "right" &&
       state.map?.character?.lastMoveAccepted === true &&
-      state.map?.character?.cell !== before.map.character.cell,
+      state.map?.character?.cell !== before.map.character.cell &&
+      state.map?.character?.moving === false &&
+      state.snapshot?.clockSeconds >= before.snapshot.clockSeconds + 59 &&
+      state.travel?.runtimeSynced === true &&
+      state.travel?.phase === "arrived",
     consoleErrors,
+    8000,
   )
+  assert.equal(moved.travel.costGameMinutes, 60)
+  assert.ok(moved.travel.toTime, "Travel should expose an arrival time")
+  assert.ok(moved.travel.exposureRisk, "Travel should expose an exposure risk")
 
   await page.keyboard.press("ArrowLeft")
   const returned = await waitForTextState(
@@ -519,8 +531,12 @@ async function exerciseMainCharacterMovement(page, consoleErrors) {
     (state) =>
       state.map?.character?.lastMoveDirection === "left" &&
       state.map?.character?.lastMoveAccepted === true &&
-      state.map?.character?.cell === before.map.character.cell,
+      state.map?.character?.cell === before.map.character.cell &&
+      state.map?.character?.moving === false &&
+      state.snapshot?.clockSeconds >= moved.snapshot.clockSeconds + 59 &&
+      state.travel?.runtimeSynced === true,
     consoleErrors,
+    8000,
   )
   assert.equal(returned.map.character.cell, "hex:0,0")
 
@@ -535,8 +551,11 @@ async function exerciseMainCharacterMovement(page, consoleErrors) {
     (state) =>
       state.map?.character?.lastMoveDirection === "north_west" &&
       state.map?.character?.lastMoveAccepted === true &&
-      state.map?.character?.cell === "hex:0,-1",
+      state.map?.character?.cell === "hex:0,-1" &&
+      state.map?.character?.moving === false &&
+      state.snapshot?.clockSeconds >= returned.snapshot.clockSeconds + 59,
     consoleErrors,
+    8000,
   )
 
   return upperLeft

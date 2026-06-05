@@ -243,6 +243,29 @@ h1 {
   content: "";
 }
 
+.world-time-chip.traveling {
+  border-color: rgb(240 185 93 / 48%);
+  background:
+    linear-gradient(90deg, rgb(240 185 93 / 26%), rgb(95 209 216 / 14%)),
+    rgb(12 21 19 / 72%);
+  animation: time-burn 1.4s ease-in-out infinite;
+}
+
+@keyframes time-burn {
+  0%,
+  100% {
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 8%),
+      0 0 0 rgb(240 185 93 / 0%);
+  }
+
+  50% {
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 10%),
+      0 0 22px rgb(240 185 93 / 22%);
+  }
+}
+
 .status-pill,
 .small-chip {
   display: inline-flex;
@@ -346,6 +369,150 @@ h1 {
 
 .day-night-overlay[data-season="summer"] {
   filter: saturate(1.08) hue-rotate(-7deg);
+}
+
+.toxicity-haze {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  background:
+    radial-gradient(circle at 52% 52%, transparent 0 42%, rgb(125 63 40 / var(--toxicity-alpha, 0)) 78%),
+    linear-gradient(135deg, rgb(95 209 216 / 0%), rgb(117 88 45 / calc(var(--toxicity-alpha, 0) * 0.44)));
+  opacity: 1;
+  pointer-events: none;
+  transition: opacity 220ms ease;
+}
+
+.toxicity-haze[data-risk="toxic"],
+.toxicity-haze[data-risk="fringe"] {
+  animation: toxicity-pulse 2.2s ease-in-out infinite;
+}
+
+@keyframes toxicity-pulse {
+  0%,
+  100% {
+    filter: saturate(1);
+  }
+
+  50% {
+    filter: saturate(1.25) contrast(1.04);
+  }
+}
+
+.travel-panel {
+  position: absolute;
+  top: 58px;
+  right: 12px;
+  z-index: 5;
+  display: grid;
+  width: min(430px, calc(100vw - 430px));
+  min-width: 320px;
+  gap: 7px;
+  overflow: hidden;
+  border: 1px solid rgb(255 244 201 / 18%);
+  border-radius: 8px;
+  padding: 10px 12px 12px;
+  background:
+    linear-gradient(180deg, rgb(255 244 201 / 13%), rgb(255 244 201 / 7%)),
+    rgb(12 21 19 / 78%);
+  box-shadow: 0 18px 44px rgb(0 0 0 / 28%);
+  backdrop-filter: blur(16px);
+  pointer-events: none;
+}
+
+.travel-panel > div:first-child,
+.travel-risk-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+}
+
+.travel-panel span {
+  color: rgb(247 238 210 / 66%);
+  font-size: 0.7rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.travel-panel strong {
+  color: #fff2bd;
+  font-size: 0.9rem;
+  font-weight: 950;
+}
+
+.travel-panel p {
+  margin: 0;
+  color: rgb(247 238 210 / 82%);
+  font-size: 0.82rem;
+  font-weight: 720;
+  line-height: 1.32;
+}
+
+.travel-panel > i {
+  display: block;
+  height: 3px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgb(255 244 201 / 16%);
+}
+
+.travel-panel > i::before {
+  display: block;
+  width: var(--travel-progress, 4%);
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #5fd1d8, #f0b95d, #c8654b);
+  content: "";
+  transition: width 140ms linear;
+}
+
+.travel-panel.preview {
+  opacity: 0.86;
+}
+
+.travel-panel.active {
+  border-color: rgb(240 185 93 / 42%);
+}
+
+.travel-panel.arrived {
+  border-color: rgb(95 209 216 / 40%);
+}
+
+.travel-risk-row {
+  min-width: 0;
+}
+
+.travel-risk-row > span:last-child {
+  overflow: hidden;
+  color: rgb(247 238 210 / 54%);
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.travel-risk-pill {
+  min-width: fit-content;
+  border-radius: 999px;
+  padding: 0.24rem 0.55rem;
+  background: rgb(255 244 201 / 12%);
+  color: rgb(247 238 210 / 78%);
+}
+
+.travel-risk-pill.studio,
+.travel-risk-pill.safe_field {
+  background: rgb(95 209 216 / 16%);
+  color: #b5fff7;
+}
+
+.travel-risk-pill.fringe {
+  background: rgb(240 185 93 / 18%);
+  color: #ffe0a5;
+}
+
+.travel-risk-pill.toxic {
+  background: rgb(200 101 75 / 24%);
+  color: #ffc6b6;
 }
 
 .map-hud {
@@ -834,6 +1001,15 @@ h1 {
   .map-selection-readout {
     max-width: none;
   }
+
+  .travel-panel {
+    top: auto;
+    right: 12px;
+    bottom: 86px;
+    left: 12px;
+    width: auto;
+    min-width: 0;
+  }
 }
 
 @media (max-width: 520px) {
@@ -865,6 +1041,14 @@ h1 {
   .world-time-chip {
     flex: 1 1 11rem;
     min-width: 0;
+  }
+
+  .travel-panel {
+    padding: 9px 10px 11px;
+  }
+
+  .travel-panel p {
+    font-size: 0.78rem;
   }
 
   .first-playable-overlay {

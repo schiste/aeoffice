@@ -2,9 +2,12 @@ const assert = require("node:assert")
 const {
   addCommandForGameInteraction,
   addSnapshotToGameWorld,
+  ADD_TRAVEL_GAME_MINUTES_PER_TILE,
+  ADD_TRAVEL_RUNTIME_SECONDS_PER_TILE,
   createAddCatalogIndexes,
   selectAddTile,
   selectAddUiState,
+  selectAddWorldTimeForClockSeconds,
   workerRequestForAddCommand,
 } = require("../dist/index.js")
 const { validateGameWorld } = require("../../game-world/dist/index.js")
@@ -130,6 +133,13 @@ assert.equal(ui.worldTime.daylightPhase, "day")
 assert.equal(ui.worldTime.source, "estimated_solar_model")
 assert.ok(ui.worldTime.sunriseMinute > 300)
 assert.ok(ui.worldTime.sunsetMinute > ui.worldTime.sunriseMinute)
+assert.equal(ADD_TRAVEL_GAME_MINUTES_PER_TILE, 60)
+assert.equal(ADD_TRAVEL_RUNTIME_SECONDS_PER_TILE, 60)
+assert.equal(
+  selectAddWorldTimeForClockSeconds(snapshot.clockSeconds + ADD_TRAVEL_RUNTIME_SECONDS_PER_TILE)
+    .localTime,
+  "08:12",
+)
 assert.equal(ui.resources.find((resource) => resource.id === "resource.bassline").value, 12)
 assert.equal(ui.resources.find((resource) => resource.id === "resource.bassline").cap, 100)
 assert.equal(ui.objective.recruitmentEnabled, true)

@@ -2167,3 +2167,25 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   test`, `npm --workspace @aedventure/add-rpg run build:browser`, `npm run
   smoke:add-rpg:built`, and `npm run check`. The ADD smoke now asserts the
   world-time telemetry, and the latest ADD screenshot was visually inspected.
+- ADD tile crossing now has a visible travel-time experience. The shared
+  world-time adapter exports the travel scale (`60` in-game minutes per tile,
+  `60` runtime seconds at the current display scale) plus
+  `selectAddWorldTimeForClockSeconds()` so the app can preview arrival time
+  without duplicating solar/date logic.
+- The Phaser ADD map host now emits a character travel event when an accepted
+  adjacent move starts. The app shell listens to that event, locks further
+  travel briefly, advances the Rust/WASM runtime clock by one tile-hour through
+  the normal worker snapshot path, and shows a traveling/arrived recap with
+  destination, arrival time, and exposure-risk copy. Phaser remains a visual
+  projection layer; the runtime clock still comes from Rust.
+- The ADD map presentation now includes a desktop-safe travel card, a pulsing
+  time chip while crossing, and a toxicity haze derived from current viral load
+  plus the destination tile's exposure risk. Smoke tests now assert that keyboard
+  movement changes cells, waits for the visible travel animation, and advances
+  `snapshot.clockSeconds` by roughly one tile-hour per accepted step.
+- Verification for the travel-time slice passed with `npm --workspace
+  @aedventure/add-domain run build`, `npm --workspace @aedventure/add-domain run
+  test`, `npm --workspace @aedventure/add-rpg run build:browser`, `npm run
+  smoke:add-rpg:built`, `npm run check`, and `git diff --check`. The updated
+  ADD map screenshot was visually inspected to ensure the travel card no longer
+  overlaps the quest panel.

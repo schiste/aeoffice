@@ -31,7 +31,10 @@ const REFERENCE_YEAR = 2025
 const REFERENCE_START_MONTH_INDEX = 2
 const REFERENCE_START_DAY = 20
 const WORLD_START_LOCAL_MINUTE = 6 * 60 + 30
-const GAME_MINUTES_PER_RUNTIME_SECOND = 1
+export const ADD_GAME_MINUTES_PER_RUNTIME_SECOND = 1
+export const ADD_TRAVEL_GAME_MINUTES_PER_TILE = 60
+export const ADD_TRAVEL_RUNTIME_SECONDS_PER_TILE =
+  ADD_TRAVEL_GAME_MINUTES_PER_TILE / ADD_GAME_MINUTES_PER_RUNTIME_SECOND
 const MINUTES_PER_DAY = 24 * 60
 const TWILIGHT_MINUTES = 45
 const SOLAR_ZENITH_DEGREES = 90.833
@@ -42,7 +45,11 @@ const STUDIO_LOCATION = {
 } as const
 
 export function selectAddWorldTime(snapshot: SimulationSnapshot): AddWorldTimeSummary {
-  const elapsedMinutes = Math.max(0, snapshot.clockSeconds) * GAME_MINUTES_PER_RUNTIME_SECOND
+  return selectAddWorldTimeForClockSeconds(snapshot.clockSeconds)
+}
+
+export function selectAddWorldTimeForClockSeconds(clockSeconds: number): AddWorldTimeSummary {
+  const elapsedMinutes = Math.max(0, clockSeconds) * ADD_GAME_MINUTES_PER_RUNTIME_SECOND
   const absoluteMinutes = WORLD_START_LOCAL_MINUTE + elapsedMinutes
   const dayIndex = Math.floor(absoluteMinutes / MINUTES_PER_DAY)
   const localMinute = positiveModulo(Math.floor(absoluteMinutes), MINUTES_PER_DAY)

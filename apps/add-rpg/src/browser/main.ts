@@ -3,12 +3,16 @@ import html from "solid-js/html"
 import { render } from "solid-js/web"
 import {
   ADD_DOMAIN_BOUNDARY,
+  ADD_TRAVEL_GAME_MINUTES_PER_TILE,
+  ADD_TRAVEL_RUNTIME_SECONDS_PER_TILE,
   SimulationClient,
   addCommandForGameInteraction,
   selectAddUiState,
+  selectAddWorldTimeForClockSeconds,
   workerRequestForAddCommand,
   type AddUiState,
   type AddFirstPlayableAction,
+  type AddWorldTimeSummary,
   type CatalogSnapshot,
   type SimulationSnapshot,
   type WorkerRequest,
@@ -21,7 +25,11 @@ import {
   createAddWorldForMapMode,
   type AddMapMode,
 } from "./add-map-modes"
-import { AddRpgPhaserMapHost, type AddPhaserMapInfo } from "./phaser-add-map"
+import {
+  AddRpgPhaserMapHost,
+  type AddCharacterTravelEvent,
+  type AddPhaserMapInfo,
+} from "./phaser-add-map"
 import {
   ADD_AUTOSAVE_STORAGE_KEY,
   clearAutosave,
@@ -55,6 +63,20 @@ const FIRST_PLAYABLE_ROLE_IDS = [
 interface QuestPanelPosition {
   readonly x: number
   readonly y: number
+}
+
+interface TravelExperience {
+  readonly phase: "traveling" | "arrived"
+  readonly event: AddCharacterTravelEvent
+  readonly fromClockSeconds: number
+  readonly toClockSeconds: number
+  readonly fromTime: AddWorldTimeSummary
+  readonly toTime: AddWorldTimeSummary
+  readonly startedAtMs: number
+  readonly arrivalAtMs: number
+  readonly runtimeSynced: boolean
+  readonly toxicityBefore: number
+  readonly toxicityAfter: number | null
 }
 
 interface RuntimeTextState {
@@ -110,6 +132,14 @@ interface RuntimeTextState {
       readonly heroRoleId: string
       readonly totalCrew: number
       readonly crewByRole: Record<string, number>
+    }
+    readonly heroSurvival: {
+      readonly location: string
+      readonly viralLoadRatio: number
+      readonly debuffTier: number
+      readonly movementSpeedMultiplier: number
+      readonly encounterRateMultiplier: number
+      readonly forcedReturnPhase: string | null
     }
     readonly bubble: {
       readonly reachFromBase: number
@@ -190,6 +220,23 @@ interface RuntimeTextState {
     readonly topology: "hex" | "square" | "unknown"
     readonly fixture: boolean
   }
+  readonly travel: {
+    readonly costGameMinutes: number
+    readonly costRuntimeSeconds: number
+    readonly active: boolean
+    readonly phase: "idle" | "preview" | "traveling" | "arrived"
+    readonly progress: number
+    readonly fromTime: string | null
+    readonly toTime: string | null
+    readonly destinationLabel: string | null
+    readonly exposureRisk: string | null
+    readonly runtimeSynced: boolean
+    readonly toxicityBefore: number | null
+    readonly toxicityAfter: number | null
+    readonly previewCell: string | null
+    readonly previewLabel: string | null
+    readonly previewAdjacent: boolean
+  }
   readonly map: AddPhaserMapInfo
   readonly persistence: {
     readonly storageKey: string
@@ -253,11 +300,13 @@ const [autoTick, setAutoTick] = createSignal(true)
 const [adminOpen, setAdminOpen] = createSignal(false)
 const [firstPlayableCollapsed, setFirstPlayableCollapsed] = createSignal(false)
 const [questPanelPosition, setQuestPanelPosition] = createSignal(defaultQuestPanelPosition())
+const [travelExperience, setTravelExperience] = createSignal<TravelExperience | null>(null)
 const [lastEvent, setLastEvent] = createSignal("booting")
 const [lastCommand, setLastCommand] = createSignal<string | null>(null)
 const [lastError, setLastError] = createSignal<string | null>(null)
 
 let mapHost: AddRpgPhaserMapHost | null = null
+let travelClearTimer: number | undefined
 let questPanelDrag:
   | {
       readonly pointerId: number
@@ -362,7 +411,11 @@ function AddRpgApp() {
 
   onMount(() => {
     if (!mapElement) return
-    mapHost = new AddRpgPhaserMapHost(mapElement)
+    mapHost = new AddRpgPhaserMapHost(mapElement, {
+      onCharacterTravel: (event) => {
+        void handleCharacterTravel(event)
+      },
+    })
     const currentWorld = world()
     if (currentWorld) {
       mapHost.renderWorld(currentWorld)
@@ -383,6 +436,7 @@ function AddRpgApp() {
     if (autoTickTimer !== undefined) window.clearInterval(autoTickTimer)
     if (mapInfoTimer !== undefined) window.clearInterval(mapInfoTimer)
     if (autosaveTimer !== undefined) window.clearInterval(autosaveTimer)
+    if (travelClearTimer !== undefined) window.clearTimeout(travelClearTimer)
     window.removeEventListener("online", handleOnline)
     window.removeEventListener("offline", handleOffline)
     mapHost?.destroy()
@@ -403,6 +457,12 @@ function AddRpgApp() {
             style=${() => dayNightOverlayStyle()}
             aria-hidden="true"
           />
+          <div
+            class="toxicity-haze"
+            data-risk=${() => travelRiskState()}
+            style=${() => toxicityHazeStyle()}
+            aria-hidden="true"
+          />
           <div class="map-topbar" aria-label="ADD map navigation">
             <div class="map-mode-switcher" role="tablist" aria-label="ADD map mode">
               ${() => mapModeButtons()}
@@ -411,7 +471,13 @@ function AddRpgApp() {
               <span class="status-pill" data-state=${() => statusState()}>
                 ${() => statusLabel()}
               </span>
-              <div class="world-time-chip" aria-label="Game time">
+              <div
+                class=${() =>
+                  travelExperience()?.phase === "traveling"
+                    ? "world-time-chip traveling"
+                    : "world-time-chip"}
+                aria-label="Game time"
+              >
                 <span>${() => worldTimePrimaryCopy()}</span>
                 <small>${() => worldTimeSecondaryCopy()}</small>
                 <i style=${() => daylightMeterStyle()} aria-hidden="true" />
@@ -428,6 +494,24 @@ function AddRpgApp() {
               </button>
             </div>
           </div>
+          <section
+            class=${() => travelPanelClass()}
+            aria-live="polite"
+            aria-label="Travel time and exposure"
+          >
+            <div>
+              <span>${() => travelPanelTitle()}</span>
+              <strong>${() => travelPanelClockCopy()}</strong>
+            </div>
+            <p>${() => travelPanelDetailCopy()}</p>
+            <div class="travel-risk-row">
+              <span class=${() => `travel-risk-pill ${travelRiskState()}`}>
+                ${() => travelRiskCopy()}
+              </span>
+              <span>${ADD_TRAVEL_GAME_MINUTES_PER_TILE}m daylight step</span>
+            </div>
+            <i style=${() => travelProgressStyle()} aria-hidden="true" />
+          </section>
           <section
             id="first-playable-panel"
             class=${() =>
@@ -970,10 +1054,38 @@ function dayNightOverlayStyle(): Record<string, string> {
   }
 }
 
+function toxicityHazeStyle(): Record<string, string> {
+  const survival = snapshot()?.heroSurvival
+  const risk = currentTravelRisk()
+  const baseAlpha = Math.min(0.34, (survival?.viralLoadRatio ?? 0) * 0.42)
+  const riskAlpha =
+    risk === "toxic"
+      ? 0.24
+      : risk === "fringe"
+        ? 0.16
+        : risk === "safe_field"
+          ? 0.06
+          : 0
+  const activeBoost = travelExperience()?.phase === "traveling" ? 0.08 : 0
+  return {
+    "--toxicity-alpha": Math.min(0.46, baseAlpha + riskAlpha + activeBoost).toFixed(3),
+  }
+}
+
 function daylightMeterStyle(): Record<string, string> {
   const ratio = uiState()?.worldTime.daylightRatio ?? 1
   return {
     "--daylight-ratio": `${Math.max(8, Math.round(ratio * 100))}%`,
+  }
+}
+
+function travelProgressStyle(): Record<string, string> {
+  const experience = travelExperience()
+  const mapTravel = mapInfo().travel
+  const progress =
+    experience?.phase === "arrived" ? 1 : mapTravel.active ? mapTravel.progress : 0
+  return {
+    "--travel-progress": `${Math.max(4, Math.round(progress * 100))}%`,
   }
 }
 
@@ -989,8 +1101,87 @@ function worldTimeSecondaryCopy(): string {
   return `${time.seasonLabel} · ${titleCase(time.daylightPhase)} · ${time.sunrise}/${time.sunset}`
 }
 
+function travelPanelClass(): string {
+  const phase = travelExperience()?.phase
+  if (phase === "traveling") return "travel-panel active"
+  if (phase === "arrived") return "travel-panel arrived"
+  return mapInfo().travel.previewAdjacent ? "travel-panel preview adjacent" : "travel-panel preview"
+}
+
+function travelPanelTitle(): string {
+  const experience = travelExperience()
+  if (experience?.phase === "traveling") return "Crossing tile"
+  if (experience?.phase === "arrived") return "Arrived"
+  return "Next step"
+}
+
+function travelPanelClockCopy(): string {
+  const experience = travelExperience()
+  const currentSnapshot = snapshot()
+  if (experience) {
+    return `${experience.fromTime.localTime} -> ${experience.toTime.localTime}`
+  }
+  if (!currentSnapshot) return "+1h"
+  const arrival = selectAddWorldTimeForClockSeconds(
+    currentSnapshot.clockSeconds + ADD_TRAVEL_RUNTIME_SECONDS_PER_TILE,
+  )
+  return `${uiState()?.worldTime.localTime ?? "--:--"} -> ${arrival.localTime}`
+}
+
+function travelPanelDetailCopy(): string {
+  const experience = travelExperience()
+  if (experience) {
+    const destination = experience.event.destinationLabel
+    const suffix =
+      experience.phase === "traveling"
+        ? "The clock is burning forward while the Hero crosses the tile."
+        : "One hour was spent in the field."
+    return `${destination}. ${suffix}`
+  }
+
+  const travel = mapInfo().travel
+  if (travel.previewAdjacent && travel.previewLabel) {
+    return `${travel.previewLabel}. Crossing there will consume one in-game hour.`
+  }
+  if (travel.previewLabel) {
+    return `${travel.previewLabel}. Move one adjacent tile at a time to control exposure.`
+  }
+  return "Every adjacent tile crossing consumes one in-game hour."
+}
+
+function travelRiskState(): string {
+  return currentTravelRisk() ?? "none"
+}
+
+function travelRiskCopy(): string {
+  const risk = currentTravelRisk()
+  switch (risk) {
+    case "studio":
+      return "Sheltered"
+    case "safe_field":
+      return "Safe field"
+    case "fringe":
+      return "Toxic fringe"
+    case "toxic":
+      return "High toxicity"
+    default:
+      return "Exposure varies"
+  }
+}
+
+function currentTravelRisk(): string | null {
+  const experience = travelExperience()
+  return (
+    experience?.event.exposureRisk ??
+    mapInfo().travel.previewExposureRisk ??
+    mapInfo().travel.exposureRisk ??
+    null
+  )
+}
+
 function switchMapMode(nextMode: AddMapMode): void {
   if (mapMode() === nextMode) return
+  setTravelExperience(null)
   setMapMode(nextMode)
   setLastCommand(`map:${nextMode}`)
 }
@@ -1187,11 +1378,70 @@ function lastOfflineCopy(): string {
   return `${formatDuration(seconds)} applied`
 }
 
-async function tickRuntime(seconds: number, options: { readonly queue?: boolean } = {}): Promise<void> {
+async function handleCharacterTravel(event: AddCharacterTravelEvent): Promise<void> {
+  const currentSnapshot = snapshot()
+  if (!currentSnapshot) return
+
+  if (travelClearTimer !== undefined) {
+    window.clearTimeout(travelClearTimer)
+    travelClearTimer = undefined
+  }
+
+  const fromClockSeconds = currentSnapshot.clockSeconds
+  const toClockSeconds = fromClockSeconds + ADD_TRAVEL_RUNTIME_SECONDS_PER_TILE
+  const startedAtMs = Date.now()
+  const arrivalAtMs = startedAtMs + 1850
+
+  setTravelExperience({
+    phase: "traveling",
+    event,
+    fromClockSeconds,
+    toClockSeconds,
+    fromTime: selectAddWorldTimeForClockSeconds(fromClockSeconds),
+    toTime: selectAddWorldTimeForClockSeconds(toClockSeconds),
+    startedAtMs,
+    arrivalAtMs,
+    runtimeSynced: false,
+    toxicityBefore: currentSnapshot.heroSurvival.viralLoadRatio,
+    toxicityAfter: null,
+  })
+
+  mapHost?.setTravelLocked(true)
+  try {
+    await tickRuntime(ADD_TRAVEL_RUNTIME_SECONDS_PER_TILE, {
+      queue: true,
+      commandLabel: `travel:${event.direction}:1h`,
+    })
+  } finally {
+    mapHost?.setTravelLocked(false)
+  }
+
+  const afterSnapshot = snapshot()
+  setTravelExperience((current) =>
+    current
+      ? {
+          ...current,
+          phase: "arrived",
+          runtimeSynced: true,
+          toxicityAfter: afterSnapshot?.heroSurvival.viralLoadRatio ?? current.toxicityBefore,
+        }
+      : current,
+  )
+
+  travelClearTimer = window.setTimeout(() => {
+    setTravelExperience(null)
+    travelClearTimer = undefined
+  }, 3600)
+}
+
+async function tickRuntime(
+  seconds: number,
+  options: { readonly queue?: boolean; readonly commandLabel?: string } = {},
+): Promise<void> {
   if (!ready()) return
   if (requestInFlight && !options.queue) return
   await sendAndWaitForSnapshot(() => {
-    setLastCommand(`tick:${seconds.toFixed(1)}s`)
+    setLastCommand(options.commandLabel ?? `tick:${seconds.toFixed(1)}s`)
     client.tick(seconds)
   })
 }
@@ -1440,6 +1690,16 @@ function toTextState(): RuntimeTextState {
             totalCrew: currentSnapshot.roster.totalCrew,
             crewByRole: stringNumberRecord(currentSnapshot.roster.crewByRole),
           },
+          heroSurvival: {
+            location: currentSnapshot.heroSurvival.location,
+            viralLoadRatio: Math.round(currentSnapshot.heroSurvival.viralLoadRatio * 1000) / 1000,
+            debuffTier: currentSnapshot.heroSurvival.debuffTier,
+            movementSpeedMultiplier:
+              Math.round(currentSnapshot.heroSurvival.movementSpeedMultiplier * 1000) / 1000,
+            encounterRateMultiplier:
+              Math.round(currentSnapshot.heroSurvival.encounterRateMultiplier * 1000) / 1000,
+            forcedReturnPhase: currentSnapshot.heroSurvival.forcedReturn?.phase ?? null,
+          },
           bubble: {
             reachFromBase: currentSnapshot.bubble.reachFromBase,
             fieldBudget: currentSnapshot.bubble.fieldBudget,
@@ -1528,6 +1788,7 @@ function toTextState(): RuntimeTextState {
       topology: currentMapInfo.topology.kind,
       fixture: currentMapInfo.topology.fixture,
     },
+    travel: travelTextState(currentMapInfo),
     map: currentMapInfo,
     persistence: {
       storageKey: ADD_AUTOSAVE_STORAGE_KEY,
@@ -1552,6 +1813,49 @@ function toTextState(): RuntimeTextState {
           worldActionCount: currentCatalog.worldActions.length,
         }
       : null,
+  }
+}
+
+function travelTextState(currentMapInfo: AddPhaserMapInfo): RuntimeTextState["travel"] {
+  const experience = travelExperience()
+  const phase = experience
+    ? experience.phase
+    : currentMapInfo.travel.previewCell
+      ? "preview"
+      : "idle"
+  const progress =
+    experience?.phase === "arrived"
+      ? 1
+      : currentMapInfo.travel.active
+        ? currentMapInfo.travel.progress
+        : 0
+
+  return {
+    costGameMinutes: ADD_TRAVEL_GAME_MINUTES_PER_TILE,
+    costRuntimeSeconds: ADD_TRAVEL_RUNTIME_SECONDS_PER_TILE,
+    active: experience?.phase === "traveling" || currentMapInfo.travel.active,
+    phase,
+    progress,
+    fromTime: experience?.fromTime.localTime ?? null,
+    toTime: experience?.toTime.localTime ?? null,
+    destinationLabel:
+      experience?.event.destinationLabel ??
+      currentMapInfo.travel.destinationLabel ??
+      currentMapInfo.travel.previewLabel,
+    exposureRisk:
+      experience?.event.exposureRisk ??
+      currentMapInfo.travel.exposureRisk ??
+      currentMapInfo.travel.previewExposureRisk,
+    runtimeSynced: experience?.runtimeSynced ?? false,
+    toxicityBefore:
+      experience === null ? null : Math.round(experience.toxicityBefore * 1000) / 1000,
+    toxicityAfter:
+      experience?.toxicityAfter === null || experience?.toxicityAfter === undefined
+        ? null
+        : Math.round(experience.toxicityAfter * 1000) / 1000,
+    previewCell: currentMapInfo.travel.previewCell,
+    previewLabel: currentMapInfo.travel.previewLabel,
+    previewAdjacent: currentMapInfo.travel.previewAdjacent,
   }
 }
 
@@ -1717,7 +2021,25 @@ function emptyMapInfo(): AddPhaserMapInfo {
       lastMoveAccepted: null,
       blockedReason: null,
       dungeonLinksAtCell: [],
-      authority: "local_browser_navigation_preview",
+      authority: "browser_navigation_triggers_rust_time",
+    },
+    travel: {
+      costGameMinutes: 60,
+      costRuntimeSeconds: 60,
+      active: false,
+      progress: 0,
+      direction: null,
+      fromCell: null,
+      toCell: null,
+      destinationLabel: null,
+      destinationState: null,
+      destinationTerrain: null,
+      exposureRisk: null,
+      previewCell: null,
+      previewLabel: null,
+      previewAdjacent: false,
+      previewExposureRisk: null,
+      blockedReason: null,
     },
     landmarks: {
       baseCenter: null,
