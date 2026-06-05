@@ -74,6 +74,11 @@ async function main() {
         state.map?.presentation?.landmarkSprites === "procedural_sprite_stack" &&
         state.map?.presentation?.labelRendering === "high_resolution_phaser_text" &&
         state.map?.presentation?.ambience === "subtle_motes_and_topographic_scan" &&
+        state.ui?.worldTime?.day >= 1 &&
+        state.ui?.worldTime?.season === "spring" &&
+        state.ui?.worldTime?.source === "estimated_solar_model" &&
+        typeof state.ui?.worldTime?.sunrise === "string" &&
+        typeof state.ui?.worldTime?.sunset === "string" &&
         state.catalog?.resourceCount > 0 &&
         state.catalog?.tileCount > 0,
       consoleErrors,

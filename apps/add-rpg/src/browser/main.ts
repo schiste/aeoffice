@@ -128,6 +128,20 @@ interface RuntimeTextState {
     } | null
   } | null
   readonly ui: {
+    readonly worldTime: {
+      readonly day: number
+      readonly referenceDate: string
+      readonly localTime: string
+      readonly season: string
+      readonly seasonLabel: string
+      readonly daylightPhase: string
+      readonly daylightRatio: number
+      readonly nightRatio: number
+      readonly sunrise: string
+      readonly sunset: string
+      readonly location: string
+      readonly source: string
+    }
     readonly resourceCount: number
     readonly resourceFlows: readonly {
       readonly id: string
@@ -382,6 +396,13 @@ function AddRpgApp() {
           <div class=${() => (mapInfo().ready ? "map-loading hidden" : "map-loading")}>
             Initializing map
           </div>
+          <div
+            class="day-night-overlay"
+            data-phase=${() => uiState()?.worldTime.daylightPhase ?? "day"}
+            data-season=${() => uiState()?.worldTime.season ?? "spring"}
+            style=${() => dayNightOverlayStyle()}
+            aria-hidden="true"
+          />
           <div class="map-topbar" aria-label="ADD map navigation">
             <div class="map-mode-switcher" role="tablist" aria-label="ADD map mode">
               ${() => mapModeButtons()}
@@ -390,7 +411,11 @@ function AddRpgApp() {
               <span class="status-pill" data-state=${() => statusState()}>
                 ${() => statusLabel()}
               </span>
-              <span class="status-pill quiet">${() => `${Math.round(snapshot()?.clockSeconds ?? 0)}s`}</span>
+              <div class="world-time-chip" aria-label="Game time">
+                <span>${() => worldTimePrimaryCopy()}</span>
+                <small>${() => worldTimeSecondaryCopy()}</small>
+                <i style=${() => daylightMeterStyle()} aria-hidden="true" />
+              </div>
               <button
                 id="open-admin"
                 type="button"
@@ -932,6 +957,38 @@ function mapModeButtons(): readonly unknown[] {
   )
 }
 
+function dayNightOverlayStyle(): Record<string, string> {
+  const time = uiState()?.worldTime
+  const nightAlpha = time ? Math.min(0.58, time.nightRatio * 0.52) : 0
+  const dawnAlpha =
+    time?.daylightPhase === "dawn" || time?.daylightPhase === "dusk"
+      ? Math.max(0.16, 0.32 * (1 - time.daylightRatio))
+      : 0
+  return {
+    "--night-alpha": nightAlpha.toFixed(3),
+    "--dawn-alpha": dawnAlpha.toFixed(3),
+  }
+}
+
+function daylightMeterStyle(): Record<string, string> {
+  const ratio = uiState()?.worldTime.daylightRatio ?? 1
+  return {
+    "--daylight-ratio": `${Math.max(8, Math.round(ratio * 100))}%`,
+  }
+}
+
+function worldTimePrimaryCopy(): string {
+  const time = uiState()?.worldTime
+  if (!time) return "Day 1 · --:--"
+  return `Day ${time.day} · ${time.localTime}`
+}
+
+function worldTimeSecondaryCopy(): string {
+  const time = uiState()?.worldTime
+  if (!time) return "Solar estimate pending"
+  return `${time.seasonLabel} · ${titleCase(time.daylightPhase)} · ${time.sunrise}/${time.sunset}`
+}
+
 function switchMapMode(nextMode: AddMapMode): void {
   if (mapMode() === nextMode) return
   setMapMode(nextMode)
@@ -1405,6 +1462,20 @@ function toTextState(): RuntimeTextState {
       : null,
     ui: currentUi
       ? {
+          worldTime: {
+            day: currentUi.worldTime.day,
+            referenceDate: currentUi.worldTime.referenceDate,
+            localTime: currentUi.worldTime.localTime,
+            season: currentUi.worldTime.season,
+            seasonLabel: currentUi.worldTime.seasonLabel,
+            daylightPhase: currentUi.worldTime.daylightPhase,
+            daylightRatio: currentUi.worldTime.daylightRatio,
+            nightRatio: currentUi.worldTime.nightRatio,
+            sunrise: currentUi.worldTime.sunrise,
+            sunset: currentUi.worldTime.sunset,
+            location: currentUi.worldTime.location.label,
+            source: currentUi.worldTime.source,
+          },
           resourceCount: currentUi.resources.length,
           resourceFlows: currentUi.resources.map((resource) => ({
             id: resource.id,
@@ -1517,6 +1588,10 @@ function persistenceReadyForFirstPlayable(): boolean {
 
 function formatResource(value: number): string {
   return Number.isInteger(value) ? `${value}` : value.toFixed(1)
+}
+
+function titleCase(value: string): string {
+  return value.length === 0 ? value : `${value[0].toUpperCase()}${value.slice(1)}`
 }
 
 function slugForRole(roleId: string): string {

@@ -189,6 +189,60 @@ h1 {
   pointer-events: auto;
 }
 
+.world-time-chip {
+  position: relative;
+  display: grid;
+  min-width: 12.4rem;
+  min-height: 1.9rem;
+  gap: 0.12rem;
+  overflow: hidden;
+  border: 1px solid rgb(255 244 201 / 14%);
+  border-radius: 8px;
+  padding: 0.32rem 0.72rem 0.38rem;
+  background:
+    linear-gradient(90deg, rgb(246 191 91 / 14%), rgb(95 209 216 / 10%)),
+    rgb(12 21 19 / 66%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 8%);
+}
+
+.world-time-chip span {
+  color: var(--paper);
+  font-size: 0.78rem;
+  font-weight: 900;
+  line-height: 1.05;
+  white-space: nowrap;
+}
+
+.world-time-chip small {
+  overflow: hidden;
+  color: rgb(247 238 210 / 64%);
+  font-size: 0.64rem;
+  font-weight: 760;
+  line-height: 1.05;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.world-time-chip i {
+  position: absolute;
+  right: 0.52rem;
+  bottom: 0.24rem;
+  left: 0.52rem;
+  height: 2px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgb(255 244 201 / 16%);
+}
+
+.world-time-chip i::before {
+  display: block;
+  width: var(--daylight-ratio, 100%);
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #72d0ff, #f2bc57);
+  content: "";
+}
+
 .status-pill,
 .small-chip {
   display: inline-flex;
@@ -255,6 +309,7 @@ h1 {
 .map-loading {
   position: absolute;
   inset: 0;
+  z-index: 7;
   display: grid;
   place-items: center;
   color: var(--paper);
@@ -266,11 +321,39 @@ h1 {
   display: none;
 }
 
+.day-night-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background:
+    radial-gradient(circle at 52% 38%, rgb(255 189 90 / var(--dawn-alpha, 0)) 0 24%, transparent 62%),
+    linear-gradient(180deg, rgb(9 20 42 / var(--night-alpha, 0)), rgb(8 13 29 / calc(var(--night-alpha, 0) * 0.82)));
+  mix-blend-mode: multiply;
+  pointer-events: none;
+  transition:
+    background-color 400ms ease,
+    opacity 400ms ease;
+}
+
+.day-night-overlay[data-phase="dawn"],
+.day-night-overlay[data-phase="dusk"] {
+  mix-blend-mode: soft-light;
+}
+
+.day-night-overlay[data-season="winter"] {
+  filter: saturate(0.86) hue-rotate(8deg);
+}
+
+.day-night-overlay[data-season="summer"] {
+  filter: saturate(1.08) hue-rotate(-7deg);
+}
+
 .map-hud {
   position: absolute;
   right: 12px;
   bottom: 12px;
   left: 12px;
+  z-index: 5;
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
@@ -777,6 +860,11 @@ h1 {
   .status-stack {
     width: 100%;
     justify-content: space-between;
+  }
+
+  .world-time-chip {
+    flex: 1 1 11rem;
+    min-width: 0;
   }
 
   .first-playable-overlay {

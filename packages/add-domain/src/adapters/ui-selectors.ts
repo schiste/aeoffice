@@ -9,6 +9,7 @@ import type {
   StoryBeatDef,
   WorldActionDef,
 } from "../runtime/protocol"
+import { selectAddWorldTime, type AddWorldTimeSummary } from "./world-time"
 
 const RESOURCE_BASSLINE = "resource.bassline"
 const RESOURCE_CHORUS = "resource.chorus"
@@ -115,6 +116,7 @@ export interface AddFirstPlayableSummary {
 }
 
 export interface AddUiState {
+  readonly worldTime: AddWorldTimeSummary
   readonly resources: readonly AddResourceSummary[]
   readonly objective: AddObjectiveSummary
   readonly activeStoryBeat: StoryBeatDef | null
@@ -130,6 +132,7 @@ export function selectAddUiState(
   catalog: CatalogSnapshot,
 ): AddUiState {
   return {
+    worldTime: selectAddWorldTime(snapshot),
     resources: selectAddResourceSummaries(snapshot, catalog),
     objective: selectAddObjectiveSummary(snapshot),
     activeStoryBeat: selectActiveStoryBeat(snapshot, catalog),

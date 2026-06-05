@@ -2152,3 +2152,18 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   its own `playwright` dependency, so the live 8108 keyboard check used the
   repo Playwright dependency directly and captured
   `tmp/add-rpg-live-hex-chord.png`.
+- ADD now has a first-pass world time abstraction in `packages/add-domain`.
+  `selectAddWorldTime()` derives Day, local time, season, daylight phase,
+  daylight ratio, and estimated sunrise/sunset from the authoritative Rust
+  `clockSeconds` without adding new save state. The presentation uses the
+  Studio Echo/Touraine estimate, 2025 reference dates, and a `1 runtime second =
+  1 in-game minute` visual scale.
+- The ADD app shell now shows a compact Day/time/season/sunrise/sunset HUD and
+  a pointer-safe day/night overlay over the Phaser map. The first screen starts
+  at dawn so the player discovers the Studio with visible environmental time
+  instead of a debug seconds counter.
+- Verification for the world time pass passed with `npm --workspace
+  @aedventure/add-domain run build`, `npm --workspace @aedventure/add-domain run
+  test`, `npm --workspace @aedventure/add-rpg run build:browser`, `npm run
+  smoke:add-rpg:built`, and `npm run check`. The ADD smoke now asserts the
+  world-time telemetry, and the latest ADD screenshot was visually inspected.
