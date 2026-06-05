@@ -23,6 +23,7 @@ ln -sfn "../../packages/protocol" "$ROOT_DIR/node_modules/@aedventure/protocol"
 ln -sfn "../../packages/game-protocol" "$ROOT_DIR/node_modules/@aedventure/game-protocol"
 ln -sfn "../../packages/game-core" "$ROOT_DIR/node_modules/@aedventure/game-core"
 ln -sfn "../../packages/game-topology" "$ROOT_DIR/node_modules/@aedventure/game-topology"
+ln -sfn "../../packages/game-visibility" "$ROOT_DIR/node_modules/@aedventure/game-visibility"
 ln -sfn "../../packages/game-world" "$ROOT_DIR/node_modules/@aedventure/game-world"
 ln -sfn "../../packages/add-domain" "$ROOT_DIR/node_modules/@aedventure/add-domain"
 ln -sfn "../../packages/map-engine" "$ROOT_DIR/node_modules/@aedventure/map-engine"
@@ -50,6 +51,9 @@ node "$ROOT_DIR/packages/game-core/test/simulation.test.js"
 
 echo "Running game-topology checks..."
 node "$ROOT_DIR/packages/game-topology/test/topology.test.js"
+
+echo "Running game-visibility checks..."
+node "$ROOT_DIR/packages/game-visibility/test/visibility.test.js"
 
 echo "Running game-world checks..."
 node "$ROOT_DIR/packages/game-world/test/world.test.js"

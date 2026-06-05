@@ -624,14 +624,22 @@ async function exerciseMainCharacterMovement(page, consoleErrors) {
       state.map?.character?.cell === before.map.character.cell &&
       state.map?.character?.moving === false &&
       state.snapshot?.clockSeconds >= moved.snapshot.clockSeconds + 59 &&
-      state.travel?.runtimeSynced === true,
+      state.travel?.runtimeSynced === true &&
+      state.ui?.worldTime?.animating === false,
     consoleErrors,
     8000,
   )
   await repeatedRightKey
   await page.keyboard.up("ArrowRight")
-  await page.waitForTimeout(500)
-  const afterHeldReturn = await renderGameToText(page)
+  const afterHeldReturn = await waitForTextState(
+    page,
+    (state) =>
+      state.map?.character?.cell === returned.map.character.cell &&
+      state.map?.character?.moving === false &&
+      state.snapshot?.clockSeconds === returned.snapshot.clockSeconds &&
+      state.ui?.worldTime?.animating === false,
+    consoleErrors,
+  )
   assert.equal(afterHeldReturn.map.character.cell, returned.map.character.cell)
   assert.equal(afterHeldReturn.map.character.moving, false)
   assert.equal(afterHeldReturn.snapshot.clockSeconds, returned.snapshot.clockSeconds)

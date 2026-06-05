@@ -2247,3 +2247,14 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   build:browser`, `npm run smoke:add-rpg:built`, `npm run check`, and
   `git diff --check`. The smoke now asserts both authoritative and displayed
   clocks stay stopped after travel and that held-key repeats do not chain moves.
+- Phase 1 field-of-vision foundation has started with
+  `packages/game-visibility`. The package is topology-neutral and exports
+  visibility states, visibility maps keyed by serialized neutral cell
+  coordinates, square/hex radius reveal helpers, known-fact filtering policies,
+  stale-memory transforms, and validation helpers. It has no ADD, office,
+  Phaser, dungeon, toxicity, tenant, or account concepts.
+- `game-visibility` is wired into the root TypeScript project graph and
+  `scripts/verify-target-stack.sh`. Focused verification passed with
+  `npm --workspace @aedventure/game-visibility run build`,
+  `npm --workspace @aedventure/game-visibility run test`, and
+  `git diff --check`.

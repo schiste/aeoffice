@@ -25,6 +25,9 @@
       "@aedventure/game-topology": [
         "packages/game-topology/src"
       ],
+      "@aedventure/game-visibility": [
+        "packages/game-visibility/src"
+      ],
       "@aedventure/game-world": [
         "packages/game-world/src"
       ],

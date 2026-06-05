@@ -1,0 +1,14 @@
+{
+  "name": "@aedventure/game-visibility",
+  "version": "0.1.0",
+  "license": "AGPL-3.0-or-later",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -b",
+    "test": "node test/visibility.test.js"
+  },
+  "dependencies": {
+    "@aedventure/game-topology": "0.1.0"
+  }
+}
