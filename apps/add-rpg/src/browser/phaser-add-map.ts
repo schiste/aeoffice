@@ -142,6 +142,7 @@ export interface AddPhaserMapInfo {
     readonly travelRevealPreviewCells: number
     readonly travelRevealPreviewProgress: number
     readonly travelRevealDestinationCell: string | null
+    readonly hiddenCellRendering: "invisible_until_known_or_travel_revealed"
     readonly fogRendering: "phaser_visual_overlay"
     readonly affectsAuthority: false
   }
@@ -704,6 +705,7 @@ class AddRpgHexScene extends Phaser.Scene {
     graphics.clear()
 
     for (const cell of context.terrainCells) {
+      if (!cellIsKnownForPresentation(cell)) continue
       const center = centerFor(cell.coord, context)
       const state = stateForCell(cell)
       const style = styleForCell(cell)
@@ -884,6 +886,8 @@ class AddRpgHexScene extends Phaser.Scene {
     for (const entity of context.map.entities) {
       if (!entity.coord || entity.coord.kind !== context.topologyKind) continue
       if (entity.kind === "hero") continue
+      const cell = context.terrainByCoord.get(coordKey(entity.coord))
+      if (cell && !cellIsKnownForPresentation(cell)) continue
 
       const center = centerFor(entity.coord, context)
       const tags = new Set(entity.tags ?? [])
@@ -1127,6 +1131,7 @@ class AddRpgHexScene extends Phaser.Scene {
 
     const phase = this.frameCount / 42
     for (const cell of context.terrainCells) {
+      if (!cellIsKnownForPresentation(cell)) continue
       const state = stateForCell(cell)
       if (state === "inactive" || state === "blocked") continue
       const center = centerFor(cell.coord, context)
@@ -1167,12 +1172,18 @@ class AddRpgHexScene extends Phaser.Scene {
 
     for (const cell of context.terrainCells) {
       const key = coordKey(cell.coord)
-      const visibilityState = visibilityStateForCell(cell)
+      const visibilityState = presentationVisibilityStateForCell(cell)
       const travelRevealProgress = this.travelRevealProgressForCell(
         cell,
         context,
         travelRevealPreview,
       )
+      if (visibilityState === "hidden") {
+        if (travelRevealProgress > 0) {
+          this.drawTravelRevealPreview(graphics, cell, context, travelRevealProgress)
+        }
+        continue
+      }
       if (cell.coord.kind === "square") {
         this.drawSquareFogCell(graphics, cell, context, visibilityState, travelRevealProgress)
       } else {
@@ -1465,6 +1476,7 @@ class AddRpgHexScene extends Phaser.Scene {
     for (const key of context.bubbleEdgeCoords) {
       const cell = context.terrainByCoord.get(key)
       if (!cell || cell.coord.kind !== "hex") continue
+      if (!cellIsKnownForPresentation(cell)) continue
       const center = centerFor(cell.coord, context)
       drawHexPath(graphics, center, radius + 1.5 + pulse * 3.2)
       graphics.lineStyle(1.2, 0x63dcff, 0.20 + pulse * 0.20)
@@ -1495,6 +1507,8 @@ class AddRpgHexScene extends Phaser.Scene {
     lineWidth: number,
   ): void {
     if (!this.overlayGraphics || !this.context) return
+    const cell = this.context.terrainByCoord.get(coordKey(coord))
+    if (cell && !cellIsKnownForPresentation(cell)) return
     if (coord.kind === "square") {
       const topLeft = squareTopLeftFor(coord, this.context)
       const cellSize = squareCellSize(this.context)
@@ -1653,7 +1667,8 @@ class AddRpgHexScene extends Phaser.Scene {
         ? context.hexTopology?.worldToCell(localPoint)
         : context.squareTopology?.worldToCell(localPoint)
     if (!coord) return null
-    return context.terrainByCoord.has(coordKey(coord)) ? coord : null
+    const cell = context.terrainByCoord.get(coordKey(coord))
+    return cell && cellIsKnownForPresentation(cell) ? coord : null
   }
 
   private refreshInfo(summary = this.lastInfo.validationSummary, valid = this.lastInfo.validationValid): void {
@@ -2196,6 +2211,7 @@ function visibilityInfo(
     travelRevealPreviewCells: travelRevealPreview.cells.size,
     travelRevealPreviewProgress: round(travelRevealPreview.progress),
     travelRevealDestinationCell: travelRevealPreview.destinationCell,
+    hiddenCellRendering: "invisible_until_known_or_travel_revealed",
     fogRendering: "phaser_visual_overlay",
     affectsAuthority: false,
   }
@@ -2242,6 +2258,27 @@ function visibilityStateForCell(cell: GameCellPlacement): AddVisibilityRenderSta
     value === "hidden"
     ? value
     : "hidden"
+}
+
+function presentationVisibilityStateForCell(cell: GameCellPlacement): AddVisibilityRenderState {
+  if (!cellHasVisibilityMetadata(cell)) return "visible"
+  if (visibilityStateForCell(cell) === "hidden" && cellIsStudioAnchor(cell)) {
+    return "discovered"
+  }
+  return visibilityStateForCell(cell)
+}
+
+function cellIsKnownForPresentation(cell: GameCellPlacement): boolean {
+  if (!cellHasVisibilityMetadata(cell)) return true
+  return visibilityStateForCell(cell) !== "hidden" || cellIsStudioAnchor(cell)
+}
+
+function cellIsStudioAnchor(cell: GameCellPlacement): boolean {
+  return isBaseFeature(featureForCell(cell))
+}
+
+function cellHasVisibilityMetadata(cell: GameCellPlacement): boolean {
+  return stringMetadata(cell, "visibilityState") !== undefined
 }
 
 function initialCharacterCoord(context: RenderContext): CellCoord | null {
@@ -2604,6 +2641,7 @@ function emptyMapInfo(): AddPhaserMapInfo {
       travelRevealPreviewCells: 0,
       travelRevealPreviewProgress: 0,
       travelRevealDestinationCell: null,
+      hiddenCellRendering: "invisible_until_known_or_travel_revealed",
       fogRendering: "phaser_visual_overlay",
       affectsAuthority: false,
     },

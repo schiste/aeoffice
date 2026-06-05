@@ -78,6 +78,8 @@ async function main() {
         state.map?.visibility?.affectsAuthority === false &&
         state.map?.visibility?.travelRevealPreviewActive === false &&
         state.map?.visibility?.travelRevealPreviewCells === 0 &&
+        state.map?.visibility?.hiddenCellRendering ===
+          "invisible_until_known_or_travel_revealed" &&
         state.map?.character?.visible === true &&
         state.map?.character?.authority === "browser_navigation_triggers_rust_time" &&
         state.map?.travel?.costGameMinutes === 60 &&
@@ -141,15 +143,10 @@ async function main() {
     assert.ok(initial.catalog.worldActionCount > 0)
     await assertIdleAmbientClockAdvances(page)
     await assertHeroStartsAtSurvivorCave(page, initial)
-    const hiddenSelection = await selectHiddenMapCell(page, consoleErrors)
-    assert.equal(hiddenSelection.map.interaction.selectedLabel, "Unknown region")
-    assert.equal(hiddenSelection.map.interaction.selectedDetail.visibility, "hidden")
-    assert.equal(hiddenSelection.map.interaction.selectedDetail.knownInfoLevel, "unknown")
-    assert.equal(hiddenSelection.map.interaction.selectedDetail.dungeonLinks.length, 0)
-    assert.equal(hiddenSelection.map.interaction.selectedDetail.dungeonActionsVisible, false)
-    assert.equal(hiddenSelection.map.travel.previewLabel, "Unknown region")
-    assert.equal(hiddenSelection.map.travel.previewExposureRisk, "unknown")
-    await assertNonBlankFogMapScreenshot(page, hiddenSelection)
+    const hiddenPointer = await assertHiddenMapCellsAreInvisibleToPointer(page, consoleErrors)
+    assert.notEqual(hiddenPointer.map.interaction.selectedDetail?.visibility, "hidden")
+    assert.notEqual(hiddenPointer.map.travel.previewExposureRisk, "unknown")
+    await assertNonBlankFogMapScreenshot(page, hiddenPointer)
     await assertMobilePresentation(browser, url)
     const questHud = await exerciseQuestHud(page, consoleErrors)
     assert.equal(questHud.shell.questPanel.collapsed, false)
@@ -881,7 +878,7 @@ async function interactWithMap(page, consoleErrors) {
   return panned
 }
 
-async function selectHiddenMapCell(page, consoleErrors) {
+async function assertHiddenMapCellsAreInvisibleToPointer(page, consoleErrors) {
   const before = await renderGameToText(page)
   const restorePanel = before.shell?.questPanel?.collapsed === false
   if (restorePanel) {
@@ -910,34 +907,22 @@ async function selectHiddenMapCell(page, consoleErrors) {
     await page.waitForTimeout(180)
     const state = await renderGameToText(page)
     if (state.map?.interaction?.selectedDetail?.visibility === "hidden") {
-      if (!restorePanel) return state
-      await page.locator("#toggle-first-playable-panel").click()
-      return waitForTextState(
-        page,
-        (candidate) =>
-          candidate.shell?.questPanel?.collapsed === false &&
-          candidate.map?.interaction?.selectedDetail?.visibility === "hidden",
-        consoleErrors,
-      )
+      assert.fail("Invisible hidden tiles should not become selected from blank map space.")
     }
   }
 
   const latest = await renderGameToText(page)
   if (restorePanel) {
     await page.locator("#toggle-first-playable-panel").click()
-    await waitForTextState(
+    return waitForTextState(
       page,
-      (state) => state.shell?.questPanel?.collapsed === false,
+      (state) =>
+        state.shell?.questPanel?.collapsed === false &&
+        state.map?.interaction?.selectedDetail?.visibility !== "hidden",
       consoleErrors,
     )
   }
-  assert.fail(
-    `Expected a hidden tile selection candidate. Latest selection: ${JSON.stringify(
-      latest.map?.interaction,
-      null,
-      2,
-    )}`,
-  )
+  return latest
 }
 
 async function selectMapCenter(page) {
@@ -958,6 +943,10 @@ async function assertNonBlankMapScreenshot(page) {
 
 async function assertNonBlankFogMapScreenshot(page, state) {
   assert.equal(state.map.visibility.fogRendering, "phaser_visual_overlay")
+  assert.equal(
+    state.map.visibility.hiddenCellRendering,
+    "invisible_until_known_or_travel_revealed",
+  )
   assert.ok(state.map.visibility.hiddenCells > 0)
   assert.ok(state.map.visibility.visibleCells > 0)
   await assertNonBlankNamedMapScreenshot(

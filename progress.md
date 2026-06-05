@@ -115,6 +115,11 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   recently lit cells decay through a short trail as the halo leaves them, and a
   subtle glow follows the Hero, while authoritative discovery still happens only
   when Rust/WASM accepts the arrival snapshot.
+- ADD hidden map cells are now visually absent by default instead of drawing as
+  dark silhouettes. Phaser keeps hidden cells in topology/telemetry for
+  authority and movement, but terrain, landmarks, ambience, bubble outlines, and
+  pointer selection only render known cells or the Studio anchor; active travel
+  reveal remains visual-only while the Hero crosses a tile.
 - Verification for the travel halo trail: `npm --workspace @aedventure/add-rpg
   run build:browser` and `npm run smoke:add-rpg` pass. The broader
   `npm run check` is currently blocked by unrelated dirty ADD dungeon work
