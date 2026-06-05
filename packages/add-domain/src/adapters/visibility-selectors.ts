@@ -29,7 +29,7 @@ export const ADD_HERO_VISION_RADIUS = 1
 export type AddVisibilityRevealSource =
   | "add:base"
   | "add:survivor_cave"
-  | "add:bubble"
+  | "add:runtime"
   | "add:hero"
 
 export interface AddVisibilitySelectorsOptions {
@@ -101,6 +101,18 @@ export function selectAddVisibilityMap(
   const survivorCaveHex = survivorCaveHexForSnapshot(snapshot, indexes.tilesById)
   const heroVisionHex = heroVisionHexForSnapshot(snapshot, indexes.tilesById)
 
+  for (const coord of snapshot.discoveredCells ?? []) {
+    visibility = revealKnownCoord(
+      visibility,
+      { kind: "hex", q: coord.q, r: coord.r },
+      "discovered",
+      {
+        now,
+        revealSource: "add:runtime",
+      },
+    )
+  }
+
   if (baseHex) {
     visibility = revealKnownCoord(visibility, hexCoord(baseHex), "discovered", {
       now,
@@ -112,26 +124,6 @@ export function selectAddVisibilityMap(
       now,
       revealSource: "add:survivor_cave",
     })
-  }
-
-  const bubbleCoords = bubbleReachCoords(snapshot)
-  for (const coord of bubbleCoords) {
-    visibility = revealKnownCoord(visibility, coord, "discovered", {
-      now,
-      revealSource: "add:bubble",
-    })
-  }
-
-  const reachFromBase = normalizedReach(snapshot.bubble.reachFromBase)
-  if (baseHex && reachFromBase !== null) {
-    visibility = revealVisibilityRadius(
-      visibility,
-      topology,
-      [hexCoord(baseHex)],
-      reachFromBase,
-      "discovered",
-      { now, revealSource: "add:bubble" },
-    )
   }
 
   const heroCoord = heroVisionHex ? hexCoord(heroVisionHex) : baseHex ? hexCoord(baseHex) : null
@@ -248,18 +240,16 @@ function heroVisionHexForSnapshot(
   snapshot: SimulationSnapshot,
   tilesById: ReadonlyMap<string, TileDef>,
 ): HexSnapshot | undefined {
-  return survivorCaveHexForSnapshot(snapshot, tilesById) ?? baseHexForSnapshot(snapshot, tilesById)
-}
-
-function bubbleReachCoords(snapshot: SimulationSnapshot): readonly HexCoord[] {
-  return snapshot.hexes
-    .filter((hex) => hex.state === "stabilized" || hex.state === "converting")
-    .map(hexCoord)
-}
-
-function normalizedReach(value: number | undefined): number | null {
-  if (typeof value !== "number" || !Number.isFinite(value)) return null
-  return Math.max(0, Math.floor(value))
+  const runtimeHeroHex = snapshot.heroMap
+    ? snapshot.hexes.find(
+        (hex) => hex.q === snapshot.heroMap.q && hex.r === snapshot.heroMap.r,
+      )
+    : undefined
+  return (
+    runtimeHeroHex ??
+    survivorCaveHexForSnapshot(snapshot, tilesById) ??
+    baseHexForSnapshot(snapshot, tilesById)
+  )
 }
 
 function restrictVisibilityToSnapshotHexes(

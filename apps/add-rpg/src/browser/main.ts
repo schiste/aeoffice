@@ -135,6 +135,8 @@ interface RuntimeTextState {
     readonly clockSeconds: number
     readonly hexCount: number
     readonly stabilizedHexes: number
+    readonly discoveredCellCount: number
+    readonly heroMap: string
     readonly heroAssigned: boolean
     readonly activeWorldAction: string | null
     readonly resources: {
@@ -1716,6 +1718,8 @@ async function handleCharacterTravel(event: AddCharacterTravelEvent): Promise<vo
     setAutoTick(false)
   }
 
+  await revealHeroDestination(event)
+
   const afterSnapshot = snapshot()
   setTravelExperience((current) =>
     current
@@ -1739,6 +1743,15 @@ function waitForTravelPresentation(startedAtMs: number, durationMs: number): Pro
   if (remainingMs <= 0) return Promise.resolve()
   return new Promise((resolve) => {
     window.setTimeout(resolve, remainingMs)
+  })
+}
+
+async function revealHeroDestination(event: AddCharacterTravelEvent): Promise<void> {
+  const toCoord = event.toCoord
+  if (toCoord.kind !== "hex") return
+  await sendAndWaitForSnapshot(() => {
+    setLastCommand(`hero_move:${toCoord.q},${toCoord.r}`)
+    client.moveHeroTo(toCoord.q, toCoord.r)
   })
 }
 
@@ -1880,6 +1893,9 @@ function sendWorkerRequest(request: WorkerRequest): void {
     case "recruitFromSurvivorCave":
       client.recruitFromSurvivorCave()
       return
+    case "moveHeroTo":
+      client.moveHeroTo(request.q, request.r)
+      return
     default:
       setLastError(`Command ${request.type} is not exposed by this shell yet.`)
   }
@@ -1975,6 +1991,8 @@ function toTextState(): RuntimeTextState {
           clockSeconds: Math.round(currentSnapshot.clockSeconds * 100) / 100,
           hexCount: currentSnapshot.hexes.length,
           stabilizedHexes: currentSnapshot.bubble.stabilizedHexes,
+          discoveredCellCount: currentSnapshot.discoveredCells.length,
+          heroMap: `${currentSnapshot.heroMap.q},${currentSnapshot.heroMap.r}`,
           heroAssigned: currentSnapshot.roster.heroAssigned,
           activeWorldAction: currentSnapshot.activeWorldAction?.actionId ?? null,
           resources: {

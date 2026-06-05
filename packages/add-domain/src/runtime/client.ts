@@ -71,6 +71,10 @@ export class SimulationClient {
     this.post({ type: 'recruitFromSurvivorCave' })
   }
 
+  moveHeroTo(q: number, r: number) {
+    this.post({ type: 'moveHeroTo', q, r })
+  }
+
   spendBassline(amount: number) {
     this.post({ type: 'spendBassline', amount })
   }

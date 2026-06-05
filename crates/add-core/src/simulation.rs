@@ -20,8 +20,8 @@ use crate::game_data::{
     STATION_WORKSHOP,
 };
 use crate::state::{
-    ConstructionJob, ForcedReturnPhase, ForcedReturnState, GameState, HeroLocationState, HexState,
-    HexVisualState, WorldAction, GRID_RADIUS,
+    initial_discovered_cells, ConstructionJob, ForcedReturnPhase, ForcedReturnState, GameState,
+    HeroLocationState, HexCoordState, HexState, HexVisualState, WorldAction, GRID_RADIUS,
 };
 
 #[derive(Debug, Clone)]
@@ -53,8 +53,8 @@ impl Simulation {
 
     pub fn from_state(mut state: GameState) -> Self {
         let balance = balance_snapshot();
-        if state.schema_version < 12 {
-            state.schema_version = 12;
+        if state.schema_version < 13 {
+            state.schema_version = 13;
         }
         state.resources.bassline_cap = state
             .resources
@@ -91,6 +91,7 @@ impl Simulation {
         }
 
         let mut simulation = Self { state };
+        simulation.normalize_discovery_state();
         simulation.normalize_assignment();
         simulation.refresh_hero_survival_state();
         simulation.normalize_station_state();
@@ -126,6 +127,7 @@ impl Simulation {
             GameCommand::StartConstruction { option_id } => self.start_construction(&option_id),
             GameCommand::StartProcessing { recipe_id } => self.start_processing(&recipe_id),
             GameCommand::RecruitFromSurvivorCave => self.recruit_from_survivor_cave(),
+            GameCommand::MoveHeroTo { q, r } => self.move_hero_to(q, r),
             GameCommand::SpendBassline { amount } => self.spend_bassline(amount),
             GameCommand::Tick { seconds } => self.tick_internal(seconds, false),
             GameCommand::RunOfflineCatchup { elapsed_seconds } => {
@@ -137,10 +139,32 @@ impl Simulation {
                 self.refresh_base_pressure_state();
                 self.refresh_power_state();
                 self.refresh_bubble_state();
+                self.normalize_discovery_state();
                 self.refresh_objectives();
                 self.refresh_narrative_state();
             }
         }
+    }
+
+    fn move_hero_to(&mut self, q: i8, r: i8) {
+        let Some(destination) = self
+            .state
+            .hexes
+            .iter()
+            .find(|hex| hex.q == q && hex.r == r)
+            .cloned()
+        else {
+            self.push_note(format!("Hero movement ignored: hex {q},{r} is outside the map."));
+            return;
+        };
+
+        if !self.hex_is_open(&destination) || destination.state == HexVisualState::Blocked {
+            self.push_note(format!("Hero movement ignored: hex {q},{r} is blocked."));
+            return;
+        }
+
+        self.state.hero_map = HexCoordState::new(q, r);
+        self.reveal_hero_vision_at(q, r);
     }
 
     fn set_hero_assigned(&mut self, assigned: bool) {
@@ -1592,6 +1616,59 @@ impl Simulation {
                 hex.progress = 0.0;
             }
         }
+        self.reveal_bubble_cells();
+    }
+
+    fn normalize_discovery_state(&mut self) {
+        let retained: Vec<HexCoordState> = self
+            .state
+            .discovered_cells
+            .iter()
+            .copied()
+            .filter(|coord| self.hex_exists(coord.q, coord.r))
+            .collect();
+        self.state.discovered_cells.clear();
+        self.state.discovered_cells.extend(retained);
+        for coord in initial_discovered_cells() {
+            self.state.discovered_cells.insert(coord);
+        }
+        if !self.hex_is_open_at(self.state.hero_map.q, self.state.hero_map.r) {
+            self.state.hero_map = HexCoordState::survivor_cave();
+        }
+        self.reveal_bubble_cells();
+    }
+
+    fn reveal_bubble_cells(&mut self) {
+        let coords: Vec<HexCoordState> = self
+            .state
+            .hexes
+            .iter()
+            .filter(|hex| {
+                hex.state == HexVisualState::Stabilized
+                    || (hex.state == HexVisualState::Converting && hex.progress > 0.0)
+            })
+            .filter(|hex| self.hex_is_open(hex))
+            .map(|hex| HexCoordState::new(hex.q, hex.r))
+            .collect();
+
+        for coord in coords {
+            self.state.discovered_cells.insert(coord);
+        }
+    }
+
+    fn reveal_hero_vision_at(&mut self, q: i8, r: i8) {
+        let coords: Vec<HexCoordState> = self
+            .state
+            .hexes
+            .iter()
+            .filter(|hex| hex_distance(q, r, hex.q, hex.r) <= 1)
+            .filter(|hex| self.hex_is_open(hex))
+            .map(|hex| HexCoordState::new(hex.q, hex.r))
+            .collect();
+
+        for coord in coords {
+            self.state.discovered_cells.insert(coord);
+        }
     }
 
     fn refresh_objectives(&mut self) {
@@ -2299,6 +2376,19 @@ impl Simulation {
         self.tile_for_hex(hex).map(|tile| !tile.is_blocker).unwrap_or(false)
     }
 
+    fn hex_exists(&self, q: i8, r: i8) -> bool {
+        self.state.hexes.iter().any(|hex| hex.q == q && hex.r == r)
+    }
+
+    fn hex_is_open_at(&self, q: i8, r: i8) -> bool {
+        self.state
+            .hexes
+            .iter()
+            .find(|hex| hex.q == q && hex.r == r)
+            .map(|hex| self.hex_is_open(hex))
+            .unwrap_or(false)
+    }
+
     fn hex_feature(&self, hex: &HexState) -> TileFeature {
         self.tile_for_hex(hex)
             .map(|tile| tile.feature)
@@ -2634,4 +2724,10 @@ impl Simulation {
             self.state.notes.drain(0..overflow);
         }
     }
+}
+
+fn hex_distance(q1: i8, r1: i8, q2: i8, r2: i8) -> u8 {
+    let dq = q1 - q2;
+    let dr = r1 - r2;
+    dq.abs().max(dr.abs()).max((-(q1 + r1) + (q2 + r2)).abs()) as u8
 }

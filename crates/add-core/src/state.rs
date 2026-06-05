@@ -1,10 +1,10 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::game_data::{
-    balance_snapshot, stations, tile_id_for, ROLE_CONSTRUCTION, ROLE_CRYSTAL_BASSLINE,
-    ROLE_CRYSTAL_CHORUS, ROLE_CRYSTAL_HARMONICS, ROLE_FIRE_PIT, ROLE_SCAVENGE, ROLE_WATER,
+    ROLE_CONSTRUCTION, ROLE_CRYSTAL_BASSLINE, ROLE_CRYSTAL_CHORUS, ROLE_CRYSTAL_HARMONICS,
+    ROLE_FIRE_PIT, ROLE_SCAVENGE, ROLE_WATER, balance_snapshot, stations, tile_id_for,
 };
 
 pub const DEFAULT_BASE_SLOTS: u8 = 3;
@@ -35,6 +35,10 @@ pub struct GameState {
     pub recruitment: RecruitmentState,
     pub bubble: BubbleState,
     pub objectives: ObjectiveState,
+    #[serde(default = "initial_discovered_cells")]
+    pub discovered_cells: BTreeSet<HexCoordState>,
+    #[serde(default)]
+    pub hero_map: HexCoordState,
     pub hexes: Vec<HexState>,
     pub active_construction: Option<ConstructionJob>,
     pub active_world_action: Option<WorldAction>,
@@ -45,7 +49,7 @@ impl GameState {
     pub fn new() -> Self {
         let balance = balance_snapshot();
         Self {
-            schema_version: 12,
+            schema_version: 13,
             clock_seconds: 0.0,
             resources: ResourcePools {
                 bassline: 0.0,
@@ -98,6 +102,8 @@ impl GameState {
             recruitment: RecruitmentState::new(),
             bubble: BubbleState::new(),
             objectives: ObjectiveState::new(),
+            discovered_cells: initial_discovered_cells(),
+            hero_map: HexCoordState::survivor_cave(),
             hexes: initial_hexes(),
             active_construction: None,
             active_world_action: None,
@@ -106,6 +112,33 @@ impl GameState {
                 "Bassline, Chorus, and Harmonics now drive the base economy.".to_string(),
             ],
         }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
+#[serde(rename_all = "camelCase")]
+pub struct HexCoordState {
+    pub q: i8,
+    pub r: i8,
+}
+
+impl HexCoordState {
+    pub fn new(q: i8, r: i8) -> Self {
+        Self { q, r }
+    }
+
+    pub fn base() -> Self {
+        Self::new(0, 0)
+    }
+
+    pub fn survivor_cave() -> Self {
+        Self::new(SURVIVOR_CAVE_Q, SURVIVOR_CAVE_R)
+    }
+}
+
+impl Default for HexCoordState {
+    fn default() -> Self {
+        Self::survivor_cave()
     }
 }
 
@@ -248,7 +281,8 @@ fn deserialize_seconds_until_forced_return<'de, D>(deserializer: D) -> Result<f6
 where
     D: Deserializer<'de>,
 {
-    Ok(Option::<f64>::deserialize(deserializer)?.unwrap_or_else(default_seconds_until_forced_return))
+    Ok(Option::<f64>::deserialize(deserializer)?
+        .unwrap_or_else(default_seconds_until_forced_return))
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -650,6 +684,10 @@ fn initial_station_states() -> BTreeMap<String, StationState> {
             )
         })
         .collect()
+}
+
+pub fn initial_discovered_cells() -> BTreeSet<HexCoordState> {
+    BTreeSet::from([HexCoordState::base(), HexCoordState::survivor_cave()])
 }
 
 fn cube_distance(q1: i8, r1: i8, q2: i8, r2: i8) -> u8 {

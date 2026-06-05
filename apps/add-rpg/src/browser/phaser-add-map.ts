@@ -57,6 +57,8 @@ interface AddDungeonLinkInfo {
 
 export interface AddCharacterTravelEvent {
   readonly direction: AddCharacterMoveDirection
+  readonly fromCoord: CellCoord
+  readonly toCoord: CellCoord
   readonly fromCell: string
   readonly toCell: string
   readonly destinationLabel: string
@@ -472,6 +474,8 @@ class AddRpgHexScene extends Phaser.Scene {
     const exposureRisk = exposureRiskForCell(nextCell)
     const travelEvent: AddCharacterTravelEvent = {
       direction,
+      fromCoord,
+      toCoord: nextCoord,
       fromCell: displayCell(fromCoord),
       toCell: displayCell(nextCoord),
       destinationLabel,

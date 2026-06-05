@@ -59,6 +59,8 @@ async function main() {
         state.map?.topology?.kind === "hex" &&
         state.map?.topology?.fixture === false &&
         state.snapshot?.hexCount > 0 &&
+        state.snapshot?.discoveredCellCount === 2 &&
+        typeof state.snapshot?.heroMap === "string" &&
         state.map?.cells?.total === state.snapshot.hexCount &&
         state.map?.cells?.bubbleEdge > 0 &&
         state.map?.cells?.stabilized > 0 &&
@@ -92,6 +94,7 @@ async function main() {
     assert.equal(initial.boundary.runtimeAuthority, "rust-wasm")
     assert.equal(initial.boundary.firstTargetApp, "apps/add-rpg")
     assert.equal(initial.runtime.error, null)
+    assert.equal(initial.snapshot.heroMap, initial.map.landmarks.survivorCave)
     assert.ok(initial.ui.resourceCount > 0)
     assert.ok(initial.catalog.worldActionCount > 0)
     await assertHeroStartsAtSurvivorCave(page, initial)
@@ -322,6 +325,12 @@ async function exerciseSaveReloadOfflineAndReset(page, advanced, consoleErrors) 
   const payload = await page.locator("#save-payload").inputValue()
   assert.equal(typeof JSON.parse(payload), "object")
   const exportedClock = saved.snapshot.clockSeconds
+  const exportedDiscoveryCount = saved.snapshot.discoveredCellCount
+  const exportedHeroMap = saved.snapshot.heroMap
+  const parsedPayload = JSON.parse(payload)
+  assert.ok(Array.isArray(parsedPayload.discoveredCells))
+  assert.equal(parsedPayload.discoveredCells.length, exportedDiscoveryCount)
+  assert.deepEqual(parsedPayload.heroMap, parseHexCoord(exportedHeroMap))
 
   await page.evaluate(
     ({ key }) => {
@@ -356,7 +365,9 @@ async function exerciseSaveReloadOfflineAndReset(page, advanced, consoleErrors) 
     (state) =>
       state.runtime?.error === null &&
       state.persistence?.lastImportAtMs !== null &&
-      state.snapshot?.clockSeconds < reloaded.snapshot.clockSeconds - 1000,
+      state.snapshot?.clockSeconds < reloaded.snapshot.clockSeconds - 1000 &&
+      state.snapshot?.discoveredCellCount === exportedDiscoveryCount &&
+      state.snapshot?.heroMap === exportedHeroMap,
     consoleErrors,
   )
   assert.ok(imported.persistence.lastImportAtMs)
@@ -380,7 +391,9 @@ async function exerciseSaveReloadOfflineAndReset(page, advanced, consoleErrors) 
       state.runtime?.error === null &&
       state.persistence?.resetCount > 0 &&
       state.snapshot?.clockSeconds < RESET_CLOCK_TOLERANCE_SECONDS &&
-      state.snapshot?.heroAssigned === false,
+      state.snapshot?.heroAssigned === false &&
+      state.snapshot?.discoveredCellCount === 2 &&
+      state.snapshot?.heroMap === state.map?.landmarks?.survivorCave,
     consoleErrors,
   )
   assert.equal(reset.snapshot.heroAssigned, false)
@@ -571,6 +584,7 @@ async function exerciseMainCharacterMovement(page, consoleErrors) {
         state.map?.character?.cell !== before.map.character.cell &&
         state.map?.character?.moving === false &&
         state.snapshot?.clockSeconds >= minimumArrivalClockSeconds &&
+        state.snapshot?.discoveredCellCount > before.snapshot.discoveredCellCount &&
         state.travel?.confirmation?.dramaState === "complete" &&
         state.travel?.confirmation?.dialogOpen === false &&
         state.ui?.worldTime?.animating === false &&
@@ -805,6 +819,12 @@ function adjacentHexCell(cell, qDelta, rDelta) {
   const match = /^hex:(-?\d+),(-?\d+)$/.exec(cell)
   assert.ok(match, `Expected a hex cell string, got ${cell}`)
   return `hex:${Number(match[1]) + qDelta},${Number(match[2]) + rDelta}`
+}
+
+function parseHexCoord(coord) {
+  const match = /^(-?\d+),(-?\d+)$/.exec(coord)
+  assert.ok(match, `Expected a hex coord string, got ${coord}`)
+  return { q: Number(match[1]), r: Number(match[2]) }
 }
 
 async function assertNonBlankAppScreenshot(page) {

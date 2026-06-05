@@ -202,6 +202,11 @@ export interface HexSnapshot {
   progress: number
 }
 
+export interface HexCoordSnapshot {
+  q: number
+  r: number
+}
+
 export interface SimulationSnapshot {
   schemaVersion: number
   clockSeconds: number
@@ -218,6 +223,8 @@ export interface SimulationSnapshot {
   recruitment: RecruitmentSnapshot
   bubble: BubbleSnapshot
   objectives: ObjectiveSnapshot
+  discoveredCells: HexCoordSnapshot[]
+  heroMap: HexCoordSnapshot
   hexes: HexSnapshot[]
   activeConstruction: ConstructionSnapshot | null
   activeWorldAction: WorldActionSnapshot | null
@@ -721,6 +728,7 @@ export type WorkerRequest =
   | { type: 'startConstruction'; optionId: string }
   | { type: 'startProcessing'; recipeId: string }
   | { type: 'recruitFromSurvivorCave' }
+  | { type: 'moveHeroTo'; q: number; r: number }
   | { type: 'spendBassline'; amount: number }
   | { type: 'importSave'; payload: string }
   | { type: 'exportSave' }

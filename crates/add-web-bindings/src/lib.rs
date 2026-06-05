@@ -1,6 +1,4 @@
-use add_core::{
-    catalog_snapshot, export_save, import_save, GameCommand, GameState, Simulation,
-};
+use add_core::{GameCommand, GameState, Simulation, catalog_snapshot, export_save, import_save};
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
@@ -103,10 +101,14 @@ impl WebRuntime {
         self.simulation.apply(GameCommand::RecruitFromSurvivorCave);
     }
 
+    #[wasm_bindgen(js_name = moveHeroTo)]
+    pub fn move_hero_to(&mut self, q: i8, r: i8) {
+        self.simulation.apply(GameCommand::MoveHeroTo { q, r });
+    }
+
     #[wasm_bindgen(js_name = spendBassline)]
     pub fn spend_bassline(&mut self, amount: f64) {
-        self.simulation
-            .apply(GameCommand::SpendBassline { amount });
+        self.simulation.apply(GameCommand::SpendBassline { amount });
     }
 
     #[wasm_bindgen(js_name = exportSave)]

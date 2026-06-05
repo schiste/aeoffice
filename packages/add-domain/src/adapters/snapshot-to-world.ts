@@ -205,7 +205,7 @@ export function landmarkEntities(
   catalog: CatalogSnapshot,
 ): readonly GameEntity[] {
   const indexes = createAddCatalogIndexes(catalog)
-  const heroCoord = survivorCaveHexes(snapshot, catalog)[0]
+  const heroCoord = heroMapHex(snapshot) ?? survivorCaveHexes(snapshot, catalog)[0]
   const entities: GameEntity[] = [
     {
       id: "add.entity.hero",
@@ -434,6 +434,14 @@ function survivorCaveHexes(
     const tile = indexes.tilesById.get(hex.tileId)
     return tile?.feature === "survivor_cave"
   })
+}
+
+function heroMapHex(snapshot: SimulationSnapshot): HexSnapshot | undefined {
+  return snapshot.heroMap
+    ? snapshot.hexes.find(
+        (hex) => hex.q === snapshot.heroMap.q && hex.r === snapshot.heroMap.r,
+      )
+    : undefined
 }
 
 function pushZone(zones: GameZone[], zone: GameZone): void {

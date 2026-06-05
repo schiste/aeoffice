@@ -70,6 +70,13 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   viewport dimensions/effective zoom/camera scroll/follow target, and the
   browser console stayed clean. The standalone web-game client still cannot run
   because the skill runtime cannot resolve the `playwright` package.
+- ADD runtime discovery now lives in Rust/WASM save state as `discoveredCells`
+  plus `heroMap`. Reset returns discovery to Studio/base + Survivor Cave, hero
+  travel reveals radius 1 at the destination, bubble progress reveals stabilized
+  or actively converting bubble cells, and offline catch-up does not reveal
+  anything unless those runtime rules advance. `npm run check` passed after the
+  browser smoke asserted movement discovery, save/import preservation, and reset
+  cleanup.
 - The debug-style event feed is no longer visible in the primary app UI. It has
   been replaced with compact session/world/media status pills, a compact room
   chat transcript, and transient toast feedback for join/reset/error-like events.

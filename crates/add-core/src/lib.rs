@@ -29,7 +29,7 @@ pub use simulation::Simulation;
 pub use state::{
     BaseState, BubbleState, ConstructionJob, CrystalCircleState, ForcedReturnPhase,
     ForcedReturnState, GameState, HeroLocationState, HeroProgressState, HeroSurvivalState,
-    HexState, HexVisualState, NarrativeState, ObjectiveState, PowerState, ProcessingJob, ProcessingState,
+    HexCoordState, HexState, HexVisualState, NarrativeState, ObjectiveState, PowerState, ProcessingJob, ProcessingState,
     RecruitTravel, RecruitmentState, ResourcePools, RosterState, StationState, WorldAction, WoundTrackState,
     DEFAULT_BASE_SLOTS, DEFAULT_TOTAL_CREW, GRID_RADIUS,
 };
@@ -61,7 +61,7 @@ mod tests {
             WORLD_ACTION_EXPLORE_BASE, WORLD_ACTION_INVESTIGATE_BASE,
         },
         ForcedReturnPhase, ForcedReturnState, GameCommand, GameState, HeroLocationState,
-        RecruitTravel, Simulation, DEFAULT_TOTAL_CREW,
+        HexCoordState, RecruitTravel, Simulation, DEFAULT_TOTAL_CREW,
     };
 
     fn advance_intro_to_investigate(simulation: &mut Simulation) {
@@ -344,6 +344,61 @@ mod tests {
         let serialized = export_save(simulation.state()).expect("save should serialize");
         let restored = import_save(&serialized).expect("save should deserialize");
         assert_eq!(simulation.state(), &restored);
+    }
+
+    #[test]
+    fn discovery_initializes_with_studio_and_survivor_cave() {
+        let simulation = Simulation::new();
+
+        assert!(simulation
+            .state()
+            .discovered_cells
+            .contains(&HexCoordState::base()));
+        assert!(simulation
+            .state()
+            .discovered_cells
+            .contains(&HexCoordState::survivor_cave()));
+        assert_eq!(simulation.state().hero_map, HexCoordState::survivor_cave());
+    }
+
+    #[test]
+    fn hero_movement_reveals_adjacent_cells_and_persists_in_save() {
+        let mut simulation = Simulation::new();
+        let initial_count = simulation.state().discovered_cells.len();
+
+        simulation.apply(GameCommand::MoveHeroTo { q: 0, r: 0 });
+
+        assert_eq!(simulation.state().hero_map, HexCoordState::base());
+        assert!(simulation.state().discovered_cells.len() > initial_count);
+
+        let serialized = export_save(simulation.state()).expect("save should serialize");
+        let restored = import_save(&serialized).expect("save should deserialize");
+        let restored_simulation = Simulation::from_state(restored);
+        assert_eq!(
+            restored_simulation.state().discovered_cells,
+            simulation.state().discovered_cells
+        );
+        assert_eq!(restored_simulation.state().hero_map, HexCoordState::base());
+    }
+
+    #[test]
+    fn reset_clears_discovery_to_initial_cells() {
+        let mut simulation = Simulation::new();
+        simulation.apply(GameCommand::MoveHeroTo { q: 0, r: 0 });
+        assert!(simulation.state().discovered_cells.len() > 2);
+
+        simulation.apply(GameCommand::ResetRun);
+
+        assert!(simulation
+            .state()
+            .discovered_cells
+            .contains(&HexCoordState::base()));
+        assert!(simulation
+            .state()
+            .discovered_cells
+            .contains(&HexCoordState::survivor_cave()));
+        assert_eq!(simulation.state().discovered_cells.len(), 2);
+        assert_eq!(simulation.state().hero_map, HexCoordState::survivor_cave());
     }
 
     #[test]
@@ -652,6 +707,7 @@ mod tests {
     #[test]
     fn bubble_expands_from_stored_bassline() {
         let mut simulation = Simulation::new();
+        let initial_discovered = simulation.state().discovered_cells.len();
         simulation.apply(GameCommand::SetHeroAssigned { assigned: true });
         simulation.apply(GameCommand::SetRoleCrew {
             role_id: ROLE_CRYSTAL_BASSLINE.to_string(),
@@ -664,6 +720,7 @@ mod tests {
                 || simulation.state().bubble.frontier_progress > 0.0
         );
         assert!(simulation.state().bubble.target_ring >= 1);
+        assert!(simulation.state().discovered_cells.len() > initial_discovered);
     }
 
     #[test]
@@ -1198,6 +1255,11 @@ mod tests {
                 .remaining_seconds,
             remaining
         );
+
+        let mut discovery_only = Simulation::new();
+        let before_discovery = discovery_only.state().discovered_cells.clone();
+        discovery_only.apply(GameCommand::RunOfflineCatchup { elapsed_seconds: 10.0 });
+        assert_eq!(discovery_only.state().discovered_cells, before_discovery);
     }
 
     fn assert_catalog_ids<'a>(

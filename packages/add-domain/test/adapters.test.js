@@ -318,6 +318,11 @@ function createSnapshotFixture() {
     recruitment: {},
     bubble: {
       stabilizedHexes: 2,
+      reachFromBase: 0,
+      fieldBudget: 0,
+      stabilizedRing: 0,
+      frontierProgress: 0,
+      targetRing: 0,
     },
     objectives: {
       reachObjectiveTarget: 2,
@@ -327,6 +332,12 @@ function createSnapshotFixture() {
       recruitmentEnabled: true,
       survivorCaveInBubble: true,
     },
+    discoveredCells: [
+      { q: 0, r: 0 },
+      { q: 1, r: -1 },
+      { q: 2, r: -1 },
+    ],
+    heroMap: { q: 2, r: -1 },
     hexes: [
       hex(0, 0, 0, "tile.base_core", "stabilized", 1),
       hex(1, -1, 1, "tile.river_shallows", "converting", 0.4),
