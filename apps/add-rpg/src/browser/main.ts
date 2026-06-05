@@ -126,6 +126,7 @@ interface RuntimeTextState {
     readonly snapshotReceived: boolean
     readonly catalogReceived: boolean
     readonly autoTick: boolean
+    readonly timeSpeed: number
     readonly online: boolean
     readonly lastEvent: string
     readonly lastCommand: string | null
@@ -336,11 +337,13 @@ const [lastOfflineCatchupSeconds, setLastOfflineCatchupSeconds] = createSignal(0
 const [resetCount, setResetCount] = createSignal(0)
 const [online, setOnline] = createSignal(typeof navigator === "undefined" ? true : navigator.onLine)
 const [ready, setReady] = createSignal(false)
-// Ambient world clock runs by default at 1 game-minute per real second
-// (the autoTick interval ticks the runtime 1s every 1000ms). It pauses only
-// while the Hero crosses a tile (gated on travelExperience phase) so the
-// per-hex +1h stays exact, then resumes on arrival.
+// Ambient world clock runs by default ("autoTick"). It advances the runtime in
+// fixed 1-second steps; the speed multiplier only changes how often a step fires
+// (every 1000/timeSpeed ms), never the step size, so 2x/4x play stays behaviorally
+// identical to real time. It pauses only while the Hero crosses a tile (gated on
+// travelExperience phase) so the per-hex +1h stays exact, then resumes on arrival.
 const [autoTick, setAutoTick] = createSignal(true)
+const [timeSpeed, setTimeSpeed] = createSignal(1)
 const [adminOpen, setAdminOpen] = createSignal(false)
 const [firstPlayableCollapsed, setFirstPlayableCollapsed] = createSignal(false)
 const [questPanelPosition, setQuestPanelPosition] = createSignal(defaultQuestPanelPosition())
@@ -488,11 +491,6 @@ function AddRpgApp() {
       mapHost.renderWorld(currentWorld)
       refreshMapInfo()
     }
-    autoTickTimer = window.setInterval(() => {
-      if (autoTick() && ready() && travelExperience()?.phase !== "traveling") {
-        void tickRuntime(1)
-      }
-    }, 1000)
     mapInfoTimer = window.setInterval(refreshMapInfo, 180)
     autosaveTimer = window.setInterval(maybeRequestAutosave, 3500)
     window.addEventListener("online", handleOnline)
@@ -509,6 +507,25 @@ function AddRpgApp() {
     window.removeEventListener("offline", handleOffline)
     mapHost?.destroy()
     client.dispose()
+  })
+
+  // Ambient clock: one fixed 1-second runtime step per fire, fired every
+  // 1000/timeSpeed ms. Re-runs when play/pause, readiness, or speed changes,
+  // recreating the interval at the new cadence (step size stays 1s for fidelity).
+  createEffect(() => {
+    const playing = autoTick() && ready()
+    const speed = timeSpeed()
+    if (autoTickTimer !== undefined) {
+      window.clearInterval(autoTickTimer)
+      autoTickTimer = undefined
+    }
+    if (!playing || speed <= 0) return
+    const periodMs = Math.max(1, Math.round(1000 / speed))
+    autoTickTimer = window.setInterval(() => {
+      if (autoTick() && ready() && travelExperience()?.phase !== "traveling") {
+        void tickRuntime(1)
+      }
+    }, periodMs)
   })
 
   return html`
@@ -550,6 +567,19 @@ function AddRpgApp() {
                 <small>${() => worldTimeSecondaryCopy()}</small>
                 <i style=${() => daylightMeterStyle()} aria-hidden="true" />
               </div>
+              <button
+                id="time-speed-control"
+                type="button"
+                class=${() => (autoTick() ? "time-speed-button" : "time-speed-button paused")}
+                onClick=${() => cycleTimeSpeed()}
+                disabled=${() => !ready()}
+                aria-label=${() =>
+                  autoTick()
+                    ? `Time speed ${timeSpeed()} times, click to change`
+                    : "Time paused, click to resume"}
+              >
+                ${() => timeSpeedLabel()}
+              </button>
               <button
                 id="open-admin"
                 type="button"
@@ -1995,6 +2025,7 @@ function toTextState(): RuntimeTextState {
       snapshotReceived: currentSnapshot !== null,
       catalogReceived: currentCatalog !== null,
       autoTick: autoTick(),
+      timeSpeed: timeSpeed(),
       online: online(),
       lastEvent: lastEvent(),
       lastCommand: lastCommand(),
@@ -2224,6 +2255,28 @@ function statusLabel(): string {
   if (!ready()) return "Booting"
   // Ambient world clock runs by default ("Live"); the toggle pauses it ("Paused").
   return autoTick() ? "Live" : "Paused"
+}
+
+const ADD_TIME_SPEEDS: readonly number[] = [1, 2, 4]
+
+// Single-button time control cycling: Paused -> 1x -> 2x -> 4x -> Paused.
+function cycleTimeSpeed(): void {
+  if (!autoTick()) {
+    setTimeSpeed(1)
+    setAutoTick(true)
+    return
+  }
+  const nextSpeed = ADD_TIME_SPEEDS[ADD_TIME_SPEEDS.indexOf(timeSpeed()) + 1]
+  if (nextSpeed === undefined) {
+    setAutoTick(false)
+    return
+  }
+  setTimeSpeed(nextSpeed)
+}
+
+function timeSpeedLabel(): string {
+  if (!ready()) return "…"
+  return autoTick() ? `▶ ${timeSpeed()}×` : "⏸ Paused"
 }
 
 function objectiveState(): string {

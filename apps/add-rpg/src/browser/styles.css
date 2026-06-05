@@ -296,6 +296,41 @@ h1 {
   color: rgb(247 238 210 / 72%);
 }
 
+.time-speed-button {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.9rem;
+  border: 1px solid rgb(95 209 216 / 36%);
+  border-radius: 999px;
+  padding: 0 0.78rem;
+  background: rgb(95 209 216 / 18%);
+  color: #9ff4e9;
+  font-size: 0.76rem;
+  font-weight: 850;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background 0.12s ease,
+    border-color 0.12s ease,
+    color 0.12s ease;
+}
+
+.time-speed-button:hover:not(:disabled) {
+  background: rgb(95 209 216 / 28%);
+  border-color: rgb(95 209 216 / 56%);
+}
+
+.time-speed-button.paused {
+  border-color: rgb(255 244 201 / 22%);
+  background: rgb(255 244 201 / 12%);
+  color: rgb(247 238 210 / 82%);
+}
+
+.time-speed-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 .admin-toggle {
   min-height: 1.9rem;
   border-color: rgb(95 209 216 / 36%);
