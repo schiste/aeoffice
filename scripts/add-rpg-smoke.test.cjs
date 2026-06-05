@@ -86,6 +86,8 @@ async function main() {
         state.map?.travel?.costRuntimeSeconds === 60 &&
         state.travel?.costGameMinutes === 60 &&
         state.travel?.costRuntimeSeconds === 60 &&
+        state.travel?.confirmation?.eligible === true &&
+        state.travel?.confirmation?.reason === "opening_reach_base_from_survivor_cave" &&
         state.map?.landmarks?.studioLabelVisible === true &&
         state.map?.landmarks?.survivorCaveVisible === true &&
         state.map?.authority?.rules === "rust_wasm_snapshot" &&
@@ -627,6 +629,11 @@ async function exerciseMainCharacterMovement(page, consoleErrors) {
   assert.equal(before.map?.character?.visible, true)
   assert.ok(before.map?.character?.cell, "Main character should report a cell")
   assert.equal(before.travel?.confirmation?.dramaState, "fresh")
+  assert.equal(before.travel?.confirmation?.eligible, true)
+  assert.equal(
+    before.travel?.confirmation?.reason,
+    "opening_reach_base_from_survivor_cave",
+  )
 
   await page.keyboard.press("ArrowLeft")
   const firstDialog = await waitForTextState(
@@ -638,6 +645,11 @@ async function exerciseMainCharacterMovement(page, consoleErrors) {
     consoleErrors,
   )
   assert.equal(firstDialog.travel.confirmation.dramaState, "fresh")
+  assert.equal(firstDialog.travel.confirmation.eligible, true)
+  assert.equal(
+    firstDialog.travel.confirmation.reason,
+    "opening_reach_base_from_survivor_cave",
+  )
 
   await page.locator("#travel-dialog-cancel").click()
   await waitForTextState(
@@ -697,6 +709,8 @@ async function exerciseMainCharacterMovement(page, consoleErrors) {
         state.snapshot?.discoveredCellCount > before.snapshot.discoveredCellCount &&
         state.travel?.confirmation?.dramaState === "complete" &&
         state.travel?.confirmation?.dialogOpen === false &&
+        state.travel?.confirmation?.eligible === false &&
+        state.travel?.confirmation?.reason === "already_complete" &&
         state.ui?.worldTime?.animating === false &&
         state.map?.visibility?.travelRevealPreviewActive === false &&
         presentationCaughtUp &&

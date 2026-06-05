@@ -53,6 +53,7 @@ const ROLE_SCAVENGE = "role.scavenge"
 const ROLE_WATER = "role.water"
 const PROJECT_RESTORE_STUDIO = "project.restore_studio"
 const PROJECT_BUILD_FIRE_PIT = "project.build_fire_pit"
+const OPENING_TRAVEL_STEP_ID = "reach-base"
 
 const FIRST_PLAYABLE_ROLE_IDS = [
   ROLE_CRYSTAL_BASSLINE,
@@ -87,6 +88,20 @@ type TravelDialogKind =
   | "second_warning"
   | "first_declined"
   | "dramatic_reprise"
+type TravelDialogEligibilityReason =
+  | "opening_reach_base_from_survivor_cave"
+  | "already_complete"
+  | "missing_state"
+  | "not_overworld"
+  | "not_reach_base_step"
+  | "missing_survivor_cave"
+  | "not_survivor_cave_start"
+  | "not_leaving_survivor_cave"
+
+interface TravelDialogEligibility {
+  readonly eligible: boolean
+  readonly reason: TravelDialogEligibilityReason
+}
 
 interface TravelDialogState {
   readonly kind: TravelDialogKind
@@ -276,6 +291,8 @@ interface RuntimeTextState {
       readonly dramaState: TravelDramaState
       readonly dialogOpen: boolean
       readonly dialogKind: TravelDialogKind | null
+      readonly eligible: boolean
+      readonly reason: TravelDialogEligibilityReason
     }
   }
   readonly map: AddPhaserMapInfo
@@ -1360,7 +1377,11 @@ function currentTravelRisk(): string | null {
 }
 
 async function confirmFirstCharacterTravel(event: AddCharacterTravelEvent): Promise<boolean> {
-  if (travelDramaState === "complete") return true
+  const eligibility = openingTravelDialogEligibilityForEvent(event, mapInfo())
+  if (!eligibility.eligible) {
+    if (travelDramaState !== "complete") travelDramaState = "complete"
+    return true
+  }
 
   if (travelDramaState === "declined_once") {
     await showTravelDialog("dramatic_reprise", event)
@@ -1383,6 +1404,57 @@ async function confirmFirstCharacterTravel(event: AddCharacterTravelEvent): Prom
 
   travelDramaState = "complete"
   return true
+}
+
+function openingTravelDialogEligibilityForEvent(
+  event: AddCharacterTravelEvent,
+  currentMapInfo: AddPhaserMapInfo,
+): TravelDialogEligibility {
+  const eligibility = openingTravelDialogEligibility(currentMapInfo)
+  if (!eligibility.eligible) return eligibility
+
+  const survivorCave = currentMapInfo.landmarks.survivorCave
+  const survivorCaveCell = survivorCave ? `hex:${survivorCave}` : null
+  if (!survivorCaveCell || event.fromCell !== survivorCaveCell) {
+    return { eligible: false, reason: "not_survivor_cave_start" }
+  }
+  if (event.toCell === survivorCaveCell) {
+    return { eligible: false, reason: "not_leaving_survivor_cave" }
+  }
+  return eligibility
+}
+
+function openingTravelDialogEligibility(
+  currentMapInfo: AddPhaserMapInfo = mapInfo(),
+): TravelDialogEligibility {
+  if (travelDramaState === "complete") {
+    return { eligible: false, reason: "already_complete" }
+  }
+
+  const currentSnapshot = snapshot()
+  const currentUi = uiState()
+  if (!currentSnapshot || !currentUi) {
+    return { eligible: false, reason: "missing_state" }
+  }
+  if (mapMode() !== "overworld_hex") {
+    return { eligible: false, reason: "not_overworld" }
+  }
+  if (currentUi.firstPlayable.currentStepId !== OPENING_TRAVEL_STEP_ID) {
+    return { eligible: false, reason: "not_reach_base_step" }
+  }
+
+  const survivorCave = currentMapInfo.landmarks.survivorCave
+  if (!survivorCave) {
+    return { eligible: false, reason: "missing_survivor_cave" }
+  }
+  if (
+    `${currentSnapshot.heroMap.q},${currentSnapshot.heroMap.r}` !== survivorCave ||
+    currentMapInfo.character.coord !== survivorCave
+  ) {
+    return { eligible: false, reason: "not_survivor_cave_start" }
+  }
+
+  return { eligible: true, reason: "opening_reach_base_from_survivor_cave" }
 }
 
 function showTravelDialog(
@@ -1853,6 +1925,8 @@ async function resetRuntime(): Promise<void> {
   await sendAndWaitForSnapshot(() => {
     setLastCommand("reset")
     setResetCount((count) => count + 1)
+    travelDramaState = "fresh"
+    setTravelDialog(null)
     client.reset()
   })
   if (!lastError()) await requestSave("reset")
@@ -2197,6 +2271,7 @@ function toTextState(): RuntimeTextState {
 
 function travelTextState(currentMapInfo: AddPhaserMapInfo): RuntimeTextState["travel"] {
   const experience = travelExperience()
+  const confirmationEligibility = openingTravelDialogEligibility(currentMapInfo)
   const phase = experience
     ? experience.phase
     : currentMapInfo.travel.previewCell
@@ -2241,6 +2316,8 @@ function travelTextState(currentMapInfo: AddPhaserMapInfo): RuntimeTextState["tr
       dramaState: travelDramaState,
       dialogOpen: travelDialog() !== null,
       dialogKind: travelDialog()?.kind ?? null,
+      eligible: confirmationEligibility.eligible,
+      reason: confirmationEligibility.reason,
     },
   }
 }

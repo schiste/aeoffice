@@ -120,6 +120,11 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   authority and movement, but terrain, landmarks, ambience, bubble outlines, and
   pointer selection only render known cells or the Studio anchor; active travel
   reveal remains visual-only while the Hero crosses a tile.
+- ADD opening travel dialogs are now gated to the exact first-playable opening:
+  active `reach-base` step, overworld map mode, Hero still at Survivor Cave, and
+  the attempted move leaving that cave. The render text state exposes the dialog
+  eligibility reason so future smoke checks can prove the dramatic warning does
+  not leak into later travel.
 - Verification for the travel halo trail: `npm --workspace @aedventure/add-rpg
   run build:browser` and `npm run smoke:add-rpg` pass. The broader
   `npm run check` is currently blocked by unrelated dirty ADD dungeon work
