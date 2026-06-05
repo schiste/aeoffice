@@ -105,6 +105,8 @@ async function main() {
     assert.equal(initial.boundary.firstTargetApp, "apps/add-rpg")
     assert.equal(initial.runtime.error, null)
     assert.equal(initial.snapshot.heroMap, initial.map.landmarks.survivorCave)
+    assertInitialDiscoveryAnchors(initial)
+    assert.ok(initial.map.visibility.hiddenCells > 0, "Initial overworld should contain hidden cells")
     assert.equal(initial.map.interaction.visibilitySamples.hidden.label, "Unknown region")
     assert.equal(initial.map.interaction.visibilitySamples.hidden.knownInfoLevel, "unknown")
     assert.equal(initial.map.interaction.visibilitySamples.hidden.dungeonLinks.length, 0)
@@ -115,6 +117,10 @@ async function main() {
     )
     assert.match(initial.map.interaction.visibilitySamples.discovered.label, /·/)
     assert.equal(initial.map.interaction.visibilitySamples.visible.knownInfoLevel, "full_current")
+    assert.ok(
+      initial.map.character.dungeonLinksAtCell.length > 0,
+      "The visible Survivor Cave can expose its dungeon link once discovered/visible.",
+    )
     assert.ok(initial.ui.resourceCount > 0)
     assert.ok(initial.catalog.worldActionCount > 0)
     await assertHeroStartsAtSurvivorCave(page, initial)
@@ -126,6 +132,7 @@ async function main() {
     assert.equal(hiddenSelection.map.interaction.selectedDetail.dungeonActionsVisible, false)
     assert.equal(hiddenSelection.map.travel.previewLabel, "Unknown region")
     assert.equal(hiddenSelection.map.travel.previewExposureRisk, "unknown")
+    await assertNonBlankFogMapScreenshot(page, hiddenSelection)
     await assertMobilePresentation(browser, url)
     const questHud = await exerciseQuestHud(page, consoleErrors)
     assert.equal(questHud.shell.questPanel.collapsed, false)
@@ -259,6 +266,15 @@ async function assertMobilePresentation(browser, url) {
   }
 }
 
+function assertInitialDiscoveryAnchors(state) {
+  assert.equal(state.snapshot.discoveredCellCount, 2)
+  assert.deepEqual(
+    sortedCells(state.snapshot.discoveredCells),
+    sortedCells([state.map.landmarks.survivorCave, state.map.landmarks.baseCenter]),
+    "Initial discovery should contain exactly Survivor Cave and the Studio/base anchor.",
+  )
+}
+
 async function completeFirstPlayableArc(page, consoleErrors) {
   let state = await renderGameToText(page)
   assert.ok(state.ui?.firstPlayable, "ADD first playable telemetry should be exposed")
@@ -356,6 +372,7 @@ async function exerciseSaveReloadOfflineAndReset(page, advanced, consoleErrors) 
   assert.equal(typeof JSON.parse(payload), "object")
   const exportedClock = saved.snapshot.clockSeconds
   const exportedDiscoveryCount = saved.snapshot.discoveredCellCount
+  const exportedDiscoveredCells = sortedCells(saved.snapshot.discoveredCells)
   const exportedHeroMap = saved.snapshot.heroMap
   const parsedPayload = JSON.parse(payload)
   assert.ok(Array.isArray(parsedPayload.discoveredCells))
@@ -381,11 +398,17 @@ async function exerciseSaveReloadOfflineAndReset(page, advanced, consoleErrors) 
       state.snapshot?.heroAssigned === advanced.snapshot.heroAssigned &&
       state.persistence?.autosaveAvailable === true &&
       state.persistence?.lastOfflineCatchupSeconds >= 3500 &&
-      state.snapshot?.clockSeconds >= exportedClock + 3500,
+      state.snapshot?.clockSeconds >= exportedClock + 3500 &&
+      state.snapshot?.discoveredCellCount === exportedDiscoveryCount,
     consoleErrors,
     16000,
   )
   assert.ok(reloaded.snapshot.clockSeconds > exportedClock)
+  assert.deepEqual(
+    sortedCells(reloaded.snapshot.discoveredCells),
+    exportedDiscoveredCells,
+    "Autosave reload should preserve the same discovered cells after offline catch-up.",
+  )
 
   await openAdmin(page, consoleErrors)
   await page.locator("#save-payload").fill(payload)
@@ -397,7 +420,8 @@ async function exerciseSaveReloadOfflineAndReset(page, advanced, consoleErrors) 
       state.persistence?.lastImportAtMs !== null &&
       state.snapshot?.clockSeconds < reloaded.snapshot.clockSeconds - 1000 &&
       state.snapshot?.discoveredCellCount === exportedDiscoveryCount &&
-      state.snapshot?.heroMap === exportedHeroMap,
+      state.snapshot?.heroMap === exportedHeroMap &&
+      sameCells(state.snapshot?.discoveredCells, exportedDiscoveredCells),
     consoleErrors,
   )
   assert.ok(imported.persistence.lastImportAtMs)
@@ -626,6 +650,10 @@ async function exerciseMainCharacterMovement(page, consoleErrors) {
     10000,
   )
   assert.equal(moved.travel.costGameMinutes, 60)
+  assert.ok(
+    hasNewCells(before.snapshot.discoveredCells, moved.snapshot.discoveredCells),
+    "Moving the hero should reveal at least one new discovered cell.",
+  )
   assert.equal(moved.travel.presentationDurationMs, moved.map.travel.presentationDurationMs)
   assert.equal(moved.travel.clockStepMs, moved.map.travel.clockStepMs)
   assert.ok(
@@ -687,6 +715,12 @@ async function exerciseMainCharacterMovement(page, consoleErrors) {
   assert.equal(afterHeldReturn.map.character.cell, returned.map.character.cell)
   assert.equal(afterHeldReturn.map.character.moving, false)
   assert.equal(afterHeldReturn.snapshot.clockSeconds, returned.snapshot.clockSeconds)
+  assert.equal(afterHeldReturn.snapshot.discoveredCellCount, returned.snapshot.discoveredCellCount)
+  assert.deepEqual(
+    sortedCells(afterHeldReturn.snapshot.discoveredCells),
+    sortedCells(returned.snapshot.discoveredCells),
+    "Held movement should not queue a chained travel or reveal additional cells.",
+  )
   assert.equal(afterHeldReturn.ui.worldTime.animating, false)
   assert.equal(returned.map.character.cell, before.map.character.cell)
 
@@ -846,6 +880,17 @@ async function assertNonBlankMapScreenshot(page) {
   )
 }
 
+async function assertNonBlankFogMapScreenshot(page, state) {
+  assert.equal(state.map.visibility.fogRendering, "phaser_visual_overlay")
+  assert.ok(state.map.visibility.hiddenCells > 0)
+  assert.ok(state.map.visibility.visibleCells > 0)
+  await assertNonBlankNamedMapScreenshot(
+    page,
+    "add-rpg-fog-map-smoke.png",
+    "ADD RPG fog overlay map screenshot",
+  )
+}
+
 async function assertNonBlankNamedMapScreenshot(page, filename, label) {
   fs.mkdirSync(path.dirname(SCREENSHOT_PATH), { recursive: true })
   const mapPath = path.join(ROOT_DIR, "tmp", filename)
@@ -937,6 +982,19 @@ function adjacentHexCell(cell, qDelta, rDelta) {
   const match = /^hex:(-?\d+),(-?\d+)$/.exec(cell)
   assert.ok(match, `Expected a hex cell string, got ${cell}`)
   return `hex:${Number(match[1]) + qDelta},${Number(match[2]) + rDelta}`
+}
+
+function sortedCells(cells) {
+  return [...(cells ?? [])].sort((left, right) => String(left).localeCompare(String(right)))
+}
+
+function sameCells(left, right) {
+  return JSON.stringify(sortedCells(left)) === JSON.stringify(sortedCells(right))
+}
+
+function hasNewCells(beforeCells, afterCells) {
+  const before = new Set(beforeCells ?? [])
+  return (afterCells ?? []).some((cell) => !before.has(cell))
 }
 
 function parseHexCoord(coord) {

@@ -136,6 +136,7 @@ interface RuntimeTextState {
     readonly hexCount: number
     readonly stabilizedHexes: number
     readonly discoveredCellCount: number
+    readonly discoveredCells: readonly string[]
     readonly heroMap: string
     readonly heroAssigned: boolean
     readonly activeWorldAction: string | null
@@ -1994,6 +1995,7 @@ function toTextState(): RuntimeTextState {
           hexCount: currentSnapshot.hexes.length,
           stabilizedHexes: currentSnapshot.bubble.stabilizedHexes,
           discoveredCellCount: currentSnapshot.discoveredCells.length,
+          discoveredCells: currentSnapshot.discoveredCells.map((coord) => `${coord.q},${coord.r}`),
           heroMap: `${currentSnapshot.heroMap.q},${currentSnapshot.heroMap.r}`,
           heroAssigned: currentSnapshot.roster.heroAssigned,
           activeWorldAction: currentSnapshot.activeWorldAction?.actionId ?? null,

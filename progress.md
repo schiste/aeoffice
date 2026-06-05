@@ -96,6 +96,12 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   and renderer-side dungeon links are guarded to only appear for discovered or
   visible cells. ADD smoke clicks a hidden map tile through the real canvas to
   verify movement preview remains possible without leaking hidden dungeon links.
+- ADD smoke now explicitly covers the visibility QA gate: initial discovery is
+  exactly Survivor Cave plus Studio/base, hidden cells exist, a first hero move
+  reveals new cells, autosave reload/import preserve the discovered cell set,
+  hidden tile interaction never exposes dungeon links while the discovered
+  Survivor Cave can, a fog-overlay canvas screenshot is nonblank, and held-key
+  movement does not chain additional travel or discovery.
 - The debug-style event feed is no longer visible in the primary app UI. It has
   been replaced with compact session/world/media status pills, a compact room
   chat transcript, and transient toast feedback for join/reset/error-like events.
