@@ -2225,3 +2225,15 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   @aedventure/add-rpg run build:browser`, `npm run smoke:add-rpg:built`,
   `npm run check`, and `git diff --check`. The ADD smoke now asserts the app
   travel duration, Phaser travel duration, and clock tick cadence match.
+- Fixed the travel-clock runaway bug by defaulting ADD browser auto-tick to
+  paused. The player-facing topbar now says `Ready` when the runtime is loaded
+  but not advancing ambient time; `Live` is reserved for the admin-only auto-tick
+  mode. After a tile crossing, the clock stops unless another explicit action
+  advances time.
+- Disabling ambient time exposed a first-playable selector mismatch: active
+  construction can progress with the Hero assigned to construction, even without
+  extra crew. `roleHasWorker()` now captures that domain concept, so the
+  first-playable action advances construction instead of repeatedly asking for
+  build crew. Verification passed with `npm --workspace @aedventure/add-domain
+  run build`, `npm --workspace @aedventure/add-rpg run build:browser`,
+  `npm run smoke:add-rpg:built`, `npm run check`, and `git diff --check`.

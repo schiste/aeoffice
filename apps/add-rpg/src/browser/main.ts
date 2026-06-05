@@ -333,7 +333,7 @@ const [lastOfflineCatchupSeconds, setLastOfflineCatchupSeconds] = createSignal(0
 const [resetCount, setResetCount] = createSignal(0)
 const [online, setOnline] = createSignal(typeof navigator === "undefined" ? true : navigator.onLine)
 const [ready, setReady] = createSignal(false)
-const [autoTick, setAutoTick] = createSignal(true)
+const [autoTick, setAutoTick] = createSignal(false)
 const [adminOpen, setAdminOpen] = createSignal(false)
 const [firstPlayableCollapsed, setFirstPlayableCollapsed] = createSignal(false)
 const [questPanelPosition, setQuestPanelPosition] = createSignal(defaultQuestPanelPosition())
@@ -2186,7 +2186,8 @@ function statusState(): string {
 
 function statusLabel(): string {
   if (lastError()) return "Runtime error"
-  return ready() ? "Live" : "Booting"
+  if (!ready()) return "Booting"
+  return autoTick() ? "Live" : "Ready"
 }
 
 function objectiveState(): string {

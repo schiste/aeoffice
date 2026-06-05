@@ -289,6 +289,13 @@ function roleCrew(snapshot: SimulationSnapshot, roleId: string): number {
   return Number((crewByRole as Record<string, number>)[roleId] ?? 0)
 }
 
+function roleHasWorker(snapshot: SimulationSnapshot, roleId: string): boolean {
+  return (
+    roleCrew(snapshot, roleId) > 0 ||
+    (snapshot.roster.heroAssigned && snapshot.roster.heroRoleId === roleId)
+  )
+}
+
 function storyChoiceSelected(snapshot: SimulationSnapshot, beatId: string): boolean {
   const choiceByBeat = snapshot.narrative.choiceByBeat as
     | Record<string, string>
@@ -831,7 +838,7 @@ function constructionStep(
         action: { type: "set_hero_role", roleId: ROLE_CONSTRUCTION },
       }
     }
-    if (roleCrew(snapshot, ROLE_CONSTRUCTION) < 1) {
+    if (!roleHasWorker(snapshot, ROLE_CONSTRUCTION)) {
       return {
         id,
         label,

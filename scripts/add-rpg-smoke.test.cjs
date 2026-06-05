@@ -41,6 +41,7 @@ async function main() {
         state.app === "add-rpg" &&
         state.runtime?.workerBoundary === "ui-worker-rust-wasm-snapshot" &&
         state.runtime?.ready === true &&
+        state.runtime?.autoTick === false &&
         state.runtime?.snapshotReceived === true &&
         state.runtime?.catalogReceived === true &&
         state.shell?.framework === "solid" &&
@@ -594,6 +595,15 @@ async function exerciseMainCharacterMovement(page, consoleErrors) {
   assert.ok(
     observedTravelClockTimes.size >= 3,
     `Travel clock should show multiple minute values, saw ${Array.from(observedTravelClockTimes).join(", ")}`,
+  )
+  const settledTravelClockSeconds = moved.snapshot.clockSeconds
+  await page.waitForTimeout(1300)
+  const afterTravelIdle = await renderGameToText(page)
+  assert.equal(afterTravelIdle.runtime.autoTick, false)
+  assert.equal(
+    afterTravelIdle.snapshot.clockSeconds,
+    settledTravelClockSeconds,
+    "Travel should not leave the clock advancing after the crossing is finished.",
   )
 
   await page.keyboard.press("ArrowRight")
