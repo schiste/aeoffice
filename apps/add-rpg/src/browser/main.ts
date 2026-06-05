@@ -2443,6 +2443,13 @@ function emptyMapInfo(): AddPhaserMapInfo {
       landmarkSprites: "procedural_sprite_stack",
       labelRendering: "high_resolution_phaser_text",
       ambience: "subtle_motes_and_topographic_scan",
+      visibilityPolish: {
+        fogEdge: "soft_feathered_visibility_boundary",
+        revealEffect: "expanding_ripple",
+        caveMouthSilhouettes: true,
+        authority: "visual_only",
+        laterModifiers: ["day_night_radius", "weather_season", "scouting_buildings_items"],
+      },
       transitionState: "idle",
       transitionProgress: 1,
       responsiveLayout: "desktop",

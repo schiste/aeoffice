@@ -91,6 +91,18 @@ async function main() {
         state.map?.presentation?.landmarkSprites === "procedural_sprite_stack" &&
         state.map?.presentation?.labelRendering === "high_resolution_phaser_text" &&
         state.map?.presentation?.ambience === "subtle_motes_and_topographic_scan" &&
+        state.map?.presentation?.visibilityPolish?.fogEdge ===
+          "soft_feathered_visibility_boundary" &&
+        state.map?.presentation?.visibilityPolish?.revealEffect === "expanding_ripple" &&
+        state.map?.presentation?.visibilityPolish?.caveMouthSilhouettes === true &&
+        state.map?.presentation?.visibilityPolish?.authority === "visual_only" &&
+        state.map?.presentation?.visibilityPolish?.laterModifiers?.includes(
+          "day_night_radius",
+        ) &&
+        state.map.presentation.visibilityPolish.laterModifiers.includes("weather_season") &&
+        state.map.presentation.visibilityPolish.laterModifiers.includes(
+          "scouting_buildings_items",
+        ) &&
         state.ui?.worldTime?.day >= 1 &&
         state.ui?.worldTime?.season === "spring" &&
         state.ui?.worldTime?.source === "estimated_solar_model" &&

@@ -212,6 +212,17 @@ export interface AddPhaserMapInfo {
     readonly landmarkSprites: "procedural_sprite_stack"
     readonly labelRendering: "high_resolution_phaser_text"
     readonly ambience: "subtle_motes_and_topographic_scan"
+    readonly visibilityPolish: {
+      readonly fogEdge: "soft_feathered_visibility_boundary"
+      readonly revealEffect: "expanding_ripple"
+      readonly caveMouthSilhouettes: true
+      readonly authority: "visual_only"
+      readonly laterModifiers: readonly [
+        "day_night_radius",
+        "weather_season",
+        "scouting_buildings_items",
+      ]
+    }
     readonly transitionState: "idle" | "entering"
     readonly transitionProgress: number
     readonly responsiveLayout: "desktop" | "mobile"
@@ -287,7 +298,14 @@ const DEFAULT_RADIUS = 28
 const MIN_ZOOM = 0.55
 const MAX_ZOOM = 2.2
 const KEY_CHORD_DELAY_MS = 55
-const REVEAL_TRANSITION_MS = 860
+const REVEAL_TRANSITION_MS = 1180
+const VISIBILITY_POLISH: AddPhaserMapInfo["presentation"]["visibilityPolish"] = {
+  fogEdge: "soft_feathered_visibility_boundary",
+  revealEffect: "expanding_ripple",
+  caveMouthSilhouettes: true,
+  authority: "visual_only",
+  laterModifiers: ["day_night_radius", "weather_season", "scouting_buildings_items"],
+}
 
 export class AddRpgPhaserMapHost {
   private readonly scene: AddRpgHexScene
@@ -1003,11 +1021,7 @@ class AddRpgHexScene extends Phaser.Scene {
       core.setStrokeStyle(1.4, 0xffffff, 0.58)
       this.landmarkObjects.push(glow, core)
     } else if (isCave) {
-      const mouth = this.add.ellipse(center.x, center.y + 2, radius * 1.05, radius * 0.62, 0x2b1b14, 0.72)
-      const ridge = this.add.arc(center.x, center.y - 1, radius * 0.82, 205, 335, false, 0xd28a52, 0.26)
-      mouth.setDepth(26)
-      ridge.setDepth(27)
-      this.landmarkObjects.push(mouth, ridge)
+      this.drawCaveMouthSilhouette(center, radius)
     } else if (isDoor) {
       const seam = this.add.line(center.x, center.y + 2, 0, -8, 0, 10, 0x3b2b21, 0.7)
       seam.setDepth(27)
@@ -1038,6 +1052,41 @@ class AddRpgHexScene extends Phaser.Scene {
     label.setOrigin(0.5, 0.5)
     label.setDepth(26)
     this.landmarkObjects.push(label)
+  }
+
+  private drawCaveMouthSilhouette(center: Vector2, radius: number): void {
+    const backShadow = this.add.ellipse(center.x, center.y + 6, radius * 1.55, radius * 0.86, 0x17120f, 0.42)
+    const arch = this.add.polygon(
+      center.x,
+      center.y + 1,
+      [
+        -radius * 0.82,
+        radius * 0.36,
+        -radius * 0.62,
+        -radius * 0.22,
+        -radius * 0.26,
+        -radius * 0.58,
+        radius * 0.24,
+        -radius * 0.58,
+        radius * 0.62,
+        -radius * 0.20,
+        radius * 0.82,
+        radius * 0.36,
+      ],
+      0x201512,
+      0.88,
+    )
+    const mouth = this.add.ellipse(center.x, center.y + 4, radius * 1.04, radius * 0.60, 0x0b0d0c, 0.86)
+    const innerFade = this.add.ellipse(center.x, center.y + 5, radius * 0.68, radius * 0.34, 0x000000, 0.54)
+    const rim = this.add.arc(center.x, center.y - 1, radius * 0.86, 204, 336, false, 0xe1a46a, 0.34)
+    const leftStone = this.add.ellipse(center.x - radius * 0.54, center.y + 5, radius * 0.28, radius * 0.44, 0x5b3524, 0.72)
+    const rightStone = this.add.ellipse(center.x + radius * 0.52, center.y + 6, radius * 0.24, radius * 0.38, 0x6a3e29, 0.66)
+    const threshold = this.add.line(center.x, center.y + radius * 0.46, -radius * 0.42, 0, radius * 0.42, 0, 0xf4c477, 0.22)
+    ;[backShadow, arch, mouth, innerFade, rim, leftStone, rightStone, threshold].forEach(
+      (object, index) => object.setDepth(25.5 + index * 0.08),
+    )
+    rim.setStrokeStyle(2.2, 0xe1a46a, 0.42)
+    this.landmarkObjects.push(backShadow, arch, mouth, innerFade, rim, leftStone, rightStone, threshold)
   }
 
   private drawAmbience(context: RenderContext): void {
@@ -1113,14 +1162,20 @@ class AddRpgHexScene extends Phaser.Scene {
     if (visibilityState === "visible") return
 
     if (visibilityState === "hidden") {
-      graphics.fillStyle(0x111817, 0.76)
-      graphics.fillRect(topLeft.x + 1.2, topLeft.y + 1.2, cellSize - 2.4, cellSize - 2.4)
+      graphics.fillStyle(0x0b1110, 0.18)
+      graphics.fillRect(topLeft.x - 2.4, topLeft.y - 2.4, cellSize + 4.8, cellSize + 4.8)
+      graphics.fillStyle(0x111817, 0.34)
+      graphics.fillRect(topLeft.x - 0.4, topLeft.y - 0.4, cellSize + 0.8, cellSize + 0.8)
+      graphics.fillStyle(0x111817, 0.66)
+      graphics.fillRect(topLeft.x + 1.5, topLeft.y + 1.5, cellSize - 3, cellSize - 3)
       graphics.lineStyle(1.2, 0x9c9275, 0.16)
       graphics.strokeRect(topLeft.x + 5, topLeft.y + 5, cellSize - 10, cellSize - 10)
       return
     }
 
     const alpha = visibilityState === "stale" ? 0.38 : 0.26
+    graphics.fillStyle(0x2b302b, alpha * 0.34)
+    graphics.fillRect(topLeft.x - 1.8, topLeft.y - 1.8, cellSize + 3.6, cellSize + 3.6)
     graphics.fillStyle(0x3f4039, alpha)
     graphics.fillRect(topLeft.x + 1.2, topLeft.y + 1.2, cellSize - 2.4, cellSize - 2.4)
     graphics.lineStyle(1, 0xf0dfac, 0.10)
@@ -1138,8 +1193,14 @@ class AddRpgHexScene extends Phaser.Scene {
     const center = centerFor(cell.coord, context)
     const radius = context.map.topology.kind === "hex" ? context.map.topology.radius : DEFAULT_RADIUS
     if (visibilityState === "hidden") {
-      drawHexPath(graphics, center, radius - 1.6)
-      graphics.fillStyle(0x0f1716, 0.78)
+      drawHexPath(graphics, center, radius + 3.2)
+      graphics.fillStyle(0x0a1110, 0.14)
+      graphics.fillPath()
+      drawHexPath(graphics, center, radius + 1.4)
+      graphics.fillStyle(0x0c1413, 0.26)
+      graphics.fillPath()
+      drawHexPath(graphics, center, radius - 1.3)
+      graphics.fillStyle(0x0f1716, 0.68)
       graphics.fillPath()
       drawHexPath(graphics, { x: center.x - radius * 0.12, y: center.y - radius * 0.10 }, radius * 0.42)
       graphics.lineStyle(1.3, 0xa89c78, 0.14)
@@ -1150,6 +1211,9 @@ class AddRpgHexScene extends Phaser.Scene {
     }
 
     const alpha = visibilityState === "stale" ? 0.40 : 0.27
+    drawHexPath(graphics, center, radius + 2.5)
+    graphics.fillStyle(0x262d2a, alpha * 0.30)
+    graphics.fillPath()
     drawHexPath(graphics, center, radius - 1.5)
     graphics.fillStyle(0x3d4139, alpha)
     graphics.fillPath()
@@ -1169,21 +1233,28 @@ class AddRpgHexScene extends Phaser.Scene {
     if (cell.coord.kind === "square") {
       const topLeft = squareTopLeftFor(cell.coord as SquareCoord, context)
       const cellSize = squareCellSize(context)
-      graphics.fillStyle(0xf6e5a9, 0.22 * alpha)
-      graphics.fillRect(topLeft.x + cellSize * 0.12, topLeft.y + cellSize * 0.12, cellSize * 0.76, cellSize * 0.76)
-      graphics.lineStyle(2.2, 0xf9d978, 0.52 * alpha)
-      graphics.strokeRect(topLeft.x + cellSize * 0.08, topLeft.y + cellSize * 0.08, cellSize * 0.84, cellSize * 0.84)
+      graphics.fillStyle(0xf6e5a9, 0.16 * alpha)
+      graphics.fillRect(topLeft.x + cellSize * 0.16, topLeft.y + cellSize * 0.16, cellSize * 0.68, cellSize * 0.68)
+      for (let ring = 0; ring < 3; ring += 1) {
+        const ringProgress = clamp(eased - ring * 0.16, 0, 1)
+        const inset = cellSize * (0.24 - ringProgress * 0.22)
+        graphics.lineStyle(1.4 + ring * 0.8, 0xf9d978, (0.44 - ring * 0.10) * alpha)
+        graphics.strokeRect(topLeft.x + inset, topLeft.y + inset, cellSize - inset * 2, cellSize - inset * 2)
+      }
       return
     }
 
     const center = centerFor(cell.coord, context)
     const radius = context.map.topology.kind === "hex" ? context.map.topology.radius : DEFAULT_RADIUS
-    drawHexPath(graphics, center, radius * (0.35 + eased * 0.62))
-    graphics.fillStyle(0xf9e4a1, 0.18 * alpha)
+    drawHexPath(graphics, center, radius * (0.32 + eased * 0.58))
+    graphics.fillStyle(0xf9e4a1, 0.13 * alpha)
     graphics.fillPath()
-    drawHexPath(graphics, center, radius * (0.42 + eased * 0.70))
-    graphics.lineStyle(2.4, 0xf5d36c, 0.58 * alpha)
-    graphics.strokePath()
+    for (let ring = 0; ring < 3; ring += 1) {
+      const ringProgress = clamp(eased - ring * 0.15, 0, 1)
+      drawHexPath(graphics, center, radius * (0.40 + ringProgress * (0.72 + ring * 0.10)))
+      graphics.lineStyle(2.2 - ring * 0.35, 0xf5d36c, (0.52 - ring * 0.12) * alpha)
+      graphics.strokePath()
+    }
   }
 
   private drawOverlay(): void {
@@ -1500,6 +1571,7 @@ class AddRpgHexScene extends Phaser.Scene {
         landmarkSprites: "procedural_sprite_stack",
         labelRendering: "high_resolution_phaser_text",
         ambience: "subtle_motes_and_topographic_scan",
+        visibilityPolish: VISIBILITY_POLISH,
         transitionState: this.transitionState,
         transitionProgress: round(this.transitionProgress),
         responsiveLayout: this.scale.width < 640 || this.scale.height < 520 ? "mobile" : "desktop",
@@ -2391,6 +2463,7 @@ function emptyMapInfo(): AddPhaserMapInfo {
       landmarkSprites: "procedural_sprite_stack",
       labelRendering: "high_resolution_phaser_text",
       ambience: "subtle_motes_and_topographic_scan",
+      visibilityPolish: VISIBILITY_POLISH,
       transitionState: "idle",
       transitionProgress: 1,
       responsiveLayout: "desktop",

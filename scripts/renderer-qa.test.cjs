@@ -1047,6 +1047,11 @@ async function verifyAddRendererTopologyFixtures(browser, report) {
         state.map?.visibility?.discoveredCells > 0 &&
         state.map?.visibility?.fogRendering === "phaser_visual_overlay" &&
         state.map?.visibility?.affectsAuthority === false &&
+        state.map?.presentation?.visibilityPolish?.fogEdge ===
+          "soft_feathered_visibility_boundary" &&
+        state.map?.presentation?.visibilityPolish?.revealEffect === "expanding_ripple" &&
+        state.map?.presentation?.visibilityPolish?.caveMouthSilhouettes === true &&
+        state.map?.presentation?.visibilityPolish?.authority === "visual_only" &&
         state.map?.interaction?.visibilitySamples?.hidden?.label === "Unknown region" &&
         state.map.interaction.visibilitySamples.hidden.dungeonLinks.length === 0 &&
         state.map.interaction.visibilitySamples.hidden.dungeonActionsVisible === false &&
@@ -1133,6 +1138,7 @@ async function captureAddTopologyCanvas(page, state, topology, mode) {
     fixture: state.map.topology.fixture,
     cells: state.map.cells,
     visibility: state.map.visibility,
+    visibilityPolish: state.map.presentation.visibilityPolish,
     interactionSamples: state.map.interaction.visibilitySamples,
     fogPalette,
     landmarks: state.map.landmarks,

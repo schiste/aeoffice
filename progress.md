@@ -102,6 +102,12 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   hidden tile interaction never exposes dungeon links while the discovered
   Survivor Cave can, a fog-overlay canvas screenshot is nonblank, and held-key
   movement does not chain additional travel or discovery.
+- ADD visibility polish V1 is visual-only in Phaser: hidden and remembered cells
+  now use layered soft fog edges, reveal transitions use a longer expanding
+  ripple, and known cave landmarks get cave-mouth silhouettes. `render_game_to_text`
+  exposes `presentation.visibilityPolish` with future hooks for day/night radius,
+  weather/season, and scouting/building/item vision modifiers, but those later
+  systems do not affect authority yet.
 - The debug-style event feed is no longer visible in the primary app UI. It has
   been replaced with compact session/world/media status pills, a compact room
   chat transcript, and transient toast feedback for join/reset/error-like events.
