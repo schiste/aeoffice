@@ -1302,6 +1302,8 @@ function travelRiskCopy(): string {
       return "Toxic fringe"
     case "toxic":
       return "High toxicity"
+    case "unknown":
+      return "Unknown conditions"
     default:
       return "Exposure varies"
   }
@@ -2348,6 +2350,16 @@ function emptyMapInfo(): AddPhaserMapInfo {
       total: 0,
       cellsWithLinks: 0,
       selected: [],
+    },
+    knownFacts: {
+      hiddenCells: 0,
+      discoveredCells: 0,
+      visibleCells: 0,
+      staleCells: 0,
+      exactTerrainKnownCells: 0,
+      dynamicRiskKnownCells: 0,
+      vagueTravelLabels: 0,
+      sampleHiddenTravelLabel: null,
     },
     character: {
       id: "add.entity.hero",

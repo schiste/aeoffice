@@ -54,6 +54,28 @@ export interface AddVagueVisibilityHint {
   readonly reason: "adjacent_to_known_cell"
 }
 
+export type AddKnownDynamicDetailState = "current" | "stale" | "hidden"
+export type AddKnownTravelRisk = "studio" | "safe_field" | "fringe" | "toxic" | "unknown"
+export type AddKnownTerrain = TileDef["terrain"] | "unknown"
+export type AddKnownFeature = TileDef["feature"]
+
+export interface AddKnownTileFacts {
+  readonly label: string
+  readonly terrain: AddKnownTerrain
+  readonly feature: AddKnownFeature
+  readonly state: HexSnapshot["state"]
+  readonly progress: number
+  readonly impedance: number
+  readonly isBlocker: boolean
+  readonly exactTerrainKnown: boolean
+  readonly landmarkKnown: boolean
+  readonly dynamicDetails: AddKnownDynamicDetailState
+  readonly dynamicRiskKnown: boolean
+  readonly travelRisk: AddKnownTravelRisk
+  readonly dungeonCount: number
+  readonly vagueTravelLabel: string
+}
+
 export function selectAddVisibilitySummary(
   snapshot: SimulationSnapshot,
   catalog: CatalogSnapshot,
@@ -187,12 +209,83 @@ export function addVisibilityAllowsDungeonLinks(visibility: VisibilityEntry): bo
   return KNOWN_FACT_POLICIES.discoveredOrVisible(visibility.state)
 }
 
+export function addVisibilityAllowsStaticTileFacts(visibility: VisibilityEntry): boolean {
+  return KNOWN_FACT_POLICIES.rememberedOrVisible(visibility.state)
+}
+
 export function addVisibilityAllowsDynamicDetails(visibility: VisibilityEntry): boolean {
   return KNOWN_FACT_POLICIES.visibleOnly(visibility.state)
 }
 
 export function addVisibilityAllowsVagueHints(visibility: VisibilityEntry): boolean {
   return visibility.state === "hidden"
+}
+
+export function selectAddKnownTileFacts(
+  hex: HexSnapshot,
+  tile: TileDef | undefined,
+  visibility: VisibilityEntry,
+  vagueHint: boolean,
+): AddKnownTileFacts {
+  if (!addVisibilityAllowsStaticTileFacts(visibility)) {
+    return {
+      label: "",
+      terrain: "unknown",
+      feature: "none",
+      state: "inactive",
+      progress: 0,
+      impedance: 0,
+      isBlocker: false,
+      exactTerrainKnown: false,
+      landmarkKnown: false,
+      dynamicDetails: "hidden",
+      dynamicRiskKnown: false,
+      travelRisk: "unknown",
+      dungeonCount: 0,
+      vagueTravelLabel: vagueHint ? "Unscouted region nearby" : "Unknown region",
+    }
+  }
+
+  const dynamicDetailsVisible = addVisibilityAllowsDynamicDetails(visibility)
+  const feature = tile?.feature ?? "none"
+  const terrain = tile?.terrain ?? "unknown"
+  const state = dynamicDetailsVisible ? hex.state : "inactive"
+
+  return {
+    label: knownStaticLabel(tile),
+    terrain,
+    feature,
+    state,
+    progress: dynamicDetailsVisible ? hex.progress : 0,
+    impedance: tile?.impedance ?? 0,
+    isBlocker: tile?.isBlocker ?? hex.state === "blocked",
+    exactTerrainKnown: terrain !== "unknown",
+    landmarkKnown: feature !== "none" || (tile?.structureIds.length ?? 0) > 0,
+    dynamicDetails: dynamicDetailsVisible ? "current" : "stale",
+    dynamicRiskKnown: dynamicDetailsVisible,
+    travelRisk: dynamicDetailsVisible ? travelRiskForCurrentFacts(feature, hex.state) : "unknown",
+    dungeonCount: addVisibilityAllowsDungeonLinks(visibility) ? tile?.dungeonIds.length ?? 0 : 0,
+    vagueTravelLabel: dynamicDetailsVisible
+      ? knownStaticLabel(tile)
+      : `${knownStaticLabel(tile)}. Conditions may have changed`,
+  }
+}
+
+function knownStaticLabel(tile: TileDef | undefined): string {
+  if (!tile) return "Known region"
+  if (tile.feature === "base") return "Studio"
+  if (tile.feature === "survivor_cave") return "Survivor Cave"
+  return tile.label
+}
+
+function travelRiskForCurrentFacts(
+  feature: TileDef["feature"],
+  state: HexSnapshot["state"],
+): AddKnownTravelRisk {
+  if (feature === "base") return "studio"
+  if (state === "stabilized") return "safe_field"
+  if (state === "converting") return "fringe"
+  return "toxic"
 }
 
 function revealKnownCoord(

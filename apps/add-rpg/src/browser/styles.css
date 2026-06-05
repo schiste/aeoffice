@@ -515,6 +515,11 @@ h1 {
   color: #ffc6b6;
 }
 
+.travel-risk-pill.unknown {
+  background: rgb(209 198 166 / 14%);
+  color: #e7dfc8;
+}
+
 .travel-dialog-backdrop {
   position: absolute;
   inset: 0;

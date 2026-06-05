@@ -62,10 +62,15 @@ async function main() {
         state.snapshot?.discoveredCellCount === 2 &&
         typeof state.snapshot?.heroMap === "string" &&
         state.map?.cells?.total === state.snapshot.hexCount &&
-        state.map?.cells?.bubbleEdge > 0 &&
-        state.map?.cells?.stabilized > 0 &&
         state.map?.dungeonLinks?.total > 0 &&
         state.map?.dungeonLinks?.cellsWithLinks > 0 &&
+        state.map?.knownFacts?.hiddenCells > 0 &&
+        state.map?.knownFacts?.exactTerrainKnownCells > 0 &&
+        state.map?.knownFacts?.dynamicRiskKnownCells > 0 &&
+        state.map?.knownFacts?.vagueTravelLabels > 0 &&
+        typeof state.map?.knownFacts?.sampleHiddenTravelLabel === "string" &&
+        state.map.knownFacts.sampleHiddenTravelLabel.length > 0 &&
+        state.map.knownFacts.dynamicRiskKnownCells < state.map.cells.total &&
         state.map?.character?.visible === true &&
         state.map?.character?.authority === "browser_navigation_triggers_rust_time" &&
         state.map?.travel?.costGameMinutes === 60 &&
@@ -195,7 +200,7 @@ async function exerciseMapModeSwitching(page, consoleErrors) {
       state.mapMode?.topology === "hex" &&
       state.map?.topology?.kind === "hex" &&
       state.map?.cells?.total === state.snapshot?.hexCount &&
-      state.map?.cells?.bubbleEdge > 0,
+      state.map?.knownFacts?.hiddenCells > 0,
     consoleErrors,
   )
 }

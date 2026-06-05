@@ -23,10 +23,13 @@ import { createAddCatalogIndexes } from "./catalog-selectors"
 import {
   addVisibilityAllowsDungeonLinks,
   addVisibilityAllowsDynamicDetails,
+  addVisibilityAllowsStaticTileFacts,
   addVisibilityForHex,
+  selectAddKnownTileFacts,
   selectAddVagueVisibilityHints,
   selectAddVisibilitySummary,
   type AddVisibilitySummary,
+  type AddKnownTileFacts,
 } from "./visibility-selectors"
 
 export interface AddSnapshotWorldAdapterOptions {
@@ -55,7 +58,7 @@ export function addSnapshotToGameWorld(
   const terrainCells = terrainLayerCells(snapshot, catalog, { visibility })
   const collisionCells = collisionLayerCells(snapshot, catalog)
   const bubbleCells = bubbleOverlayCells(snapshot)
-  const entities = landmarkEntities(snapshot, catalog)
+  const entities = landmarkEntities(snapshot, catalog, { visibility })
   const zones = bubbleZones(snapshot, catalog)
   const interactions = gameInteractions(snapshot, catalog, mapId, zones)
 
@@ -146,21 +149,18 @@ export function terrainLayerCells(
   return snapshot.hexes.map((hex) => {
     const tile = indexes.tilesById.get(hex.tileId)
     const cellVisibility = addVisibilityForHex(visibility.visibility, hex)
+    const vagueHint = vagueHintKeys.has(hexKey(hex.q, hex.r))
+    const knownFacts = selectAddKnownTileFacts(hex, tile, cellVisibility, vagueHint)
     const links = addVisibilityAllowsDungeonLinks(cellVisibility)
       ? dungeonLinksForTile(hex, tile)
       : []
     return {
       coord: hexCoord(hex),
-      tokenId: hex.tileId,
+      tokenId: knownFacts.exactTerrainKnown ? hex.tileId : "tile.unknown",
       blocked: tile?.isBlocker ?? hex.state === "blocked",
       ...(links.length > 0 ? { links } : {}),
       visibility: cellVisibility,
-      metadata: tileMetadata(
-        hex,
-        tile,
-        cellVisibility,
-        vagueHintKeys.has(hexKey(hex.q, hex.r)),
-      ),
+      metadata: tileMetadata(hex, cellVisibility, knownFacts, vagueHint),
     }
   })
 }
@@ -203,8 +203,10 @@ export function bubbleOverlayCells(
 export function landmarkEntities(
   snapshot: SimulationSnapshot,
   catalog: CatalogSnapshot,
+  options: { readonly visibility?: AddVisibilitySummary } = {},
 ): readonly GameEntity[] {
   const indexes = createAddCatalogIndexes(catalog)
+  const visibility = options.visibility ?? selectAddVisibilitySummary(snapshot, catalog)
   const heroCoord = heroMapHex(snapshot) ?? survivorCaveHexes(snapshot, catalog)[0]
   const entities: GameEntity[] = [
     {
@@ -226,6 +228,8 @@ export function landmarkEntities(
   for (const hex of snapshot.hexes) {
     const tile = indexes.tilesById.get(hex.tileId)
     if (!tile) continue
+    const cellVisibility = addVisibilityForHex(visibility.visibility, hex)
+    if (!addVisibilityAllowsStaticTileFacts(cellVisibility)) continue
 
     tile.floraIds.forEach((floraId) => {
       const flora = indexes.floraById.get(floraId)
@@ -450,20 +454,27 @@ function pushZone(zones: GameZone[], zone: GameZone): void {
 
 function tileMetadata(
   hex: HexSnapshot,
-  tile: TileDef | undefined,
   visibility: VisibilityEntry,
+  knownFacts: AddKnownTileFacts,
   vagueHint: boolean,
 ): GameMetadata {
   return {
-    tileId: hex.tileId,
-    state: hex.state,
+    tileId: knownFacts.exactTerrainKnown ? hex.tileId : "",
+    label: knownFacts.label,
+    state: knownFacts.state,
     distance: hex.distance,
-    progress: hex.progress,
-    terrain: tile?.terrain ?? "unknown",
-    feature: tile?.feature ?? "none",
-    impedance: tile?.impedance ?? 0,
-    isBlocker: tile?.isBlocker ?? hex.state === "blocked",
-    dungeonCount: tile?.dungeonIds.length ?? 0,
+    progress: knownFacts.progress,
+    terrain: knownFacts.terrain,
+    feature: knownFacts.feature,
+    impedance: knownFacts.impedance,
+    isBlocker: knownFacts.isBlocker,
+    exactTerrainKnown: knownFacts.exactTerrainKnown,
+    landmarkKnown: knownFacts.landmarkKnown,
+    dynamicDetails: knownFacts.dynamicDetails,
+    dynamicRiskKnown: knownFacts.dynamicRiskKnown,
+    travelRisk: knownFacts.travelRisk,
+    dungeonCount: knownFacts.dungeonCount,
+    vagueTravelLabel: knownFacts.vagueTravelLabel,
     visibilityState: visibility.state,
     visibilityRevealSource: visibility.revealSource ?? "",
     dynamicDetailsHidden: !addVisibilityAllowsDynamicDetails(visibility),

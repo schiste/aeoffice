@@ -1040,7 +1040,8 @@ async function verifyAddRendererTopologyFixtures(browser, report) {
         state.map?.validationValid === true &&
         state.map?.topology?.kind === "hex" &&
         state.map?.cells?.total === state.snapshot?.hexCount &&
-        state.map?.cells?.bubbleEdge > 0,
+        state.map?.knownFacts?.hiddenCells > 0 &&
+        state.map?.knownFacts?.dynamicRiskKnownCells > 0,
       16000,
     )
     report.topologyChecks.push(

@@ -34,7 +34,7 @@ type AddTerrain =
   | "base_wall"
   | "unknown"
 type AddFeature = "none" | "base" | "survivor_cave" | string
-type AddTravelExposureRisk = "studio" | "safe_field" | "fringe" | "toxic"
+type AddTravelExposureRisk = "studio" | "safe_field" | "fringe" | "toxic" | "unknown"
 type AddCharacterMoveDirection =
   | "up"
   | "right"
@@ -105,6 +105,16 @@ export interface AddPhaserMapInfo {
     readonly total: number
     readonly cellsWithLinks: number
     readonly selected: readonly AddDungeonLinkInfo[]
+  }
+  readonly knownFacts: {
+    readonly hiddenCells: number
+    readonly discoveredCells: number
+    readonly visibleCells: number
+    readonly staleCells: number
+    readonly exactTerrainKnownCells: number
+    readonly dynamicRiskKnownCells: number
+    readonly vagueTravelLabels: number
+    readonly sampleHiddenTravelLabel: string | null
   }
   readonly character: {
     readonly id: string
@@ -1259,6 +1269,7 @@ class AddRpgHexScene extends Phaser.Scene {
           ? dungeonLinksForCoord(this.selectedCoord, context).map(dungeonLinkInfo)
           : [],
       },
+      knownFacts: knownFactsInfo(context.terrainCells),
       character: {
         id: "add.entity.hero",
         label: "Hero",
@@ -1477,6 +1488,16 @@ function isBubbleEdgeCell(cell: GameCellPlacement, map: GameMap): boolean {
 function styleForCell(cell: GameCellPlacement): CellStyle {
   const terrain = terrainForCell(cell)
   const state = stateForCell(cell)
+  if (terrain === "unknown") {
+    return {
+      fill: 0x74786e,
+      stroke: 0x4d514a,
+      alpha: 0.42,
+      accent: 0xa5a88f,
+      highlight: 0xc3c8a9,
+      shadow: 0x1a1d17,
+    }
+  }
   if (state === "blocked") {
     if (terrain === "dungeon_wall") return { fill: 0x4b453d, stroke: 0x2f2a25, alpha: 0.96, accent: 0x9a7651, highlight: 0x6b5f50, shadow: 0x17130f }
     if (terrain === "base_wall") return { fill: 0x53605b, stroke: 0x33413d, alpha: 0.96, accent: 0x9bb7a4, highlight: 0x748177, shadow: 0x18211f }
@@ -1566,6 +1587,16 @@ function progressForCell(cell: GameCellPlacement): number {
 }
 
 function exposureRiskForCell(cell: GameCellPlacement): AddTravelExposureRisk {
+  const knownRisk = stringMetadata(cell, "travelRisk")
+  if (
+    knownRisk === "studio" ||
+    knownRisk === "safe_field" ||
+    knownRisk === "fringe" ||
+    knownRisk === "toxic" ||
+    knownRisk === "unknown"
+  ) {
+    return knownRisk
+  }
   const feature = featureForCell(cell)
   const state = stateForCell(cell)
   if (isBaseFeature(feature)) return "studio"
@@ -1578,6 +1609,14 @@ function labelForCoord(coord: CellCoord, context: RenderContext): string | null 
   const cell = context.terrainByCoord.get(coordKey(coord))
   if (!cell) return null
   const dungeonLinks = dungeonLinksForCell(cell)
+  const knownLabel = stringMetadata(cell, "label")
+  const vagueTravelLabel = stringMetadata(cell, "vagueTravelLabel")
+  if (knownLabel) {
+    if (dungeonLinks.length === 0) return knownLabel
+    return `${knownLabel} -> ${dungeonLinks.map((link) => link.label ?? link.id).join(", ")}`
+  }
+  if (vagueTravelLabel) return vagueTravelLabel
+
   const feature = featureForCell(cell)
   const baseLabel =
     feature === "base"
@@ -1592,6 +1631,44 @@ function labelForCoord(coord: CellCoord, context: RenderContext): string | null 
 
   if (dungeonLinks.length === 0) return baseLabel
   return `${baseLabel} -> ${dungeonLinks.map((link) => link.label ?? link.id).join(", ")}`
+}
+
+function knownFactsInfo(cells: readonly GameCellPlacement[]): AddPhaserMapInfo["knownFacts"] {
+  let hiddenCells = 0
+  let discoveredCells = 0
+  let visibleCells = 0
+  let staleCells = 0
+  let exactTerrainKnownCells = 0
+  let dynamicRiskKnownCells = 0
+  let vagueTravelLabels = 0
+  let sampleHiddenTravelLabel: string | null = null
+
+  for (const cell of cells) {
+    const visibilityState = stringMetadata(cell, "visibilityState")
+    if (visibilityState === "hidden") hiddenCells += 1
+    if (visibilityState === "discovered") discoveredCells += 1
+    if (visibilityState === "visible") visibleCells += 1
+    if (visibilityState === "stale") staleCells += 1
+    if (cell.metadata?.exactTerrainKnown === true) exactTerrainKnownCells += 1
+    if (cell.metadata?.dynamicRiskKnown === true) dynamicRiskKnownCells += 1
+
+    const vagueLabel = stringMetadata(cell, "vagueTravelLabel")
+    if (vagueLabel && visibilityState === "hidden") {
+      vagueTravelLabels += 1
+      if (!sampleHiddenTravelLabel) sampleHiddenTravelLabel = vagueLabel
+    }
+  }
+
+  return {
+    hiddenCells,
+    discoveredCells,
+    visibleCells,
+    staleCells,
+    exactTerrainKnownCells,
+    dynamicRiskKnownCells,
+    vagueTravelLabels,
+    sampleHiddenTravelLabel,
+  }
 }
 
 function initialCharacterCoord(context: RenderContext): CellCoord | null {
@@ -1826,6 +1903,14 @@ function numberMetadata(
   return typeof value === "number" ? value : undefined
 }
 
+function stringMetadata(
+  item: Pick<GameCellPlacement | GameMap, "metadata">,
+  key: string,
+): string | undefined {
+  const value = item.metadata?.[key]
+  return typeof value === "string" ? value : undefined
+}
+
 function authorityInfo(): AddPhaserMapInfo["authority"] {
   return {
     rules: "rust_wasm_snapshot",
@@ -1923,6 +2008,16 @@ function emptyMapInfo(): AddPhaserMapInfo {
       total: 0,
       cellsWithLinks: 0,
       selected: [],
+    },
+    knownFacts: {
+      hiddenCells: 0,
+      discoveredCells: 0,
+      visibleCells: 0,
+      staleCells: 0,
+      exactTerrainKnownCells: 0,
+      dynamicRiskKnownCells: 0,
+      vagueTravelLabels: 0,
+      sampleHiddenTravelLabel: null,
     },
     character: {
       id: "add.entity.hero",

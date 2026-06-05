@@ -77,6 +77,12 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   anything unless those runtime rules advance. `npm run check` passed after the
   browser smoke asserted movement discovery, save/import preservation, and reset
   cleanup.
+- ADD tile facts are now filtered at the domain adapter boundary. Hidden cells
+  project as unknown terrain with vague travel copy, discovered cells keep
+  static terrain/landmark facts while dynamic risk is stale/unknown, visible
+  cells expose current facts, and dungeon links/landmark entities stay hidden
+  until visibility allows them. Phaser telemetry now reports `knownFacts` so QA
+  can assert the fog-of-war contract instead of raw simulation-only state.
 - The debug-style event feed is no longer visible in the primary app UI. It has
   been replaced with compact session/world/media status pills, a compact room
   chat transcript, and transient toast feedback for join/reset/error-like events.
