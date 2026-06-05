@@ -65,6 +65,7 @@ export interface AddCharacterTravelEvent {
 }
 
 export interface AddRpgPhaserMapHostOptions {
+  readonly onBeforeCharacterTravel?: (event: AddCharacterTravelEvent) => boolean | Promise<boolean>
   readonly onCharacterTravel?: (event: AddCharacterTravelEvent) => void
 }
 
@@ -277,7 +278,7 @@ export class AddRpgPhaserMapHost {
     this.scene.resetCamera()
   }
 
-  moveMainCharacter(direction: AddCharacterMoveDirection): boolean {
+  moveMainCharacter(direction: AddCharacterMoveDirection): Promise<boolean> {
     return this.scene.moveMainCharacter(direction)
   }
 
@@ -322,6 +323,7 @@ class AddRpgHexScene extends Phaser.Scene {
   private characterTarget: Vector2 | null = null
   private characterTravel: CharacterTravelState | null = null
   private travelRuntimeLocked = false
+  private travelPromptLocked = false
   private characterMoveStatus: CharacterMoveStatus = {
     direction: null,
     accepted: null,
@@ -396,7 +398,7 @@ class AddRpgHexScene extends Phaser.Scene {
     this.refreshInfo()
   }
 
-  moveMainCharacter(direction: AddCharacterMoveDirection): boolean {
+  async moveMainCharacter(direction: AddCharacterMoveDirection): Promise<boolean> {
     if (!this.context) {
       this.characterMoveStatus = {
         direction,
@@ -408,7 +410,7 @@ class AddRpgHexScene extends Phaser.Scene {
     }
 
     this.syncMainCharacter(this.context, false)
-    if (this.travelRuntimeLocked || this.characterIsMoving()) {
+    if (this.travelRuntimeLocked || this.travelPromptLocked || this.characterIsMoving()) {
       this.characterMoveStatus = {
         direction,
         accepted: false,
@@ -467,6 +469,34 @@ class AddRpgHexScene extends Phaser.Scene {
     const destinationState = stateForCell(nextCell)
     const destinationTerrain = terrainForCell(nextCell)
     const exposureRisk = exposureRiskForCell(nextCell)
+    const travelEvent: AddCharacterTravelEvent = {
+      direction,
+      fromCell: displayCell(fromCoord),
+      toCell: displayCell(nextCoord),
+      destinationLabel,
+      destinationState,
+      destinationTerrain,
+      exposureRisk,
+      dungeonLinksAtDestination: destinationLinks,
+    }
+
+    this.travelPromptLocked = true
+    let approved = true
+    try {
+      approved = (await this.hostOptions.onBeforeCharacterTravel?.(travelEvent)) !== false
+    } finally {
+      this.travelPromptLocked = false
+    }
+    if (!approved) {
+      this.characterMoveStatus = {
+        direction,
+        accepted: false,
+        blockedReason: "travel_declined",
+      }
+      this.drawOverlay()
+      this.refreshInfo()
+      return false
+    }
 
     this.characterCoord = nextCoord
     this.characterPosition = fromPosition
@@ -492,16 +522,7 @@ class AddRpgHexScene extends Phaser.Scene {
     }
     this.drawOverlay()
     this.refreshInfo()
-    this.hostOptions.onCharacterTravel?.({
-      direction,
-      fromCell: displayCell(fromCoord),
-      toCell: displayCell(nextCoord),
-      destinationLabel,
-      destinationState,
-      destinationTerrain,
-      exposureRisk,
-      dungeonLinksAtDestination: destinationLinks,
-    })
+    this.hostOptions.onCharacterTravel?.(travelEvent)
     return true
   }
 
@@ -1064,7 +1085,8 @@ class AddRpgHexScene extends Phaser.Scene {
       1.45,
       Math.max(0.64, Math.min(this.scale.width / width, this.scale.height / height) * 0.9),
     )
-    const focus = context.baseCoord ? centerFor(context.baseCoord, context) : {
+    const focusCoord = initialCharacterCoord(context) ?? context.baseCoord
+    const focus = focusCoord ? centerFor(focusCoord, context) : {
       x: minX + width / 2,
       y: minY + height / 2,
     }
@@ -1177,7 +1199,7 @@ class AddRpgHexScene extends Phaser.Scene {
     this.pendingCharacterKeys.clear()
     if (!direction) return
     this.lastKeyboardMoveAt = this.time.now
-    this.moveMainCharacter(direction)
+    void this.moveMainCharacter(direction)
   }
 
   private coordAtPointer(pointer: Phaser.Input.Pointer): CellCoord | null {

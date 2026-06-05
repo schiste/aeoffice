@@ -2189,3 +2189,19 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   smoke:add-rpg:built`, `npm run check`, and `git diff --check`. The updated
   ADD map screenshot was visually inspected to ensure the travel card no longer
   overlaps the quest panel.
+- ADD first movement now has a one-off dramatic confirmation flow before
+  Phaser commits the step. `AddRpgPhaserMapHost` asks the app shell through
+  `onBeforeCharacterTravel`; the Solid shell shows the toxic-world warning,
+  the second "1 HOUR" confirmation, the first-decline joke, and the
+  second-attempt "dramatic effect" shortcut. This keeps modal copy in the
+  product shell while Phaser remains renderer/input code.
+- The ADD Hero now spawns at the Survivor Cave by deriving the Hero entity
+  coordinate from the catalog-backed survivor cave tile in
+  `addSnapshotToGameWorld()`. Initial camera focus follows that character start,
+  so the first overworld screen frames the cave instead of the Studio.
+- Verification for the first-move/cave-start polish passed with `npm
+  --workspace @aedventure/add-domain run build`, `npm --workspace
+  @aedventure/add-domain run test`, `npm --workspace @aedventure/add-rpg run
+  build:browser`, `npm run smoke:add-rpg:built`, `npm run check`, and
+  `git diff --check`. The ADD map screenshot was visually inspected and now
+  shows the Hero at the Survivor Cave.

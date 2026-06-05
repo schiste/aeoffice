@@ -79,6 +79,19 @@ interface TravelExperience {
   readonly toxicityAfter: number | null
 }
 
+type TravelDramaState = "fresh" | "declined_once" | "complete"
+type TravelDialogKind =
+  | "first_warning"
+  | "second_warning"
+  | "first_declined"
+  | "dramatic_reprise"
+
+interface TravelDialogState {
+  readonly kind: TravelDialogKind
+  readonly event: AddCharacterTravelEvent
+  readonly resolve: (accepted: boolean) => void
+}
+
 interface RuntimeTextState {
   readonly app: "add-rpg"
   readonly coordinateSystem: "active ADD map mode projected through Phaser"
@@ -236,6 +249,11 @@ interface RuntimeTextState {
     readonly previewCell: string | null
     readonly previewLabel: string | null
     readonly previewAdjacent: boolean
+    readonly confirmation: {
+      readonly dramaState: TravelDramaState
+      readonly dialogOpen: boolean
+      readonly dialogKind: TravelDialogKind | null
+    }
   }
   readonly map: AddPhaserMapInfo
   readonly persistence: {
@@ -301,12 +319,14 @@ const [adminOpen, setAdminOpen] = createSignal(false)
 const [firstPlayableCollapsed, setFirstPlayableCollapsed] = createSignal(false)
 const [questPanelPosition, setQuestPanelPosition] = createSignal(defaultQuestPanelPosition())
 const [travelExperience, setTravelExperience] = createSignal<TravelExperience | null>(null)
+const [travelDialog, setTravelDialog] = createSignal<TravelDialogState | null>(null)
 const [lastEvent, setLastEvent] = createSignal("booting")
 const [lastCommand, setLastCommand] = createSignal<string | null>(null)
 const [lastError, setLastError] = createSignal<string | null>(null)
 
 let mapHost: AddRpgPhaserMapHost | null = null
 let travelClearTimer: number | undefined
+let travelDramaState: TravelDramaState = "fresh"
 let questPanelDrag:
   | {
       readonly pointerId: number
@@ -412,6 +432,7 @@ function AddRpgApp() {
   onMount(() => {
     if (!mapElement) return
     mapHost = new AddRpgPhaserMapHost(mapElement, {
+      onBeforeCharacterTravel: confirmFirstCharacterTravel,
       onCharacterTravel: (event) => {
         void handleCharacterTravel(event)
       },
@@ -512,6 +533,7 @@ function AddRpgApp() {
             </div>
             <i style=${() => travelProgressStyle()} aria-hidden="true" />
           </section>
+          ${() => travelDialogView()}
           <section
             id="first-playable-panel"
             class=${() =>
@@ -1177,6 +1199,163 @@ function currentTravelRisk(): string | null {
     mapInfo().travel.exposureRisk ??
     null
   )
+}
+
+async function confirmFirstCharacterTravel(event: AddCharacterTravelEvent): Promise<boolean> {
+  if (travelDramaState === "complete") return true
+
+  if (travelDramaState === "declined_once") {
+    await showTravelDialog("dramatic_reprise", event)
+    travelDramaState = "complete"
+    return true
+  }
+
+  const firstAccepted = await showTravelDialog("first_warning", event)
+  if (!firstAccepted) {
+    travelDramaState = "declined_once"
+    await showTravelDialog("first_declined", event)
+    return false
+  }
+
+  const secondAccepted = await showTravelDialog("second_warning", event)
+  if (!secondAccepted) {
+    travelDramaState = "declined_once"
+    return false
+  }
+
+  travelDramaState = "complete"
+  return true
+}
+
+function showTravelDialog(
+  kind: TravelDialogKind,
+  event: AddCharacterTravelEvent,
+): Promise<boolean> {
+  return new Promise<boolean>((resolve) => {
+    setTravelDialog({ kind, event, resolve })
+  })
+}
+
+function answerTravelDialog(accepted: boolean): void {
+  const current = travelDialog()
+  if (!current) return
+  setTravelDialog(null)
+  current.resolve(accepted)
+}
+
+function travelDialogView(): unknown {
+  const dialog = travelDialog()
+  if (!dialog) return null
+
+  return html`
+    <div class="travel-dialog-backdrop">
+      <section
+        id="travel-confirmation-dialog"
+        class="travel-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="travel-dialog-title"
+        data-kind=${dialog.kind}
+      >
+        <span class="travel-dialog-eyebrow">${() => travelDialogEyebrow(dialog.kind)}</span>
+        <h2 id="travel-dialog-title">${() => travelDialogTitle(dialog.kind)}</h2>
+        <p>${() => travelDialogCopy(dialog.kind, dialog.event)}</p>
+        <div class="travel-dialog-actions">
+          ${() => travelDialogActions(dialog.kind)}
+        </div>
+      </section>
+    </div>
+  `
+}
+
+function travelDialogEyebrow(kind: TravelDialogKind): string {
+  if (kind === "first_declined") return "Fair enough"
+  if (kind === "dramatic_reprise") return "One more thing"
+  return "Before you cross"
+}
+
+function travelDialogTitle(kind: TravelDialogKind): string {
+  switch (kind) {
+    case "first_warning":
+      return "Hmmmm..."
+    case "second_warning":
+      return "Really sure?"
+    case "first_declined":
+      return "Oh well."
+    case "dramatic_reprise":
+      return "That was just for dramatic effect."
+  }
+}
+
+function travelDialogCopy(
+  kind: TravelDialogKind,
+  event: AddCharacterTravelEvent,
+): string {
+  switch (kind) {
+    case "first_warning":
+      return `The world is toxic, remember? Are you really sure you want to venture forth? It's gonna take you a solid hour to cross the region toward ${event.destinationLabel}...`
+    case "second_warning":
+      return "Are you really sure? It's 1 HOUR. Keep that in mind, right?"
+    case "first_declined":
+      return "You can stay where you are, but that won't be so fun, right?"
+    case "dramatic_reprise":
+      return "That was just for dramatic effect. Just venture forth."
+  }
+}
+
+function travelDialogActions(kind: TravelDialogKind): readonly unknown[] {
+  if (kind === "first_declined") {
+    return [
+      html`
+        <button
+          id="travel-dialog-dismiss"
+          type="button"
+          class="primary-action"
+          onClick=${() => answerTravelDialog(true)}
+        >
+          Fine
+        </button>
+      `,
+    ]
+  }
+
+  if (kind === "dramatic_reprise") {
+    return [
+      html`
+        <button
+          id="travel-dialog-venture"
+          type="button"
+          class="primary-action"
+          onClick=${() => answerTravelDialog(true)}
+        >
+          Venture forth
+        </button>
+      `,
+    ]
+  }
+
+  return [
+    html`
+      <button
+        id="travel-dialog-cancel"
+        type="button"
+        class="ghost-button"
+        onClick=${() => answerTravelDialog(false)}
+      >
+        ${kind === "first_warning" ? "No, stay here" : "Not yet"}
+      </button>
+    `,
+    html`
+      <button
+        id="travel-dialog-confirm"
+        type="button"
+        class="primary-action"
+        onClick=${() => answerTravelDialog(true)}
+      >
+        ${kind === "first_warning" ? "OK, venture forth" : "Yes, I know"}
+      </button>
+    `,
+  ]
 }
 
 function switchMapMode(nextMode: AddMapMode): void {
@@ -1856,6 +2035,11 @@ function travelTextState(currentMapInfo: AddPhaserMapInfo): RuntimeTextState["tr
     previewCell: currentMapInfo.travel.previewCell,
     previewLabel: currentMapInfo.travel.previewLabel,
     previewAdjacent: currentMapInfo.travel.previewAdjacent,
+    confirmation: {
+      dramaState: travelDramaState,
+      dialogOpen: travelDialog() !== null,
+      dialogKind: travelDialog()?.kind ?? null,
+    },
   }
 }
 

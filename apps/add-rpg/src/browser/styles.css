@@ -515,6 +515,68 @@ h1 {
   color: #ffc6b6;
 }
 
+.travel-dialog-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background:
+    radial-gradient(circle at 50% 44%, rgb(240 185 93 / 13%), transparent 32%),
+    rgb(7 11 10 / 42%);
+  backdrop-filter: blur(5px);
+}
+
+.travel-dialog {
+  display: grid;
+  width: min(430px, calc(100vw - 32px));
+  gap: 11px;
+  border: 1px solid rgb(240 185 93 / 32%);
+  border-radius: 8px;
+  padding: 18px;
+  background:
+    linear-gradient(180deg, rgb(255 244 201 / 15%), rgb(255 244 201 / 8%)),
+    rgb(12 21 19 / 92%);
+  box-shadow:
+    0 30px 80px rgb(0 0 0 / 38%),
+    inset 0 1px 0 rgb(255 255 255 / 10%);
+}
+
+.travel-dialog-eyebrow {
+  color: #f0b95d;
+  font-size: 0.72rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.travel-dialog h2 {
+  margin: 0;
+  color: #fff2bd;
+  font-size: 1.28rem;
+  line-height: 1.08;
+}
+
+.travel-dialog p {
+  margin: 0;
+  color: rgb(247 238 210 / 84%);
+  font-size: 0.94rem;
+  font-weight: 720;
+  line-height: 1.42;
+}
+
+.travel-dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+  padding-top: 2px;
+}
+
+.travel-dialog-actions button {
+  min-width: 8.4rem;
+}
+
 .map-hud {
   position: absolute;
   right: 12px;

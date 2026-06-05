@@ -174,12 +174,13 @@ export function landmarkEntities(
   catalog: CatalogSnapshot,
 ): readonly GameEntity[] {
   const indexes = createAddCatalogIndexes(catalog)
+  const heroCoord = survivorCaveHexes(snapshot, catalog)[0]
   const entities: GameEntity[] = [
     {
       id: "add.entity.hero",
       kind: "hero",
       label: "Hero",
-      coord: { kind: "hex", q: 0, r: 0 },
+      coord: heroCoord ? hexCoord(heroCoord) : { kind: "hex", q: 0, r: 0 },
       layerId: OBJECT_LAYER_ID,
       blocksMovement: false,
       tags: ["add", "hero", snapshot.heroSurvival.location],

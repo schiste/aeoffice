@@ -93,7 +93,7 @@ async function main() {
     assert.equal(initial.runtime.error, null)
     assert.ok(initial.ui.resourceCount > 0)
     assert.ok(initial.catalog.worldActionCount > 0)
-    await assertStudioCentered(page, initial)
+    await assertHeroStartsAtSurvivorCave(page, initial)
     await assertMobilePresentation(browser, url)
     const questHud = await exerciseQuestHud(page, consoleErrors)
     assert.equal(questHud.shell.questPanel.collapsed, false)
@@ -478,14 +478,15 @@ async function exerciseQuestHud(page, consoleErrors) {
   )
 }
 
-async function assertStudioCentered(page, state) {
+async function assertHeroStartsAtSurvivorCave(page, state) {
   const canvas = page.locator("#add-world canvas")
   await canvas.waitFor({ state: "visible" })
   const box = await canvas.boundingBox()
   assert.ok(box, "ADD RPG Phaser canvas should have a browser box")
   const character = state.map?.character
   const camera = state.map?.camera
-  assert.equal(character?.cell, "hex:0,0")
+  assert.equal(character?.coord, state.map?.landmarks?.survivorCave)
+  assert.equal(character?.cell, `hex:${state.map.landmarks.survivorCave}`)
   const cameraOrigin = {
     x: box.width / 2,
     y: box.height / 2,
@@ -494,11 +495,11 @@ async function assertStudioCentered(page, state) {
   const screenY = (character.y - camera.scrollY - cameraOrigin.y) * camera.zoom + cameraOrigin.y
   assert.ok(
     Math.abs(screenX - box.width / 2) <= 10,
-    `Studio/hero should start horizontally centered, got ${screenX} for ${box.width}`,
+    `Survivor Cave/Hero should start horizontally centered, got ${screenX} for ${box.width}`,
   )
   assert.ok(
     Math.abs(screenY - box.height / 2) <= 10,
-    `Studio/hero should start vertically centered, got ${screenY} for ${box.height}`,
+    `Survivor Cave/Hero should start vertically centered, got ${screenY} for ${box.height}`,
   )
 }
 
@@ -506,18 +507,60 @@ async function exerciseMainCharacterMovement(page, consoleErrors) {
   const before = await renderGameToText(page)
   assert.equal(before.map?.character?.visible, true)
   assert.ok(before.map?.character?.cell, "Main character should report a cell")
+  assert.equal(before.travel?.confirmation?.dramaState, "fresh")
 
-  await page.keyboard.press("ArrowRight")
+  await page.keyboard.press("ArrowLeft")
+  const firstDialog = await waitForTextState(
+    page,
+    (state) =>
+      state.travel?.confirmation?.dialogOpen === true &&
+      state.travel.confirmation.dialogKind === "first_warning" &&
+      state.map?.character?.cell === before.map.character.cell,
+    consoleErrors,
+  )
+  assert.equal(firstDialog.travel.confirmation.dramaState, "fresh")
+
+  await page.locator("#travel-dialog-cancel").click()
+  await waitForTextState(
+    page,
+    (state) =>
+      state.travel?.confirmation?.dialogOpen === true &&
+      state.travel.confirmation.dialogKind === "first_declined" &&
+      state.map?.character?.cell === before.map.character.cell,
+    consoleErrors,
+  )
+  await page.locator("#travel-dialog-dismiss").click()
+  await waitForTextState(
+    page,
+    (state) =>
+      state.travel?.confirmation?.dialogOpen === false &&
+      state.travel.confirmation.dramaState === "declined_once" &&
+      state.map?.character?.cell === before.map.character.cell,
+    consoleErrors,
+  )
+
+  await page.keyboard.press("ArrowLeft")
+  await waitForTextState(
+    page,
+    (state) =>
+      state.travel?.confirmation?.dialogOpen === true &&
+      state.travel.confirmation.dialogKind === "dramatic_reprise" &&
+      state.map?.character?.cell === before.map.character.cell,
+    consoleErrors,
+  )
+  await page.locator("#travel-dialog-venture").click()
   const moved = await waitForTextState(
     page,
     (state) =>
-      state.map?.character?.lastMoveDirection === "right" &&
+      state.map?.character?.lastMoveDirection === "left" &&
       state.map?.character?.lastMoveAccepted === true &&
       state.map?.character?.cell !== before.map.character.cell &&
       state.map?.character?.moving === false &&
       state.snapshot?.clockSeconds >= before.snapshot.clockSeconds + 59 &&
       state.travel?.runtimeSynced === true &&
-      state.travel?.phase === "arrived",
+      state.travel?.phase === "arrived" &&
+      state.travel?.confirmation?.dramaState === "complete" &&
+      state.travel?.confirmation?.dialogOpen === false,
     consoleErrors,
     8000,
   )
@@ -525,11 +568,11 @@ async function exerciseMainCharacterMovement(page, consoleErrors) {
   assert.ok(moved.travel.toTime, "Travel should expose an arrival time")
   assert.ok(moved.travel.exposureRisk, "Travel should expose an exposure risk")
 
-  await page.keyboard.press("ArrowLeft")
+  await page.keyboard.press("ArrowRight")
   const returned = await waitForTextState(
     page,
     (state) =>
-      state.map?.character?.lastMoveDirection === "left" &&
+      state.map?.character?.lastMoveDirection === "right" &&
       state.map?.character?.lastMoveAccepted === true &&
       state.map?.character?.cell === before.map.character.cell &&
       state.map?.character?.moving === false &&
@@ -538,8 +581,9 @@ async function exerciseMainCharacterMovement(page, consoleErrors) {
     consoleErrors,
     8000,
   )
-  assert.equal(returned.map.character.cell, "hex:0,0")
+  assert.equal(returned.map.character.cell, before.map.character.cell)
 
+  const expectedNorthWest = adjacentHexCell(returned.map.character.cell, 0, -1)
   await page.keyboard.down("ArrowUp")
   await page.keyboard.down("ArrowLeft")
   await page.waitForTimeout(90)
@@ -551,7 +595,7 @@ async function exerciseMainCharacterMovement(page, consoleErrors) {
     (state) =>
       state.map?.character?.lastMoveDirection === "north_west" &&
       state.map?.character?.lastMoveAccepted === true &&
-      state.map?.character?.cell === "hex:0,-1" &&
+      state.map?.character?.cell === expectedNorthWest &&
       state.map?.character?.moving === false &&
       state.snapshot?.clockSeconds >= returned.snapshot.clockSeconds + 59,
     consoleErrors,
@@ -685,6 +729,12 @@ async function renderGameToText(page) {
     return window.render_game_to_text()
   })
   return JSON.parse(text)
+}
+
+function adjacentHexCell(cell, qDelta, rDelta) {
+  const match = /^hex:(-?\d+),(-?\d+)$/.exec(cell)
+  assert.ok(match, `Expected a hex cell string, got ${cell}`)
+  return `hex:${Number(match[1]) + qDelta},${Number(match[2]) + rDelta}`
 }
 
 async function assertNonBlankAppScreenshot(page) {

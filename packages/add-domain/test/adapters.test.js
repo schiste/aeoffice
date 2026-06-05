@@ -61,7 +61,9 @@ assert.equal(collision.cells.length, 1)
 assert.equal(collision.cells[0].coord.q, -1)
 assert.equal(bubble.cells.length, 3)
 
-assert.ok(map.entities.some((entity) => entity.id === "add.entity.hero"))
+const heroEntity = map.entities.find((entity) => entity.id === "add.entity.hero")
+assert.equal(heroEntity?.coord.q, 2)
+assert.equal(heroEntity?.coord.r, -1)
 assert.ok(
   map.entities.some(
     (entity) =>
