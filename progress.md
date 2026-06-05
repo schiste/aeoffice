@@ -2237,3 +2237,13 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   build crew. Verification passed with `npm --workspace @aedventure/add-domain
   run build`, `npm --workspace @aedventure/add-rpg run build:browser`,
   `npm run smoke:add-rpg:built`, `npm run check`, and `git diff --check`.
+- The travel-clock bug had a second input path: repeated keydown events could
+  start another adjacent hex crossing immediately after the first one completed.
+  ADD overworld keyboard movement now ignores browser key-repeat events, making
+  each toxic-world tile crossing a deliberate key press. Travel start/finally
+  also forces admin auto-tick back to paused.
+- Verification for the held-key clock fix passed with `npm --workspace
+  @aedventure/add-domain run build`, `npm --workspace @aedventure/add-rpg run
+  build:browser`, `npm run smoke:add-rpg:built`, `npm run check`, and
+  `git diff --check`. The smoke now asserts both authoritative and displayed
+  clocks stay stopped after travel and that held-key repeats do not chain moves.

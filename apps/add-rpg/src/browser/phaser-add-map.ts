@@ -235,7 +235,6 @@ const DEFAULT_RADIUS = 28
 const MIN_ZOOM = 0.55
 const MAX_ZOOM = 2.2
 const KEY_CHORD_DELAY_MS = 55
-const KEY_REPEAT_MOVE_MS = 130
 
 export class AddRpgPhaserMapHost {
   private readonly scene: AddRpgHexScene
@@ -335,7 +334,6 @@ class AddRpgHexScene extends Phaser.Scene {
   private readonly heldCharacterKeys = new Set<AddCharacterMoveKey>()
   private readonly pendingCharacterKeys = new Set<AddCharacterMoveKey>()
   private pendingCharacterMoveTimer: number | null = null
-  private lastKeyboardMoveAt = 0
   private lastInfo: AddPhaserMapInfo = emptyMapInfo()
 
   constructor(options: AddRpgPhaserMapHostOptions) {
@@ -1169,10 +1167,6 @@ class AddRpgHexScene extends Phaser.Scene {
     if (!event.repeat) this.pendingCharacterKeys.add(key)
 
     if (event.repeat) {
-      const now = this.time.now
-      if (now - this.lastKeyboardMoveAt >= KEY_REPEAT_MOVE_MS) {
-        this.executeCharacterMoveFromKeys()
-      }
       return
     }
 
@@ -1201,7 +1195,6 @@ class AddRpgHexScene extends Phaser.Scene {
     )
     this.pendingCharacterKeys.clear()
     if (!direction) return
-    this.lastKeyboardMoveAt = this.time.now
     void this.moveMainCharacter(direction)
   }
 

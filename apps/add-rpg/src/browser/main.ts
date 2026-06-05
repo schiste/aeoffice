@@ -1686,6 +1686,7 @@ async function handleCharacterTravel(event: AddCharacterTravelEvent): Promise<vo
   const travelTiming = ADD_TILE_TRAVEL_PRESENTATION
   const arrivalAtMs = startedAtMs + travelTiming.durationMs
 
+  setAutoTick(false)
   setTravelExperience({
     phase: "traveling",
     event,
@@ -1712,6 +1713,7 @@ async function handleCharacterTravel(event: AddCharacterTravelEvent): Promise<vo
     ])
   } finally {
     mapHost?.setTravelLocked(false)
+    setAutoTick(false)
   }
 
   const afterSnapshot = snapshot()

@@ -573,6 +573,7 @@ async function exerciseMainCharacterMovement(page, consoleErrors) {
         state.snapshot?.clockSeconds >= minimumArrivalClockSeconds &&
         state.travel?.confirmation?.dramaState === "complete" &&
         state.travel?.confirmation?.dialogOpen === false &&
+        state.ui?.worldTime?.animating === false &&
         presentationCaughtUp &&
         observedTravelClockTimes.size >= 3
       )
@@ -597,16 +598,24 @@ async function exerciseMainCharacterMovement(page, consoleErrors) {
     `Travel clock should show multiple minute values, saw ${Array.from(observedTravelClockTimes).join(", ")}`,
   )
   const settledTravelClockSeconds = moved.snapshot.clockSeconds
+  const settledPresentationClockSeconds = moved.ui.worldTime.presentationClockSeconds
   await page.waitForTimeout(1300)
   const afterTravelIdle = await renderGameToText(page)
   assert.equal(afterTravelIdle.runtime.autoTick, false)
+  assert.equal(afterTravelIdle.ui.worldTime.animating, false)
+  assert.equal(
+    afterTravelIdle.ui.worldTime.presentationClockSeconds,
+    settledPresentationClockSeconds,
+    "Travel should not leave the displayed clock animating after the crossing is finished.",
+  )
   assert.equal(
     afterTravelIdle.snapshot.clockSeconds,
     settledTravelClockSeconds,
     "Travel should not leave the clock advancing after the crossing is finished.",
   )
 
-  await page.keyboard.press("ArrowRight")
+  await page.keyboard.down("ArrowRight")
+  const repeatedRightKey = repeatHeldKey(page, "ArrowRight", 28, 120)
   const returned = await waitForTextState(
     page,
     (state) =>
@@ -619,6 +628,14 @@ async function exerciseMainCharacterMovement(page, consoleErrors) {
     consoleErrors,
     8000,
   )
+  await repeatedRightKey
+  await page.keyboard.up("ArrowRight")
+  await page.waitForTimeout(500)
+  const afterHeldReturn = await renderGameToText(page)
+  assert.equal(afterHeldReturn.map.character.cell, returned.map.character.cell)
+  assert.equal(afterHeldReturn.map.character.moving, false)
+  assert.equal(afterHeldReturn.snapshot.clockSeconds, returned.snapshot.clockSeconds)
+  assert.equal(afterHeldReturn.ui.worldTime.animating, false)
   assert.equal(returned.map.character.cell, before.map.character.cell)
 
   const expectedNorthWest = adjacentHexCell(returned.map.character.cell, 0, -1)
@@ -757,6 +774,13 @@ async function waitForTextState(page, predicate, consoleErrors = [], timeoutMs =
       lastError?.message ?? "none"
     }`,
   )
+}
+
+async function repeatHeldKey(page, key, count, intervalMs) {
+  for (let index = 0; index < count; index += 1) {
+    await page.waitForTimeout(intervalMs)
+    await page.keyboard.down(key)
+  }
 }
 
 async function renderGameToText(page) {
