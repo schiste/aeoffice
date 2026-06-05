@@ -2205,3 +2205,23 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   build:browser`, `npm run smoke:add-rpg:built`, `npm run check`, and
   `git diff --check`. The ADD map screenshot was visually inspected and now
   shows the Hero at the Survivor Cave.
+- ADD world-time presentation now animates forward snapshots minute by minute
+  instead of snapping directly to the new hour. The Rust/WASM snapshot remains
+  authoritative, while the Solid HUD/day-night overlay uses a separate
+  presentation clock that ticks through each visible minute quickly and catches
+  up to the authoritative clock.
+- Verification for the minute-by-minute clock pass passed with `npm --workspace
+  @aedventure/add-domain run build`, `npm --workspace @aedventure/add-rpg run
+  build:browser`, `npm run smoke:add-rpg:built`, `npm run check`, and
+  `git diff --check`. The ADD smoke now samples several distinct travel-clock
+  minute strings before accepting the one-hour tile crossing.
+- ADD travel presentation timing is now centralized in
+  `apps/add-rpg/src/browser/travel-presentation-timing.ts`. The app shell,
+  Phaser map host, and smoke telemetry all use the same contract:
+  `60` visible minutes at `30ms` per visible minute, for an `1800ms` adjacent
+  hex crossing. Auto tick pauses while the Hero is crossing so the tile-hour
+  remains the only clock advancement during travel.
+- Verification for the synced travel abstraction passed with `npm --workspace
+  @aedventure/add-rpg run build:browser`, `npm run smoke:add-rpg:built`,
+  `npm run check`, and `git diff --check`. The ADD smoke now asserts the app
+  travel duration, Phaser travel duration, and clock tick cadence match.

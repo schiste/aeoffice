@@ -3,8 +3,6 @@ import html from "solid-js/html"
 import { render } from "solid-js/web"
 import {
   ADD_DOMAIN_BOUNDARY,
-  ADD_TRAVEL_GAME_MINUTES_PER_TILE,
-  ADD_TRAVEL_RUNTIME_SECONDS_PER_TILE,
   SimulationClient,
   addCommandForGameInteraction,
   selectAddUiState,
@@ -42,6 +40,10 @@ import {
   type AddBrowserSaveRecord,
   type AddSaveSource,
 } from "./save-runtime"
+import {
+  ADD_TILE_TRAVEL_PRESENTATION,
+  createAddClockAdvancePresentationTiming,
+} from "./travel-presentation-timing"
 import "./styles.css"
 
 const ROLE_CRYSTAL_BASSLINE = "role.crystal_bassline"
@@ -90,6 +92,17 @@ interface TravelDialogState {
   readonly kind: TravelDialogKind
   readonly event: AddCharacterTravelEvent
   readonly resolve: (accepted: boolean) => void
+}
+
+interface ClockAnimationState {
+  readonly fromClockSeconds: number
+  readonly toClockSeconds: number
+  readonly currentClockSeconds: number
+  readonly remainingMinutes: number
+  readonly totalMinutes: number
+  readonly durationMs: number
+  readonly clockStepMs: number
+  readonly reason: string
 }
 
 interface RuntimeTextState {
@@ -184,6 +197,10 @@ interface RuntimeTextState {
       readonly sunset: string
       readonly location: string
       readonly source: string
+      readonly presentationClockSeconds: number
+      readonly authoritativeClockSeconds: number
+      readonly animating: boolean
+      readonly remainingMinutes: number
     }
     readonly resourceCount: number
     readonly resourceFlows: readonly {
@@ -236,6 +253,8 @@ interface RuntimeTextState {
   readonly travel: {
     readonly costGameMinutes: number
     readonly costRuntimeSeconds: number
+    readonly presentationDurationMs: number
+    readonly clockStepMs: number
     readonly active: boolean
     readonly phase: "idle" | "preview" | "traveling" | "arrived"
     readonly progress: number
@@ -320,12 +339,15 @@ const [firstPlayableCollapsed, setFirstPlayableCollapsed] = createSignal(false)
 const [questPanelPosition, setQuestPanelPosition] = createSignal(defaultQuestPanelPosition())
 const [travelExperience, setTravelExperience] = createSignal<TravelExperience | null>(null)
 const [travelDialog, setTravelDialog] = createSignal<TravelDialogState | null>(null)
+const [displayClockSeconds, setDisplayClockSeconds] = createSignal<number | null>(null)
+const [clockAnimation, setClockAnimation] = createSignal<ClockAnimationState | null>(null)
 const [lastEvent, setLastEvent] = createSignal("booting")
 const [lastCommand, setLastCommand] = createSignal<string | null>(null)
 const [lastError, setLastError] = createSignal<string | null>(null)
 
 let mapHost: AddRpgPhaserMapHost | null = null
 let travelClearTimer: number | undefined
+let clockAnimationTimer: number | undefined
 let travelDramaState: TravelDramaState = "fresh"
 let questPanelDrag:
   | {
@@ -346,6 +368,7 @@ const client = new SimulationClient({
     snapshotVersion += 1
     setReady(true)
     setSnapshot(nextSnapshot)
+    setDisplayClockSeconds(nextSnapshot.clockSeconds)
     setCatalog(nextCatalog)
     setLastEvent("ready")
     setLastError(null)
@@ -355,6 +378,7 @@ const client = new SimulationClient({
   onSnapshot(nextSnapshot) {
     snapshotVersion += 1
     setSnapshot(nextSnapshot)
+    animatePresentationClockTo(nextSnapshot.clockSeconds, "snapshot")
     setLastEvent("snapshot")
     setLastError(null)
     resolveSnapshotWaiters()
@@ -384,6 +408,13 @@ const uiState = createMemo<AddUiState | null>(() => {
   return currentSnapshot && currentCatalog
     ? selectAddUiState(currentSnapshot, currentCatalog)
     : null
+})
+const displayedWorldTime = createMemo<AddWorldTimeSummary | null>(() => {
+  const currentSnapshot = snapshot()
+  const clockSeconds = displayClockSeconds() ?? currentSnapshot?.clockSeconds
+  return clockSeconds === undefined || clockSeconds === null
+    ? null
+    : selectAddWorldTimeForClockSeconds(clockSeconds)
 })
 
 const worldActions = createMemo(() => uiState()?.availableWorldActions ?? [])
@@ -443,7 +474,7 @@ function AddRpgApp() {
       refreshMapInfo()
     }
     autoTickTimer = window.setInterval(() => {
-      if (autoTick() && ready()) {
+      if (autoTick() && ready() && travelExperience()?.phase !== "traveling") {
         void tickRuntime(1)
       }
     }, 1000)
@@ -458,6 +489,7 @@ function AddRpgApp() {
     if (mapInfoTimer !== undefined) window.clearInterval(mapInfoTimer)
     if (autosaveTimer !== undefined) window.clearInterval(autosaveTimer)
     if (travelClearTimer !== undefined) window.clearTimeout(travelClearTimer)
+    cancelClockAnimation()
     window.removeEventListener("online", handleOnline)
     window.removeEventListener("offline", handleOffline)
     mapHost?.destroy()
@@ -473,8 +505,8 @@ function AddRpgApp() {
           </div>
           <div
             class="day-night-overlay"
-            data-phase=${() => uiState()?.worldTime.daylightPhase ?? "day"}
-            data-season=${() => uiState()?.worldTime.season ?? "spring"}
+            data-phase=${() => displayedWorldTime()?.daylightPhase ?? "day"}
+            data-season=${() => displayedWorldTime()?.season ?? "spring"}
             style=${() => dayNightOverlayStyle()}
             aria-hidden="true"
           />
@@ -494,7 +526,7 @@ function AddRpgApp() {
               </span>
               <div
                 class=${() =>
-                  travelExperience()?.phase === "traveling"
+                  travelExperience()?.phase === "traveling" || clockAnimation()
                     ? "world-time-chip traveling"
                     : "world-time-chip"}
                 aria-label="Game time"
@@ -529,7 +561,7 @@ function AddRpgApp() {
               <span class=${() => `travel-risk-pill ${travelRiskState()}`}>
                 ${() => travelRiskCopy()}
               </span>
-              <span>${ADD_TRAVEL_GAME_MINUTES_PER_TILE}m daylight step</span>
+              <span>${ADD_TILE_TRAVEL_PRESENTATION.visibleGameMinutes}m daylight step</span>
             </div>
             <i style=${() => travelProgressStyle()} aria-hidden="true" />
           </section>
@@ -1063,8 +1095,90 @@ function mapModeButtons(): readonly unknown[] {
   )
 }
 
+function animatePresentationClockTo(targetClockSeconds: number, reason: string): void {
+  const currentClockSeconds = displayClockSeconds()
+  if (currentClockSeconds === null || targetClockSeconds <= currentClockSeconds) {
+    cancelClockAnimation()
+    setDisplayClockSeconds(targetClockSeconds)
+    return
+  }
+
+  const currentAnimation = clockAnimation()
+  if (
+    currentAnimation &&
+    targetClockSeconds <= currentAnimation.toClockSeconds &&
+    targetClockSeconds > currentClockSeconds
+  ) {
+    return
+  }
+
+  const timing = createAddClockAdvancePresentationTiming(
+    currentClockSeconds,
+    targetClockSeconds,
+  )
+  if (timing.visibleGameMinutes <= 0) {
+    setDisplayClockSeconds(targetClockSeconds)
+    return
+  }
+
+  cancelClockAnimation()
+  let elapsedVisibleMinutes = 0
+  setClockAnimation({
+    fromClockSeconds: currentClockSeconds,
+    toClockSeconds: targetClockSeconds,
+    currentClockSeconds,
+    remainingMinutes: timing.visibleGameMinutes,
+    totalMinutes: timing.visibleGameMinutes,
+    durationMs: timing.durationMs,
+    clockStepMs: timing.msPerVisibleMinute,
+    reason,
+  })
+
+  const step = () => {
+    elapsedVisibleMinutes += 1
+    const nextClockSeconds = Math.min(
+      targetClockSeconds,
+      currentClockSeconds +
+        elapsedVisibleMinutes * timing.runtimeSecondsPerVisibleMinute,
+    )
+    const remainingMinutes = Math.max(
+      0,
+      timing.visibleGameMinutes - elapsedVisibleMinutes,
+    )
+    setDisplayClockSeconds(nextClockSeconds)
+    setClockAnimation((current) =>
+      current
+        ? {
+            ...current,
+            currentClockSeconds: nextClockSeconds,
+            remainingMinutes,
+          }
+        : current,
+    )
+
+    if (elapsedVisibleMinutes >= timing.visibleGameMinutes) {
+      setDisplayClockSeconds(targetClockSeconds)
+      setClockAnimation(null)
+      clockAnimationTimer = undefined
+      return
+    }
+
+    clockAnimationTimer = window.setTimeout(step, timing.msPerVisibleMinute)
+  }
+
+  clockAnimationTimer = window.setTimeout(step, timing.msPerVisibleMinute)
+}
+
+function cancelClockAnimation(): void {
+  if (clockAnimationTimer !== undefined) {
+    window.clearTimeout(clockAnimationTimer)
+    clockAnimationTimer = undefined
+  }
+  setClockAnimation(null)
+}
+
 function dayNightOverlayStyle(): Record<string, string> {
-  const time = uiState()?.worldTime
+  const time = displayedWorldTime()
   const nightAlpha = time ? Math.min(0.58, time.nightRatio * 0.52) : 0
   const dawnAlpha =
     time?.daylightPhase === "dawn" || time?.daylightPhase === "dusk"
@@ -1095,7 +1209,7 @@ function toxicityHazeStyle(): Record<string, string> {
 }
 
 function daylightMeterStyle(): Record<string, string> {
-  const ratio = uiState()?.worldTime.daylightRatio ?? 1
+  const ratio = displayedWorldTime()?.daylightRatio ?? 1
   return {
     "--daylight-ratio": `${Math.max(8, Math.round(ratio * 100))}%`,
   }
@@ -1112,13 +1226,13 @@ function travelProgressStyle(): Record<string, string> {
 }
 
 function worldTimePrimaryCopy(): string {
-  const time = uiState()?.worldTime
+  const time = displayedWorldTime()
   if (!time) return "Day 1 · --:--"
   return `Day ${time.day} · ${time.localTime}`
 }
 
 function worldTimeSecondaryCopy(): string {
-  const time = uiState()?.worldTime
+  const time = displayedWorldTime()
   if (!time) return "Solar estimate pending"
   return `${time.seasonLabel} · ${titleCase(time.daylightPhase)} · ${time.sunrise}/${time.sunset}`
 }
@@ -1145,9 +1259,9 @@ function travelPanelClockCopy(): string {
   }
   if (!currentSnapshot) return "+1h"
   const arrival = selectAddWorldTimeForClockSeconds(
-    currentSnapshot.clockSeconds + ADD_TRAVEL_RUNTIME_SECONDS_PER_TILE,
+    currentSnapshot.clockSeconds + ADD_TILE_TRAVEL_PRESENTATION.runtimeSeconds,
   )
-  return `${uiState()?.worldTime.localTime ?? "--:--"} -> ${arrival.localTime}`
+  return `${displayedWorldTime()?.localTime ?? "--:--"} -> ${arrival.localTime}`
 }
 
 function travelPanelDetailCopy(): string {
@@ -1567,9 +1681,10 @@ async function handleCharacterTravel(event: AddCharacterTravelEvent): Promise<vo
   }
 
   const fromClockSeconds = currentSnapshot.clockSeconds
-  const toClockSeconds = fromClockSeconds + ADD_TRAVEL_RUNTIME_SECONDS_PER_TILE
+  const toClockSeconds = fromClockSeconds + ADD_TILE_TRAVEL_PRESENTATION.runtimeSeconds
   const startedAtMs = Date.now()
-  const arrivalAtMs = startedAtMs + 1850
+  const travelTiming = ADD_TILE_TRAVEL_PRESENTATION
+  const arrivalAtMs = startedAtMs + travelTiming.durationMs
 
   setTravelExperience({
     phase: "traveling",
@@ -1584,13 +1699,17 @@ async function handleCharacterTravel(event: AddCharacterTravelEvent): Promise<vo
     toxicityBefore: currentSnapshot.heroSurvival.viralLoadRatio,
     toxicityAfter: null,
   })
+  animatePresentationClockTo(toClockSeconds, "tile_travel")
 
   mapHost?.setTravelLocked(true)
   try {
-    await tickRuntime(ADD_TRAVEL_RUNTIME_SECONDS_PER_TILE, {
-      queue: true,
-      commandLabel: `travel:${event.direction}:1h`,
-    })
+    await Promise.all([
+      tickRuntime(ADD_TILE_TRAVEL_PRESENTATION.runtimeSeconds, {
+        queue: true,
+        commandLabel: `travel:${event.direction}:1h`,
+      }),
+      waitForTravelPresentation(startedAtMs, travelTiming.durationMs),
+    ])
   } finally {
     mapHost?.setTravelLocked(false)
   }
@@ -1611,6 +1730,14 @@ async function handleCharacterTravel(event: AddCharacterTravelEvent): Promise<vo
     setTravelExperience(null)
     travelClearTimer = undefined
   }, 3600)
+}
+
+function waitForTravelPresentation(startedAtMs: number, durationMs: number): Promise<void> {
+  const remainingMs = Math.max(0, startedAtMs + durationMs - Date.now())
+  if (remainingMs <= 0) return Promise.resolve()
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, remainingMs)
+  })
 }
 
 async function tickRuntime(
@@ -1813,6 +1940,7 @@ function toTextState(): RuntimeTextState {
   const currentSnapshot = snapshot()
   const currentCatalog = catalog()
   const currentUi = uiState()
+  const currentDisplayedWorldTime = displayedWorldTime()
   const currentMapInfo = mapHost?.getInfo() ?? mapInfo()
   return {
     app: "add-rpg",
@@ -1902,18 +2030,24 @@ function toTextState(): RuntimeTextState {
     ui: currentUi
       ? {
           worldTime: {
-            day: currentUi.worldTime.day,
-            referenceDate: currentUi.worldTime.referenceDate,
-            localTime: currentUi.worldTime.localTime,
-            season: currentUi.worldTime.season,
-            seasonLabel: currentUi.worldTime.seasonLabel,
-            daylightPhase: currentUi.worldTime.daylightPhase,
-            daylightRatio: currentUi.worldTime.daylightRatio,
-            nightRatio: currentUi.worldTime.nightRatio,
-            sunrise: currentUi.worldTime.sunrise,
-            sunset: currentUi.worldTime.sunset,
-            location: currentUi.worldTime.location.label,
-            source: currentUi.worldTime.source,
+            day: (currentDisplayedWorldTime ?? currentUi.worldTime).day,
+            referenceDate: (currentDisplayedWorldTime ?? currentUi.worldTime).referenceDate,
+            localTime: (currentDisplayedWorldTime ?? currentUi.worldTime).localTime,
+            season: (currentDisplayedWorldTime ?? currentUi.worldTime).season,
+            seasonLabel: (currentDisplayedWorldTime ?? currentUi.worldTime).seasonLabel,
+            daylightPhase: (currentDisplayedWorldTime ?? currentUi.worldTime).daylightPhase,
+            daylightRatio: (currentDisplayedWorldTime ?? currentUi.worldTime).daylightRatio,
+            nightRatio: (currentDisplayedWorldTime ?? currentUi.worldTime).nightRatio,
+            sunrise: (currentDisplayedWorldTime ?? currentUi.worldTime).sunrise,
+            sunset: (currentDisplayedWorldTime ?? currentUi.worldTime).sunset,
+            location: (currentDisplayedWorldTime ?? currentUi.worldTime).location.label,
+            source: (currentDisplayedWorldTime ?? currentUi.worldTime).source,
+            presentationClockSeconds:
+              Math.round((displayClockSeconds() ?? currentSnapshot?.clockSeconds ?? 0) * 100) / 100,
+            authoritativeClockSeconds:
+              Math.round((currentSnapshot?.clockSeconds ?? 0) * 100) / 100,
+            animating: clockAnimation() !== null,
+            remainingMinutes: clockAnimation()?.remainingMinutes ?? 0,
           },
           resourceCount: currentUi.resources.length,
           resourceFlows: currentUi.resources.map((resource) => ({
@@ -2010,8 +2144,10 @@ function travelTextState(currentMapInfo: AddPhaserMapInfo): RuntimeTextState["tr
         : 0
 
   return {
-    costGameMinutes: ADD_TRAVEL_GAME_MINUTES_PER_TILE,
-    costRuntimeSeconds: ADD_TRAVEL_RUNTIME_SECONDS_PER_TILE,
+    costGameMinutes: ADD_TILE_TRAVEL_PRESENTATION.visibleGameMinutes,
+    costRuntimeSeconds: ADD_TILE_TRAVEL_PRESENTATION.runtimeSeconds,
+    presentationDurationMs: ADD_TILE_TRAVEL_PRESENTATION.durationMs,
+    clockStepMs: ADD_TILE_TRAVEL_PRESENTATION.msPerVisibleMinute,
     active: experience?.phase === "traveling" || currentMapInfo.travel.active,
     phase,
     progress,
@@ -2208,8 +2344,10 @@ function emptyMapInfo(): AddPhaserMapInfo {
       authority: "browser_navigation_triggers_rust_time",
     },
     travel: {
-      costGameMinutes: 60,
-      costRuntimeSeconds: 60,
+      costGameMinutes: ADD_TILE_TRAVEL_PRESENTATION.visibleGameMinutes,
+      costRuntimeSeconds: ADD_TILE_TRAVEL_PRESENTATION.runtimeSeconds,
+      presentationDurationMs: ADD_TILE_TRAVEL_PRESENTATION.durationMs,
+      clockStepMs: ADD_TILE_TRAVEL_PRESENTATION.msPerVisibleMinute,
       active: false,
       progress: 0,
       direction: null,

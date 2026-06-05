@@ -549,24 +549,52 @@ async function exerciseMainCharacterMovement(page, consoleErrors) {
     consoleErrors,
   )
   await page.locator("#travel-dialog-venture").click()
+  const minimumArrivalClockSeconds = before.snapshot.clockSeconds + 59
+  const observedTravelClockTimes = new Set()
   const moved = await waitForTextState(
     page,
-    (state) =>
-      state.map?.character?.lastMoveDirection === "left" &&
-      state.map?.character?.lastMoveAccepted === true &&
-      state.map?.character?.cell !== before.map.character.cell &&
-      state.map?.character?.moving === false &&
-      state.snapshot?.clockSeconds >= before.snapshot.clockSeconds + 59 &&
-      state.travel?.runtimeSynced === true &&
-      state.travel?.phase === "arrived" &&
-      state.travel?.confirmation?.dramaState === "complete" &&
-      state.travel?.confirmation?.dialogOpen === false,
+    (state) => {
+      if (state.ui?.worldTime?.animating && state.ui.worldTime.localTime) {
+        observedTravelClockTimes.add(state.ui.worldTime.localTime)
+      }
+      const presentationClockSeconds =
+        state.ui?.worldTime?.presentationClockSeconds ?? state.snapshot?.clockSeconds ?? 0
+      const authoritativeClockSeconds =
+        state.ui?.worldTime?.authoritativeClockSeconds ?? state.snapshot?.clockSeconds ?? 0
+      const presentationCaughtUp =
+        presentationClockSeconds >= minimumArrivalClockSeconds &&
+        authoritativeClockSeconds - presentationClockSeconds <= 1.1
+      return (
+        state.map?.character?.lastMoveDirection === "left" &&
+        state.map?.character?.lastMoveAccepted === true &&
+        state.map?.character?.cell !== before.map.character.cell &&
+        state.map?.character?.moving === false &&
+        state.snapshot?.clockSeconds >= minimumArrivalClockSeconds &&
+        state.travel?.confirmation?.dramaState === "complete" &&
+        state.travel?.confirmation?.dialogOpen === false &&
+        presentationCaughtUp &&
+        observedTravelClockTimes.size >= 3
+      )
+    },
     consoleErrors,
-    8000,
+    10000,
   )
   assert.equal(moved.travel.costGameMinutes, 60)
+  assert.equal(moved.travel.presentationDurationMs, moved.map.travel.presentationDurationMs)
+  assert.equal(moved.travel.clockStepMs, moved.map.travel.clockStepMs)
+  assert.ok(
+    Math.abs(
+      moved.travel.presentationDurationMs -
+        moved.travel.costGameMinutes * moved.travel.clockStepMs,
+    ) < 0.01,
+    "Travel duration should be derived from the visible minute cadence.",
+  )
   assert.ok(moved.travel.toTime, "Travel should expose an arrival time")
   assert.ok(moved.travel.exposureRisk, "Travel should expose an exposure risk")
+  assert.ok(
+    observedTravelClockTimes.size >= 3,
+    `Travel clock should show multiple minute values, saw ${Array.from(observedTravelClockTimes).join(", ")}`,
+  )
 
   await page.keyboard.press("ArrowRight")
   const returned = await waitForTextState(

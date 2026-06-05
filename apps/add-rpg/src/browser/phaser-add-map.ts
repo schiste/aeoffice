@@ -18,6 +18,8 @@ import {
   type GameWorld,
 } from "@aedventure/game-world"
 
+import { ADD_TILE_TRAVEL_PRESENTATION } from "./travel-presentation-timing"
+
 type AddCellState = "inactive" | "converting" | "stabilized" | "blocked"
 type AddTopologyKind = "hex" | "square"
 type AddTerrain =
@@ -118,8 +120,10 @@ export interface AddPhaserMapInfo {
     readonly authority: "browser_navigation_triggers_rust_time"
   }
   readonly travel: {
-    readonly costGameMinutes: 60
-    readonly costRuntimeSeconds: 60
+    readonly costGameMinutes: number
+    readonly costRuntimeSeconds: number
+    readonly presentationDurationMs: number
+    readonly clockStepMs: number
     readonly active: boolean
     readonly progress: number
     readonly direction: string | null
@@ -232,7 +236,6 @@ const MIN_ZOOM = 0.55
 const MAX_ZOOM = 2.2
 const KEY_CHORD_DELAY_MS = 55
 const KEY_REPEAT_MOVE_MS = 130
-const CHARACTER_TRAVEL_DURATION_MS = 1850
 
 export class AddRpgPhaserMapHost {
   private readonly scene: AddRpgHexScene
@@ -510,7 +513,7 @@ class AddRpgHexScene extends Phaser.Scene {
       destinationTerrain,
       exposureRisk,
       startedAtMs: this.time.now,
-      durationMs: CHARACTER_TRAVEL_DURATION_MS,
+      durationMs: ADD_TILE_TRAVEL_PRESENTATION.durationMs,
       fromPosition,
       toPosition,
     }
@@ -1325,8 +1328,10 @@ class AddRpgHexScene extends Phaser.Scene {
       : 0
 
     return {
-      costGameMinutes: 60,
-      costRuntimeSeconds: 60,
+      costGameMinutes: ADD_TILE_TRAVEL_PRESENTATION.visibleGameMinutes,
+      costRuntimeSeconds: ADD_TILE_TRAVEL_PRESENTATION.runtimeSeconds,
+      presentationDurationMs: ADD_TILE_TRAVEL_PRESENTATION.durationMs,
+      clockStepMs: ADD_TILE_TRAVEL_PRESENTATION.msPerVisibleMinute,
       active: activeTravel !== null || this.travelRuntimeLocked,
       progress: round(rawProgress),
       direction: activeTravel?.direction ?? this.characterMoveStatus.direction,
@@ -1938,8 +1943,10 @@ function emptyMapInfo(): AddPhaserMapInfo {
       authority: "browser_navigation_triggers_rust_time",
     },
     travel: {
-      costGameMinutes: 60,
-      costRuntimeSeconds: 60,
+      costGameMinutes: ADD_TILE_TRAVEL_PRESENTATION.visibleGameMinutes,
+      costRuntimeSeconds: ADD_TILE_TRAVEL_PRESENTATION.runtimeSeconds,
+      presentationDurationMs: ADD_TILE_TRAVEL_PRESENTATION.durationMs,
+      clockStepMs: ADD_TILE_TRAVEL_PRESENTATION.msPerVisibleMinute,
       active: false,
       progress: 0,
       direction: null,
