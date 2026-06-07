@@ -12,32 +12,43 @@ import {
 import {
   validateGameWorld,
   type GameCellPlacement,
-  type GameCellLink,
   type GameEntity,
   type GameMap,
   type GameWorld,
 } from "@aedventure/game-world"
+import {
+  addMapCoordKey,
+  cellIsKnownForPresentation,
+  displayAddCell,
+  displayAddCoord,
+  dungeonLinkInfo,
+  dungeonLinksForCell,
+  exposureRiskForCell,
+  featureForCell,
+  isBaseFeature,
+  knownFactsInfo,
+  numberMetadata,
+  presentationVisibilityStateForCell,
+  progressForCell,
+  stateForCell,
+  stringMetadata,
+  terrainForCell,
+  tileInteractionDetailForCoord,
+  visibilityInfo,
+  visibilityStateForCell,
+  type AddCellState,
+  type AddDungeonLinkInfo,
+  type AddMapVisibilityInfo,
+  type AddKnownFactsInfo,
+  type AddTerrain,
+  type AddTileInteractionDetail,
+  type AddTravelExposureRisk,
+  type AddVisibilityRenderState,
+} from "@aedventure/add-domain"
 
 import { ADD_TILE_TRAVEL_PRESENTATION } from "./travel-presentation-timing"
 
-type AddCellState = "inactive" | "converting" | "stabilized" | "blocked"
 type AddTopologyKind = "hex" | "square"
-type AddTerrain =
-  | "plains"
-  | "river"
-  | "scrub"
-  | "ridge"
-  | "mountain"
-  | "dungeon_floor"
-  | "dungeon_wall"
-  | "base_floor"
-  | "base_wall"
-  | "unknown"
-type AddFeature = "none" | "base" | "survivor_cave" | string
-type AddTravelExposureRisk = "studio" | "safe_field" | "fringe" | "toxic" | "unknown"
-type AddVisibilityRenderState = "hidden" | "discovered" | "visible" | "stale"
-type AddTileKnownInfoLevel = "unknown" | "known_static" | "full_current"
-type AddTileInteractionState = AddCellState | "unknown"
 type AddCharacterMoveDirection =
   | "up"
   | "right"
@@ -48,28 +59,6 @@ type AddCharacterMoveDirection =
   | "south_east"
   | "south_west"
 type AddCharacterMoveKey = "up" | "right" | "down" | "left" | "north_east" | "south_west"
-
-interface AddDungeonLinkInfo {
-  readonly id: string
-  readonly kind: string
-  readonly label: string
-  readonly targetMapId: string
-  readonly targetCoord: string | null
-  readonly enabled: boolean
-}
-
-interface AddTileInteractionDetail {
-  readonly cell: string
-  readonly label: string
-  readonly visibility: AddVisibilityRenderState
-  readonly knownInfoLevel: AddTileKnownInfoLevel
-  readonly terrain: AddTerrain
-  readonly state: AddTileInteractionState
-  readonly exposureRisk: AddTravelExposureRisk
-  readonly dungeonActionsVisible: boolean
-  readonly dungeonLinks: readonly AddDungeonLinkInfo[]
-  readonly travelCopy: string
-}
 
 export interface AddCharacterTravelEvent {
   readonly direction: AddCharacterMoveDirection
@@ -122,26 +111,8 @@ export interface AddPhaserMapInfo {
     readonly cellsWithLinks: number
     readonly selected: readonly AddDungeonLinkInfo[]
   }
-  readonly knownFacts: {
-    readonly hiddenCells: number
-    readonly discoveredCells: number
-    readonly visibleCells: number
-    readonly staleCells: number
-    readonly exactTerrainKnownCells: number
-    readonly dynamicRiskKnownCells: number
-    readonly vagueTravelLabels: number
-    readonly sampleHiddenTravelLabel: string | null
-  }
-  readonly visibility: {
-    readonly hiddenCells: number
-    readonly discoveredCells: number
-    readonly visibleCells: number
-    readonly staleCells: number
-    readonly revealTransitionsActive: number
-    readonly travelRevealPreviewActive: boolean
-    readonly travelRevealPreviewCells: number
-    readonly travelRevealPreviewProgress: number
-    readonly travelRevealDestinationCell: string | null
+  readonly knownFacts: AddKnownFactsInfo
+  readonly visibility: AddMapVisibilityInfo & {
     readonly hiddenCellRendering: "invisible_until_known_or_travel_revealed"
     readonly fogRendering: "phaser_visual_overlay"
     readonly affectsAuthority: false
@@ -294,13 +265,6 @@ interface CellStyle {
   readonly accent: number
   readonly highlight: number
   readonly shadow: number
-}
-
-interface VisibilityCounts {
-  readonly hidden: number
-  readonly discovered: number
-  readonly visible: number
-  readonly stale: number
 }
 
 interface TravelRevealPreview {
@@ -550,7 +514,7 @@ class AddRpgHexScene extends Phaser.Scene {
       return false
     }
 
-    const nextCell = this.context.terrainByCoord.get(coordKey(nextCoord))
+    const nextCell = this.context.terrainByCoord.get(addMapCoordKey(nextCoord))
     if (!nextCell) {
       this.characterMoveStatus = {
         direction,
@@ -573,7 +537,7 @@ class AddRpgHexScene extends Phaser.Scene {
 
     const fromPosition = this.characterPosition ?? centerFor(fromCoord, this.context)
     const toPosition = centerFor(nextCoord, this.context)
-    const destinationDetail = tileInteractionDetailForCoord(nextCoord, this.context)
+    const destinationDetail = tileInteractionDetailForCoord(nextCoord, this.context.terrainByCoord)
     const destinationLinks = destinationDetail?.dungeonLinks ?? []
     const destinationLabel = destinationDetail?.label ?? "Unknown region"
     const destinationState =
@@ -584,8 +548,8 @@ class AddRpgHexScene extends Phaser.Scene {
       direction,
       fromCoord,
       toCoord: nextCoord,
-      fromCell: displayCell(fromCoord),
-      toCell: displayCell(nextCoord),
+      fromCell: displayAddCell(fromCoord),
+      toCell: displayAddCell(nextCoord),
       destinationLabel,
       destinationState,
       destinationTerrain,
@@ -618,8 +582,8 @@ class AddRpgHexScene extends Phaser.Scene {
       direction,
       fromCoord,
       toCoord: nextCoord,
-      fromCell: displayCell(fromCoord),
-      toCell: displayCell(nextCoord),
+      fromCell: displayAddCell(fromCoord),
+      toCell: displayAddCell(nextCoord),
       destinationLabel,
       destinationState,
       destinationTerrain,
@@ -777,7 +741,7 @@ class AddRpgHexScene extends Phaser.Scene {
     const radius = context.map.topology.kind === "hex" ? context.map.topology.radius : DEFAULT_RADIUS
     const state = stateForCell(cell)
     const progress = progressForCell(cell)
-    const edge = context.bubbleEdgeCoords.has(coordKey(cell.coord))
+    const edge = context.bubbleEdgeCoords.has(addMapCoordKey(cell.coord))
 
     drawHexPath(graphics, { x: center.x + 2, y: center.y + 4 }, radius - 1.2)
     graphics.fillStyle(style.shadow, state === "inactive" ? 0.10 : 0.18)
@@ -889,7 +853,7 @@ class AddRpgHexScene extends Phaser.Scene {
     for (const entity of context.map.entities) {
       if (!entity.coord || entity.coord.kind !== context.topologyKind) continue
       if (entity.kind === "hero") continue
-      const cell = context.terrainByCoord.get(coordKey(entity.coord))
+      const cell = context.terrainByCoord.get(addMapCoordKey(entity.coord))
       if (cell && !cellIsKnownForPresentation(cell)) continue
 
       const center = centerFor(entity.coord, context)
@@ -902,10 +866,11 @@ class AddRpgHexScene extends Phaser.Scene {
     }
   }
 
+
   private syncMainCharacter(context: RenderContext, forceReset: boolean): void {
     const currentValid =
       this.characterCoord?.kind === context.topologyKind &&
-      context.terrainByCoord.has(coordKey(this.characterCoord))
+      context.terrainByCoord.has(addMapCoordKey(this.characterCoord))
     if (forceReset || !currentValid) {
       this.characterCoord = initialCharacterCoord(context)
       this.characterMoveStatus = {
@@ -1158,7 +1123,7 @@ class AddRpgHexScene extends Phaser.Scene {
   private trackVisibilityTransitions(context: RenderContext): void {
     const nextStates = new Map<string, AddVisibilityRenderState>()
     for (const cell of context.terrainCells) {
-      const key = coordKey(cell.coord)
+      const key = addMapCoordKey(cell.coord)
       const current = visibilityStateForCell(cell)
       const previous = this.previousVisibilityStates.get(key)
       if (previous === "hidden" && current !== "hidden") {
@@ -1176,7 +1141,7 @@ class AddRpgHexScene extends Phaser.Scene {
     const travelRevealPreview = this.travelRevealPreviewForContext(context)
 
     for (const cell of context.terrainCells) {
-      const key = coordKey(cell.coord)
+      const key = addMapCoordKey(cell.coord)
       const visibilityState = presentationVisibilityStateForCell(cell)
       const travelRevealProgress = this.travelRevealProgressForCell(
         cell,
@@ -1382,14 +1347,14 @@ class AddRpgHexScene extends Phaser.Scene {
     for (const cell of context.terrainCells) {
       const cellCenter = centerFor(cell.coord, context)
       const distance = distanceBetween(characterCenter, cellCenter)
-      if (distance <= haloRadius + haloFeather) cells.add(coordKey(cell.coord))
+      if (distance <= haloRadius + haloFeather) cells.add(addMapCoordKey(cell.coord))
     }
 
     return {
       active: true,
       progress: this.currentTravelProgress(),
       cells,
-      destinationCell: displayCell(travel.toCoord),
+      destinationCell: displayAddCell(travel.toCoord),
       center: characterCenter,
       radius: haloRadius,
       feather: haloFeather,
@@ -1401,7 +1366,7 @@ class AddRpgHexScene extends Phaser.Scene {
     context: RenderContext,
     preview: TravelRevealPreview,
   ): number {
-    const key = coordKey(cell.coord)
+    const key = addMapCoordKey(cell.coord)
     let liveProgress = 0
 
     if (preview.active && preview.cells.has(key) && this.characterTravel && preview.center) {
@@ -1512,7 +1477,7 @@ class AddRpgHexScene extends Phaser.Scene {
     lineWidth: number,
   ): void {
     if (!this.overlayGraphics || !this.context) return
-    const cell = this.context.terrainByCoord.get(coordKey(coord))
+    const cell = this.context.terrainByCoord.get(addMapCoordKey(coord))
     if (cell && !cellIsKnownForPresentation(cell)) return
     if (coord.kind === "square") {
       const topLeft = squareTopLeftFor(coord, this.context)
@@ -1680,7 +1645,7 @@ class AddRpgHexScene extends Phaser.Scene {
         ? context.hexTopology?.worldToCell(localPoint)
         : context.squareTopology?.worldToCell(localPoint)
     if (!coord) return null
-    const cell = context.terrainByCoord.get(coordKey(coord))
+    const cell = context.terrainByCoord.get(addMapCoordKey(coord))
     return cell && cellIsKnownForPresentation(cell) ? coord : null
   }
 
@@ -1697,10 +1662,10 @@ class AddRpgHexScene extends Phaser.Scene {
       return
     }
     const hoveredDetail = this.hoveredCoord
-      ? tileInteractionDetailForCoord(this.hoveredCoord, context)
+      ? tileInteractionDetailForCoord(this.hoveredCoord, context.terrainByCoord)
       : null
     const selectedDetail = this.selectedCoord
-      ? tileInteractionDetailForCoord(this.selectedCoord, context)
+      ? tileInteractionDetailForCoord(this.selectedCoord, context.terrainByCoord)
       : null
     const travelRevealPreview = this.travelRevealPreviewForContext(context)
 
@@ -1733,17 +1698,22 @@ class AddRpgHexScene extends Phaser.Scene {
           : [],
       },
       knownFacts: knownFactsInfo(context.terrainCells),
-      visibility: visibilityInfo(
-        context.terrainCells,
-        this.revealTransitions.size,
-        travelRevealPreview,
-      ),
+      visibility: {
+        ...visibilityInfo(
+          context.terrainCells,
+          this.revealTransitions.size,
+          travelRevealPreview,
+        ),
+        hiddenCellRendering: "invisible_until_known_or_travel_revealed",
+        fogRendering: "phaser_visual_overlay",
+        affectsAuthority: false,
+      },
       character: {
         id: "add.entity.hero",
         label: "Hero",
         visible: this.characterCoord !== null && this.characterPosition !== null,
-        coord: this.characterCoord ? displayCoord(this.characterCoord) : null,
-        cell: this.characterCoord ? displayCell(this.characterCoord) : null,
+        coord: this.characterCoord ? displayAddCoord(this.characterCoord) : null,
+        cell: this.characterCoord ? displayAddCell(this.characterCoord) : null,
         x: this.characterPosition ? round(this.characterPosition.x) : null,
         y: this.characterPosition ? round(this.characterPosition.y) : null,
         moving: this.characterIsMoving(),
@@ -1758,9 +1728,9 @@ class AddRpgHexScene extends Phaser.Scene {
       },
       travel: this.travelInfo(context),
       landmarks: {
-        baseCenter: context.baseCoord ? displayCoord(context.baseCoord) : null,
+        baseCenter: context.baseCoord ? displayAddCoord(context.baseCoord) : null,
         studioLabelVisible: context.baseCoord !== null,
-        survivorCave: context.survivorCaveCoord ? displayCoord(context.survivorCaveCoord) : null,
+        survivorCave: context.survivorCaveCoord ? displayAddCoord(context.survivorCaveCoord) : null,
         survivorCaveVisible: context.survivorCaveCoord !== null,
         renderedCount: this.landmarkObjects.length,
       },
@@ -1773,10 +1743,10 @@ class AddRpgHexScene extends Phaser.Scene {
       interaction: {
         hoverEnabled: true,
         selectEnabled: true,
-        hoveredCell: this.hoveredCoord ? displayCell(this.hoveredCoord) : null,
-        selectedCell: this.selectedCoord ? displayCell(this.selectedCoord) : null,
-        hoveredHex: this.hoveredCoord?.kind === "hex" ? displayCoord(this.hoveredCoord) : null,
-        selectedHex: this.selectedCoord?.kind === "hex" ? displayCoord(this.selectedCoord) : null,
+        hoveredCell: this.hoveredCoord ? displayAddCell(this.hoveredCoord) : null,
+        selectedCell: this.selectedCoord ? displayAddCell(this.selectedCoord) : null,
+        hoveredHex: this.hoveredCoord?.kind === "hex" ? displayAddCoord(this.hoveredCoord) : null,
+        selectedHex: this.selectedCoord?.kind === "hex" ? displayAddCoord(this.selectedCoord) : null,
         selectedLabel: selectedDetail?.label ?? null,
         hoveredDetail,
         selectedDetail,
@@ -1798,8 +1768,10 @@ class AddRpgHexScene extends Phaser.Scene {
 
   private travelInfo(context: RenderContext): AddPhaserMapInfo["travel"] {
     const previewCoord = this.selectedCoord ?? this.hoveredCoord
-    const previewCell = previewCoord ? context.terrainByCoord.get(coordKey(previewCoord)) : null
-    const previewDetail = previewCoord ? tileInteractionDetailForCoord(previewCoord, context) : null
+    const previewCell = previewCoord ? context.terrainByCoord.get(addMapCoordKey(previewCoord)) : null
+    const previewDetail = previewCoord
+      ? tileInteractionDetailForCoord(previewCoord, context.terrainByCoord)
+      : null
     const previewAdjacent =
       this.characterCoord !== null && previewCoord !== null
         ? coordsAreAdjacent(this.characterCoord, previewCoord, context)
@@ -1823,7 +1795,7 @@ class AddRpgHexScene extends Phaser.Scene {
       destinationState: activeTravel?.destinationState ?? null,
       destinationTerrain: activeTravel?.destinationTerrain ?? null,
       exposureRisk: activeTravel?.exposureRisk ?? null,
-      previewCell: previewCoord ? displayCell(previewCoord) : null,
+      previewCell: previewCoord ? displayAddCell(previewCoord) : null,
       previewLabel: previewDetail?.label ?? null,
       previewAdjacent,
       previewExposureRisk: previewCell ? previewDetail?.exposureRisk ?? "unknown" : null,
@@ -1852,13 +1824,13 @@ function createRenderContext(map: GameMap, width: number, height: number): Rende
       : null
   const origin = originForCells(terrainCells, map, hexTopology, squareTopology, width, height)
   const terrainByCoord = new Map(
-    terrainCells.map((cell) => [coordKey(cell.coord), cell]),
+    terrainCells.map((cell) => [addMapCoordKey(cell.coord), cell]),
   )
   const stateCounts = countStates(terrainCells)
   const bubbleEdgeCoords = new Set(
     terrainCells
       .filter((cell) => cell.coord.kind === "hex" && isBubbleEdgeCell(cell, map))
-      .map((cell) => coordKey(cell.coord)),
+      .map((cell) => addMapCoordKey(cell.coord)),
   )
   const baseCell = terrainCells.find((cell) => isBaseFeature(featureForCell(cell)))
   const caveCell = terrainCells.find((cell) => featureForCell(cell) === "survivor_cave")
@@ -2024,117 +1996,6 @@ function styleForCell(cell: GameCellPlacement): CellStyle {
   }
 }
 
-function stateForCell(cell: GameCellPlacement): AddCellState {
-  const value = cell.metadata?.state
-  return value === "inactive" ||
-    value === "converting" ||
-    value === "stabilized" ||
-    value === "blocked"
-    ? value
-    : cell.blocked
-      ? "blocked"
-      : "inactive"
-}
-
-function terrainForCell(cell: GameCellPlacement): AddTerrain {
-  const value = cell.metadata?.terrain
-  return value === "plains" ||
-    value === "river" ||
-    value === "scrub" ||
-    value === "ridge" ||
-    value === "mountain" ||
-    value === "dungeon_floor" ||
-    value === "dungeon_wall" ||
-    value === "base_floor" ||
-    value === "base_wall"
-    ? value
-    : "unknown"
-}
-
-function featureForCell(cell: GameCellPlacement): AddFeature {
-  const value = cell.metadata?.feature
-  return typeof value === "string" ? value : "none"
-}
-
-function progressForCell(cell: GameCellPlacement): number {
-  return clamp(numberMetadata(cell, "progress") ?? 0, 0, 1)
-}
-
-function exposureRiskForCell(cell: GameCellPlacement): AddTravelExposureRisk {
-  const knownRisk = stringMetadata(cell, "travelRisk")
-  if (
-    knownRisk === "studio" ||
-    knownRisk === "safe_field" ||
-    knownRisk === "fringe" ||
-    knownRisk === "toxic" ||
-    knownRisk === "unknown"
-  ) {
-    return knownRisk
-  }
-  const feature = featureForCell(cell)
-  const state = stateForCell(cell)
-  if (isBaseFeature(feature)) return "studio"
-  if (state === "stabilized") return "safe_field"
-  if (state === "converting") return "fringe"
-  return "toxic"
-}
-
-function tileInteractionDetailForCoord(
-  coord: CellCoord,
-  context: RenderContext,
-): AddTileInteractionDetail | null {
-  const cell = context.terrainByCoord.get(coordKey(coord))
-  if (!cell) return null
-
-  const visibility = visibilityStateForCell(cell)
-  if (visibility === "hidden") {
-    return {
-      cell: displayCell(coord),
-      label: "Unknown region",
-      visibility,
-      knownInfoLevel: "unknown",
-      terrain: "unknown",
-      state: "unknown",
-      exposureRisk: "unknown",
-      dungeonActionsVisible: false,
-      dungeonLinks: [],
-      travelCopy: "Unknown region. Adjacent travel is possible, but terrain and entrances are unknown.",
-    }
-  }
-
-  const terrain = terrainForCell(cell)
-  const state = visibility === "visible" ? stateForCell(cell) : "unknown"
-  const exposureRisk = visibility === "visible" ? exposureRiskForCell(cell) : "unknown"
-  const knownInfoLevel: AddTileKnownInfoLevel =
-    visibility === "visible" ? "full_current" : "known_static"
-  const baseLabel = knownTileLabel(cell)
-  const staticLabel =
-    terrain === "unknown" ? baseLabel : `${baseLabel} · ${titleCase(terrain)}`
-  const currentLabel =
-    state === "unknown" ? staticLabel : `${baseLabel} · ${titleCase(state)} ${titleCase(terrain)}`
-  const dungeonLinks = dungeonLinksForCell(cell).map(dungeonLinkInfo)
-  const labelWithLinks =
-    dungeonLinks.length === 0
-      ? currentLabel
-      : `${currentLabel} -> ${dungeonLinks.map((link) => link.label).join(", ")}`
-
-  return {
-    cell: displayCell(coord),
-    label: labelWithLinks,
-    visibility,
-    knownInfoLevel,
-    terrain,
-    state,
-    exposureRisk,
-    dungeonActionsVisible: dungeonLinks.length > 0,
-    dungeonLinks,
-    travelCopy:
-      visibility === "visible"
-        ? `${currentLabel}. Current conditions are known.`
-        : `${staticLabel}. Current risk and activity may have changed.`,
-  }
-}
-
 function tileInteractionVisibilitySamples(
   context: RenderContext,
 ): AddPhaserMapInfo["interaction"]["visibilitySamples"] {
@@ -2153,82 +2014,10 @@ function tileInteractionVisibilitySamples(
   for (const cell of context.terrainCells) {
     const visibility = visibilityStateForCell(cell)
     if (samples[visibility]) continue
-    samples[visibility] = tileInteractionDetailForCoord(cell.coord, context)
+    samples[visibility] = tileInteractionDetailForCoord(cell.coord, context.terrainByCoord)
   }
 
   return samples
-}
-
-function knownTileLabel(cell: GameCellPlacement): string {
-  const knownLabel = stringMetadata(cell, "label")
-  if (knownLabel) return knownLabel
-  const feature = featureForCell(cell)
-  if (feature === "base") return "Studio"
-  if (feature === "base_core") return "Base Core"
-  if (feature === "survivor_cave") return "Survivor Cave"
-  if (feature !== "none") return titleCase(feature)
-  const terrain = terrainForCell(cell)
-  return terrain === "unknown" ? "Known region" : `${titleCase(terrain)} region`
-}
-
-function knownFactsInfo(cells: readonly GameCellPlacement[]): AddPhaserMapInfo["knownFacts"] {
-  let hiddenCells = 0
-  let discoveredCells = 0
-  let visibleCells = 0
-  let staleCells = 0
-  let exactTerrainKnownCells = 0
-  let dynamicRiskKnownCells = 0
-  let vagueTravelLabels = 0
-  let sampleHiddenTravelLabel: string | null = null
-
-  for (const cell of cells) {
-    const visibilityState = stringMetadata(cell, "visibilityState")
-    if (visibilityState === "hidden") hiddenCells += 1
-    if (visibilityState === "discovered") discoveredCells += 1
-    if (visibilityState === "visible") visibleCells += 1
-    if (visibilityState === "stale") staleCells += 1
-    if (cell.metadata?.exactTerrainKnown === true) exactTerrainKnownCells += 1
-    if (cell.metadata?.dynamicRiskKnown === true) dynamicRiskKnownCells += 1
-
-    const vagueLabel = stringMetadata(cell, "vagueTravelLabel")
-    if (vagueLabel && visibilityState === "hidden") {
-      vagueTravelLabels += 1
-      if (!sampleHiddenTravelLabel) sampleHiddenTravelLabel = vagueLabel
-    }
-  }
-
-  return {
-    hiddenCells,
-    discoveredCells,
-    visibleCells,
-    staleCells,
-    exactTerrainKnownCells,
-    dynamicRiskKnownCells,
-    vagueTravelLabels,
-    sampleHiddenTravelLabel,
-  }
-}
-
-function visibilityInfo(
-  cells: readonly GameCellPlacement[],
-  revealTransitionsActive: number,
-  travelRevealPreview: TravelRevealPreview = inactiveTravelRevealPreview(),
-): AddPhaserMapInfo["visibility"] {
-  const counts = visibilityCounts(cells)
-  return {
-    hiddenCells: counts.hidden,
-    discoveredCells: counts.discovered,
-    visibleCells: counts.visible,
-    staleCells: counts.stale,
-    revealTransitionsActive,
-    travelRevealPreviewActive: travelRevealPreview.active,
-    travelRevealPreviewCells: travelRevealPreview.cells.size,
-    travelRevealPreviewProgress: round(travelRevealPreview.progress),
-    travelRevealDestinationCell: travelRevealPreview.destinationCell,
-    hiddenCellRendering: "invisible_until_known_or_travel_revealed",
-    fogRendering: "phaser_visual_overlay",
-    affectsAuthority: false,
-  }
 }
 
 function inactiveTravelRevealPreview(): TravelRevealPreview {
@@ -2247,52 +2036,6 @@ function visualCellRadius(context: RenderContext): number {
   if (context.map.topology.kind === "hex") return context.map.topology.radius
   if (context.map.topology.kind === "square") return context.map.topology.cellSize / 2
   return DEFAULT_RADIUS
-}
-
-function visibilityCounts(cells: readonly GameCellPlacement[]): VisibilityCounts {
-  return cells.reduce<VisibilityCounts>(
-    (counts, cell) => {
-      const state = visibilityStateForCell(cell)
-      return {
-        hidden: counts.hidden + (state === "hidden" ? 1 : 0),
-        discovered: counts.discovered + (state === "discovered" ? 1 : 0),
-        visible: counts.visible + (state === "visible" ? 1 : 0),
-        stale: counts.stale + (state === "stale" ? 1 : 0),
-      }
-    },
-    { hidden: 0, discovered: 0, visible: 0, stale: 0 },
-  )
-}
-
-function visibilityStateForCell(cell: GameCellPlacement): AddVisibilityRenderState {
-  const value = stringMetadata(cell, "visibilityState")
-  return value === "visible" ||
-    value === "discovered" ||
-    value === "stale" ||
-    value === "hidden"
-    ? value
-    : "hidden"
-}
-
-function presentationVisibilityStateForCell(cell: GameCellPlacement): AddVisibilityRenderState {
-  if (!cellHasVisibilityMetadata(cell)) return "visible"
-  if (visibilityStateForCell(cell) === "hidden" && cellIsStudioAnchor(cell)) {
-    return "discovered"
-  }
-  return visibilityStateForCell(cell)
-}
-
-function cellIsKnownForPresentation(cell: GameCellPlacement): boolean {
-  if (!cellHasVisibilityMetadata(cell)) return true
-  return visibilityStateForCell(cell) !== "hidden" || cellIsStudioAnchor(cell)
-}
-
-function cellIsStudioAnchor(cell: GameCellPlacement): boolean {
-  return isBaseFeature(featureForCell(cell))
-}
-
-function cellHasVisibilityMetadata(cell: GameCellPlacement): boolean {
-  return stringMetadata(cell, "visibilityState") !== undefined
 }
 
 const CHARACTER_MOVE_DIRECTIONS: ReadonlySet<AddCharacterMoveDirection> = new Set([
@@ -2319,11 +2062,11 @@ function initialCharacterCoord(context: RenderContext): CellCoord | null {
   if (
     hero?.coord &&
     hero.coord.kind === context.topologyKind &&
-    context.terrainByCoord.has(coordKey(hero.coord))
+    context.terrainByCoord.has(addMapCoordKey(hero.coord))
   ) {
     return hero.coord
   }
-  if (context.baseCoord && context.terrainByCoord.has(coordKey(context.baseCoord))) {
+  if (context.baseCoord && context.terrainByCoord.has(addMapCoordKey(context.baseCoord))) {
     return context.baseCoord
   }
   return (
@@ -2446,29 +2189,12 @@ function hasDungeonLinks(cell: GameCellPlacement): boolean {
   return dungeonLinksForCell(cell).length > 0
 }
 
-function dungeonLinksForCell(cell: GameCellPlacement): readonly GameCellLink[] {
-  const visibility = visibilityStateForCell(cell)
-  if (visibility !== "discovered" && visibility !== "visible") return []
-  return (cell.links ?? []).filter((link) => link.kind === "dungeon")
-}
-
 function dungeonLinksForCoord(
   coord: CellCoord,
   context: RenderContext,
-): readonly GameCellLink[] {
-  const cell = context.terrainByCoord.get(coordKey(coord))
+): ReturnType<typeof dungeonLinksForCell> {
+  const cell = context.terrainByCoord.get(addMapCoordKey(coord))
   return cell ? dungeonLinksForCell(cell) : []
-}
-
-function dungeonLinkInfo(link: GameCellLink): AddDungeonLinkInfo {
-  return {
-    id: link.id,
-    kind: link.kind,
-    label: link.label ?? link.id,
-    targetMapId: link.targetMapId,
-    targetCoord: link.targetCoord ? displayCell(link.targetCoord) : null,
-    enabled: link.enabled ?? true,
-  }
 }
 
 function centerFor(coord: CellCoord, context: RenderContext): Vector2 {
@@ -2540,22 +2266,6 @@ function distanceBetween(a: Vector2, b: Vector2): number {
   return Math.sqrt(dx * dx + dy * dy)
 }
 
-function numberMetadata(
-  item: Pick<GameCellPlacement | GameMap, "metadata">,
-  key: string,
-): number | undefined {
-  const value = item.metadata?.[key]
-  return typeof value === "number" ? value : undefined
-}
-
-function stringMetadata(
-  item: Pick<GameCellPlacement | GameMap, "metadata">,
-  key: string,
-): string | undefined {
-  const value = item.metadata?.[key]
-  return typeof value === "string" ? value : undefined
-}
-
 function authorityInfo(): AddPhaserMapInfo["authority"] {
   return {
     rules: "rust_wasm_snapshot",
@@ -2574,35 +2284,11 @@ function topologyInfo(context: RenderContext): AddPhaserMapInfo["topology"] {
   }
 }
 
-function isBaseFeature(feature: AddFeature): boolean {
-  return feature === "base" || feature === "base_core"
-}
-
 function sameCoord(a: CellCoord | null, b: CellCoord | null): boolean {
   if (!a || !b || a.kind !== b.kind) return a === b
   return a.kind === "hex" && b.kind === "hex"
     ? a.q === b.q && a.r === b.r
     : a.kind === "square" && b.kind === "square" && a.x === b.x && a.y === b.y
-}
-
-function coordKey(coord: CellCoord): string {
-  return coord.kind === "hex" ? `hex:${coord.q}:${coord.r}` : `square:${coord.x}:${coord.y}`
-}
-
-function displayCell(coord: CellCoord): string {
-  return `${coord.kind}:${displayCoord(coord)}`
-}
-
-function displayCoord(coord: CellCoord): string {
-  return coord.kind === "hex" ? serializeHex(coord) : `${coord.x},${coord.y}`
-}
-
-function serializeHex(coord: HexCoord): string {
-  return `${coord.q},${coord.r}`
-}
-
-function titleCase(value: string): string {
-  return `${value.slice(0, 1).toUpperCase()}${value.slice(1).replace("_", " ")}`
 }
 
 function round(value: number): number {
