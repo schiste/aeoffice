@@ -16,6 +16,12 @@ export { CameraController } from "./shared/camera-controller"
 export { DomWorldOverlayRenderer } from "./renderer/dom-world-overlay-renderer"
 export { InteractionRenderer } from "./renderer/interaction-renderer"
 export { RendererTelemetry } from "./shared/telemetry"
+export {
+  GameMapCellRenderer,
+  emptyGameMapCellRenderInfo,
+  type GameMapCellRenderInfo,
+  type GameMapCellRenderOptions,
+} from "./shared/game-map-cell-renderer"
 export { validateFixtureMapForRenderer } from "./renderer/map-render-validation"
 export {
   DepthDebugOverlay,
@@ -45,3 +51,18 @@ export {
 } from "./hex/hex-landmark-renderer"
 
 export * from "./renderer/types"
+export {
+  DEFAULT_CELL_PRESENTATION_POLICY,
+  DEFAULT_CELL_VISUAL_STYLE,
+  DEFAULT_FOG_VISUAL_STYLE,
+  EMPTY_WORLD_INTERACTION_POLICY,
+} from "./renderer/policies"
+export type {
+  CellPresentationPolicy,
+  CellVisualStyle,
+  FogVisualStyle,
+  TopologyNavigationInput,
+  TopologyNavigationPolicy,
+  WorldInteractionDetail,
+  WorldInteractionPolicy,
+} from "./renderer/policies"

@@ -57,10 +57,14 @@ for (const exportedName of [
   "DomWorldOverlayRenderer",
   "InteractionRenderer",
   "RendererTelemetry",
+  "GameMapCellRenderer",
   "HexCellRenderer",
   "HexZoneRenderer",
   "HexLandmarkRenderer",
   "hexCellPolygonPoints",
+  "CellPresentationPolicy",
+  "WorldInteractionPolicy",
+  "TopologyNavigationPolicy",
   "validateFixtureMapForRenderer",
 ]) {
   assert.match(
@@ -75,6 +79,7 @@ for (const sourcePath of [
   "src/shared/camera-controller.ts",
   "src/shared/entity-renderer.ts",
   "src/shared/zone-renderer.ts",
+  "src/shared/game-map-cell-renderer.ts",
   "src/shared/overlays.ts",
   "src/shared/telemetry.ts",
   "src/square/square-tilemap-renderer.ts",

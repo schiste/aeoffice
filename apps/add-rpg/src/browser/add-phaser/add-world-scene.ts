@@ -3,12 +3,15 @@ import type { CellCoord, SquareCoord, Vector2 } from "@aedventure/game-topology"
 import { validateGameWorld, type GameCellPlacement, type GameEntity, type GameWorld } from "@aedventure/game-world"
 import {
   addMapCoordKey,
-  cellIsKnownForPresentation,
+  createAddCellPresentationPolicy,
+  createAddTopologyNavigationPolicy,
+  createAddWorldInteractionPolicy,
   displayAddCell,
   displayAddCoord,
   dungeonLinkInfo,
   dungeonLinksForCell,
   knownFactsInfo,
+  presentationVisibilityStateForCell,
   progressForCell,
   stateForCell,
   stringMetadata,
@@ -26,7 +29,6 @@ import {
   directionForCharacterKeys,
   entryFacingForContext,
   initialCharacterCoord,
-  nextCharacterCoord,
 } from "./add-character-navigation"
 import { inactiveTravelRevealPreview } from "./add-fog-renderer"
 import { hashCoord, setCrispText } from "./add-landmark-renderer"
@@ -51,7 +53,7 @@ import {
   squareTopLeftFor,
   visualCellRadius,
 } from "./add-render-context"
-import { drawHexPath, styleForCell } from "./add-terrain-renderer"
+import { drawHexPath } from "./add-terrain-renderer"
 import {
   DEFAULT_RADIUS,
   KEY_CHORD_DELAY_MS,
@@ -78,6 +80,9 @@ import {
 
 export class AddRpgHexScene extends Phaser.Scene {
   private readonly hostOptions: AddRpgPhaserMapHostOptions
+  private readonly cellPresentationPolicy = createAddCellPresentationPolicy()
+  private readonly worldInteractionPolicy = createAddWorldInteractionPolicy()
+  private readonly navigationPolicy = createAddTopologyNavigationPolicy()
   private terrainGraphics?: Phaser.GameObjects.Graphics
   private ambienceGraphics?: Phaser.GameObjects.Graphics
   private fogGraphics?: Phaser.GameObjects.Graphics
@@ -219,7 +224,11 @@ export class AddRpgHexScene extends Phaser.Scene {
     }
 
     const fromCoord = this.characterCoord
-    const nextCoord = nextCharacterCoord(this.characterCoord, direction, this.context)
+    const nextCoord = this.navigationPolicy.nextCoord(
+      this.characterCoord,
+      { direction },
+      this.context.map.topology,
+    )
     if (!nextCoord) {
       this.characterMoveStatus = {
         direction,
@@ -240,7 +249,7 @@ export class AddRpgHexScene extends Phaser.Scene {
       this.refreshInfo()
       return false
     }
-    if (nextCell.blocked || stateForCell(nextCell) === "blocked") {
+    if (!this.navigationPolicy.canEnterCell(nextCell)) {
       this.characterMoveStatus = {
         direction,
         accepted: false,
@@ -254,8 +263,13 @@ export class AddRpgHexScene extends Phaser.Scene {
     const fromPosition = this.characterPosition ?? centerFor(fromCoord, this.context)
     const toPosition = centerFor(nextCoord, this.context)
     const destinationDetail = tileInteractionDetailForCoord(nextCoord, this.context.terrainByCoord)
+    const destinationInteraction = this.worldInteractionPolicy.interactionForCell(
+      nextCoord,
+      nextCell,
+    )
     const destinationLinks = destinationDetail?.dungeonLinks ?? []
-    const destinationLabel = destinationDetail?.label ?? "Unknown region"
+    const destinationLabel =
+      destinationDetail?.label ?? destinationInteraction?.label ?? "Unknown region"
     const destinationState =
       destinationDetail?.state === "unknown" ? "inactive" : destinationDetail?.state ?? "inactive"
     const destinationTerrain = destinationDetail?.terrain ?? "unknown"
@@ -388,10 +402,10 @@ export class AddRpgHexScene extends Phaser.Scene {
     graphics.clear()
 
     for (const cell of context.terrainCells) {
-      if (!cellIsKnownForPresentation(cell)) continue
+      if (!this.cellPresentationPolicy.cellVisible(cell)) continue
       const center = centerFor(cell.coord, context)
       const state = stateForCell(cell)
-      const style = styleForCell(cell)
+      const style = this.cellPresentationPolicy.cellStyle(cell)
 
       if (cell.coord.kind === "square") {
         this.drawSquareTerrainCell(graphics, cell, context, center, style)
@@ -570,7 +584,7 @@ export class AddRpgHexScene extends Phaser.Scene {
       if (!entity.coord || entity.coord.kind !== context.topologyKind) continue
       if (entity.kind === "hero") continue
       const cell = context.terrainByCoord.get(addMapCoordKey(entity.coord))
-      if (cell && !cellIsKnownForPresentation(cell)) continue
+      if (cell && !this.cellPresentationPolicy.cellVisible(cell)) continue
 
       const center = centerFor(entity.coord, context)
       const tags = new Set(entity.tags ?? [])
@@ -817,7 +831,7 @@ export class AddRpgHexScene extends Phaser.Scene {
 
     const phase = this.frameCount / 42
     for (const cell of context.terrainCells) {
-      if (!cellIsKnownForPresentation(cell)) continue
+      if (!this.cellPresentationPolicy.cellVisible(cell)) continue
       const state = stateForCell(cell)
       if (state === "inactive" || state === "blocked") continue
       const center = centerFor(cell.coord, context)
@@ -858,7 +872,9 @@ export class AddRpgHexScene extends Phaser.Scene {
 
     for (const cell of context.terrainCells) {
       const key = addMapCoordKey(cell.coord)
-      const visibilityState = presentationVisibilityStateForCell(cell)
+      const visibilityState =
+        (this.cellPresentationPolicy.fogStyle(cell).state as AddVisibilityRenderState | undefined) ??
+        presentationVisibilityStateForCell(cell)
       const travelRevealProgress = this.travelRevealProgressForCell(
         cell,
         context,
@@ -1162,7 +1178,7 @@ export class AddRpgHexScene extends Phaser.Scene {
     for (const key of context.bubbleEdgeCoords) {
       const cell = context.terrainByCoord.get(key)
       if (!cell || cell.coord.kind !== "hex") continue
-      if (!cellIsKnownForPresentation(cell)) continue
+      if (!this.cellPresentationPolicy.cellVisible(cell)) continue
       const center = centerFor(cell.coord, context)
       drawHexPath(graphics, center, radius + 1.5 + pulse * 3.2)
       graphics.lineStyle(1.2, 0x63dcff, 0.20 + pulse * 0.20)
@@ -1194,7 +1210,7 @@ export class AddRpgHexScene extends Phaser.Scene {
   ): void {
     if (!this.overlayGraphics || !this.context) return
     const cell = this.context.terrainByCoord.get(addMapCoordKey(coord))
-    if (cell && !cellIsKnownForPresentation(cell)) return
+    if (cell && !this.cellPresentationPolicy.cellVisible(cell)) return
     if (coord.kind === "square") {
       const topLeft = squareTopLeftFor(coord, this.context)
       const cellSize = squareCellSize(this.context)
@@ -1362,7 +1378,7 @@ export class AddRpgHexScene extends Phaser.Scene {
         : context.squareTopology?.worldToCell(localPoint)
     if (!coord) return null
     const cell = context.terrainByCoord.get(addMapCoordKey(coord))
-    return cell && cellIsKnownForPresentation(cell) ? coord : null
+    return cell && this.cellPresentationPolicy.cellVisible(cell) ? coord : null
   }
 
   private refreshInfo(summary = this.lastInfo.validationSummary, valid = this.lastInfo.validationValid): void {
@@ -1383,6 +1399,13 @@ export class AddRpgHexScene extends Phaser.Scene {
     const selectedDetail = this.selectedCoord
       ? tileInteractionDetailForCoord(this.selectedCoord, context.terrainByCoord)
       : null
+    const selectedInteraction =
+      this.selectedCoord && context.terrainByCoord.has(addMapCoordKey(this.selectedCoord))
+        ? this.worldInteractionPolicy.interactionForCell(
+            this.selectedCoord,
+            context.terrainByCoord.get(addMapCoordKey(this.selectedCoord)),
+          )
+        : null
     const travelRevealPreview = this.travelRevealPreviewForContext(context)
 
     this.lastInfo = {
@@ -1463,7 +1486,7 @@ export class AddRpgHexScene extends Phaser.Scene {
         selectedCell: this.selectedCoord ? displayAddCell(this.selectedCoord) : null,
         hoveredHex: this.hoveredCoord?.kind === "hex" ? displayAddCoord(this.hoveredCoord) : null,
         selectedHex: this.selectedCoord?.kind === "hex" ? displayAddCoord(this.selectedCoord) : null,
-        selectedLabel: selectedDetail?.label ?? null,
+        selectedLabel: selectedDetail?.label ?? selectedInteraction?.label ?? null,
         hoveredDetail,
         selectedDetail,
         visibilitySamples: tileInteractionVisibilitySamples(context),
@@ -1488,6 +1511,10 @@ export class AddRpgHexScene extends Phaser.Scene {
     const previewDetail = previewCoord
       ? tileInteractionDetailForCoord(previewCoord, context.terrainByCoord)
       : null
+    const previewInteraction =
+      previewCoord && previewCell
+        ? this.worldInteractionPolicy.interactionForCell(previewCoord, previewCell)
+        : null
     const previewAdjacent =
       this.characterCoord !== null && previewCoord !== null
         ? coordsAreAdjacent(this.characterCoord, previewCoord, context)
@@ -1512,7 +1539,7 @@ export class AddRpgHexScene extends Phaser.Scene {
       destinationTerrain: activeTravel?.destinationTerrain ?? null,
       exposureRisk: activeTravel?.exposureRisk ?? null,
       previewCell: previewCoord ? displayAddCell(previewCoord) : null,
-      previewLabel: previewDetail?.label ?? null,
+      previewLabel: previewDetail?.label ?? previewInteraction?.label ?? null,
       previewAdjacent,
       previewExposureRisk: previewCell ? previewDetail?.exposureRisk ?? "unknown" : null,
       blockedReason: this.characterMoveStatus.blockedReason,

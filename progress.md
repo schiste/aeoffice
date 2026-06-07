@@ -218,6 +218,17 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   systems: the tuning model owns body radius, analog curve, and corner-slide
   assist, client prediction uses those values, and the development world server
   can receive matching movement tuning through a dev-only route.
+- ADD Phaser neutralization step 5 is underway: `game-renderer-phaser` now
+  exposes neutral cell presentation, interaction, and topology navigation policy
+  contracts plus a policy-driven `GameMapCellRenderer` for square/hex maps.
+  `add-domain` provides ADD implementations for visibility, terrain styling,
+  fog styling, tile interactions, and navigation. The ADD app scene now consumes
+  those policies for terrain visibility/style, movement entry checks, and travel
+  interaction labels while keeping the current public `AddPhaserMapInfo` shape.
+  Targeted verification passed for renderer build/test, add-domain build/test,
+  ADD app type build, and ADD smoke; renderer QA is still blocked by unrelated
+  dirty dungeon fixture work changing the expected square map id from
+  `add.rpg.square-dungeon-fixture` to `add.rpg.dungeon.studio`.
 - Renderer/engine separation now has explicit browser-engine controllers:
   `InputController` owns held keyboard/D-pad/joystick/run state and shaped
   movement intents, while `WorldSyncController` owns the realtime transport

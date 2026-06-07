@@ -8,6 +8,9 @@ const {
   ADD_TRAVEL_GAME_MINUTES_PER_TILE,
   ADD_TRAVEL_RUNTIME_SECONDS_PER_TILE,
   createAddCatalogIndexes,
+  createAddCellPresentationPolicy,
+  createAddTopologyNavigationPolicy,
+  createAddWorldInteractionPolicy,
   selectAddVisibilitySummary,
   selectAddTile,
   selectAddUiState,
@@ -87,6 +90,30 @@ assert.equal(hiddenDungeonCell.metadata.dynamicRiskKnown, false)
 assert.equal(hiddenDungeonCell.metadata.travelRisk, "unknown")
 assert.equal(hiddenDungeonCell.metadata.vagueTravelLabel, "Unscouted region nearby")
 assert.equal(hiddenDungeonCell.metadata.vagueHint, true)
+const cellPresentationPolicy = createAddCellPresentationPolicy()
+assert.equal(cellPresentationPolicy.cellVisible(hiddenDungeonCell), false)
+assert.equal(cellPresentationPolicy.cellVisible(baseCell), true)
+assert.equal(cellPresentationPolicy.cellStyle(baseCell).fill, 0xdedbbf)
+assert.equal(cellPresentationPolicy.fogStyle(baseCell).visible, true)
+const worldInteractionPolicy = createAddWorldInteractionPolicy()
+const hiddenInteraction = worldInteractionPolicy.interactionForCell(
+  hiddenDungeonCell.coord,
+  hiddenDungeonCell,
+)
+assert.equal(hiddenInteraction.label, "Unknown region")
+assert.equal(hiddenInteraction.metadata.dungeonLinkCount, 0)
+const caveInteraction = worldInteractionPolicy.interactionForCell(
+  survivorCaveCell.coord,
+  survivorCaveCell,
+)
+assert.equal(caveInteraction.metadata.dungeonActionsVisible, true)
+assert.equal(caveInteraction.metadata.dungeonLinkCount, 1)
+const navigationPolicy = createAddTopologyNavigationPolicy()
+assert.deepEqual(
+  navigationPolicy.nextCoord(survivorCaveCell.coord, { direction: "left" }, map.topology),
+  { kind: "hex", q: 1, r: -1 },
+)
+assert.equal(navigationPolicy.canEnterCell(hiddenDungeonCell), true)
 const visibilitySummary = selectAddVisibilitySummary(snapshot, catalog)
 assert.equal(visibilitySummary.visibleCount, 3)
 assert.equal(visibilitySummary.discoveredCount, 1)

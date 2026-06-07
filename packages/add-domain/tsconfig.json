@@ -17,6 +17,9 @@
     },
     {
       "path": "../game-dungeon"
+    },
+    {
+      "path": "../game-renderer-phaser"
     }
   ],
   "include": [

@@ -1,6 +1,7 @@
 import type Phaser from "phaser"
 import type { CellCoord, GridTopology, HexCoord, SquareCoord, Vector2 } from "@aedventure/game-topology"
 import type { GameCellPlacement, GameMap } from "@aedventure/game-world"
+import type { CellVisualStyle } from "@aedventure/game-renderer-phaser"
 import type {
   AddCellState,
   AddDungeonLinkInfo,
@@ -222,14 +223,7 @@ export interface StateCounts {
   readonly blocked: number
 }
 
-export interface CellStyle {
-  readonly fill: number
-  readonly stroke: number
-  readonly alpha: number
-  readonly accent: number
-  readonly highlight: number
-  readonly shadow: number
-}
+export type CellStyle = CellVisualStyle
 
 export interface TravelRevealPreview {
   readonly active: boolean

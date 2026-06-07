@@ -56,46 +56,6 @@ export function coordsAreAdjacent(a: CellCoord, b: CellCoord, context: RenderCon
   return false
 }
 
-export function nextCharacterCoord(
-  coord: CellCoord,
-  direction: AddCharacterMoveDirection,
-  context: RenderContext,
-): CellCoord | null {
-  if (coord.kind === "square" && context.squareTopology) {
-    const next =
-      direction === "up" || direction === "north_west"
-        ? { kind: "square" as const, x: coord.x, y: coord.y - 1 }
-        : direction === "right" || direction === "north_east"
-          ? { kind: "square" as const, x: coord.x + 1, y: coord.y }
-          : direction === "down" || direction === "south_east"
-            ? { kind: "square" as const, x: coord.x, y: coord.y + 1 }
-          : direction === "left" || direction === "south_west"
-              ? { kind: "square" as const, x: coord.x - 1, y: coord.y }
-              : null
-    return next && context.squareTopology.inBounds(next) ? next : null
-  }
-
-  if (coord.kind === "hex" && context.hexTopology) {
-    const next =
-      direction === "up" || direction === "north_west"
-        ? { kind: "hex" as const, q: coord.q, r: coord.r - 1 }
-        : direction === "north_east"
-          ? { kind: "hex" as const, q: coord.q + 1, r: coord.r - 1 }
-          : direction === "right"
-            ? { kind: "hex" as const, q: coord.q + 1, r: coord.r }
-            : direction === "down" || direction === "south_east"
-              ? { kind: "hex" as const, q: coord.q, r: coord.r + 1 }
-              : direction === "south_west"
-                ? { kind: "hex" as const, q: coord.q - 1, r: coord.r + 1 }
-                : direction === "left"
-                  ? { kind: "hex" as const, q: coord.q - 1, r: coord.r }
-                  : null
-    return next && context.hexTopology.inBounds(next) ? next : null
-  }
-
-  return null
-}
-
 export function characterMoveKeyForKeyboardKey(key: string): AddCharacterMoveKey | null {
   switch (key) {
     case "ArrowUp":
