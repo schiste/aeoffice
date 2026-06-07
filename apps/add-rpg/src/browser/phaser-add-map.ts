@@ -913,6 +913,8 @@ class AddRpgHexScene extends Phaser.Scene {
         accepted: null,
         blockedReason: null,
       }
+      const entryFacing = entryFacingForContext(context)
+      if (entryFacing) this.characterFacing = entryFacing
     }
 
     if (!this.characterCoord) return
@@ -2291,6 +2293,25 @@ function cellIsStudioAnchor(cell: GameCellPlacement): boolean {
 
 function cellHasVisibilityMetadata(cell: GameCellPlacement): boolean {
   return stringMetadata(cell, "visibilityState") !== undefined
+}
+
+const CHARACTER_MOVE_DIRECTIONS: ReadonlySet<AddCharacterMoveDirection> = new Set([
+  "up",
+  "right",
+  "down",
+  "left",
+  "north_east",
+  "north_west",
+  "south_east",
+  "south_west",
+])
+
+function entryFacingForContext(context: RenderContext): AddCharacterMoveDirection | null {
+  const value = context.map.metadata?.entryFacing
+  return typeof value === "string" &&
+    CHARACTER_MOVE_DIRECTIONS.has(value as AddCharacterMoveDirection)
+    ? (value as AddCharacterMoveDirection)
+    : null
 }
 
 function initialCharacterCoord(context: RenderContext): CellCoord | null {

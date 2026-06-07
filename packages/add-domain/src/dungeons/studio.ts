@@ -37,6 +37,7 @@ const STUDIO_RESTORED_BLUEPRINT: DungeonBlueprint = {
   id: STUDIO_DUNGEON_MAP_ID,
   label: "The Studio",
   metadata: { theme: "studio", studioState: "restored" },
+  entryFacing: "up",
   grid: [
     "############",
     "#..........#",
@@ -88,6 +89,7 @@ const STUDIO_RUINED_BLUEPRINT: DungeonBlueprint = {
   id: STUDIO_DUNGEON_MAP_ID,
   label: "The Studio (Ruined)",
   metadata: { theme: "studio", studioState: "ruined" },
+  entryFacing: "up",
   grid: [
     "############",
     "#..x.....x.#",

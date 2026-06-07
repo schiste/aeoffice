@@ -18,6 +18,8 @@ import type { GameCellPlacement, GameMap, GameMetadata } from "@aedventure/game-
 export const DUNGEON_FOV_RADIUS = 7
 export const DUNGEON_FOV_CONE_HALF_ANGLE_DEG = 45
 export const DUNGEON_FOV_PERIPHERAL_RADIUS = 1
+// On entry only: how far around the Hero the immediate surroundings are revealed.
+export const DUNGEON_FOV_ENTRY_SURROUNDINGS_RADIUS = 2
 
 const FACING_DELTAS: Readonly<Record<string, { readonly x: number; readonly y: number }>> = {
   up: { x: 0, y: -1 },
@@ -65,18 +67,32 @@ export function applyDungeonFieldOfView(
   })
 
   const opaque = blockedCellKeys(map)
+  const isOpaque = (coord: SquareCoord) => opaque.has(serializeCellCoord(coord))
   const facingDelta = facing ? FACING_DELTAS[facing] : undefined
   const facingToward = facingDelta
     ? createSquareCoord(origin.x + facingDelta.x, origin.y + facingDelta.y)
     : undefined
 
+  // On entry only (no prior memory yet), reveal the tiles immediately around the
+  // Hero — a full 360° ring including behind — so they get their bearings. After
+  // that, the directional cone (facing the entry direction) takes over.
+  let base = priorVisibility
+  if (priorVisibility.size === 0) {
+    base = revealFieldOfView(
+      base,
+      topology,
+      { origin, radius: DUNGEON_FOV_ENTRY_SURROUNDINGS_RADIUS, isOpaque },
+      "discovered",
+    )
+  }
+
   const visibility = revealFieldOfView(
-    markVisibleAsStale(priorVisibility),
+    markVisibleAsStale(base),
     topology,
     {
       origin,
       radius: DUNGEON_FOV_RADIUS,
-      isOpaque: (coord) => opaque.has(serializeCellCoord(coord)),
+      isOpaque,
       facingToward,
       coneHalfAngleDeg: facingToward ? DUNGEON_FOV_CONE_HALF_ANGLE_DEG : undefined,
       peripheralRadius: facingToward ? DUNGEON_FOV_PERIPHERAL_RADIUS : 0,

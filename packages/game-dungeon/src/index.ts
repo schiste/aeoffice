@@ -93,6 +93,11 @@ export interface DungeonBlueprint {
   readonly cellSize?: number
   readonly neighborMode?: SquareNeighborMode
   readonly distanceMetric?: SquareDistanceMetric
+  /**
+   * Direction the viewer faces on entering at the entrance (e.g. "up"). Stored
+   * on the compiled map's metadata and used to orient the Hero on arrival.
+   */
+  readonly entryFacing?: string
   readonly rooms?: readonly DungeonRoomSpec[]
   readonly interactions?: readonly GameInteraction[]
   readonly metadata?: GameMetadata
@@ -242,6 +247,18 @@ export function compileDungeon(blueprint: DungeonBlueprint): GameMap {
     }
   }
 
+  // The Hero spawns at the entrance (initialCharacterCoord prefers a hero entity).
+  // Not drawn as a landmark — it only marks the spawn cell and entry facing.
+  if (entrance) {
+    entities.push({
+      id: `${blueprint.id}.entity.hero-spawn`,
+      kind: "hero",
+      label: "Hero",
+      coord: entrance,
+      metadata: blueprint.entryFacing ? { entryFacing: blueprint.entryFacing } : undefined,
+    })
+  }
+
   const layers: GameLayer[] = [
     {
       id: `${blueprint.id}.terrain`,
@@ -279,6 +296,7 @@ export function compileDungeon(blueprint: DungeonBlueprint): GameMap {
         source: GAME_DUNGEON_PACKAGE,
         topology: "square",
         ...(entrance ? { entranceX: entrance.x, entranceY: entrance.y } : {}),
+        ...(blueprint.entryFacing ? { entryFacing: blueprint.entryFacing } : {}),
       },
       blueprint.metadata,
     ),
