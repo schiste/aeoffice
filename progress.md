@@ -2389,3 +2389,9 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   reveal rules. Verification passed with `npm --workspace @aedventure/game-world
   run build`, `npm --workspace @aedventure/game-world run test`, `npm run
   check`, and `git diff --check`.
+- ADD core catalog data has started moving out of the `game_data.rs` monolith.
+  Resources, roles, actions/construction/recipes, story beats, flags, flora,
+  structures, and tiles now live under `crates/add-core/src/game_data/catalog/`,
+  while `game_data.rs` remains the stable facade for shared types, lookup
+  functions, entity schemas, presentations, UI elements, and balance data.
+  Verification passed with `cargo check -p add-core` and `npm run smoke:add-rpg`.

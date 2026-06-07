@@ -1,0 +1,79 @@
+use crate::game_data::*;
+
+pub(in crate::game_data) const FLAGS: &[FlagDef] = &[
+    FlagDef {
+        id: FLAG_BASE_STUDIO_RESTORE_UNLOCKED,
+        label: "Studio Repair Unlocked",
+        group: "base",
+    },
+    FlagDef {
+        id: FLAG_BASE_STUDIO_RESTORED,
+        label: "Studio Restored",
+        group: "base",
+    },
+    FlagDef {
+        id: FLAG_BASE_FIRE_PIT_BUILT,
+        label: "Fire Pit Built",
+        group: "base",
+    },
+    FlagDef {
+        id: FLAG_BASE_RESONANCE_CHAMBER_BUILT,
+        label: "Resonance Chamber Built",
+        group: "base",
+    },
+    FlagDef {
+        id: FLAG_BASE_MIX_CONSOLE_BUILT,
+        label: "Mix Console Built",
+        group: "base",
+    },
+    FlagDef {
+        id: FLAG_BASE_WORKSHOP_BUILT,
+        label: "Workshop Built",
+        group: "base",
+    },
+    FlagDef {
+        id: FLAG_BASE_RESEARCH_BOOTH_BUILT,
+        label: "Research Booth Built",
+        group: "base",
+    },
+    FlagDef {
+        id: FLAG_BASE_TUTORIAL_INVESTIGATED,
+        label: "Base Investigated",
+        group: "tutorial",
+    },
+    FlagDef {
+        id: FLAG_BASE_TUTORIAL_EXPLORED,
+        label: "Base Explored",
+        group: "tutorial",
+    },
+    FlagDef {
+        id: FLAG_BASE_WATER_COLLECTION_UNLOCKED,
+        label: "Water Collection Unlocked",
+        group: "base",
+    },
+    FlagDef {
+        id: FLAG_CRYSTAL_REMOVING_MOSS_UNLOCKED,
+        label: "Removing Moss Unlocked",
+        group: "crystal",
+    },
+    FlagDef {
+        id: FLAG_CRYSTAL_REMOVING_MOSS_COMPLETED,
+        label: "Removing Moss Completed",
+        group: "crystal",
+    },
+    FlagDef {
+        id: FLAG_HERO_OUTSIDE_BUBBLE,
+        label: "Hero Outside Bubble",
+        group: "hero",
+    },
+    FlagDef {
+        id: FLAG_HERO_FORCED_RETURN_ACTIVE,
+        label: "Forced Return Active",
+        group: "hero",
+    },
+    FlagDef {
+        id: FLAG_HERO_RECOVERING_AT_STUDIO,
+        label: "Recovering At Studio",
+        group: "hero",
+    },
+];

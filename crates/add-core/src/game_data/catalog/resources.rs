@@ -1,0 +1,58 @@
+use crate::game_data::*;
+
+pub(in crate::game_data) const RESOURCES: &[ResourceDef] = &[
+    ResourceDef {
+        id: RESOURCE_BASSLINE,
+        schema_id: RESOURCE_BASSLINE,
+        label: "Bassline",
+        category: ResourceCategory::Band,
+        base_cap: 90.0,
+        cap_behavior: CapBehavior::OverflowLost,
+        starts_at: 0.0,
+    },
+    ResourceDef {
+        id: RESOURCE_CHORUS,
+        schema_id: RESOURCE_CHORUS,
+        label: "Chorus",
+        category: ResourceCategory::Band,
+        base_cap: 60.0,
+        cap_behavior: CapBehavior::OverflowLost,
+        starts_at: 0.0,
+    },
+    ResourceDef {
+        id: RESOURCE_HARMONICS,
+        schema_id: RESOURCE_HARMONICS,
+        label: "Harmonics",
+        category: ResourceCategory::Band,
+        base_cap: 40.0,
+        cap_behavior: CapBehavior::OverflowLost,
+        starts_at: 0.0,
+    },
+    ResourceDef {
+        id: RESOURCE_STONE,
+        schema_id: RESOURCE_STONE,
+        label: "Stone",
+        category: ResourceCategory::Material,
+        base_cap: 1000.0,
+        cap_behavior: CapBehavior::BlockedAtCap,
+        starts_at: 0.0,
+    },
+    ResourceDef {
+        id: RESOURCE_WATER,
+        schema_id: RESOURCE_WATER,
+        label: "Water",
+        category: ResourceCategory::Material,
+        base_cap: 5.0,
+        cap_behavior: CapBehavior::BlockedAtCap,
+        starts_at: 0.0,
+    },
+    ResourceDef {
+        id: RESOURCE_VIBES,
+        schema_id: RESOURCE_VIBES,
+        label: "Vibes",
+        category: ResourceCategory::RunScopedPool,
+        base_cap: 100.0,
+        cap_behavior: CapBehavior::OverflowLost,
+        starts_at: 0.0,
+    },
+];
