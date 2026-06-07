@@ -63,6 +63,8 @@ for (const exportedName of [
   "HexLandmarkRenderer",
   "hexCellPolygonPoints",
   "CellPresentationPolicy",
+  "CellVisualActivity",
+  "CellVisualMotif",
   "WorldInteractionPolicy",
   "TopologyNavigationPolicy",
   "validateFixtureMapForRenderer",

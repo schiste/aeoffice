@@ -94,6 +94,8 @@ const cellPresentationPolicy = createAddCellPresentationPolicy()
 assert.equal(cellPresentationPolicy.cellVisible(hiddenDungeonCell), false)
 assert.equal(cellPresentationPolicy.cellVisible(baseCell), true)
 assert.equal(cellPresentationPolicy.cellStyle(baseCell).fill, 0xdedbbf)
+assert.equal(cellPresentationPolicy.cellStyle(baseCell).activity, "inactive")
+assert.equal(cellPresentationPolicy.cellStyle(survivorCaveCell).motif, "none")
 assert.equal(cellPresentationPolicy.fogStyle(baseCell).visible, true)
 const worldInteractionPolicy = createAddWorldInteractionPolicy()
 const hiddenInteraction = worldInteractionPolicy.interactionForCell(

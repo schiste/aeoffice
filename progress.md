@@ -229,6 +229,13 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   ADD app type build, and ADD smoke; renderer QA is still blocked by unrelated
   dirty dungeon fixture work changing the expected square map id from
   `add.rpg.square-dungeon-fixture` to `add.rpg.dungeon.studio`.
+- Follow-up policy neutralization moved terrain visual semantics behind
+  `CellVisualStyle`: renderer-facing style now carries neutral `activity`,
+  `activityProgress`, and `motif` fields. ADD maps its cell state/terrain into
+  those values in `add-domain`, and the ADD Phaser scene now draws terrain
+  motifs/progress from the policy instead of directly reading ADD
+  terrain/state/progress selectors. Targeted renderer/add-domain builds, tests,
+  ADD type build, and ADD smoke passed.
 - Renderer/engine separation now has explicit browser-engine controllers:
   `InputController` owns held keyboard/D-pad/joystick/run state and shaped
   movement intents, while `WorldSyncController` owns the realtime transport

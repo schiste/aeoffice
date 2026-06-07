@@ -12,7 +12,21 @@ export interface CellVisualStyle {
   readonly accent: number
   readonly highlight: number
   readonly shadow: number
+  readonly activity: CellVisualActivity
+  readonly activityProgress: number
+  readonly motif: CellVisualMotif
 }
+
+export type CellVisualActivity = "inactive" | "active" | "transitioning" | "blocked"
+export type CellVisualMotif =
+  | "none"
+  | "water"
+  | "vegetation"
+  | "ridge"
+  | "peak"
+  | "floor"
+  | "wall"
+  | "blocked"
 
 export interface FogVisualStyle {
   readonly visible: boolean
@@ -69,6 +83,9 @@ export const DEFAULT_CELL_VISUAL_STYLE: CellVisualStyle = {
   accent: 0x7cbf8c,
   highlight: 0xfff5d0,
   shadow: 0x1d2118,
+  activity: "active",
+  activityProgress: 1,
+  motif: "none",
 }
 
 export const DEFAULT_FOG_VISUAL_STYLE: FogVisualStyle = {
@@ -86,6 +103,9 @@ export const DEFAULT_CELL_PRESENTATION_POLICY: CellPresentationPolicy = {
           fill: 0x8b6748,
           stroke: 0x59412f,
           alpha: 0.94,
+          activity: "blocked",
+          activityProgress: 1,
+          motif: "blocked",
         }
       : DEFAULT_CELL_VISUAL_STYLE,
   fogStyle: () => DEFAULT_FOG_VISUAL_STYLE,

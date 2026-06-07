@@ -2,6 +2,8 @@ import type { CellCoord } from "@aedventure/game-topology"
 import { coordInTopologyBounds, type GameCellPlacement } from "@aedventure/game-world"
 import type {
   CellPresentationPolicy,
+  CellVisualActivity,
+  CellVisualMotif,
   CellVisualStyle,
   FogVisualStyle,
   TopologyNavigationInput,
@@ -16,6 +18,7 @@ import {
   dungeonLinksForCell,
   exposureRiskForCell,
   presentationVisibilityStateForCell,
+  progressForCell,
   stateForCell,
   terrainForCell,
   tileInteractionDetailForCoord,
@@ -48,6 +51,10 @@ export function createAddTopologyNavigationPolicy(): TopologyNavigationPolicy {
 export function addCellVisualStyle(cell: GameCellPlacement): CellVisualStyle {
   const terrain = terrainForCell(cell)
   const state = stateForCell(cell)
+  const activity = activityForState(state)
+  const activityProgress =
+    state === "converting" ? progressForCell(cell) : activity === "inactive" ? 0 : 1
+  const motif = motifForTerrain(terrain, state)
   if (terrain === "unknown") {
     return {
       fill: 0x74786e,
@@ -56,6 +63,9 @@ export function addCellVisualStyle(cell: GameCellPlacement): CellVisualStyle {
       accent: 0xa5a88f,
       highlight: 0xc3c8a9,
       shadow: 0x1a1d17,
+      activity,
+      activityProgress,
+      motif,
     }
   }
   if (state === "blocked") {
@@ -67,6 +77,9 @@ export function addCellVisualStyle(cell: GameCellPlacement): CellVisualStyle {
         accent: 0x9a7651,
         highlight: 0x6b5f50,
         shadow: 0x17130f,
+        activity,
+        activityProgress,
+        motif,
       }
     }
     if (terrain === "base_wall") {
@@ -77,6 +90,9 @@ export function addCellVisualStyle(cell: GameCellPlacement): CellVisualStyle {
         accent: 0x9bb7a4,
         highlight: 0x748177,
         shadow: 0x18211f,
+        activity,
+        activityProgress,
+        motif,
       }
     }
     return {
@@ -86,6 +102,9 @@ export function addCellVisualStyle(cell: GameCellPlacement): CellVisualStyle {
       accent: 0xb58a5c,
       highlight: 0xa18467,
       shadow: 0x25180f,
+      activity,
+      activityProgress,
+      motif,
     }
   }
 
@@ -132,7 +151,30 @@ export function addCellVisualStyle(cell: GameCellPlacement): CellVisualStyle {
     accent,
     highlight: 0xfff5d0,
     shadow: 0x1d2118,
+    activity,
+    activityProgress,
+    motif,
   }
+}
+
+function activityForState(state: ReturnType<typeof stateForCell>): CellVisualActivity {
+  if (state === "blocked") return "blocked"
+  if (state === "inactive") return "inactive"
+  if (state === "converting") return "transitioning"
+  return "active"
+}
+
+function motifForTerrain(
+  terrain: ReturnType<typeof terrainForCell>,
+  state: ReturnType<typeof stateForCell>,
+): CellVisualMotif {
+  if (terrain === "river") return "water"
+  if (terrain === "scrub") return "vegetation"
+  if (terrain === "ridge") return "ridge"
+  if (terrain === "mountain") return "peak"
+  if (terrain === "dungeon_wall" || terrain === "base_wall") return "wall"
+  if (terrain === "dungeon_floor" || terrain === "base_floor") return "floor"
+  return state === "blocked" ? "blocked" : "none"
 }
 
 export function addFogVisualStyle(cell: GameCellPlacement): FogVisualStyle {

@@ -12,10 +12,7 @@ import {
   dungeonLinksForCell,
   knownFactsInfo,
   presentationVisibilityStateForCell,
-  progressForCell,
-  stateForCell,
   stringMetadata,
-  terrainForCell,
   tileInteractionDetailForCoord,
   visibilityInfo,
   visibilityStateForCell,
@@ -404,7 +401,6 @@ export class AddRpgHexScene extends Phaser.Scene {
     for (const cell of context.terrainCells) {
       if (!this.cellPresentationPolicy.cellVisible(cell)) continue
       const center = centerFor(cell.coord, context)
-      const state = stateForCell(cell)
       const style = this.cellPresentationPolicy.cellStyle(cell)
 
       if (cell.coord.kind === "square") {
@@ -425,36 +421,34 @@ export class AddRpgHexScene extends Phaser.Scene {
   ): void {
     const topLeft = squareTopLeftFor(cell.coord as SquareCoord, context)
     const cellSize = squareCellSize(context)
-    const state = stateForCell(cell)
-    const terrain = terrainForCell(cell)
 
-    graphics.fillStyle(style.shadow, state === "blocked" ? 0.24 : 0.13)
+    graphics.fillStyle(style.shadow, style.activity === "blocked" ? 0.24 : 0.13)
     graphics.fillRect(topLeft.x + 2.8, topLeft.y + 4.2, cellSize - 3.4, cellSize - 3.4)
     graphics.fillStyle(style.fill, style.alpha)
     graphics.fillRect(topLeft.x + 1.2, topLeft.y + 1.2, cellSize - 2.4, cellSize - 2.4)
 
-    graphics.fillStyle(style.highlight, state === "inactive" ? 0.08 : 0.14)
+    graphics.fillStyle(style.highlight, style.activity === "inactive" ? 0.08 : 0.14)
     graphics.fillRect(topLeft.x + 3.8, topLeft.y + 3.8, cellSize - 7.6, Math.max(5, cellSize * 0.28))
 
-    if (state === "stabilized" || state === "converting") {
-      graphics.fillStyle(style.accent, state === "stabilized" ? 0.12 : 0.18)
+    if (style.activity === "active" || style.activity === "transitioning") {
+      graphics.fillStyle(style.accent, style.activity === "active" ? 0.12 : 0.18)
       graphics.fillRect(topLeft.x + 5.4, topLeft.y + 5.4, cellSize - 10.8, cellSize - 10.8)
     }
 
-    if (terrain === "dungeon_wall" || terrain === "base_wall") {
+    if (style.motif === "wall") {
       graphics.lineStyle(1.2, 0x1f211d, 0.26)
       for (let offset = 7; offset < cellSize - 4; offset += 9) {
         graphics.lineBetween(topLeft.x + offset, topLeft.y + 4, topLeft.x + offset - 7, topLeft.y + cellSize - 5)
       }
-    } else if (terrain === "dungeon_floor" || terrain === "base_floor") {
+    } else if (style.motif === "floor") {
       graphics.lineStyle(1, style.stroke, 0.18)
       graphics.lineBetween(topLeft.x + 6, center.y, topLeft.x + cellSize - 6, center.y)
       graphics.lineBetween(center.x, topLeft.y + 6, center.x, topLeft.y + cellSize - 6)
     }
 
-    graphics.lineStyle(1.2, style.stroke, state === "blocked" ? 0.72 : 0.42)
+    graphics.lineStyle(1.2, style.stroke, style.activity === "blocked" ? 0.72 : 0.42)
     graphics.strokeRect(topLeft.x + 1.2, topLeft.y + 1.2, cellSize - 2.4, cellSize - 2.4)
-    if (state !== "inactive" && state !== "blocked") {
+    if (style.activity !== "inactive" && style.activity !== "blocked") {
       graphics.fillStyle(style.accent, 0.52)
       graphics.fillCircle(center.x, center.y, 2.4)
     }
@@ -469,23 +463,24 @@ export class AddRpgHexScene extends Phaser.Scene {
     style: CellStyle,
   ): void {
     const radius = context.map.topology.kind === "hex" ? context.map.topology.radius : DEFAULT_RADIUS
-    const state = stateForCell(cell)
-    const progress = progressForCell(cell)
     const edge = context.bubbleEdgeCoords.has(addMapCoordKey(cell.coord))
 
     drawHexPath(graphics, { x: center.x + 2, y: center.y + 4 }, radius - 1.2)
-    graphics.fillStyle(style.shadow, state === "inactive" ? 0.10 : 0.18)
+    graphics.fillStyle(style.shadow, style.activity === "inactive" ? 0.10 : 0.18)
     graphics.fillPath()
     drawHexPath(graphics, center, radius - 1.2)
     graphics.fillStyle(style.fill, style.alpha)
     graphics.fillPath()
     drawHexPath(graphics, { x: center.x - 2, y: center.y - 2 }, radius - 7)
-    graphics.fillStyle(style.highlight, state === "inactive" ? 0.08 : 0.15)
+    graphics.fillStyle(style.highlight, style.activity === "inactive" ? 0.08 : 0.15)
     graphics.fillPath()
 
-    if (state === "stabilized" || state === "converting") {
+    if (style.activity === "active" || style.activity === "transitioning") {
       drawHexPath(graphics, center, radius - 4)
-      graphics.fillStyle(style.accent, state === "stabilized" ? 0.20 : 0.08 + progress * 0.30)
+      graphics.fillStyle(
+        style.accent,
+        style.activity === "active" ? 0.20 : 0.08 + style.activityProgress * 0.30,
+      )
       graphics.fillPath()
     }
 
@@ -494,7 +489,7 @@ export class AddRpgHexScene extends Phaser.Scene {
     graphics.lineStyle(edge ? 2.4 : 1.2, edge ? 0x45c8ff : style.stroke, edge ? 0.88 : 0.52)
     graphics.strokePath()
 
-    if (state !== "inactive" && state !== "blocked") {
+    if (style.activity !== "inactive" && style.activity !== "blocked") {
       graphics.fillStyle(edge ? 0x45c8ff : style.accent, edge ? 0.82 : 0.48)
       graphics.fillCircle(center.x, center.y, edge ? 3.8 : 2.4)
     }
@@ -544,32 +539,31 @@ export class AddRpgHexScene extends Phaser.Scene {
     radius: number,
     style: CellStyle,
   ): void {
-    const terrain = terrainForCell(cell)
-    if (terrain === "river") {
+    if (style.motif === "water") {
       graphics.lineStyle(3.2, 0xc8ecf0, 0.52)
       graphics.lineBetween(center.x - radius * 0.45, center.y + 3, center.x + radius * 0.36, center.y - 4)
       graphics.lineStyle(1.4, 0x508fa4, 0.56)
       graphics.lineBetween(center.x - radius * 0.5, center.y + 7, center.x + radius * 0.42, center.y)
       return
     }
-    if (terrain === "scrub") {
+    if (style.motif === "vegetation") {
       graphics.fillStyle(0x7d8c55, 0.45)
       graphics.fillCircle(center.x - 7, center.y + 4, 2.3)
       graphics.fillCircle(center.x + 6, center.y - 3, 1.9)
       graphics.fillCircle(center.x + 2, center.y + 8, 1.6)
       return
     }
-    if (terrain === "ridge" || terrain === "mountain") {
+    if (style.motif === "ridge" || style.motif === "peak") {
       graphics.lineStyle(1.4, 0x6e604e, 0.42)
       graphics.lineBetween(center.x - 9, center.y + 6, center.x, center.y - 8)
       graphics.lineBetween(center.x, center.y - 8, center.x + 9, center.y + 5)
-      if (terrain === "mountain") {
+      if (style.motif === "peak") {
         graphics.fillStyle(0xf0ead0, 0.42)
         graphics.fillTriangle(center.x - 3, center.y - 3, center.x, center.y - 8, center.x + 3, center.y - 3)
       }
       return
     }
-    if (stateForCell(cell) === "blocked") {
+    if (style.activity === "blocked") {
       graphics.lineStyle(1, style.stroke, 0.25)
       graphics.lineBetween(center.x - 9, center.y - 5, center.x + 9, center.y + 5)
       graphics.lineBetween(center.x - 8, center.y + 6, center.x + 8, center.y - 6)
@@ -832,8 +826,8 @@ export class AddRpgHexScene extends Phaser.Scene {
     const phase = this.frameCount / 42
     for (const cell of context.terrainCells) {
       if (!this.cellPresentationPolicy.cellVisible(cell)) continue
-      const state = stateForCell(cell)
-      if (state === "inactive" || state === "blocked") continue
+      const style = this.cellPresentationPolicy.cellStyle(cell)
+      if (style.activity === "inactive" || style.activity === "blocked") continue
       const center = centerFor(cell.coord, context)
       const seed = hashCoord(cell.coord)
       const drift = Math.sin(phase + seed * 0.07)

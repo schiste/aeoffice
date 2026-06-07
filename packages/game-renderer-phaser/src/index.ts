@@ -59,6 +59,8 @@ export {
 } from "./renderer/policies"
 export type {
   CellPresentationPolicy,
+  CellVisualActivity,
+  CellVisualMotif,
   CellVisualStyle,
   FogVisualStyle,
   TopologyNavigationInput,
