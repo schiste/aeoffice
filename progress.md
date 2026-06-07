@@ -218,6 +218,10 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   systems: the tuning model owns body radius, analog curve, and corner-slide
   assist, client prediction uses those values, and the development world server
   can receive matching movement tuning through a dev-only route.
+- Dungeon entity identity is no longer tied to cell coordinates. Mutable
+  entities can declare stable `instanceId`s, static fallback entities use
+  occurrence-based ids, duplicate instance ids are validated, and Studio rats now
+  have explicit stable ids so future save/combat state can survive layout edits.
 - ADD Phaser neutralization step 5 is underway: `game-renderer-phaser` now
   exposes neutral cell presentation, interaction, and topology navigation policy
   contracts plus a policy-driven `GameMapCellRenderer` for square/hex maps.

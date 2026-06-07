@@ -29,6 +29,7 @@ const blueprint = {
       feature: "creature",
       entity: {
         idSuffix: "rat",
+        instanceId: "tutorial-rat",
         label: "Rat",
         kind: "creature",
         visualFootprint: { unit: "cell", width: 0.3, height: 0.3 },
@@ -63,12 +64,13 @@ const wallCount = terrain.cells.filter((cell) => cell.blocked).length
 assert.equal(collision.cells.length, wallCount)
 assert.ok(wallCount > 0, "demo dungeon should have walls")
 
-// Entities are coord-suffixed; the entrance auto-entity and a sub-tile creature.
-assert.ok(map.entities.some((entity) => entity.id === "test.dungeon.demo.entity.entrance.1.1"))
-const rat = map.entities.find((entity) => entity.id === "test.dungeon.demo.entity.rat.3.1")
+// Entities use stable instance ids; fallback ids are occurrence-based, not coordinate-based.
+assert.ok(map.entities.some((entity) => entity.id === "test.dungeon.demo.entity.entrance.1"))
+const rat = map.entities.find((entity) => entity.id === "test.dungeon.demo.entity.tutorial-rat")
 assert.ok(rat, "rat creature entity should exist at its coord")
 assert.equal(rat.kind, "creature")
 assert.deepEqual(rat.visualFootprint, { unit: "cell", width: 0.3, height: 0.3 })
+assert.equal(rat.metadata.entityInstanceId, "tutorial-rat")
 
 // The exit link rides on the entrance cell.
 const entranceCell = terrain.cells.find((cell) => cell.coord.x === 1 && cell.coord.y === 1)
@@ -98,5 +100,25 @@ const bad = validateDungeonBlueprint({
 })
 assert.equal(bad.valid, false)
 assert.ok(bad.errors.length > 0)
+
+const duplicateEntityIds = validateDungeonBlueprint({
+  id: "test.dungeon.duplicates",
+  grid: [">EE"],
+  legend: {
+    ">": { kind: "floor", entrance: true },
+    E: {
+      kind: "floor",
+      entity: {
+        idSuffix: "rat",
+        instanceId: "same-rat",
+        label: "Rat",
+      },
+    },
+  },
+})
+assert.equal(duplicateEntityIds.valid, false)
+assert.ok(
+  duplicateEntityIds.errors.some((error) => error.includes("test.dungeon.duplicates.entity.same-rat")),
+)
 
 console.log("game-dungeon: all assertions passed")

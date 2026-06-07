@@ -35,6 +35,12 @@ export type DungeonCellKind = "wall" | "floor"
 /** A landmark/entity placed on a glyph's cell. */
 export interface DungeonEntitySpec {
   readonly idSuffix: string
+  /**
+   * Stable identity for mutable entities such as creatures, loot, or damaged
+   * props. If omitted, the compiler creates an occurrence-based id suitable
+   * for static decoration.
+   */
+  readonly instanceId?: string
   readonly label: string
   readonly kind?: string
   readonly visualFootprint?: GameEntityFootprint
@@ -44,6 +50,12 @@ export interface DungeonEntitySpec {
   readonly sourceId?: string
   readonly tags?: readonly string[]
   readonly metadata?: GameMetadata
+}
+
+const ENTRANCE_ENTITY_SPEC: DungeonEntitySpec = {
+  idSuffix: "entrance",
+  label: "Entrance",
+  sourceId: "entrance",
 }
 
 /** An outgoing cell link (e.g. an exit back to the overworld). */
@@ -120,6 +132,8 @@ interface DungeonDimensions {
   readonly height: number
 }
 
+type EntityOccurrenceCounters = Map<string, number>
+
 function dimensions(grid: readonly string[]): DungeonDimensions {
   return { width: grid[0]?.length ?? 0, height: grid.length }
 }
@@ -160,6 +174,8 @@ export function validateDungeonBlueprint(
   })
 
   let entranceCount = 0
+  const entityOccurrences: EntityOccurrenceCounters = new Map()
+  const entityIds = new Set<string>()
   blueprint.grid.forEach((row, y) => {
     for (let x = 0; x < row.length; x += 1) {
       const glyph = row[x]
@@ -176,6 +192,18 @@ export function validateDungeonBlueprint(
       }
       if (spec.entity && spec.entity.idSuffix.trim() === "") {
         errors.push(`Entity at (${x},${y}) has an empty idSuffix.`)
+      }
+      if (spec.entity?.instanceId !== undefined && spec.entity.instanceId.trim() === "") {
+        errors.push(`Entity at (${x},${y}) has an empty instanceId.`)
+      }
+      const entityForCell = spec.entity ?? (spec.entrance ? ENTRANCE_ENTITY_SPEC : undefined)
+      if (entityForCell) {
+        const occurrence = nextEntityOccurrence(entityForCell, entityOccurrences)
+        const entityId = compiledDungeonEntityId(blueprint.id, entityForCell, occurrence)
+        if (entityIds.has(entityId)) {
+          errors.push(`Entity id "${entityId}" is duplicated at (${x},${y}).`)
+        }
+        entityIds.add(entityId)
       }
       if (spec.link && spec.link.idSuffix.trim() === "") {
         errors.push(`Link at (${x},${y}) has an empty idSuffix.`)
@@ -208,6 +236,7 @@ export function compileDungeon(blueprint: DungeonBlueprint): GameMap {
   const { width, height } = dimensions(blueprint.grid)
   const cells: GameCellPlacement[] = []
   const entities: GameEntity[] = []
+  const entityOccurrences: EntityOccurrenceCounters = new Map()
   let entrance: SquareCoord | null = null
 
   for (let y = 0; y < blueprint.grid.length; y += 1) {
@@ -240,14 +269,23 @@ export function compileDungeon(blueprint: DungeonBlueprint): GameMap {
       if (spec.entrance && !entrance) entrance = coord
 
       if (spec.entity) {
-        entities.push(compileEntity(blueprint.id, spec.entity, coord, spec.feature))
+        entities.push(
+          compileEntity(
+            blueprint.id,
+            spec.entity,
+            coord,
+            spec.feature,
+            nextEntityOccurrence(spec.entity, entityOccurrences),
+          ),
+        )
       } else if (spec.entrance) {
         entities.push(
           compileEntity(
             blueprint.id,
-            { idSuffix: "entrance", label: "Entrance", sourceId: "entrance" },
+            ENTRANCE_ENTITY_SPEC,
             coord,
             spec.feature,
+            nextEntityOccurrence(ENTRANCE_ENTITY_SPEC, entityOccurrences),
           ),
         )
       }
@@ -332,10 +370,11 @@ function compileEntity(
   entity: DungeonEntitySpec,
   coord: SquareCoord,
   feature: string | undefined,
+  occurrence: number,
 ): GameEntity {
+  const instanceId = dungeonEntityInstanceId(entity, occurrence)
   return {
-    // Coord-suffixed so the same legend glyph can place several entities.
-    id: `${blueprintId}.entity.${entity.idSuffix}.${coord.x}.${coord.y}`,
+    id: compiledDungeonEntityId(blueprintId, entity, occurrence),
     kind: entity.kind ?? "landmark",
     label: entity.label,
     coord,
@@ -345,10 +384,38 @@ function compileEntity(
     ...(entity.renderScale !== undefined ? { renderScale: entity.renderScale } : {}),
     tags: entity.tags ?? ["dungeon"],
     metadata: mergeMetadata(
-      { sourceId: entity.sourceId ?? entity.idSuffix, feature: feature ?? "none" },
+      {
+        sourceId: entity.sourceId ?? entity.idSuffix,
+        entityInstanceId: instanceId,
+        feature: feature ?? "none",
+      },
       entity.metadata,
     ),
   }
+}
+
+function nextEntityOccurrence(
+  entity: Pick<DungeonEntitySpec, "idSuffix">,
+  counters: EntityOccurrenceCounters,
+): number {
+  const next = (counters.get(entity.idSuffix) ?? 0) + 1
+  counters.set(entity.idSuffix, next)
+  return next
+}
+
+function dungeonEntityInstanceId(
+  entity: Pick<DungeonEntitySpec, "idSuffix" | "instanceId">,
+  occurrence: number,
+): string {
+  return entity.instanceId ?? `${entity.idSuffix}.${occurrence}`
+}
+
+function compiledDungeonEntityId(
+  blueprintId: string,
+  entity: Pick<DungeonEntitySpec, "idSuffix" | "instanceId">,
+  occurrence: number,
+): string {
+  return `${blueprintId}.entity.${dungeonEntityInstanceId(entity, occurrence)}`
 }
 
 function compileRoom(blueprint: DungeonBlueprint, room: DungeonRoomSpec): GameZone {

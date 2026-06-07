@@ -33,19 +33,24 @@ const ENTRANCE: DungeonCellSpec = {
   link: EXIT_LINK,
 }
 
-// A sub-tile creature: a rat is ~a third of a tile. Multiple may share the
-// legend glyph; compileDungeon gives each a coord-unique id.
-const RAT: DungeonCellSpec = {
-  kind: "floor",
-  feature: "creature",
-  entity: {
-    idSuffix: "rat",
-    label: "Rat",
-    kind: "creature",
-    visualFootprint: { unit: "cell", width: 0.35, height: 0.35 },
-    sourceId: "rat",
-  },
+function ratCell(instanceId: string): DungeonCellSpec {
+  return {
+    kind: "floor",
+    feature: "creature",
+    entity: {
+      idSuffix: "rat",
+      instanceId,
+      label: "Rat",
+      kind: "creature",
+      visualFootprint: { unit: "cell", width: 0.35, height: 0.35 },
+      sourceId: "rat",
+    },
+  }
 }
+
+const RAT_A = ratCell("studio-rat-a")
+const RAT_B = ratCell("studio-rat-b")
+const RAT_C = ratCell("studio-rat-c")
 
 const STUDIO_RESTORED_BLUEPRINT: DungeonBlueprint = {
   id: STUDIO_DUNGEON_MAP_ID,
@@ -57,9 +62,9 @@ const STUDIO_RESTORED_BLUEPRINT: DungeonBlueprint = {
     "#..........#",
     "#.C......E.#",
     "#..........#",
-    "#....rr....#",
+    "#....ab....#",
     "#..........#",
-    "#.B......r.#",
+    "#.B......d.#",
     "#..........#",
     "#####>######",
   ],
@@ -67,7 +72,9 @@ const STUDIO_RESTORED_BLUEPRINT: DungeonBlueprint = {
     "#": WALL,
     ".": FLOOR,
     ">": ENTRANCE,
-    r: RAT,
+    a: RAT_A,
+    b: RAT_B,
+    d: RAT_C,
     C: {
       kind: "floor",
       feature: "console",
@@ -112,15 +119,17 @@ const STUDIO_RUINED_BLUEPRINT: DungeonBlueprint = {
     "#....xx....#",
     "#..x....x..#",
     "#....xx....#",
-    "#.x.rr..x..#",
-    "#..x.r...x.#",
+    "#.x.ab..x..#",
+    "#..x.d...x.#",
     "#####>######",
   ],
   legend: {
     "#": WALL,
     ".": FLOOR,
     ">": ENTRANCE,
-    r: RAT,
+    a: RAT_A,
+    b: RAT_B,
+    d: RAT_C,
     x: {
       kind: "wall",
       feature: "rubble",
