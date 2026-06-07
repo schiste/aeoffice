@@ -3,7 +3,11 @@ import type { CellCoord, SquareCoord, Vector2 } from "@aedventure/game-topology"
 import { validateGameWorld, type GameCellPlacement, type GameEntity, type GameWorld } from "@aedventure/game-world"
 import {
   GameMapCellRenderer,
+  WorldCellInteractionRenderer,
   WorldEntityRenderer,
+  type WorldCellInteractionAffordance,
+  type WorldCellInteractionSelection,
+  type WorldCellInteractionZone,
   type WorldEntityRenderState,
 } from "@aedventure/game-renderer-phaser"
 import {
@@ -84,11 +88,10 @@ export class AddRpgHexScene extends Phaser.Scene {
   private readonly worldInteractionPolicy = createAddWorldInteractionPolicy()
   private readonly navigationPolicy = createAddTopologyNavigationPolicy()
   private cellRenderer?: GameMapCellRenderer
+  private cellInteractionRenderer?: WorldCellInteractionRenderer
   private characterRenderer?: WorldEntityRenderer
-  private terrainDecorationGraphics?: Phaser.GameObjects.Graphics
   private ambienceGraphics?: Phaser.GameObjects.Graphics
   private fogGraphics?: Phaser.GameObjects.Graphics
-  private overlayGraphics?: Phaser.GameObjects.Graphics
   private transitionGraphics?: Phaser.GameObjects.Graphics
   private landmarkObjects: Phaser.GameObjects.GameObject[] = []
   private pendingWorld?: GameWorld
@@ -133,16 +136,13 @@ export class AddRpgHexScene extends Phaser.Scene {
 
   create(): void {
     this.cellRenderer = new GameMapCellRenderer(this)
+    this.cellInteractionRenderer = new WorldCellInteractionRenderer(this)
     this.characterRenderer = new WorldEntityRenderer(this)
-    this.terrainDecorationGraphics = this.add.graphics()
     this.ambienceGraphics = this.add.graphics()
     this.fogGraphics = this.add.graphics()
-    this.overlayGraphics = this.add.graphics()
     this.transitionGraphics = this.add.graphics()
-    this.terrainDecorationGraphics.setDepth(2)
     this.ambienceGraphics.setDepth(10)
     this.fogGraphics.setDepth(12)
-    this.overlayGraphics.setDepth(30)
     this.transitionGraphics.setDepth(80)
     this.transitionGraphics.setScrollFactor(0)
     this.ready = true
@@ -393,6 +393,7 @@ export class AddRpgHexScene extends Phaser.Scene {
       this.previousVisibilityStates.clear()
       this.revealTransitions.clear()
       this.travelRevealTrail.clear()
+      this.cellInteractionRenderer?.clear()
       this.characterRenderer?.clear()
     }
 
@@ -423,60 +424,6 @@ export class AddRpgHexScene extends Phaser.Scene {
       emphasizedCoordKeys: context.bubbleEdgeCoords,
       style: "painterly",
     })
-    this.drawTerrainDecorations(context)
-  }
-
-  private drawTerrainDecorations(context: RenderContext): void {
-    const graphics = this.terrainDecorationGraphics
-    if (!graphics) return
-    graphics.clear()
-
-    for (const cell of context.terrainCells) {
-      if (!this.cellPresentationPolicy.cellVisible(cell)) continue
-      const center = centerFor(cell.coord, context)
-      if (!hasDungeonLinks(cell)) continue
-      const size =
-        cell.coord.kind === "square"
-          ? squareCellSize(context) * 0.62
-          : (context.map.topology.kind === "hex" ? context.map.topology.radius : DEFAULT_RADIUS) * 0.86
-      this.drawDungeonLinkGlyph(graphics, center, size)
-    }
-  }
-
-  private drawDungeonLinkGlyph(
-    graphics: Phaser.GameObjects.Graphics,
-    center: Vector2,
-    size: number,
-  ): void {
-    const width = Math.max(11, size * 0.42)
-    const height = Math.max(12, size * 0.48)
-    const y = center.y + size * 0.08
-    graphics.fillStyle(0x1e1612, 0.34)
-    graphics.fillEllipse(center.x, y + height * 0.54, width * 1.45, height * 0.42)
-    graphics.fillStyle(0x9b5637, 0.88)
-    graphics.fillTriangle(
-      center.x - width * 0.62,
-      y + height * 0.12,
-      center.x,
-      y - height * 0.58,
-      center.x + width * 0.62,
-      y + height * 0.12,
-    )
-    graphics.fillRect(center.x - width * 0.55, y + height * 0.04, width * 1.1, height * 0.54)
-    graphics.lineStyle(2.2, 0x4b2a1d, 0.82)
-    graphics.strokeTriangle(
-      center.x - width * 0.62,
-      y + height * 0.12,
-      center.x,
-      y - height * 0.58,
-      center.x + width * 0.62,
-      y + height * 0.12,
-    )
-    graphics.strokeRect(center.x - width * 0.55, y + height * 0.04, width * 1.1, height * 0.54)
-    graphics.fillStyle(0x241611, 0.78)
-    graphics.fillEllipse(center.x, y + height * 0.18, width * 0.54, height * 0.55)
-    graphics.lineStyle(1.2, 0xf0b95d, 0.55)
-    graphics.strokeEllipse(center.x, y + height * 0.18, width * 0.62, height * 0.64)
   }
 
   private drawLandmarks(context: RenderContext): void {
@@ -1072,39 +1019,18 @@ export class AddRpgHexScene extends Phaser.Scene {
   }
 
   private drawOverlay(): void {
-    const graphics = this.overlayGraphics
     const context = this.context
-    if (!graphics || !context) return
-    graphics.clear()
-
-    this.drawBubbleEffects(context)
-    if (this.hoveredCoord) {
-      this.drawSelectionCell(this.hoveredCoord, 0xffffff, 0.7, 2)
-    }
-    if (this.selectedCoord) {
-      this.drawSelectionCell(this.selectedCoord, 0xe3a64a, 0.95, 3)
-    }
+    if (!context) return
+    this.cellInteractionRenderer?.render(context.map, {
+      origin: context.origin,
+      depth: 30,
+      frameCount: this.frameCount,
+      presentationPolicy: this.cellPresentationPolicy,
+      zones: this.interactionZoneRenderStates(context),
+      affordances: this.interactionAffordanceRenderStates(context),
+      selections: this.interactionSelectionRenderStates(),
+    })
     this.drawTransitionOverlay()
-  }
-
-  private drawBubbleEffects(context: RenderContext): void {
-    const graphics = this.overlayGraphics
-    if (!graphics || context.topologyKind !== "hex") return
-    const radius = context.map.topology.kind === "hex" ? context.map.topology.radius : DEFAULT_RADIUS
-    const pulse = (Math.sin(this.frameCount / 18) + 1) / 2
-
-    for (const key of context.bubbleEdgeCoords) {
-      const cell = context.terrainByCoord.get(key)
-      if (!cell || cell.coord.kind !== "hex") continue
-      if (!this.cellPresentationPolicy.cellVisible(cell)) continue
-      const center = centerFor(cell.coord, context)
-      drawHexPath(graphics, center, radius + 1.5 + pulse * 3.2)
-      graphics.lineStyle(1.2, 0x63dcff, 0.20 + pulse * 0.20)
-      graphics.strokePath()
-      drawHexPath(graphics, center, radius - 5)
-      graphics.fillStyle(0x7ee6ff, 0.035 + pulse * 0.035)
-      graphics.fillPath()
-    }
   }
 
   private drawTransitionOverlay(): void {
@@ -1120,27 +1046,83 @@ export class AddRpgHexScene extends Phaser.Scene {
     graphics.fillRect(0, 0, this.scale.width, Math.max(4, this.scale.height * 0.08 * remaining))
   }
 
-  private drawSelectionCell(
-    coord: CellCoord,
-    color: number,
-    alpha: number,
-    lineWidth: number,
-  ): void {
-    if (!this.overlayGraphics || !this.context) return
-    const cell = this.context.terrainByCoord.get(addMapCoordKey(coord))
-    if (cell && !this.cellPresentationPolicy.cellVisible(cell)) return
-    if (coord.kind === "square") {
-      const topLeft = squareTopLeftFor(coord, this.context)
-      const cellSize = squareCellSize(this.context)
-      this.overlayGraphics.lineStyle(lineWidth, color, alpha)
-      this.overlayGraphics.strokeRect(topLeft.x, topLeft.y, cellSize, cellSize)
-      return
+  private interactionSelectionRenderStates(): readonly WorldCellInteractionSelection[] {
+    const selections: WorldCellInteractionSelection[] = []
+    if (this.hoveredCoord && !sameCoord(this.hoveredCoord, this.selectedCoord)) {
+      selections.push({
+        coord: this.hoveredCoord,
+        kind: "hover",
+        color: 0xffffff,
+        alpha: 0.7,
+        lineWidth: 2,
+      })
+    }
+    if (this.selectedCoord) {
+      selections.push({
+        coord: this.selectedCoord,
+        kind: "selection",
+        color: 0xe3a64a,
+        alpha: 0.95,
+        lineWidth: 3,
+      })
+    }
+    return selections
+  }
+
+  private interactionZoneRenderStates(
+    context: RenderContext,
+  ): readonly WorldCellInteractionZone[] {
+    return [...context.bubbleEdgeCoords]
+      .map((key) => context.terrainByCoord.get(key))
+      .filter((cell): cell is GameCellPlacement => Boolean(cell))
+      .map((cell) => ({
+        id: `bubble-edge:${addMapCoordKey(cell.coord)}`,
+        coord: cell.coord,
+        kind: "boundary",
+        color: 0x63dcff,
+        alpha: 0.20,
+      }))
+  }
+
+  private interactionAffordanceRenderStates(
+    context: RenderContext,
+  ): readonly WorldCellInteractionAffordance[] {
+    const affordances: WorldCellInteractionAffordance[] = []
+    for (const cell of context.terrainCells) {
+      if (!hasDungeonLinks(cell)) continue
+      const links = dungeonLinksForCoord(cell.coord, context).map(dungeonLinkInfo)
+      affordances.push({
+        id: `portal:${addMapCoordKey(cell.coord)}`,
+        coord: cell.coord,
+        kind: "portal",
+        label: links.map((link) => link.label).join(", ") || "Linked area",
+        actionLabel: "Enter",
+        enabled: links.some((link) => link.enabled),
+        emphasis: "subtle",
+      })
     }
 
-    const radius = this.context.map.topology.kind === "hex" ? this.context.map.topology.radius : DEFAULT_RADIUS
-    drawHexPath(this.overlayGraphics, centerFor(coord, this.context), radius + 1.8)
-    this.overlayGraphics.lineStyle(lineWidth, color, alpha)
-    this.overlayGraphics.strokePath()
+    const primaryCoord = this.selectedCoord ?? this.hoveredCoord
+    if (!primaryCoord) return affordances
+    const primaryCell = context.terrainByCoord.get(addMapCoordKey(primaryCoord))
+    const primaryInteraction = this.worldInteractionPolicy.interactionForCell(
+      primaryCoord,
+      primaryCell,
+    )
+    if (!primaryInteraction) return affordances
+
+    const portal = primaryInteraction.metadata?.dungeonActionsVisible === true
+    affordances.push({
+      id: `primary:${primaryInteraction.id}`,
+      coord: primaryCoord,
+      kind: portal ? "portal" : "inspect",
+      label: primaryInteraction.label,
+      actionLabel: portal ? "Enter" : "Inspect",
+      enabled: primaryInteraction.enabled,
+      emphasis: "primary",
+      color: portal ? 0xe3a64a : 0x2f8f63,
+    })
+    return affordances
   }
 
   private fitCameraToContext(context: RenderContext): void {

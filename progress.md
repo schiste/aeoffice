@@ -2425,3 +2425,16 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   @aedventure/game-renderer-phaser run test`, exact renderer leakage `rg`,
   `npm run smoke:add-rpg`, `npm run qa:renderer`, `npm run smoke:engine-sandbox`,
   and `npm run check`.
+- ADD interaction and zone presentation now uses the shared neutral
+  `WorldCellInteractionRenderer`. The ADD scene provides selected/hovered
+  cells, bubble-edge zone cells, and semantic affordances such as linked-area
+  entry labels; the renderer owns square/hex outline drawing, pulsing zone
+  presentation, portal/action glyphs, crisp action marker labels, and overlay
+  cleanup. This removes local dungeon glyph, bubble edge, and selection outline
+  drawing from `add-world-scene.ts` without adding ADD terminology to
+  `game-renderer-phaser`. Focused verification passed with
+  `npm --workspace @aedventure/game-renderer-phaser run build`,
+  `npm --workspace @aedventure/add-rpg run build:types`, `npm --workspace
+  @aedventure/game-renderer-phaser run test`, exact renderer leakage `rg`,
+  `npm run smoke:add-rpg`, `npm run qa:renderer`, and
+  `npm run smoke:engine-sandbox`.

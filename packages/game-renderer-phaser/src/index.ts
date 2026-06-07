@@ -20,6 +20,19 @@ export {
   type WorldEntityRendererInfo,
   type WorldEntityRenderState,
 } from "./shared/world-entity-renderer"
+export {
+  WorldCellInteractionRenderer,
+  emptyWorldCellInteractionRendererInfo,
+  type WorldCellInteractionAffordance,
+  type WorldCellInteractionAffordanceEmphasis,
+  type WorldCellInteractionAffordanceKind,
+  type WorldCellInteractionRendererInfo,
+  type WorldCellInteractionRenderOptions,
+  type WorldCellInteractionSelection,
+  type WorldCellInteractionSelectionKind,
+  type WorldCellInteractionZone,
+  type WorldCellInteractionZoneKind,
+} from "./shared/world-cell-interaction-renderer"
 export { ZoneRenderer } from "./shared/zone-renderer"
 export { CameraController } from "./shared/camera-controller"
 export { DomWorldOverlayRenderer } from "./renderer/dom-world-overlay-renderer"
