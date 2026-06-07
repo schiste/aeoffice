@@ -1,6 +1,7 @@
 import Phaser from "phaser"
 import type { CellCoord, SquareCoord, Vector2 } from "@aedventure/game-topology"
 import { validateGameWorld, type GameCellPlacement, type GameEntity, type GameWorld } from "@aedventure/game-world"
+import { GameMapCellRenderer } from "@aedventure/game-renderer-phaser"
 import {
   addMapCoordKey,
   createAddCellPresentationPolicy,
@@ -66,7 +67,6 @@ import {
   type AddCharacterTravelEvent,
   type AddPhaserMapInfo,
   type AddRpgPhaserMapHostOptions,
-  type CellStyle,
   type CharacterMoveStatus,
   type CharacterObjectSet,
   type CharacterTravelState,
@@ -80,7 +80,8 @@ export class AddRpgHexScene extends Phaser.Scene {
   private readonly cellPresentationPolicy = createAddCellPresentationPolicy()
   private readonly worldInteractionPolicy = createAddWorldInteractionPolicy()
   private readonly navigationPolicy = createAddTopologyNavigationPolicy()
-  private terrainGraphics?: Phaser.GameObjects.Graphics
+  private cellRenderer?: GameMapCellRenderer
+  private terrainDecorationGraphics?: Phaser.GameObjects.Graphics
   private ambienceGraphics?: Phaser.GameObjects.Graphics
   private fogGraphics?: Phaser.GameObjects.Graphics
   private overlayGraphics?: Phaser.GameObjects.Graphics
@@ -128,12 +129,13 @@ export class AddRpgHexScene extends Phaser.Scene {
   }
 
   create(): void {
-    this.terrainGraphics = this.add.graphics()
+    this.cellRenderer = new GameMapCellRenderer(this)
+    this.terrainDecorationGraphics = this.add.graphics()
     this.ambienceGraphics = this.add.graphics()
     this.fogGraphics = this.add.graphics()
     this.overlayGraphics = this.add.graphics()
     this.transitionGraphics = this.add.graphics()
-    this.terrainGraphics.setDepth(0)
+    this.terrainDecorationGraphics.setDepth(2)
     this.ambienceGraphics.setDepth(10)
     this.fogGraphics.setDepth(12)
     this.overlayGraphics.setDepth(30)
@@ -394,106 +396,32 @@ export class AddRpgHexScene extends Phaser.Scene {
   }
 
   private drawTerrain(context: RenderContext): void {
-    const graphics = this.terrainGraphics
+    this.cellRenderer?.render(context.map, {
+      origin: context.origin,
+      depth: 0,
+      presentationPolicy: this.cellPresentationPolicy,
+      layerKinds: ["terrain"],
+      emphasizedCoordKeys: context.bubbleEdgeCoords,
+      style: "painterly",
+    })
+    this.drawTerrainDecorations(context)
+  }
+
+  private drawTerrainDecorations(context: RenderContext): void {
+    const graphics = this.terrainDecorationGraphics
     if (!graphics) return
     graphics.clear()
 
     for (const cell of context.terrainCells) {
       if (!this.cellPresentationPolicy.cellVisible(cell)) continue
       const center = centerFor(cell.coord, context)
-      const style = this.cellPresentationPolicy.cellStyle(cell)
-
-      if (cell.coord.kind === "square") {
-        this.drawSquareTerrainCell(graphics, cell, context, center, style)
-        continue
-      }
-
-      this.drawHexTerrainCell(graphics, cell, context, center, style)
+      if (!hasDungeonLinks(cell)) continue
+      const size =
+        cell.coord.kind === "square"
+          ? squareCellSize(context) * 0.62
+          : (context.map.topology.kind === "hex" ? context.map.topology.radius : DEFAULT_RADIUS) * 0.86
+      this.drawDungeonLinkGlyph(graphics, center, size)
     }
-  }
-
-  private drawSquareTerrainCell(
-    graphics: Phaser.GameObjects.Graphics,
-    cell: GameCellPlacement,
-    context: RenderContext,
-    center: Vector2,
-    style: CellStyle,
-  ): void {
-    const topLeft = squareTopLeftFor(cell.coord as SquareCoord, context)
-    const cellSize = squareCellSize(context)
-
-    graphics.fillStyle(style.shadow, style.activity === "blocked" ? 0.24 : 0.13)
-    graphics.fillRect(topLeft.x + 2.8, topLeft.y + 4.2, cellSize - 3.4, cellSize - 3.4)
-    graphics.fillStyle(style.fill, style.alpha)
-    graphics.fillRect(topLeft.x + 1.2, topLeft.y + 1.2, cellSize - 2.4, cellSize - 2.4)
-
-    graphics.fillStyle(style.highlight, style.activity === "inactive" ? 0.08 : 0.14)
-    graphics.fillRect(topLeft.x + 3.8, topLeft.y + 3.8, cellSize - 7.6, Math.max(5, cellSize * 0.28))
-
-    if (style.activity === "active" || style.activity === "transitioning") {
-      graphics.fillStyle(style.accent, style.activity === "active" ? 0.12 : 0.18)
-      graphics.fillRect(topLeft.x + 5.4, topLeft.y + 5.4, cellSize - 10.8, cellSize - 10.8)
-    }
-
-    if (style.motif === "wall") {
-      graphics.lineStyle(1.2, 0x1f211d, 0.26)
-      for (let offset = 7; offset < cellSize - 4; offset += 9) {
-        graphics.lineBetween(topLeft.x + offset, topLeft.y + 4, topLeft.x + offset - 7, topLeft.y + cellSize - 5)
-      }
-    } else if (style.motif === "floor") {
-      graphics.lineStyle(1, style.stroke, 0.18)
-      graphics.lineBetween(topLeft.x + 6, center.y, topLeft.x + cellSize - 6, center.y)
-      graphics.lineBetween(center.x, topLeft.y + 6, center.x, topLeft.y + cellSize - 6)
-    }
-
-    graphics.lineStyle(1.2, style.stroke, style.activity === "blocked" ? 0.72 : 0.42)
-    graphics.strokeRect(topLeft.x + 1.2, topLeft.y + 1.2, cellSize - 2.4, cellSize - 2.4)
-    if (style.activity !== "inactive" && style.activity !== "blocked") {
-      graphics.fillStyle(style.accent, 0.52)
-      graphics.fillCircle(center.x, center.y, 2.4)
-    }
-    if (hasDungeonLinks(cell)) this.drawDungeonLinkGlyph(graphics, center, cellSize * 0.62)
-  }
-
-  private drawHexTerrainCell(
-    graphics: Phaser.GameObjects.Graphics,
-    cell: GameCellPlacement,
-    context: RenderContext,
-    center: Vector2,
-    style: CellStyle,
-  ): void {
-    const radius = context.map.topology.kind === "hex" ? context.map.topology.radius : DEFAULT_RADIUS
-    const edge = context.bubbleEdgeCoords.has(addMapCoordKey(cell.coord))
-
-    drawHexPath(graphics, { x: center.x + 2, y: center.y + 4 }, radius - 1.2)
-    graphics.fillStyle(style.shadow, style.activity === "inactive" ? 0.10 : 0.18)
-    graphics.fillPath()
-    drawHexPath(graphics, center, radius - 1.2)
-    graphics.fillStyle(style.fill, style.alpha)
-    graphics.fillPath()
-    drawHexPath(graphics, { x: center.x - 2, y: center.y - 2 }, radius - 7)
-    graphics.fillStyle(style.highlight, style.activity === "inactive" ? 0.08 : 0.15)
-    graphics.fillPath()
-
-    if (style.activity === "active" || style.activity === "transitioning") {
-      drawHexPath(graphics, center, radius - 4)
-      graphics.fillStyle(
-        style.accent,
-        style.activity === "active" ? 0.20 : 0.08 + style.activityProgress * 0.30,
-      )
-      graphics.fillPath()
-    }
-
-    this.drawTerrainMotif(graphics, cell, center, radius, style)
-    drawHexPath(graphics, center, radius - (edge ? 2.2 : 1.2))
-    graphics.lineStyle(edge ? 2.4 : 1.2, edge ? 0x45c8ff : style.stroke, edge ? 0.88 : 0.52)
-    graphics.strokePath()
-
-    if (style.activity !== "inactive" && style.activity !== "blocked") {
-      graphics.fillStyle(edge ? 0x45c8ff : style.accent, edge ? 0.82 : 0.48)
-      graphics.fillCircle(center.x, center.y, edge ? 3.8 : 2.4)
-    }
-    if (hasDungeonLinks(cell)) this.drawDungeonLinkGlyph(graphics, center, radius * 0.86)
   }
 
   private drawDungeonLinkGlyph(
@@ -530,44 +458,6 @@ export class AddRpgHexScene extends Phaser.Scene {
     graphics.fillEllipse(center.x, y + height * 0.18, width * 0.54, height * 0.55)
     graphics.lineStyle(1.2, 0xf0b95d, 0.55)
     graphics.strokeEllipse(center.x, y + height * 0.18, width * 0.62, height * 0.64)
-  }
-
-  private drawTerrainMotif(
-    graphics: Phaser.GameObjects.Graphics,
-    cell: GameCellPlacement,
-    center: Vector2,
-    radius: number,
-    style: CellStyle,
-  ): void {
-    if (style.motif === "water") {
-      graphics.lineStyle(3.2, 0xc8ecf0, 0.52)
-      graphics.lineBetween(center.x - radius * 0.45, center.y + 3, center.x + radius * 0.36, center.y - 4)
-      graphics.lineStyle(1.4, 0x508fa4, 0.56)
-      graphics.lineBetween(center.x - radius * 0.5, center.y + 7, center.x + radius * 0.42, center.y)
-      return
-    }
-    if (style.motif === "vegetation") {
-      graphics.fillStyle(0x7d8c55, 0.45)
-      graphics.fillCircle(center.x - 7, center.y + 4, 2.3)
-      graphics.fillCircle(center.x + 6, center.y - 3, 1.9)
-      graphics.fillCircle(center.x + 2, center.y + 8, 1.6)
-      return
-    }
-    if (style.motif === "ridge" || style.motif === "peak") {
-      graphics.lineStyle(1.4, 0x6e604e, 0.42)
-      graphics.lineBetween(center.x - 9, center.y + 6, center.x, center.y - 8)
-      graphics.lineBetween(center.x, center.y - 8, center.x + 9, center.y + 5)
-      if (style.motif === "peak") {
-        graphics.fillStyle(0xf0ead0, 0.42)
-        graphics.fillTriangle(center.x - 3, center.y - 3, center.x, center.y - 8, center.x + 3, center.y - 3)
-      }
-      return
-    }
-    if (style.activity === "blocked") {
-      graphics.lineStyle(1, style.stroke, 0.25)
-      graphics.lineBetween(center.x - 9, center.y - 5, center.x + 9, center.y + 5)
-      graphics.lineBetween(center.x - 8, center.y + 6, center.x + 8, center.y - 6)
-    }
   }
 
   private drawLandmarks(context: RenderContext): void {

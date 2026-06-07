@@ -2395,3 +2395,14 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   while `game_data.rs` remains the stable facade for shared types, lookup
   functions, entity schemas, presentations, UI elements, and balance data.
   Verification passed with `cargo check -p add-core` and `npm run smoke:add-rpg`.
+- ADD Phaser neutralization step 6 has started replacing custom scene internals
+  with shared renderer modules. `GameMapCellRenderer` now has a neutral
+  painterly mode for square/hex terrain cells, motifs, shadows, highlights, and
+  emphasized edge cells. `AddRpgPhaserMapHost` wires that renderer with ADD
+  presentation policies and keeps only the ADD-specific dungeon-link glyph
+  overlay locally. Verification passed with `npm --workspace
+  @aedventure/game-renderer-phaser run build`, `npm --workspace
+  @aedventure/add-rpg run build:types`, `npm --workspace
+  @aedventure/game-renderer-phaser run test`, `npm run smoke:add-rpg`, and
+  `npm run qa:renderer`. The generic develop-web-game client remains blocked
+  by its own missing `playwright` package before browser launch.
