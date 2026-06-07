@@ -1,7 +1,11 @@
 import Phaser from "phaser"
 import type { CellCoord, SquareCoord, Vector2 } from "@aedventure/game-topology"
 import { validateGameWorld, type GameCellPlacement, type GameEntity, type GameWorld } from "@aedventure/game-world"
-import { GameMapCellRenderer } from "@aedventure/game-renderer-phaser"
+import {
+  GameMapCellRenderer,
+  WorldEntityRenderer,
+  type WorldEntityRenderState,
+} from "@aedventure/game-renderer-phaser"
 import {
   addMapCoordKey,
   createAddCellPresentationPolicy,
@@ -68,7 +72,6 @@ import {
   type AddPhaserMapInfo,
   type AddRpgPhaserMapHostOptions,
   type CharacterMoveStatus,
-  type CharacterObjectSet,
   type CharacterTravelState,
   type RenderContext,
   type TravelRevealPreview,
@@ -81,13 +84,13 @@ export class AddRpgHexScene extends Phaser.Scene {
   private readonly worldInteractionPolicy = createAddWorldInteractionPolicy()
   private readonly navigationPolicy = createAddTopologyNavigationPolicy()
   private cellRenderer?: GameMapCellRenderer
+  private characterRenderer?: WorldEntityRenderer
   private terrainDecorationGraphics?: Phaser.GameObjects.Graphics
   private ambienceGraphics?: Phaser.GameObjects.Graphics
   private fogGraphics?: Phaser.GameObjects.Graphics
   private overlayGraphics?: Phaser.GameObjects.Graphics
   private transitionGraphics?: Phaser.GameObjects.Graphics
   private landmarkObjects: Phaser.GameObjects.GameObject[] = []
-  private characterObjects?: CharacterObjectSet
   private pendingWorld?: GameWorld
   private context?: RenderContext
   private ready = false
@@ -130,6 +133,7 @@ export class AddRpgHexScene extends Phaser.Scene {
 
   create(): void {
     this.cellRenderer = new GameMapCellRenderer(this)
+    this.characterRenderer = new WorldEntityRenderer(this)
     this.terrainDecorationGraphics = this.add.graphics()
     this.ambienceGraphics = this.add.graphics()
     this.fogGraphics = this.add.graphics()
@@ -245,6 +249,20 @@ export class AddRpgHexScene extends Phaser.Scene {
         accepted: false,
         blockedReason: "outside_map",
       }
+      this.refreshInfo()
+      return false
+    }
+    // Bumping a closed door opens it (authoritative toggle) instead of moving;
+    // the next step enters once the new snapshot marks it open.
+    if (nextCell.metadata?.door === true && nextCell.metadata?.doorOpen !== true) {
+      this.characterFacing = direction
+      this.characterMoveStatus = {
+        direction,
+        accepted: false,
+        blockedReason: "opening_door",
+      }
+      this.hostOptions.onDoorToggle?.(nextCoord)
+      this.drawOverlay()
       this.refreshInfo()
       return false
     }
@@ -375,6 +393,7 @@ export class AddRpgHexScene extends Phaser.Scene {
       this.previousVisibilityStates.clear()
       this.revealTransitions.clear()
       this.travelRevealTrail.clear()
+      this.characterRenderer?.clear()
     }
 
     this.context = createRenderContext(map, this.scale.width, this.scale.height)
@@ -529,7 +548,6 @@ export class AddRpgHexScene extends Phaser.Scene {
       this.characterPosition = center
     }
     this.characterTarget = center
-    this.ensureMainCharacterObjects()
     this.updateMainCharacterObjects()
   }
 
@@ -580,44 +598,33 @@ export class AddRpgHexScene extends Phaser.Scene {
     this.updateMainCharacterObjects()
   }
 
-  private ensureMainCharacterObjects(): void {
-    if (this.characterObjects) return
-
-    const shadow = this.add.ellipse(0, 0, 24, 8, 0x101815, 0.25)
-    const body = this.add.ellipse(0, 0, 18, 22, 0x2f7d68, 0.98)
-    const head = this.add.ellipse(0, 0, 12, 12, 0xf1d0a5, 0.98)
-    const scarf = this.add.triangle(0, 0, 0, -8, 14, 0, 0, 8, 0xe6a84e, 0.96)
-    const label = this.add.text(0, 0, "Hero", {
-      color: "#16221e",
-      fontFamily: "Aptos, Segoe UI, sans-serif",
-      fontSize: "12px",
-      fontStyle: "800",
-      align: "center",
-      backgroundColor: "rgba(255, 250, 226, 0.9)",
-      stroke: "rgba(255, 255, 255, 0.54)",
-      strokeThickness: 2,
-      padding: { x: 6, y: 3 },
+  private updateMainCharacterObjects(): void {
+    if (!this.characterRenderer || !this.characterPosition) return
+    this.characterRenderer.updateEntities([this.mainCharacterRenderState()], {
+      frameCount: this.frameCount,
     })
-    setCrispText(label)
-    label.setOrigin(0.5, 0.5)
-
-    shadow.setDepth(44)
-    body.setDepth(45)
-    head.setDepth(46)
-    scarf.setDepth(47)
-    label.setDepth(48)
-    this.characterObjects = { shadow, body, head, scarf, label }
   }
 
-  private updateMainCharacterObjects(): void {
-    if (!this.characterObjects || !this.characterPosition) return
-    const { x, y } = this.characterPosition
-    const bob = Math.sin(this.frameCount / 5) * (this.characterIsMoving() ? 1.8 : 0.5)
-    this.characterObjects.shadow.setPosition(x, y + 14)
-    this.characterObjects.body.setPosition(x, y + 2 + bob)
-    this.characterObjects.head.setPosition(x, y - 12 + bob)
-    this.characterObjects.scarf.setPosition(x + 7, y + 1 + bob)
-    this.characterObjects.label.setPosition(x, y - 36 + bob * 0.35)
+  private mainCharacterRenderState(): WorldEntityRenderState {
+    return {
+      id: "add-main-character",
+      label: "Hero",
+      position: this.characterPosition ?? { x: 0, y: 0 },
+      facing: this.characterFacing,
+      moving: this.characterIsMoving(),
+      visible: true,
+      depthBase: 44,
+      appearance: {
+        bodyFill: 0x2f7d68,
+        bodyStroke: 0x145244,
+        headFill: 0xf1d0a5,
+        accentFill: 0xe6a84e,
+        shadowFill: 0x101815,
+        labelColor: "#16221e",
+        labelBackgroundColor: "rgba(255, 250, 226, 0.9)",
+        labelStroke: "rgba(255, 255, 255, 0.54)",
+      },
+    }
   }
 
   private characterIsMoving(): boolean {

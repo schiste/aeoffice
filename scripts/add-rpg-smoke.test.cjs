@@ -735,10 +735,13 @@ async function exerciseMainCharacterMovement(page, consoleErrors) {
     consoleErrors,
   )
   await page.locator("#travel-dialog-venture").click()
-  await assertTravelRevealPreview(page, consoleErrors)
   const minimumArrivalClockSeconds = before.snapshot.clockSeconds + 59
   const observedTravelClockTimes = new Set()
   const observedTravelRevealProgress = new Set()
+  await assertTravelRevealPreview(page, consoleErrors, {
+    observedTravelClockTimes,
+    observedTravelRevealProgress,
+  })
   const moved = await waitForTextState(
     page,
     (state) => {
@@ -1025,18 +1028,32 @@ async function assertNonBlankFogMapScreenshot(page, state) {
   )
 }
 
-async function assertTravelRevealPreview(page, consoleErrors) {
+async function assertTravelRevealPreview(page, consoleErrors, observations = {}) {
+  const { observedTravelClockTimes, observedTravelRevealProgress } = observations
   const state = await waitForTextState(
     page,
-    (candidate) =>
-      candidate.map?.character?.moving === true &&
-      candidate.map?.visibility?.travelRevealPreviewActive === true &&
-      candidate.map.visibility.travelRevealPreviewCells > 0 &&
-      candidate.map.visibility.travelRevealPreviewProgress > 0 &&
-      candidate.map.visibility.travelRevealPreviewProgress < 1 &&
-      candidate.map.visibility.travelRevealDestinationCell === candidate.map.travel.toCell,
+    (candidate) => {
+      collectTravelAnimationObservation(
+        candidate,
+        observedTravelClockTimes,
+        observedTravelRevealProgress,
+      )
+      return (
+        candidate.map?.character?.moving === true &&
+        candidate.map?.visibility?.travelRevealPreviewActive === true &&
+        candidate.map.visibility.travelRevealPreviewCells > 0 &&
+        candidate.map.visibility.travelRevealPreviewProgress > 0 &&
+        candidate.map.visibility.travelRevealPreviewProgress < 1 &&
+        candidate.map.visibility.travelRevealDestinationCell === candidate.map.travel.toCell
+      )
+    },
     consoleErrors,
     2600,
+  )
+  await collectTravelAnimationObservations(
+    page,
+    observedTravelClockTimes,
+    observedTravelRevealProgress,
   )
   await assertNonBlankNamedMapScreenshot(
     page,
@@ -1044,6 +1061,35 @@ async function assertTravelRevealPreview(page, consoleErrors) {
     "ADD RPG in-travel fog reveal screenshot",
   )
   return state
+}
+
+async function collectTravelAnimationObservations(
+  page,
+  observedTravelClockTimes,
+  observedTravelRevealProgress,
+) {
+  if (!observedTravelClockTimes && !observedTravelRevealProgress) return
+  for (let sample = 0; sample < 5; sample += 1) {
+    await page.waitForTimeout(80)
+    collectTravelAnimationObservation(
+      await renderGameToText(page),
+      observedTravelClockTimes,
+      observedTravelRevealProgress,
+    )
+  }
+}
+
+function collectTravelAnimationObservation(
+  state,
+  observedTravelClockTimes,
+  observedTravelRevealProgress,
+) {
+  if (state.ui?.worldTime?.animating && state.ui.worldTime.localTime) {
+    observedTravelClockTimes?.add(state.ui.worldTime.localTime)
+  }
+  if (state.map?.visibility?.travelRevealPreviewActive) {
+    observedTravelRevealProgress?.add(state.map.visibility.travelRevealPreviewProgress)
+  }
 }
 
 async function assertNonBlankNamedMapScreenshot(page, filename, label) {

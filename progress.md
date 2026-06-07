@@ -2414,3 +2414,14 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   renderer boundary test is part of `npm run check`. Acceptance verification
   passed with `npm run smoke:add-rpg`, `npm run smoke:engine-sandbox`, `npm run
   qa:renderer`, and `npm run check`.
+- ADD character rendering now routes through the shared neutral
+  `WorldEntityRenderer` in `@aedventure/game-renderer-phaser`. The ADD scene
+  provides entity position, label, facing, travel state, and appearance policy;
+  the shared renderer owns shadow/body/head/label placement, depth, and
+  interpolation-ready frame hooks. `AddRpgPhaserMapHost` no longer defines the
+  Hero display object set locally. Verification passed with
+  `npm --workspace @aedventure/game-renderer-phaser run build`,
+  `npm --workspace @aedventure/add-rpg run build:types`, `npm --workspace
+  @aedventure/game-renderer-phaser run test`, exact renderer leakage `rg`,
+  `npm run smoke:add-rpg`, `npm run qa:renderer`, `npm run smoke:engine-sandbox`,
+  and `npm run check`.

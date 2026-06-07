@@ -1,7 +1,5 @@
-import type Phaser from "phaser"
 import type { CellCoord, GridTopology, HexCoord, SquareCoord, Vector2 } from "@aedventure/game-topology"
 import type { GameCellPlacement, GameMap } from "@aedventure/game-world"
-import type { CellVisualStyle } from "@aedventure/game-renderer-phaser"
 import type {
   AddCellState,
   AddDungeonLinkInfo,
@@ -41,6 +39,8 @@ export interface AddCharacterTravelEvent {
 export interface AddRpgPhaserMapHostOptions {
   readonly onBeforeCharacterTravel?: (event: AddCharacterTravelEvent) => boolean | Promise<boolean>
   readonly onCharacterTravel?: (event: AddCharacterTravelEvent) => void
+  /** Bumping a closed door requests it be opened (authoritative toggle). */
+  readonly onDoorToggle?: (coord: CellCoord) => void
 }
 
 export interface AddPhaserMapInfo {
@@ -186,14 +186,6 @@ export interface RenderContext {
   readonly survivorCaveCoord: CellCoord | null
 }
 
-export interface CharacterObjectSet {
-  readonly shadow: Phaser.GameObjects.Ellipse
-  readonly body: Phaser.GameObjects.Ellipse
-  readonly head: Phaser.GameObjects.Ellipse
-  readonly scarf: Phaser.GameObjects.Triangle
-  readonly label: Phaser.GameObjects.Text
-}
-
 export interface CharacterMoveStatus {
   readonly direction: string | null
   readonly accepted: boolean | null
@@ -222,8 +214,6 @@ export interface StateCounts {
   readonly stabilized: number
   readonly blocked: number
 }
-
-export type CellStyle = CellVisualStyle
 
 export interface TravelRevealPreview {
   readonly active: boolean

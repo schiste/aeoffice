@@ -11,6 +11,15 @@ export {
 } from "./square/square-tilemap-renderer"
 export { ObjectRenderer } from "./renderer/object-renderer"
 export { AvatarRenderer, EntityRenderer } from "./shared/entity-renderer"
+export {
+  WorldEntityRenderer,
+  emptyWorldEntityRendererInfo,
+  type WorldEntityAppearance,
+  type WorldEntityFacing,
+  type WorldEntityRenderFrame,
+  type WorldEntityRendererInfo,
+  type WorldEntityRenderState,
+} from "./shared/world-entity-renderer"
 export { ZoneRenderer } from "./shared/zone-renderer"
 export { CameraController } from "./shared/camera-controller"
 export { DomWorldOverlayRenderer } from "./renderer/dom-world-overlay-renderer"

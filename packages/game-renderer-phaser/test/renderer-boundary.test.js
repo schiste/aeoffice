@@ -72,6 +72,7 @@ for (const exportedName of [
   "InteractionRenderer",
   "RendererTelemetry",
   "GameMapCellRenderer",
+  "WorldEntityRenderer",
   "HexCellRenderer",
   "HexZoneRenderer",
   "HexLandmarkRenderer",
