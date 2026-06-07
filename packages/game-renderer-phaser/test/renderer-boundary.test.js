@@ -22,12 +22,26 @@ const forbiddenTerms = [
   "Wikimedia",
 ]
 
+const forbiddenProductPatterns = [
+  ["AddTerrain", /AddTerrain/],
+  ["AddTravel", /AddTravel/],
+  ["dungeon.studio", /dungeon\.studio/],
+  ["Survivor Cave", /Survivor Cave/],
+  ["toxic", /toxic/i],
+]
+
 for (const filePath of sourceFiles(sourceRoot)) {
   const source = fs.readFileSync(filePath, "utf8")
   for (const forbidden of forbiddenTerms) {
     assert.ok(
       !new RegExp(`\\b${forbidden}\\b`, "i").test(source),
       `${path.relative(packageRoot, filePath)} must stay domain-neutral; found ${forbidden}.`,
+    )
+  }
+  for (const [label, pattern] of forbiddenProductPatterns) {
+    assert.ok(
+      !pattern.test(source),
+      `${path.relative(packageRoot, filePath)} must stay product-neutral; found ${label}.`,
     )
   }
 }

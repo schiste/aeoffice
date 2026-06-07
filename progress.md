@@ -2406,3 +2406,11 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   @aedventure/game-renderer-phaser run test`, `npm run smoke:add-rpg`, and
   `npm run qa:renderer`. The generic develop-web-game client remains blocked
   by its own missing `playwright` package before browser launch.
+- Renderer boundary hardening now explicitly rejects ADD-specific leakage in
+  `packages/game-renderer-phaser/src`, including `AddTerrain`, `AddTravel`,
+  `dungeon.studio`, `Survivor Cave`, and `toxic`. The exact `rg
+  "AddTerrain|AddTravel|dungeon.studio|Survivor Cave|toxic"
+  packages/game-renderer-phaser/src` check returns no matches, and the automated
+  renderer boundary test is part of `npm run check`. Acceptance verification
+  passed with `npm run smoke:add-rpg`, `npm run smoke:engine-sandbox`, `npm run
+  qa:renderer`, and `npm run check`.
