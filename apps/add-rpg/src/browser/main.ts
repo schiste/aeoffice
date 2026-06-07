@@ -8,6 +8,8 @@ import {
   selectAddUiState,
   selectAddWorldTimeForClockSeconds,
   workerRequestForAddCommand,
+  applyDungeonFieldOfView,
+  emptyDungeonVisibility,
   STUDIO_DUNGEON_MAP_ID,
   type AddUiState,
   type AddFirstPlayableAction,
@@ -24,10 +26,6 @@ import {
   createAddWorldForMapMode,
   type AddMapMode,
 } from "./add-map-modes"
-import {
-  applyDungeonFieldOfView,
-  emptyDungeonVisibility,
-} from "./dungeon-fov"
 import type { VisibilityMap } from "@aedventure/game-visibility"
 import {
   AddRpgPhaserMapHost,
