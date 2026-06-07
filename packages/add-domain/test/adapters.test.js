@@ -5,6 +5,7 @@ const {
   addVisibilityAllowsDynamicDetails,
   addVisibilityAllowsVagueHints,
   addSnapshotToGameWorld,
+  ADD_FIRST_PLAYABLE_SCRIPT,
   ADD_TRAVEL_GAME_MINUTES_PER_TILE,
   ADD_TRAVEL_RUNTIME_SECONDS_PER_TILE,
   createAddCatalogIndexes,
@@ -13,6 +14,7 @@ const {
   createAddWorldInteractionPolicy,
   selectAddVisibilitySummary,
   selectAddTile,
+  selectAddFirstPlayableSummary,
   selectAddUiState,
   selectAddWorldTimeForClockSeconds,
   workerRequestForAddCommand,
@@ -223,6 +225,26 @@ assert.equal(
   ui.availableWorldActions.find((action) => action.id === "world_action.hero_only").enabled,
   false,
 )
+assert.deepEqual(
+  ADD_FIRST_PLAYABLE_SCRIPT.map((step) => step.id),
+  [
+    "reach-base",
+    "assign-hero-crew",
+    "investigate-base",
+    "explore-base",
+    "generate-resources",
+    "restore-studio",
+    "build-fire-pit",
+    "bubble-reach",
+    "unlock-recruitment",
+    "recruit-once",
+  ],
+)
+const firstPlayable = selectAddFirstPlayableSummary(snapshot, catalog)
+assert.equal(firstPlayable.totalCount, ADD_FIRST_PLAYABLE_SCRIPT.length)
+assert.equal(firstPlayable.currentStepId, "reach-base")
+assert.equal(firstPlayable.steps[0].action.type, "choose_story_option")
+assert.deepEqual(ui.firstPlayable, firstPlayable)
 
 function createCatalogFixture() {
   return {

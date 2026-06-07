@@ -222,6 +222,10 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   entities can declare stable `instanceId`s, static fallback entities use
   occurrence-based ids, duplicate instance ids are validated, and Studio rats now
   have explicit stable ids so future save/combat state can survive layout edits.
+- ADD first-playable progression is now data-driven in
+  `first-playable-script` instead of embedded in `ui-selectors`. The selector
+  projects the evaluated summary, while the script owns ordered steps,
+  evaluators, and generated actions.
 - ADD Phaser neutralization step 5 is underway: `game-renderer-phaser` now
   exposes neutral cell presentation, interaction, and topology navigation policy
   contracts plus a policy-driven `GameMapCellRenderer` for square/hex maps.

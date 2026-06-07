@@ -19,9 +19,11 @@ export const ADD_DOMAIN_BOUNDARY: AddDomainBoundary = {
 
 export * from "./runtime/client"
 export * from "./runtime/protocol"
+export * from "./adapters/add-ids"
 export * from "./adapters/catalog-selectors"
 export * from "./adapters/command-mapping"
 export * from "./adapters/dungeon-fov"
+export * from "./adapters/first-playable-script"
 export * from "./adapters/map-modes"
 export * from "./adapters/map-presentation"
 export * from "./adapters/renderer-policies"

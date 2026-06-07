@@ -1,0 +1,20 @@
+export const RESOURCE_BASSLINE = "resource.bassline"
+export const RESOURCE_CHORUS = "resource.chorus"
+export const RESOURCE_HARMONICS = "resource.harmonics"
+export const RESOURCE_STONE = "resource.stone"
+export const RESOURCE_WATER = "resource.water"
+export const RESOURCE_VIBES = "resource.vibes"
+
+export const ROLE_CRYSTAL_BASSLINE = "role.crystal_bassline"
+export const ROLE_CRYSTAL_CHORUS = "role.crystal_chorus"
+export const ROLE_CRYSTAL_HARMONICS = "role.crystal_harmonics"
+export const ROLE_CONSTRUCTION = "role.construction"
+export const ROLE_FIRE_PIT = "role.fire_pit"
+export const ROLE_SCAVENGE = "role.scavenge"
+export const ROLE_WATER = "role.water"
+
+export const PROJECT_RESTORE_STUDIO = "project.restore_studio"
+export const PROJECT_BUILD_FIRE_PIT = "project.build_fire_pit"
+
+export const WORLD_ACTION_INVESTIGATE_BASE = "world_action.investigate_base"
+export const WORLD_ACTION_EXPLORE_BASE = "world_action.explore_base"
