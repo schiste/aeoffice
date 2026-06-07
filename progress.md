@@ -226,6 +226,10 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   `first-playable-script` instead of embedded in `ui-selectors`. The selector
   projects the evaluated summary, while the script owns ordered steps,
   evaluators, and generated actions.
+- ADD browser telemetry now flows through a typed `add-telemetry-presenter`.
+  `render_game_to_text` still exposes the same smoke-friendly contract, but the
+  Solid shell only supplies presenter inputs instead of assembling JSON directly
+  from internal signals.
 - ADD Phaser neutralization step 5 is underway: `game-renderer-phaser` now
   exposes neutral cell presentation, interaction, and topology navigation policy
   contracts plus a policy-driven `GameMapCellRenderer` for square/hex maps.

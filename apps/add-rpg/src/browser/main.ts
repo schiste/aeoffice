@@ -2,7 +2,6 @@ import { createEffect, createMemo, createSignal, onCleanup, onMount } from "soli
 import html from "solid-js/html"
 import { render } from "solid-js/web"
 import {
-  ADD_DOMAIN_BOUNDARY,
   SimulationClient,
   addCommandForGameInteraction,
   selectAddUiState,
@@ -16,7 +15,6 @@ import {
   addMapModeLabel,
   createAddWorldForMapMode,
   type AddUiState,
-  type AddFirstPlayableAction,
   type AddMapMode,
   type AddWorldTimeSummary,
   type CatalogSnapshot,
@@ -32,7 +30,15 @@ import {
   type AddPhaserMapInfo,
 } from "./phaser-add-map"
 import {
-  ADD_AUTOSAVE_STORAGE_KEY,
+  createAddRuntimeTextState,
+  type RuntimeTextState,
+  type AddTelemetryTravelDialogEligibility as TravelDialogEligibility,
+  type AddTelemetryTravelDialogEligibilityReason as TravelDialogEligibilityReason,
+  type AddTelemetryTravelDialogKind as TravelDialogKind,
+  type AddTelemetryTravelDramaState as TravelDramaState,
+  type AddTelemetryTravelExperience as TravelExperience,
+} from "./add-telemetry-presenter"
+import {
   clearAutosave,
   createSaveRecord,
   formatDuration,
@@ -73,41 +79,6 @@ interface QuestPanelPosition {
   readonly y: number
 }
 
-interface TravelExperience {
-  readonly phase: "traveling" | "arrived"
-  readonly event: AddCharacterTravelEvent
-  readonly fromClockSeconds: number
-  readonly toClockSeconds: number
-  readonly fromTime: AddWorldTimeSummary
-  readonly toTime: AddWorldTimeSummary
-  readonly startedAtMs: number
-  readonly arrivalAtMs: number
-  readonly runtimeSynced: boolean
-  readonly toxicityBefore: number
-  readonly toxicityAfter: number | null
-}
-
-type TravelDramaState = "fresh" | "declined_once" | "complete"
-type TravelDialogKind =
-  | "first_warning"
-  | "second_warning"
-  | "first_declined"
-  | "dramatic_reprise"
-type TravelDialogEligibilityReason =
-  | "opening_reach_base_from_survivor_cave"
-  | "already_complete"
-  | "missing_state"
-  | "not_overworld"
-  | "not_reach_base_step"
-  | "missing_survivor_cave"
-  | "not_survivor_cave_start"
-  | "not_leaving_survivor_cave"
-
-interface TravelDialogEligibility {
-  readonly eligible: boolean
-  readonly reason: TravelDialogEligibilityReason
-}
-
 interface TravelDialogState {
   readonly kind: TravelDialogKind
   readonly event: AddCharacterTravelEvent
@@ -123,205 +94,6 @@ interface ClockAnimationState {
   readonly durationMs: number
   readonly clockStepMs: number
   readonly reason: string
-}
-
-interface RuntimeTextState {
-  readonly app: "add-rpg"
-  readonly coordinateSystem: "active ADD map mode projected through Phaser"
-  readonly shell: {
-    readonly framework: "solid"
-    readonly surface: "fullscreen_map_shell"
-    readonly hostsPhaserMap: boolean
-    readonly adminOpen: boolean
-    readonly questPanel: {
-      readonly collapsed: boolean
-      readonly x: number
-      readonly y: number
-    }
-  }
-  readonly boundary: typeof ADD_DOMAIN_BOUNDARY
-  readonly runtime: {
-    readonly workerBoundary: "ui-worker-rust-wasm-snapshot"
-    readonly ready: boolean
-    readonly snapshotReceived: boolean
-    readonly catalogReceived: boolean
-    readonly autoTick: boolean
-    readonly timeSpeed: number
-    readonly online: boolean
-    readonly lastEvent: string
-    readonly lastCommand: string | null
-    readonly error: string | null
-  }
-  readonly snapshot: {
-    readonly clockSeconds: number
-    readonly hexCount: number
-    readonly stabilizedHexes: number
-    readonly discoveredCellCount: number
-    readonly discoveredCells: readonly string[]
-    readonly heroMap: string
-    readonly heroAssigned: boolean
-    readonly activeWorldAction: string | null
-    readonly resources: {
-      readonly bassline: number
-      readonly chorus: number
-      readonly harmonics: number
-      readonly stone: number
-      readonly water: number
-      readonly vibes: number
-    }
-    readonly base: {
-      readonly tutorialInvestigated: boolean
-      readonly tutorialExplored: boolean
-      readonly studioRestoreUnlocked: boolean
-      readonly studioRestored: boolean
-      readonly firePitBuilt: boolean
-      readonly bunksCapacity: number
-      readonly freeBunks: number
-    }
-    readonly roster: {
-      readonly heroRoleId: string
-      readonly totalCrew: number
-      readonly crewByRole: Record<string, number>
-    }
-    readonly heroSurvival: {
-      readonly location: string
-      readonly viralLoadRatio: number
-      readonly debuffTier: number
-      readonly movementSpeedMultiplier: number
-      readonly encounterRateMultiplier: number
-      readonly forcedReturnPhase: string | null
-    }
-    readonly bubble: {
-      readonly reachFromBase: number
-      readonly fieldBudget: number
-      readonly targetRing: number
-      readonly frontierProgress: number
-    }
-    readonly recruitment: {
-      readonly totalRecruitedThisRun: number
-      readonly pendingCount: number
-      readonly nextRecruitCost: number
-    }
-    readonly activeConstruction: {
-      readonly optionId: string
-      readonly remainingSeconds: number
-    } | null
-  } | null
-  readonly ui: {
-    readonly worldTime: {
-      readonly day: number
-      readonly referenceDate: string
-      readonly localTime: string
-      readonly season: string
-      readonly seasonLabel: string
-      readonly daylightPhase: string
-      readonly daylightRatio: number
-      readonly nightRatio: number
-      readonly sunrise: string
-      readonly sunset: string
-      readonly location: string
-      readonly source: string
-      readonly presentationClockSeconds: number
-      readonly authoritativeClockSeconds: number
-      readonly animating: boolean
-      readonly remainingMinutes: number
-    }
-    readonly resourceCount: number
-    readonly resourceFlows: readonly {
-      readonly id: string
-      readonly source: string
-      readonly sink: string
-      readonly blocker: string | null
-    }[]
-    readonly noteCount: number
-    readonly activeStoryBeatId: string | null
-    readonly storyChoiceIds: readonly string[]
-    readonly enabledWorldActionIds: readonly string[]
-    readonly roleAssignments: readonly {
-      readonly id: string
-      readonly available: boolean
-      readonly heroAssigned: boolean
-      readonly crewAssigned: number
-    }[]
-    readonly constructionOptions: readonly {
-      readonly id: string
-      readonly complete: boolean
-      readonly enabled: boolean
-      readonly inProgress: boolean
-      readonly blockedReason: string | null
-    }[]
-    readonly objectiveReachMet: boolean
-    readonly recruitmentEnabled: boolean
-    readonly firstPlayable: {
-      readonly complete: boolean
-      readonly completedCount: number
-      readonly totalCount: number
-      readonly currentStepId: string | null
-      readonly currentAction: AddFirstPlayableAction | null
-      readonly steps: readonly {
-        readonly id: string
-        readonly complete: boolean
-        readonly active: boolean
-        readonly actionLabel: string | null
-      }[]
-      readonly persistenceReady: boolean
-    }
-  } | null
-  readonly mapMode: {
-    readonly active: AddMapMode
-    readonly label: string
-    readonly available: readonly AddMapMode[]
-    readonly topology: "hex" | "square" | "unknown"
-    readonly fixture: boolean
-  }
-  readonly travel: {
-    readonly costGameMinutes: number
-    readonly costRuntimeSeconds: number
-    readonly presentationDurationMs: number
-    readonly clockStepMs: number
-    readonly active: boolean
-    readonly phase: "idle" | "preview" | "traveling" | "arrived"
-    readonly progress: number
-    readonly fromTime: string | null
-    readonly toTime: string | null
-    readonly destinationLabel: string | null
-    readonly exposureRisk: string | null
-    readonly runtimeSynced: boolean
-    readonly toxicityBefore: number | null
-    readonly toxicityAfter: number | null
-    readonly previewCell: string | null
-    readonly previewLabel: string | null
-    readonly previewAdjacent: boolean
-    readonly confirmation: {
-      readonly dramaState: TravelDramaState
-      readonly dialogOpen: boolean
-      readonly dialogKind: TravelDialogKind | null
-      readonly eligible: boolean
-      readonly reason: TravelDialogEligibilityReason
-    }
-  }
-  readonly map: AddPhaserMapInfo
-  readonly persistence: {
-    readonly storageKey: string
-    readonly autosaveEnabled: boolean
-    readonly autosaveAvailable: boolean
-    readonly lastAutosaveAtMs: number | null
-    readonly lastAutosaveClockSeconds: number | null
-    readonly lastAutosaveSource: AddSaveSource | null
-    readonly lastManualExportAtMs: number | null
-    readonly lastImportAtMs: number | null
-    readonly lastOfflineCatchupSeconds: number
-    readonly resetCount: number
-    readonly savePayloadLength: number
-    readonly status: string
-    readonly storageError: string | null
-  }
-  readonly catalog: {
-    readonly resourceCount: number
-    readonly roleCount: number
-    readonly tileCount: number
-    readonly worldActionCount: number
-  } | null
 }
 
 declare global {
@@ -2158,28 +1930,21 @@ function toTextState(): RuntimeTextState {
   const currentSnapshot = snapshot()
   const currentCatalog = catalog()
   const currentUi = uiState()
-  const currentDisplayedWorldTime = displayedWorldTime()
   const currentMapInfo = mapHost?.getInfo() ?? mapInfo()
-  return {
-    app: "add-rpg",
-    coordinateSystem: "active ADD map mode projected through Phaser",
-    shell: {
-      framework: "solid",
-      surface: "fullscreen_map_shell",
-      hostsPhaserMap: true,
-      adminOpen: adminOpen(),
-      questPanel: {
-        collapsed: firstPlayableCollapsed(),
-        x: questPanelPosition().x,
-        y: questPanelPosition().y,
-      },
-    },
-    boundary: ADD_DOMAIN_BOUNDARY,
+  return createAddRuntimeTextState({
+    snapshot: currentSnapshot,
+    catalog: currentCatalog,
+    ui: currentUi,
+    displayedWorldTime: displayedWorldTime(),
+    displayClockSeconds: displayClockSeconds(),
+    clockAnimation: clockAnimation(),
+    mapInfo: currentMapInfo,
+    mapMode: mapMode(),
+    adminOpen: adminOpen(),
+    firstPlayableCollapsed: firstPlayableCollapsed(),
+    questPanelPosition: questPanelPosition(),
     runtime: {
-      workerBoundary: "ui-worker-rust-wasm-snapshot",
       ready: ready(),
-      snapshotReceived: currentSnapshot !== null,
-      catalogReceived: currentCatalog !== null,
       autoTick: autoTick(),
       timeSpeed: timeSpeed(),
       online: online(),
@@ -2187,146 +1952,13 @@ function toTextState(): RuntimeTextState {
       lastCommand: lastCommand(),
       error: lastError(),
     },
-    snapshot: currentSnapshot
-      ? {
-          clockSeconds: Math.round(currentSnapshot.clockSeconds * 100) / 100,
-          hexCount: currentSnapshot.hexes.length,
-          stabilizedHexes: currentSnapshot.bubble.stabilizedHexes,
-          discoveredCellCount: currentSnapshot.discoveredCells.length,
-          discoveredCells: currentSnapshot.discoveredCells.map((coord) => `${coord.q},${coord.r}`),
-          heroMap: `${currentSnapshot.heroMap.q},${currentSnapshot.heroMap.r}`,
-          heroAssigned: currentSnapshot.roster.heroAssigned,
-          activeWorldAction: currentSnapshot.activeWorldAction?.actionId ?? null,
-          resources: {
-            bassline: currentSnapshot.resources.bassline,
-            chorus: currentSnapshot.resources.chorus,
-            harmonics: currentSnapshot.resources.harmonics,
-            stone: currentSnapshot.resources.stone,
-            water: currentSnapshot.resources.water,
-            vibes: currentSnapshot.resources.vibes,
-          },
-          base: {
-            tutorialInvestigated: currentSnapshot.base.tutorialInvestigated,
-            tutorialExplored: currentSnapshot.base.tutorialExplored,
-            studioRestoreUnlocked: currentSnapshot.base.studioRestoreUnlocked,
-            studioRestored: currentSnapshot.base.studioRestored,
-            firePitBuilt: currentSnapshot.base.firePitBuilt,
-            bunksCapacity: currentSnapshot.base.bunksCapacity,
-            freeBunks: currentSnapshot.base.freeBunks,
-          },
-          roster: {
-            heroRoleId: currentSnapshot.roster.heroRoleId,
-            totalCrew: currentSnapshot.roster.totalCrew,
-            crewByRole: stringNumberRecord(currentSnapshot.roster.crewByRole),
-          },
-          heroSurvival: {
-            location: currentSnapshot.heroSurvival.location,
-            viralLoadRatio: Math.round(currentSnapshot.heroSurvival.viralLoadRatio * 1000) / 1000,
-            debuffTier: currentSnapshot.heroSurvival.debuffTier,
-            movementSpeedMultiplier:
-              Math.round(currentSnapshot.heroSurvival.movementSpeedMultiplier * 1000) / 1000,
-            encounterRateMultiplier:
-              Math.round(currentSnapshot.heroSurvival.encounterRateMultiplier * 1000) / 1000,
-            forcedReturnPhase: currentSnapshot.heroSurvival.forcedReturn?.phase ?? null,
-          },
-          bubble: {
-            reachFromBase: currentSnapshot.bubble.reachFromBase,
-            fieldBudget: currentSnapshot.bubble.fieldBudget,
-            targetRing: currentSnapshot.bubble.targetRing,
-            frontierProgress: currentSnapshot.bubble.frontierProgress,
-          },
-          recruitment: {
-            totalRecruitedThisRun: currentSnapshot.recruitment.totalRecruitedThisRun,
-            pendingCount: currentSnapshot.recruitment.pendingRecruits.length,
-            nextRecruitCost: currentSnapshot.recruitment.nextRecruitCost,
-          },
-          activeConstruction: currentSnapshot.activeConstruction
-            ? {
-                optionId: currentSnapshot.activeConstruction.optionId,
-                remainingSeconds:
-                  Math.round(currentSnapshot.activeConstruction.remainingWorkSeconds * 100) / 100,
-              }
-            : null,
-        }
-      : null,
-    ui: currentUi
-      ? {
-          worldTime: {
-            day: (currentDisplayedWorldTime ?? currentUi.worldTime).day,
-            referenceDate: (currentDisplayedWorldTime ?? currentUi.worldTime).referenceDate,
-            localTime: (currentDisplayedWorldTime ?? currentUi.worldTime).localTime,
-            season: (currentDisplayedWorldTime ?? currentUi.worldTime).season,
-            seasonLabel: (currentDisplayedWorldTime ?? currentUi.worldTime).seasonLabel,
-            daylightPhase: (currentDisplayedWorldTime ?? currentUi.worldTime).daylightPhase,
-            daylightRatio: (currentDisplayedWorldTime ?? currentUi.worldTime).daylightRatio,
-            nightRatio: (currentDisplayedWorldTime ?? currentUi.worldTime).nightRatio,
-            sunrise: (currentDisplayedWorldTime ?? currentUi.worldTime).sunrise,
-            sunset: (currentDisplayedWorldTime ?? currentUi.worldTime).sunset,
-            location: (currentDisplayedWorldTime ?? currentUi.worldTime).location.label,
-            source: (currentDisplayedWorldTime ?? currentUi.worldTime).source,
-            presentationClockSeconds:
-              Math.round((displayClockSeconds() ?? currentSnapshot?.clockSeconds ?? 0) * 100) / 100,
-            authoritativeClockSeconds:
-              Math.round((currentSnapshot?.clockSeconds ?? 0) * 100) / 100,
-            animating: clockAnimation() !== null,
-            remainingMinutes: clockAnimation()?.remainingMinutes ?? 0,
-          },
-          resourceCount: currentUi.resources.length,
-          resourceFlows: currentUi.resources.map((resource) => ({
-            id: resource.id,
-            source: resource.source,
-            sink: resource.sink,
-            blocker: resource.blocker,
-          })),
-          noteCount: currentUi.notes.length,
-          activeStoryBeatId: currentUi.activeStoryBeat?.id ?? null,
-          storyChoiceIds: currentUi.activeStoryBeat?.choices.map((choice) => choice.id) ?? [],
-          enabledWorldActionIds: currentUi.availableWorldActions
-            .filter((action) => action.enabled)
-            .map((action) => action.id),
-          roleAssignments: currentUi.roleAssignments.map((role) => ({
-            id: role.id,
-            available: role.available,
-            heroAssigned: role.heroAssigned,
-            crewAssigned: role.crewAssigned,
-          })),
-          constructionOptions: currentUi.constructionOptions.map((option) => ({
-            id: option.id,
-            complete: option.complete,
-            enabled: option.enabled,
-            inProgress: option.inProgress,
-            blockedReason: option.blockedReason,
-          })),
-          objectiveReachMet: currentUi.objective.reachMet,
-          recruitmentEnabled: currentUi.objective.recruitmentEnabled,
-          firstPlayable: {
-            complete: currentUi.firstPlayable.complete,
-            completedCount: currentUi.firstPlayable.completedCount,
-            totalCount: currentUi.firstPlayable.totalCount,
-            currentStepId: currentUi.firstPlayable.currentStepId,
-            currentAction:
-              currentUi.firstPlayable.steps.find((step) => step.active)?.action ?? null,
-            steps: currentUi.firstPlayable.steps.map((step) => ({
-              id: step.id,
-              complete: step.complete,
-              active: step.active,
-              actionLabel: step.actionLabel,
-            })),
-            persistenceReady: persistenceReadyForFirstPlayable(),
-          },
-        }
-      : null,
-    mapMode: {
-      active: mapMode(),
-      label: addMapModeLabel(mapMode()),
-      available: ADD_MAP_MODE_OPTIONS.map((option) => option.id),
-      topology: currentMapInfo.topology.kind,
-      fixture: currentMapInfo.topology.fixture,
+    travel: {
+      experience: travelExperience(),
+      dramaState: travelDramaState,
+      dialogKind: travelDialog()?.kind ?? null,
+      confirmationEligibility: openingTravelDialogEligibility(currentMapInfo),
     },
-    travel: travelTextState(currentMapInfo),
-    map: currentMapInfo,
     persistence: {
-      storageKey: ADD_AUTOSAVE_STORAGE_KEY,
       autosaveEnabled: autosaveEnabled(),
       autosaveAvailable: autosaveRecord() !== null,
       lastAutosaveAtMs: autosaveRecord()?.savedAtMs ?? null,
@@ -2339,69 +1971,9 @@ function toTextState(): RuntimeTextState {
       savePayloadLength: savePayload().length,
       status: saveStatus(),
       storageError: storageError(),
+      firstPlayablePersistenceReady: persistenceReadyForFirstPlayable(),
     },
-    catalog: currentCatalog
-      ? {
-          resourceCount: currentCatalog.resources.length,
-          roleCount: currentCatalog.roles.length,
-          tileCount: currentCatalog.tiles.length,
-          worldActionCount: currentCatalog.worldActions.length,
-        }
-      : null,
-  }
-}
-
-function travelTextState(currentMapInfo: AddPhaserMapInfo): RuntimeTextState["travel"] {
-  const experience = travelExperience()
-  const confirmationEligibility = openingTravelDialogEligibility(currentMapInfo)
-  const phase = experience
-    ? experience.phase
-    : currentMapInfo.travel.previewCell
-      ? "preview"
-      : "idle"
-  const progress =
-    experience?.phase === "arrived"
-      ? 1
-      : currentMapInfo.travel.active
-        ? currentMapInfo.travel.progress
-        : 0
-
-  return {
-    costGameMinutes: ADD_TILE_TRAVEL_PRESENTATION.visibleGameMinutes,
-    costRuntimeSeconds: ADD_TILE_TRAVEL_PRESENTATION.runtimeSeconds,
-    presentationDurationMs: ADD_TILE_TRAVEL_PRESENTATION.durationMs,
-    clockStepMs: ADD_TILE_TRAVEL_PRESENTATION.msPerVisibleMinute,
-    active: experience?.phase === "traveling" || currentMapInfo.travel.active,
-    phase,
-    progress,
-    fromTime: experience?.fromTime.localTime ?? null,
-    toTime: experience?.toTime.localTime ?? null,
-    destinationLabel:
-      experience?.event.destinationLabel ??
-      currentMapInfo.travel.destinationLabel ??
-      currentMapInfo.travel.previewLabel,
-    exposureRisk:
-      experience?.event.exposureRisk ??
-      currentMapInfo.travel.exposureRisk ??
-      currentMapInfo.travel.previewExposureRisk,
-    runtimeSynced: experience?.runtimeSynced ?? false,
-    toxicityBefore:
-      experience === null ? null : Math.round(experience.toxicityBefore * 1000) / 1000,
-    toxicityAfter:
-      experience?.toxicityAfter === null || experience?.toxicityAfter === undefined
-        ? null
-        : Math.round(experience.toxicityAfter * 1000) / 1000,
-    previewCell: currentMapInfo.travel.previewCell,
-    previewLabel: currentMapInfo.travel.previewLabel,
-    previewAdjacent: currentMapInfo.travel.previewAdjacent,
-    confirmation: {
-      dramaState: travelDramaState,
-      dialogOpen: travelDialog() !== null,
-      dialogKind: travelDialog()?.kind ?? null,
-      eligible: confirmationEligibility.eligible,
-      reason: confirmationEligibility.reason,
-    },
-  }
+  })
 }
 
 function statusState(): string {
@@ -2514,15 +2086,6 @@ function constructionButtonId(optionId: string): string {
 
 function slugForId(id: string): string {
   return id.replace(/[^a-z0-9_-]+/gi, "-").replace(/^-|-$/g, "").toLowerCase()
-}
-
-function stringNumberRecord(
-  value: Record<string, number> | Map<string, number>,
-): Record<string, number> {
-  if (typeof (value as Map<string, number>).entries === "function") {
-    return Object.fromEntries((value as Map<string, number>).entries())
-  }
-  return value as Record<string, number>
 }
 
 function storyChoiceSelected(currentSnapshot: SimulationSnapshot, beatId: string): boolean {
