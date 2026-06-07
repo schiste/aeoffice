@@ -230,6 +230,10 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   `render_game_to_text` still exposes the same smoke-friendly contract, but the
   Solid shell only supplies presenter inputs instead of assembling JSON directly
   from internal signals.
+- ADD RPG smoke automation is now scenario-oriented. The same boot, visibility,
+  travel, map-mode, first-playable, persistence, screenshot, and console checks
+  run through named scenario wrappers with shared helpers, so failures identify
+  the affected subsystem.
 - ADD Phaser neutralization step 5 is underway: `game-renderer-phaser` now
   exposes neutral cell presentation, interaction, and topology navigation policy
   contracts plus a policy-driven `GameMapCellRenderer` for square/hex maps.

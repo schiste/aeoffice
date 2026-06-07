@@ -35,159 +35,211 @@ async function main() {
     }, ADD_AUTOSAVE_STORAGE_KEY)
 
     await page.goto(`${url}/app`, { waitUntil: "domcontentloaded" })
-    const initial = await waitForTextState(
-      page,
-      (state) =>
-        state.app === "add-rpg" &&
-        state.runtime?.workerBoundary === "ui-worker-rust-wasm-snapshot" &&
-        state.runtime?.ready === true &&
-        state.runtime?.autoTick === true &&
-        state.runtime?.snapshotReceived === true &&
-        state.runtime?.catalogReceived === true &&
-        state.shell?.framework === "solid" &&
-        state.shell?.surface === "fullscreen_map_shell" &&
-        state.shell?.hostsPhaserMap === true &&
-        state.shell?.adminOpen === false &&
-        state.shell?.questPanel?.collapsed === false &&
-        Number.isFinite(state.shell?.questPanel?.x) &&
-        Number.isFinite(state.shell?.questPanel?.y) &&
-        state.mapMode?.active === "overworld_hex" &&
-        state.mapMode?.topology === "hex" &&
-        state.map?.hostedBy === "phaser" &&
-        state.map?.ready === true &&
-        state.map?.validationValid === true &&
-        state.map?.topology?.kind === "hex" &&
-        state.map?.topology?.fixture === false &&
-        state.snapshot?.hexCount > 0 &&
-        state.snapshot?.discoveredCellCount === 2 &&
-        typeof state.snapshot?.heroMap === "string" &&
-        state.map?.cells?.total === state.snapshot.hexCount &&
-        state.map?.dungeonLinks?.total > 0 &&
-        state.map?.dungeonLinks?.cellsWithLinks > 0 &&
-        state.map?.knownFacts?.hiddenCells > 0 &&
-        state.map?.knownFacts?.exactTerrainKnownCells > 0 &&
-        state.map?.knownFacts?.dynamicRiskKnownCells > 0 &&
-        state.map?.knownFacts?.vagueTravelLabels > 0 &&
-        typeof state.map?.knownFacts?.sampleHiddenTravelLabel === "string" &&
-        state.map.knownFacts.sampleHiddenTravelLabel.length > 0 &&
-        state.map.knownFacts.dynamicRiskKnownCells < state.map.cells.total &&
-        state.map?.visibility?.hiddenCells === state.map.knownFacts.hiddenCells &&
-        state.map?.visibility?.visibleCells > 0 &&
-        state.map?.visibility?.discoveredCells > 0 &&
-        state.map?.visibility?.fogRendering === "phaser_visual_overlay" &&
-        state.map?.visibility?.affectsAuthority === false &&
-        state.map?.visibility?.travelRevealPreviewActive === false &&
-        state.map?.visibility?.travelRevealPreviewCells === 0 &&
-        state.map?.visibility?.hiddenCellRendering ===
-          "invisible_until_known_or_travel_revealed" &&
-        state.map?.character?.visible === true &&
-        state.map?.character?.authority === "browser_navigation_triggers_rust_time" &&
-        state.map?.travel?.costGameMinutes === 60 &&
-        state.map?.travel?.costRuntimeSeconds === 60 &&
-        state.travel?.costGameMinutes === 60 &&
-        state.travel?.costRuntimeSeconds === 60 &&
-        state.travel?.confirmation?.eligible === true &&
-        state.travel?.confirmation?.reason === "opening_reach_base_from_survivor_cave" &&
-        state.map?.landmarks?.studioLabelVisible === true &&
-        state.map?.landmarks?.survivorCaveVisible === true &&
-        state.map?.authority?.rules === "rust_wasm_snapshot" &&
-        state.map?.authority?.mutatesSimulation === false &&
-        state.map?.presentation?.terrainArt === "procedural_painterly_topology" &&
-        state.map?.presentation?.bubbleEffects === "animated_halo_edge" &&
-        state.map?.presentation?.landmarkSprites === "procedural_sprite_stack" &&
-        state.map?.presentation?.labelRendering === "high_resolution_phaser_text" &&
-        state.map?.presentation?.ambience === "subtle_motes_and_topographic_scan" &&
-        state.map?.presentation?.visibilityPolish?.fogEdge ===
-          "soft_feathered_visibility_boundary" &&
-        state.map?.presentation?.visibilityPolish?.revealEffect === "expanding_ripple" &&
-        state.map?.presentation?.visibilityPolish?.caveMouthSilhouettes === true &&
-        state.map?.presentation?.visibilityPolish?.travelReveal ===
-          "progressive_in_travel_radius" &&
-        state.map?.presentation?.visibilityPolish?.authority === "visual_only" &&
-        state.map?.presentation?.visibilityPolish?.laterModifiers?.includes(
-          "day_night_radius",
-        ) &&
-        state.map.presentation.visibilityPolish.laterModifiers.includes("weather_season") &&
-        state.map.presentation.visibilityPolish.laterModifiers.includes(
-          "scouting_buildings_items",
-        ) &&
-        state.ui?.worldTime?.day >= 1 &&
-        state.ui?.worldTime?.season === "spring" &&
-        state.ui?.worldTime?.source === "estimated_solar_model" &&
-        typeof state.ui?.worldTime?.sunrise === "string" &&
-        typeof state.ui?.worldTime?.sunset === "string" &&
-        state.catalog?.resourceCount > 0 &&
-        state.catalog?.tileCount > 0,
-      consoleErrors,
+    const initial = await runScenario("boot and render text contract", () =>
+      assertBootAndRenderTextContract(page, consoleErrors),
     )
-
-    assert.equal(initial.boundary.runtimeAuthority, "rust-wasm")
-    assert.equal(initial.boundary.firstTargetApp, "apps/add-rpg")
-    assert.equal(initial.runtime.error, null)
-    assert.equal(initial.snapshot.heroMap, initial.map.landmarks.survivorCave)
-    assertInitialDiscoveryAnchors(initial)
-    assert.ok(initial.map.visibility.hiddenCells > 0, "Initial overworld should contain hidden cells")
-    assert.equal(initial.map.interaction.visibilitySamples.hidden.label, "Unknown region")
-    assert.equal(initial.map.interaction.visibilitySamples.hidden.knownInfoLevel, "unknown")
-    assert.equal(initial.map.interaction.visibilitySamples.hidden.dungeonLinks.length, 0)
-    assert.equal(initial.map.interaction.visibilitySamples.hidden.dungeonActionsVisible, false)
-    assert.equal(
-      initial.map.interaction.visibilitySamples.discovered.knownInfoLevel,
-      "known_static",
+    await runScenario("initial visibility and known facts", () =>
+      assertInitialVisibilityContract(initial),
     )
-    assert.match(initial.map.interaction.visibilitySamples.discovered.label, /·/)
-    assert.equal(initial.map.interaction.visibilitySamples.visible.knownInfoLevel, "full_current")
-    assert.ok(
-      initial.map.character.dungeonLinksAtCell.length > 0,
-      "The visible Survivor Cave can expose its dungeon link once discovered/visible.",
+    await runScenario("ambient clock", () => assertIdleAmbientClockAdvances(page))
+    await runScenario("hero spawn placement", () => assertHeroStartsAtSurvivorCave(page, initial))
+    await runScenario("hidden cells and fog screenshot", async () => {
+      const state = await assertHiddenMapCellsAreInvisibleToPointer(page, consoleErrors)
+      assert.notEqual(state.map.interaction.selectedDetail?.visibility, "hidden")
+      assert.notEqual(state.map.travel.previewExposureRisk, "unknown")
+      await assertNonBlankFogMapScreenshot(page, state)
+      return state
+    })
+    await runScenario("mobile presentation", () => assertMobilePresentation(browser, url))
+    const questHud = await runScenario("quest HUD drag and collapse", () =>
+      exerciseQuestHud(page, consoleErrors),
     )
-    assert.ok(initial.ui.resourceCount > 0)
-    assert.ok(initial.catalog.worldActionCount > 0)
-    await assertIdleAmbientClockAdvances(page)
-    await assertHeroStartsAtSurvivorCave(page, initial)
-    const hiddenPointer = await assertHiddenMapCellsAreInvisibleToPointer(page, consoleErrors)
-    assert.notEqual(hiddenPointer.map.interaction.selectedDetail?.visibility, "hidden")
-    assert.notEqual(hiddenPointer.map.travel.previewExposureRisk, "unknown")
-    await assertNonBlankFogMapScreenshot(page, hiddenPointer)
-    await assertMobilePresentation(browser, url)
-    const questHud = await exerciseQuestHud(page, consoleErrors)
     assert.equal(questHud.shell.questPanel.collapsed, false)
     assert.ok(questHud.shell.questPanel.x !== initial.shell.questPanel.x)
     assert.ok(questHud.shell.questPanel.y !== initial.shell.questPanel.y)
-    const characterMoved = await exerciseMainCharacterMovement(page, consoleErrors)
+    const characterMoved = await runScenario("travel dialog and hero movement", () =>
+      exerciseMainCharacterMovement(page, consoleErrors),
+    )
     assert.equal(characterMoved.map.character.lastMoveAccepted, true)
 
-    const interacted = await interactWithMap(page, consoleErrors)
+    const interacted = await runScenario("map interaction and camera", () =>
+      interactWithMap(page, consoleErrors),
+    )
     assert.ok(interacted.map.interaction.selectedHex)
     assert.ok(interacted.map.interaction.selectedLabel)
 
-    const switched = await exerciseMapModeSwitching(page, consoleErrors)
+    const switched = await runScenario("map mode switching", () =>
+      exerciseMapModeSwitching(page, consoleErrors),
+    )
     assert.equal(switched.mapMode.active, "overworld_hex")
     assert.equal(switched.map.topology.kind, "hex")
 
-    const firstPlayable = await completeFirstPlayableArc(page, consoleErrors)
-    assert.equal(firstPlayable.ui.firstPlayable.complete, true)
-    assert.equal(firstPlayable.snapshot.base.studioRestored, true)
-    assert.equal(firstPlayable.snapshot.base.firePitBuilt, true)
-    assert.equal(firstPlayable.ui.recruitmentEnabled, true)
-    assert.ok(firstPlayable.snapshot.bubble.reachFromBase >= 3)
-    assert.ok(firstPlayable.snapshot.recruitment.totalRecruitedThisRun >= 1)
-    assert.ok(
-      firstPlayable.snapshot.recruitment.pendingCount > 0 ||
-        firstPlayable.snapshot.roster.totalCrew > 2,
+    const firstPlayable = await runScenario("first playable progression", () =>
+      completeFirstPlayableArc(page, consoleErrors),
     )
+    assertFirstPlayableComplete(firstPlayable)
 
-    const exported = await exerciseSaveReloadOfflineAndReset(page, firstPlayable, consoleErrors)
+    const exported = await runScenario("persistence, offline catchup, and reset", () =>
+      exerciseSaveReloadOfflineAndReset(page, firstPlayable, consoleErrors),
+    )
     assert.ok(exported.payload.length > 200)
     await closeAdmin(page, consoleErrors)
 
-    await assertNonBlankAppScreenshot(page)
-    await assertNonBlankMapScreenshot(page)
-    assert.deepEqual(consoleErrors, [])
+    await runScenario("final screenshots", async () => {
+      await assertNonBlankAppScreenshot(page)
+      await assertNonBlankMapScreenshot(page)
+    })
+    await runScenario("console cleanliness", () => assert.deepEqual(consoleErrors, []))
   } finally {
     if (browser) await browser.close()
     await new Promise((resolve) => server.close(resolve))
   }
+}
+
+async function runScenario(name, scenario) {
+  console.log(`[add-rpg-smoke] ${name}`)
+  try {
+    return await scenario()
+  } catch (error) {
+    const cause = error instanceof Error ? error : new Error(String(error))
+    const wrapped = new Error(`Scenario "${name}" failed: ${cause.message}`)
+    wrapped.stack = cause.stack ? `${wrapped.message}\nCaused by: ${cause.stack}` : wrapped.stack
+    throw wrapped
+  }
+}
+
+async function assertBootAndRenderTextContract(page, consoleErrors) {
+  const initial = await waitForTextState(
+    page,
+    (state) =>
+      state.app === "add-rpg" &&
+      state.runtime?.workerBoundary === "ui-worker-rust-wasm-snapshot" &&
+      state.runtime?.ready === true &&
+      state.runtime?.autoTick === true &&
+      state.runtime?.snapshotReceived === true &&
+      state.runtime?.catalogReceived === true &&
+      state.shell?.framework === "solid" &&
+      state.shell?.surface === "fullscreen_map_shell" &&
+      state.shell?.hostsPhaserMap === true &&
+      state.shell?.adminOpen === false &&
+      state.shell?.questPanel?.collapsed === false &&
+      Number.isFinite(state.shell?.questPanel?.x) &&
+      Number.isFinite(state.shell?.questPanel?.y) &&
+      state.mapMode?.active === "overworld_hex" &&
+      state.mapMode?.topology === "hex" &&
+      state.map?.hostedBy === "phaser" &&
+      state.map?.ready === true &&
+      state.map?.validationValid === true &&
+      state.map?.topology?.kind === "hex" &&
+      state.map?.topology?.fixture === false &&
+      state.snapshot?.hexCount > 0 &&
+      state.snapshot?.discoveredCellCount === 2 &&
+      typeof state.snapshot?.heroMap === "string" &&
+      state.map?.cells?.total === state.snapshot.hexCount &&
+      state.map?.dungeonLinks?.total > 0 &&
+      state.map?.dungeonLinks?.cellsWithLinks > 0 &&
+      state.map?.character?.visible === true &&
+      state.map?.character?.authority === "browser_navigation_triggers_rust_time" &&
+      state.map?.travel?.costGameMinutes === 60 &&
+      state.map?.travel?.costRuntimeSeconds === 60 &&
+      state.travel?.costGameMinutes === 60 &&
+      state.travel?.costRuntimeSeconds === 60 &&
+      state.travel?.confirmation?.eligible === true &&
+      state.travel?.confirmation?.reason === "opening_reach_base_from_survivor_cave" &&
+      state.map?.landmarks?.studioLabelVisible === true &&
+      state.map?.landmarks?.survivorCaveVisible === true &&
+      state.map?.authority?.rules === "rust_wasm_snapshot" &&
+      state.map?.authority?.mutatesSimulation === false &&
+      state.map?.presentation?.terrainArt === "procedural_painterly_topology" &&
+      state.map?.presentation?.bubbleEffects === "animated_halo_edge" &&
+      state.map?.presentation?.landmarkSprites === "procedural_sprite_stack" &&
+      state.map?.presentation?.labelRendering === "high_resolution_phaser_text" &&
+      state.map?.presentation?.ambience === "subtle_motes_and_topographic_scan" &&
+      state.ui?.worldTime?.day >= 1 &&
+      state.ui?.worldTime?.season === "spring" &&
+      state.ui?.worldTime?.source === "estimated_solar_model" &&
+      typeof state.ui?.worldTime?.sunrise === "string" &&
+      typeof state.ui?.worldTime?.sunset === "string" &&
+      state.catalog?.resourceCount > 0 &&
+      state.catalog?.tileCount > 0,
+    consoleErrors,
+  )
+
+  assert.equal(initial.boundary.runtimeAuthority, "rust-wasm")
+  assert.equal(initial.boundary.firstTargetApp, "apps/add-rpg")
+  assert.equal(initial.runtime.error, null)
+  assert.equal(initial.snapshot.heroMap, initial.map.landmarks.survivorCave)
+  assert.ok(initial.ui.resourceCount > 0)
+  assert.ok(initial.catalog.worldActionCount > 0)
+  return initial
+}
+
+function assertInitialVisibilityContract(initial) {
+  assertInitialDiscoveryAnchors(initial)
+  assert.ok(initial.map.visibility.hiddenCells > 0, "Initial overworld should contain hidden cells")
+  assert.ok(initial.map.knownFacts.hiddenCells > 0)
+  assert.ok(initial.map.knownFacts.exactTerrainKnownCells > 0)
+  assert.ok(initial.map.knownFacts.dynamicRiskKnownCells > 0)
+  assert.ok(initial.map.knownFacts.vagueTravelLabels > 0)
+  assert.equal(typeof initial.map.knownFacts.sampleHiddenTravelLabel, "string")
+  assert.ok(initial.map.knownFacts.sampleHiddenTravelLabel.length > 0)
+  assert.ok(initial.map.knownFacts.dynamicRiskKnownCells < initial.map.cells.total)
+  assert.equal(initial.map.visibility.hiddenCells, initial.map.knownFacts.hiddenCells)
+  assert.ok(initial.map.visibility.visibleCells > 0)
+  assert.ok(initial.map.visibility.discoveredCells > 0)
+  assert.equal(initial.map.visibility.fogRendering, "phaser_visual_overlay")
+  assert.equal(initial.map.visibility.affectsAuthority, false)
+  assert.equal(initial.map.visibility.travelRevealPreviewActive, false)
+  assert.equal(initial.map.visibility.travelRevealPreviewCells, 0)
+  assert.equal(
+    initial.map.visibility.hiddenCellRendering,
+    "invisible_until_known_or_travel_revealed",
+  )
+  assert.equal(initial.map.interaction.visibilitySamples.hidden.label, "Unknown region")
+  assert.equal(initial.map.interaction.visibilitySamples.hidden.knownInfoLevel, "unknown")
+  assert.equal(initial.map.interaction.visibilitySamples.hidden.dungeonLinks.length, 0)
+  assert.equal(initial.map.interaction.visibilitySamples.hidden.dungeonActionsVisible, false)
+  assert.equal(
+    initial.map.interaction.visibilitySamples.discovered.knownInfoLevel,
+    "known_static",
+  )
+  assert.match(initial.map.interaction.visibilitySamples.discovered.label, /·/)
+  assert.equal(initial.map.interaction.visibilitySamples.visible.knownInfoLevel, "full_current")
+  assert.ok(
+    initial.map.character.dungeonLinksAtCell.length > 0,
+    "The visible Survivor Cave can expose its dungeon link once discovered/visible.",
+  )
+  assert.equal(
+    initial.map.presentation.visibilityPolish.fogEdge,
+    "soft_feathered_visibility_boundary",
+  )
+  assert.equal(initial.map.presentation.visibilityPolish.revealEffect, "expanding_ripple")
+  assert.equal(initial.map.presentation.visibilityPolish.caveMouthSilhouettes, true)
+  assert.equal(
+    initial.map.presentation.visibilityPolish.travelReveal,
+    "progressive_in_travel_radius",
+  )
+  assert.equal(initial.map.presentation.visibilityPolish.authority, "visual_only")
+  assert.ok(initial.map.presentation.visibilityPolish.laterModifiers.includes("day_night_radius"))
+  assert.ok(initial.map.presentation.visibilityPolish.laterModifiers.includes("weather_season"))
+  assert.ok(
+    initial.map.presentation.visibilityPolish.laterModifiers.includes(
+      "scouting_buildings_items",
+    ),
+  )
+}
+
+function assertFirstPlayableComplete(firstPlayable) {
+  assert.equal(firstPlayable.ui.firstPlayable.complete, true)
+  assert.equal(firstPlayable.snapshot.base.studioRestored, true)
+  assert.equal(firstPlayable.snapshot.base.firePitBuilt, true)
+  assert.equal(firstPlayable.ui.recruitmentEnabled, true)
+  assert.ok(firstPlayable.snapshot.bubble.reachFromBase >= 3)
+  assert.ok(firstPlayable.snapshot.recruitment.totalRecruitedThisRun >= 1)
+  assert.ok(
+    firstPlayable.snapshot.recruitment.pendingCount > 0 ||
+      firstPlayable.snapshot.roster.totalCrew > 2,
+  )
 }
 
 async function exerciseMapModeSwitching(page, consoleErrors) {
