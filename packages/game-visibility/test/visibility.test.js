@@ -4,9 +4,11 @@ const path = require("node:path")
 const {
   KNOWN_FACT_POLICIES,
   VISIBILITY_STATES,
+  computeFieldOfView,
   coordsInVisibilityRadius,
   coordsInVisibilityRadiusFromOrigins,
   createVisibilityEntry,
+  revealFieldOfView,
   createVisibilityMap,
   filterKnownFacts,
   getVisibilityEntry,
@@ -218,4 +220,95 @@ assert.equal(validateVisibilityMap(stale).valid, true)
 assert.throws(
   () => coordsInVisibilityRadius(square, createSquareCoord(0, 0), -1),
   /radius must be a non-negative integer/,
+)
+
+// --- Occlusion-aware field of view ---
+const fovSquare = createSquareTopology({ cellSize: 16, bounds: { width: 7, height: 7 } })
+
+// A single opaque cell directly east of the viewer blocks everything behind it.
+const occluded = computeFieldOfView(fovSquare, {
+  origin: createSquareCoord(3, 3),
+  radius: 3,
+  isOpaque: (coord) => coord.x === 4 && coord.y === 3,
+})
+const occludedKeys = new Set(occluded.map((coord) => serializeCellCoord(coord)))
+assert.ok(occludedKeys.has("square:3:3"), "origin is visible")
+assert.ok(occludedKeys.has("square:4:3"), "the opaque cell itself is seen (its near face)")
+assert.ok(!occludedKeys.has("square:5:3"), "the cell directly behind the wall is occluded")
+assert.ok(!occludedKeys.has("square:6:3"), "the cell further behind the wall is occluded")
+assert.ok(occludedKeys.has("square:1:3"), "an open cell to the side is visible")
+assert.ok(occludedKeys.has("square:3:1"), "an open cell to the side is visible")
+
+// A forward cone (facing north) excludes cells behind and to the side of the viewer.
+const cone = computeFieldOfView(fovSquare, {
+  origin: createSquareCoord(3, 3),
+  radius: 3,
+  isOpaque: () => false,
+  facingToward: createSquareCoord(3, 1),
+  coneHalfAngleDeg: 45,
+})
+const coneKeys = new Set(cone.map((coord) => serializeCellCoord(coord)))
+assert.ok(coneKeys.has("square:3:3"), "origin is included in the cone FOV")
+assert.ok(coneKeys.has("square:3:2"), "the cell ahead is in the cone")
+assert.ok(coneKeys.has("square:3:1"), "further ahead is in the cone")
+assert.ok(!coneKeys.has("square:3:4"), "the cell behind the viewer is outside the cone")
+assert.ok(!coneKeys.has("square:3:5"), "further behind is outside the cone")
+assert.ok(!coneKeys.has("square:1:3"), "a cell square to the side is outside a 90-degree cone")
+
+// Peripheral base: the immediate front/left/right are visible (the cone's near
+// base) even outside the narrow cone; the square directly behind stays hidden.
+const baseCone = computeFieldOfView(fovSquare, {
+  origin: createSquareCoord(3, 3),
+  radius: 3,
+  isOpaque: () => false,
+  facingToward: createSquareCoord(3, 1),
+  coneHalfAngleDeg: 45,
+  peripheralRadius: 1,
+})
+const baseKeys = new Set(baseCone.map((coord) => serializeCellCoord(coord)))
+assert.ok(baseKeys.has("square:3:2"), "the square ahead is in the cone base")
+assert.ok(baseKeys.has("square:2:3"), "the adjacent left square is in the cone base")
+assert.ok(baseKeys.has("square:4:3"), "the adjacent right square is in the cone base")
+assert.ok(baseKeys.has("square:2:2"), "the front-left diagonal is in the cone base")
+assert.ok(baseKeys.has("square:4:2"), "the front-right diagonal is in the cone base")
+assert.ok(!baseKeys.has("square:3:4"), "the square directly behind stays hidden")
+assert.ok(!baseKeys.has("square:4:4"), "a rear diagonal stays hidden")
+
+// Memory: cells leave a remembered (stale) trail when no longer in the cone.
+const lookNorth = revealFieldOfView(
+  createVisibilityMap(),
+  fovSquare,
+  {
+    origin: createSquareCoord(3, 3),
+    radius: 3,
+    isOpaque: () => false,
+    facingToward: createSquareCoord(3, 1),
+    coneHalfAngleDeg: 45,
+  },
+  "visible",
+  { now: 1 },
+)
+assert.equal(getVisibilityState(lookNorth, createSquareCoord(3, 1)), "visible")
+const lookSouth = revealFieldOfView(
+  markVisibleAsStale(lookNorth),
+  fovSquare,
+  {
+    origin: createSquareCoord(3, 3),
+    radius: 3,
+    isOpaque: () => false,
+    facingToward: createSquareCoord(3, 5),
+    coneHalfAngleDeg: 45,
+  },
+  "visible",
+  { now: 2 },
+)
+assert.equal(
+  getVisibilityState(lookSouth, createSquareCoord(3, 1)),
+  "stale",
+  "a cell seen earlier stays remembered after turning away",
+)
+assert.equal(
+  getVisibilityState(lookSouth, createSquareCoord(3, 5)),
+  "visible",
+  "the newly-faced cell becomes visible",
 )

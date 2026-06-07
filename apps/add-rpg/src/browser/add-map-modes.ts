@@ -1,5 +1,7 @@
 import {
   addSnapshotToGameWorld,
+  studioDungeonMap,
+  STUDIO_DUNGEON_MAP_ID,
   type CatalogSnapshot,
   type SimulationSnapshot,
 } from "@aedventure/add-domain"
@@ -31,10 +33,18 @@ export const ADD_MAP_MODE_OPTIONS: readonly AddMapModeOption[] = [
   { id: "base_square", label: "Base", topology: "square", fixture: true },
 ]
 
+const SURVIVOR_CAVE_DUNGEON_MAP_ID = "add.rpg.square-dungeon-fixture"
+
+export interface CreateAddWorldOptions {
+  /** Which dungeon map to load in dungeon_square mode. Defaults to the Studio. */
+  readonly dungeonMapId?: string
+}
+
 export function createAddWorldForMapMode(
   mode: AddMapMode,
   snapshot: SimulationSnapshot,
   catalog: CatalogSnapshot,
+  options: CreateAddWorldOptions = {},
 ): GameWorld {
   if (mode === "overworld_hex") {
     return addSnapshotToGameWorld(snapshot, catalog, {
@@ -44,7 +54,10 @@ export function createAddWorldForMapMode(
     })
   }
 
-  const map = mode === "dungeon_square" ? dungeonSquareMap() : baseSquareMap()
+  const map =
+    mode === "dungeon_square"
+      ? dungeonMapForId(options.dungeonMapId ?? STUDIO_DUNGEON_MAP_ID, snapshot)
+      : baseSquareMap()
   return {
     id: "add.rpg.live-world",
     activeMapId: map.id,
@@ -55,6 +68,25 @@ export function createAddWorldForMapMode(
       runtimeAuthority: "rust-wasm",
       projectionOnly: true,
       fixture: true,
+    },
+  }
+}
+
+// Registry of dungeon maps the app can load by id. New dungeons are authored as
+// blueprints (see @aedventure/game-dungeon) and registered here.
+function dungeonMapForId(mapId: string, snapshot: SimulationSnapshot): GameMap {
+  if (mapId === SURVIVOR_CAVE_DUNGEON_MAP_ID) return dungeonSquareMap()
+  // The Studio is the canonical first dungeon; it reflects the restore state.
+  // Tag the neutral compiled map with the app's square-map context so the host
+  // reports it consistently with the other fixtures.
+  const studio = studioDungeonMap(snapshot.base.studioRestored)
+  return {
+    ...studio,
+    metadata: {
+      ...studio.metadata,
+      mapMode: "dungeon_square",
+      fixture: true,
+      gameplayReady: false,
     },
   }
 }

@@ -8,6 +8,7 @@ import {
   selectAddUiState,
   selectAddWorldTimeForClockSeconds,
   workerRequestForAddCommand,
+  STUDIO_DUNGEON_MAP_ID,
   type AddUiState,
   type AddFirstPlayableAction,
   type AddWorldTimeSummary,
@@ -23,6 +24,11 @@ import {
   createAddWorldForMapMode,
   type AddMapMode,
 } from "./add-map-modes"
+import {
+  applyDungeonFieldOfView,
+  emptyDungeonVisibility,
+} from "./dungeon-fov"
+import type { VisibilityMap } from "@aedventure/game-visibility"
 import {
   AddRpgPhaserMapHost,
   type AddCharacterTravelEvent,
@@ -41,6 +47,8 @@ import {
   type AddSaveSource,
 } from "./save-runtime"
 import {
+  ADD_DUNGEON_AMBIENT_RUNTIME_SECONDS_PER_TICK,
+  ADD_DUNGEON_STEP_PRESENTATION,
   ADD_TILE_TRAVEL_PRESENTATION,
   createAddClockAdvancePresentationTiming,
 } from "./travel-presentation-timing"
@@ -342,6 +350,7 @@ const [snapshot, setSnapshot] = createSignal<SimulationSnapshot | null>(null)
 const [catalog, setCatalog] = createSignal<CatalogSnapshot | null>(null)
 const [world, setWorld] = createSignal<GameWorld | null>(null)
 const [mapMode, setMapMode] = createSignal<AddMapMode>("overworld_hex")
+const [dungeonTarget, setDungeonTarget] = createSignal<string>(STUDIO_DUNGEON_MAP_ID)
 const [mapInfo, setMapInfo] = createSignal<AddPhaserMapInfo>(emptyMapInfo())
 const [autosaveRecord, setAutosaveRecord] = createSignal<AddBrowserSaveRecord | null>(readAutosave())
 const [autosaveEnabled, setAutosaveEnabled] = createSignal(true)
@@ -466,13 +475,60 @@ const primaryWorldActionInteraction = createMemo(() =>
 const recruitmentInteraction = createMemo(() =>
   gameInteractions().find((interaction) => interaction.action === "add.recruit_from_survivor_cave"),
 )
+// On the overworld, the enabled dungeon link under the Hero (e.g. the Studio on
+// the Base) — surfaces an "Enter" affordance that opens that dungeon map.
+const heroDungeonLink = createMemo(() =>
+  mapMode() === "overworld_hex"
+    ? (mapInfo().character.dungeonLinksAtCell.find((link) => link.enabled) ?? null)
+    : null,
+)
+
+// Hero pose (coord + facing), as stable strings, drives the dungeon cone FOV.
+const heroDungeonCell = createMemo(() =>
+  mapMode() === "dungeon_square" ? mapInfo().character.cell : null,
+)
+const heroDungeonFacing = createMemo(() =>
+  mapMode() === "dungeon_square" ? mapInfo().character.facing : null,
+)
+// Remembered dungeon visibility, persisted across moves/turns; reset per dungeon.
+let dungeonVisibility: VisibilityMap = emptyDungeonVisibility()
+let dungeonVisibilityKey = ""
 
 createEffect(() => {
   const currentSnapshot = snapshot()
   const currentCatalog = catalog()
   if (!currentSnapshot || !currentCatalog) return
 
-  const nextWorld = createAddWorldForMapMode(mapMode(), currentSnapshot, currentCatalog)
+  const mode = mapMode()
+  const target = dungeonTarget()
+  let nextWorld = createAddWorldForMapMode(mode, currentSnapshot, currentCatalog, {
+    dungeonMapId: target,
+  })
+
+  if (mode === "dungeon_square") {
+    if (dungeonVisibilityKey !== target) {
+      // Fresh memory each time a dungeon is entered.
+      dungeonVisibility = emptyDungeonVisibility()
+      dungeonVisibilityKey = target
+    }
+    const activeMap = nextWorld.maps.find((map) => map.id === nextWorld.activeMapId)
+    if (activeMap) {
+      const fov = applyDungeonFieldOfView(
+        activeMap,
+        heroDungeonCell(),
+        heroDungeonFacing(),
+        dungeonVisibility,
+      )
+      dungeonVisibility = fov.visibility
+      nextWorld = {
+        ...nextWorld,
+        maps: nextWorld.maps.map((map) => (map.id === activeMap.id ? fov.map : map)),
+      }
+    }
+  } else {
+    dungeonVisibilityKey = ""
+  }
+
   setWorld(nextWorld)
   mapHost?.renderWorld(nextWorld)
   refreshMapInfo()
@@ -532,6 +588,10 @@ function AddRpgApp() {
   createEffect(() => {
     const playing = autoTick() && ready()
     const speed = timeSpeed()
+    // Overworld runs compressed (1 in-game minute / real second); dungeons run
+    // ~real-time (1 in-game second / real second).
+    const ambientStep =
+      mapMode() === "overworld_hex" ? 1 : ADD_DUNGEON_AMBIENT_RUNTIME_SECONDS_PER_TICK
     if (autoTickTimer !== undefined) {
       window.clearInterval(autoTickTimer)
       autoTickTimer = undefined
@@ -540,7 +600,7 @@ function AddRpgApp() {
     const periodMs = Math.max(1, Math.round(1000 / speed))
     autoTickTimer = window.setInterval(() => {
       if (autoTick() && ready() && travelExperience()?.phase !== "traveling") {
-        void tickRuntime(1)
+        void tickRuntime(ambientStep)
       }
     }, periodMs)
   })
@@ -584,6 +644,19 @@ function AddRpgApp() {
                 <small>${() => worldTimeSecondaryCopy()}</small>
                 <i style=${() => daylightMeterStyle()} aria-hidden="true" />
               </div>
+              ${() => {
+                const link = heroDungeonLink()
+                return link
+                  ? html`<button
+                      id="enter-dungeon"
+                      type="button"
+                      class="enter-dungeon-button"
+                      onClick=${() => enterDungeonLink(link)}
+                    >
+                      Enter ${link.label}
+                    </button>`
+                  : null
+              }}
               <button
                 id="time-speed-control"
                 type="button"
@@ -1595,6 +1668,12 @@ function switchMapMode(nextMode: AddMapMode): void {
   setLastCommand(`map:${nextMode}`)
 }
 
+function enterDungeonLink(link: AddPhaserMapInfo["character"]["dungeonLinksAtCell"][number]): void {
+  setDungeonTarget(link.targetMapId)
+  setLastCommand(`enter:${link.targetMapId}`)
+  switchMapMode("dungeon_square")
+}
+
 function refreshMapInfo(): void {
   const info = mapHost?.getInfo()
   if (info) setMapInfo(info)
@@ -1796,10 +1875,12 @@ async function handleCharacterTravel(event: AddCharacterTravelEvent): Promise<vo
     travelClearTimer = undefined
   }
 
+  // Overworld hex = 1 in-game hour per tile; dungeon square = ~1 in-game second.
+  const travelTiming =
+    mapMode() === "overworld_hex" ? ADD_TILE_TRAVEL_PRESENTATION : ADD_DUNGEON_STEP_PRESENTATION
   const fromClockSeconds = currentSnapshot.clockSeconds
-  const toClockSeconds = fromClockSeconds + ADD_TILE_TRAVEL_PRESENTATION.runtimeSeconds
+  const toClockSeconds = fromClockSeconds + travelTiming.runtimeSeconds
   const startedAtMs = Date.now()
-  const travelTiming = ADD_TILE_TRAVEL_PRESENTATION
   const arrivalAtMs = startedAtMs + travelTiming.durationMs
 
   setTravelExperience({
@@ -1820,9 +1901,9 @@ async function handleCharacterTravel(event: AddCharacterTravelEvent): Promise<vo
   mapHost?.setTravelLocked(true)
   try {
     await Promise.all([
-      tickRuntime(ADD_TILE_TRAVEL_PRESENTATION.runtimeSeconds, {
+      tickRuntime(travelTiming.runtimeSeconds, {
         queue: true,
-        commandLabel: `travel:${event.direction}:1h`,
+        commandLabel: `travel:${event.direction}`,
       }),
       waitForTravelPresentation(startedAtMs, travelTiming.durationMs),
     ])
@@ -2517,6 +2598,7 @@ function emptyMapInfo(): AddPhaserMapInfo {
       travelRevealDestinationCell: null,
       fogRendering: "phaser_visual_overlay",
       affectsAuthority: false,
+      hiddenCellRendering: "invisible_until_known_or_travel_revealed",
     },
     character: {
       id: "add.entity.hero",
@@ -2527,6 +2609,7 @@ function emptyMapInfo(): AddPhaserMapInfo {
       x: null,
       y: null,
       moving: false,
+      facing: null,
       lastMoveDirection: null,
       lastMoveAccepted: null,
       blockedReason: null,

@@ -331,6 +331,26 @@ h1 {
   cursor: default;
 }
 
+.enter-dungeon-button {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.9rem;
+  border: 1px solid rgb(240 185 93 / 52%);
+  border-radius: 999px;
+  padding: 0 0.82rem;
+  background: linear-gradient(180deg, rgb(240 185 93 / 32%), rgb(197 129 53 / 28%));
+  color: #ffe9c2;
+  font-size: 0.76rem;
+  font-weight: 850;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.enter-dungeon-button:hover:not(:disabled) {
+  background: linear-gradient(180deg, rgb(240 185 93 / 46%), rgb(197 129 53 / 40%));
+  border-color: rgb(240 185 93 / 76%);
+}
+
 .admin-toggle {
   min-height: 1.9rem;
   border-color: rgb(95 209 216 / 36%);

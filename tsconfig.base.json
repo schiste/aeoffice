@@ -31,6 +31,9 @@
       "@aedventure/game-world": [
         "packages/game-world/src"
       ],
+      "@aedventure/game-dungeon": [
+        "packages/game-dungeon/src"
+      ],
       "@aedventure/add-domain": [
         "packages/add-domain/src"
       ],

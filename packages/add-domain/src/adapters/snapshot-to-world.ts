@@ -9,6 +9,7 @@ import type {
   GameZone,
 } from "@aedventure/game-world"
 import type { VisibilityEntry } from "@aedventure/game-visibility"
+import type { CellCoord } from "@aedventure/game-topology"
 
 import type {
   CatalogSnapshot,
@@ -31,6 +32,11 @@ import {
   type AddVisibilitySummary,
   type AddKnownTileFacts,
 } from "./visibility-selectors"
+import {
+  STUDIO_DUNGEON_ENTRANCE,
+  STUDIO_DUNGEON_ID,
+  STUDIO_DUNGEON_MAP_ID,
+} from "../dungeons/studio"
 
 export interface AddSnapshotWorldAdapterOptions {
   readonly worldId?: string
@@ -504,19 +510,20 @@ function dungeonLinksForTile(
 }
 
 function targetMapIdForDungeon(dungeonId: string): string {
-  return dungeonId === SURVIVOR_CAVE_DUNGEON_ID
-    ? SURVIVOR_CAVE_DUNGEON_MAP_ID
-    : `add.rpg.dungeon.${dungeonId.replace(/^dungeon\./, "").replace(/_/g, "-")}`
+  if (dungeonId === SURVIVOR_CAVE_DUNGEON_ID) return SURVIVOR_CAVE_DUNGEON_MAP_ID
+  if (dungeonId === STUDIO_DUNGEON_ID) return STUDIO_DUNGEON_MAP_ID
+  return `add.rpg.dungeon.${dungeonId.replace(/^dungeon\./, "").replace(/_/g, "-")}`
 }
 
-function targetEntryCoordForDungeon(dungeonId: string) {
-  return dungeonId === SURVIVOR_CAVE_DUNGEON_ID
-    ? { kind: "square" as const, x: 2, y: 4 }
-    : undefined
+function targetEntryCoordForDungeon(dungeonId: string): CellCoord | undefined {
+  if (dungeonId === SURVIVOR_CAVE_DUNGEON_ID) return { kind: "square", x: 2, y: 4 }
+  if (dungeonId === STUDIO_DUNGEON_ID) return STUDIO_DUNGEON_ENTRANCE
+  return undefined
 }
 
 function labelForDungeon(dungeonId: string): string {
   if (dungeonId === SURVIVOR_CAVE_DUNGEON_ID) return "Survivor Cave Dungeon"
+  if (dungeonId === STUDIO_DUNGEON_ID) return "The Studio"
   return dungeonId
     .replace(/^dungeon\./, "")
     .split(/[_-]+/)

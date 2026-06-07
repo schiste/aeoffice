@@ -200,11 +200,14 @@ async function exerciseMapModeSwitching(page, consoleErrors) {
       state.mapMode?.fixture === true &&
       state.map?.topology?.kind === "square" &&
       state.map?.topology?.fixture === true &&
-      state.map?.mapId === "add.rpg.square-dungeon-fixture" &&
+      state.map?.mapId === "add.rpg.dungeon.studio" &&
       state.map?.cells?.total > 100 &&
       state.map?.cells?.blocked > 0 &&
       state.map?.cells?.bubbleEdge === 0 &&
-      state.map?.landmarks?.renderedCount > 0 &&
+      // Dungeon FOV: a wall-occluded cone limits what is lit, so some cells are
+      // visible and most stay hidden until explored.
+      state.map?.visibility?.visibleCells > 0 &&
+      state.map?.visibility?.hiddenCells > 0 &&
       state.map?.presentation?.transitionState &&
       state.map?.presentation?.landmarkSprites === "procedural_sprite_stack",
     consoleErrors,

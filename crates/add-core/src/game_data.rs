@@ -82,6 +82,7 @@ pub const TILE_MOUNTAIN_WALL: &str = "tile.mountain_wall";
 pub const TILE_SURVIVOR_CAVE: &str = "tile.survivor_cave";
 
 pub const DUNGEON_SURVIVOR_CAVE: &str = "dungeon.survivor_cave";
+pub const DUNGEON_STUDIO: &str = "dungeon.studio";
 
 pub const FLORA_REEDS: &str = "flora.reeds";
 pub const FLORA_SCRUB: &str = "flora.scrub";
@@ -1954,7 +1955,7 @@ const TILES: &[TileDef] = &[
         tags: TILE_TAGS_BASE,
         flora_ids: &[],
         structure_ids: &[STRUCTURE_CRYSTAL_CIRCLE, STRUCTURE_BASE],
-        dungeon_ids: &[],
+        dungeon_ids: &[DUNGEON_STUDIO],
         building_capacity: 3,
     },
     TileDef {

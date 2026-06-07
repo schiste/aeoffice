@@ -19,6 +19,26 @@ export const ADD_TILE_TRAVEL_PRESENTATION = createAddTravelPresentationTiming(
   ADD_TRAVEL_RUNTIME_SECONDS_PER_TILE,
 )
 
+// Dungeons run ~real-time: a ~1m square is one in-game second to cross, and
+// ambient time also flows at one in-game second per real second — 1/60 of the
+// overworld's compressed pace. clockSeconds are in-game minutes, so one in-game
+// second is 1/60 of a runtime second.
+export const ADD_DUNGEON_GAME_SECONDS_PER_TILE = 1
+export const ADD_DUNGEON_RUNTIME_SECONDS_PER_TILE =
+  ADD_DUNGEON_GAME_SECONDS_PER_TILE / (60 * ADD_GAME_MINUTES_PER_RUNTIME_SECOND)
+export const ADD_DUNGEON_AMBIENT_RUNTIME_SECONDS_PER_TICK =
+  ADD_DUNGEON_RUNTIME_SECONDS_PER_TILE
+
+// Same on-screen crossing as a tile move (keeps the hero synced with the
+// renderer), but it only advances the clock by ~one in-game second.
+export const ADD_DUNGEON_STEP_PRESENTATION: AddTravelPresentationTiming = {
+  visibleGameMinutes: 0,
+  runtimeSeconds: ADD_DUNGEON_RUNTIME_SECONDS_PER_TILE,
+  durationMs: ADD_TILE_TRAVEL_PRESENTATION.durationMs,
+  msPerVisibleMinute: ADD_TRAVEL_PRESENTATION_MS_PER_VISIBLE_MINUTE,
+  runtimeSecondsPerVisibleMinute: 1,
+}
+
 export function createAddClockAdvancePresentationTiming(
   fromClockSeconds: number,
   toClockSeconds: number,

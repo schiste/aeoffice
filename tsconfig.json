@@ -20,6 +20,9 @@
       "path": "packages/game-world"
     },
     {
+      "path": "packages/game-dungeon"
+    },
+    {
       "path": "packages/add-domain"
     },
     {

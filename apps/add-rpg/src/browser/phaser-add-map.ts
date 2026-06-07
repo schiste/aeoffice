@@ -155,6 +155,7 @@ export interface AddPhaserMapInfo {
     readonly x: number | null
     readonly y: number | null
     readonly moving: boolean
+    readonly facing: string | null
     readonly lastMoveDirection: string | null
     readonly lastMoveAccepted: boolean | null
     readonly blockedReason: string | null
@@ -426,6 +427,7 @@ class AddRpgHexScene extends Phaser.Scene {
   private characterPosition: Vector2 | null = null
   private characterTarget: Vector2 | null = null
   private characterTravel: CharacterTravelState | null = null
+  private characterFacing: AddCharacterMoveDirection = "down"
   private travelRuntimeLocked = false
   private travelPromptLocked = false
   private characterMoveStatus: CharacterMoveStatus = {
@@ -628,6 +630,7 @@ class AddRpgHexScene extends Phaser.Scene {
       toPosition,
     }
     this.selectedCoord = nextCoord
+    this.characterFacing = direction
     this.characterMoveStatus = {
       direction,
       accepted: true,
@@ -1194,7 +1197,7 @@ class AddRpgHexScene extends Phaser.Scene {
       }
 
       const revealStartedAt = this.revealTransitions.get(key)
-      if (revealStartedAt === undefined || visibilityState === "hidden") continue
+      if (revealStartedAt === undefined) continue
       const progress = clamp((this.time.now - revealStartedAt) / REVEAL_TRANSITION_MS, 0, 1)
       this.drawRevealTransition(graphics, cell, context, progress)
       if (progress >= 1) this.revealTransitions.delete(key)
@@ -1619,6 +1622,14 @@ class AddRpgHexScene extends Phaser.Scene {
     const key = characterMoveKeyForKeyboardKey(event.key)
     if (!key) return
     event.preventDefault()
+
+    // Shift turns the Hero in place to look around, without stepping.
+    if (event.shiftKey) {
+      this.characterFacing = key
+      this.refreshInfo()
+      return
+    }
+
     this.heldCharacterKeys.add(key)
     if (!event.repeat) this.pendingCharacterKeys.add(key)
 
@@ -1734,6 +1745,7 @@ class AddRpgHexScene extends Phaser.Scene {
         x: this.characterPosition ? round(this.characterPosition.x) : null,
         y: this.characterPosition ? round(this.characterPosition.y) : null,
         moving: this.characterIsMoving(),
+        facing: this.characterFacing,
         lastMoveDirection: this.characterMoveStatus.direction,
         lastMoveAccepted: this.characterMoveStatus.accepted,
         blockedReason: this.characterMoveStatus.blockedReason,
@@ -2654,6 +2666,7 @@ function emptyMapInfo(): AddPhaserMapInfo {
       x: null,
       y: null,
       moving: false,
+      facing: null,
       lastMoveDirection: null,
       lastMoveAccepted: null,
       blockedReason: null,

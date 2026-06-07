@@ -220,6 +220,111 @@ export function revealVisibilityRadius<TCoord extends CellCoord>(
   return next
 }
 
+export interface FieldOfViewOptions<TCoord extends CellCoord> {
+  readonly origin: TCoord
+  readonly radius: number
+  /** A cell is opaque if it blocks line of sight (e.g. a wall). */
+  readonly isOpaque: (coord: TCoord) => boolean
+  /**
+   * A cell the viewer faces toward (e.g. the square ahead). Combined with
+   * `coneHalfAngleDeg` this restricts the FOV to a forward cone. Omit either to
+   * get a full 360° occluded FOV.
+   */
+  readonly facingToward?: TCoord
+  /** Half-angle of the forward cone in degrees (e.g. 45 → a 90° cone). */
+  readonly coneHalfAngleDeg?: number
+  /**
+   * Cells within this many rings form the cone's near base: every adjacent cell
+   * that is not behind the viewer — front, the two front diagonals, and the two
+   * sides — is visible there regardless of the cone angle (a king-move ring minus
+   * the rear). Defaults to 0 (a pure cone). Only applies when a facing cone is set.
+   */
+  readonly peripheralRadius?: number
+  /** Whether the origin cell itself is included. Defaults to true. */
+  readonly includeOrigin?: boolean
+  /** Line-of-sight sampling granularity, in cells. Defaults to 0.25. */
+  readonly lineSampleStep?: number
+}
+
+/**
+ * Occlusion-aware field of view: the cells within `radius` of `origin` that the
+ * viewer can actually see — walls (`isOpaque`) block line of sight, and an
+ * optional forward cone (`facingToward` + `coneHalfAngleDeg`) limits it to a
+ * facing direction. Opaque cells on the boundary are themselves visible (you see
+ * the wall face) but occlude everything behind them. Topology-generic.
+ */
+export function computeFieldOfView<TCoord extends CellCoord>(
+  topology: GridTopology<TCoord>,
+  options: FieldOfViewOptions<TCoord>,
+): readonly TCoord[] {
+  const { origin, radius, isOpaque } = options
+  assertNonNegativeInteger(radius, "radius")
+  if (!topology.inBounds(origin)) return []
+
+  const includeOrigin = options.includeOrigin ?? true
+  const sampleStep = Math.max(0.05, options.lineSampleStep ?? 0.25)
+  const peripheralRadius = Math.max(0, options.peripheralRadius ?? 0)
+  const facing = coneFacingVector(topology, options)
+  const cosHalfAngle =
+    facing && options.coneHalfAngleDeg !== undefined
+      ? Math.cos((clampAngle(options.coneHalfAngleDeg) * Math.PI) / 180)
+      : -1
+
+  const originKey = topology.serialize(origin)
+  const originWorld = topology.cellToWorld(origin)
+  // Near-base radius in world units: a ring of king-moves (so the front diagonals
+  // are included, not just the cardinal neighbours).
+  const nearBaseWorldRadius =
+    peripheralRadius > 0
+      ? peripheralRadius * nearestNeighborWorldDistance(topology, origin, originWorld) * Math.SQRT2 +
+        1e-6
+      : 0
+  const visible: TCoord[] = []
+
+  for (const coord of coordsInVisibilityRadius(topology, origin, radius)) {
+    if (topology.serialize(coord) === originKey) {
+      if (includeOrigin) visible.push(coord)
+      continue
+    }
+    const cellWorld = topology.cellToWorld(coord)
+    const dx = cellWorld.x - originWorld.x
+    const dy = cellWorld.y - originWorld.y
+
+    if (facing) {
+      const length = Math.hypot(dx, dy)
+      if (length > 0) {
+        const cosine = (dx * facing.x + dy * facing.y) / length
+        // In the forward cone, OR in the near base (adjacent ring, not behind).
+        const inCone = cosine >= cosHalfAngle
+        const inBase = nearBaseWorldRadius > 0 && cosine >= 0 && length <= nearBaseWorldRadius
+        if (!inCone && !inBase) continue
+      }
+    }
+
+    if (hasLineOfSight(topology, origin, coord, originWorld, cellWorld, isOpaque, sampleStep)) {
+      visible.push(coord)
+    }
+  }
+
+  return visible
+}
+
+/** Reveal the occluded (optionally cone-limited) FOV, mirroring revealVisibilityRadius. */
+export function revealFieldOfView<TCoord extends CellCoord>(
+  visibility: VisibilityMap,
+  topology: GridTopology<TCoord>,
+  options: FieldOfViewOptions<TCoord>,
+  state: Extract<VisibilityState, "discovered" | "visible">,
+  revealOptions: VisibilityRevealOptions = {},
+): MutableVisibilityMap {
+  const next = new Map(visibility)
+  for (const coord of computeFieldOfView(topology, options)) {
+    const key = topology.serialize(coord)
+    next.set(key, mergeVisibilityEntry(next.get(key), createVisibilityEntry(state, revealOptions)))
+  }
+  return next
+}
+
 export function markVisibleAsStale(
   visibility: VisibilityMap,
   options: VisibilityRevealOptions = {},
@@ -313,6 +418,65 @@ function assertNonNegativeInteger(value: number, label: string): void {
   if (!Number.isInteger(value) || value < 0) {
     throw new Error(`${label} must be a non-negative integer.`)
   }
+}
+
+function clampAngle(degrees: number): number {
+  if (!Number.isFinite(degrees) || degrees < 0) return 0
+  return Math.min(degrees, 180)
+}
+
+function nearestNeighborWorldDistance<TCoord extends CellCoord>(
+  topology: GridTopology<TCoord>,
+  origin: TCoord,
+  originWorld: { readonly x: number; readonly y: number },
+): number {
+  let nearest = Infinity
+  for (const neighbor of topology.neighbors(origin)) {
+    const world = topology.cellToWorld(neighbor)
+    const distance = Math.hypot(world.x - originWorld.x, world.y - originWorld.y)
+    if (distance > 0) nearest = Math.min(nearest, distance)
+  }
+  return Number.isFinite(nearest) ? nearest : 0
+}
+
+function coneFacingVector<TCoord extends CellCoord>(
+  topology: GridTopology<TCoord>,
+  options: FieldOfViewOptions<TCoord>,
+): { readonly x: number; readonly y: number } | null {
+  if (!options.facingToward || options.coneHalfAngleDeg === undefined) return null
+  const origin = topology.cellToWorld(options.origin)
+  const toward = topology.cellToWorld(options.facingToward)
+  const dx = toward.x - origin.x
+  const dy = toward.y - origin.y
+  const length = Math.hypot(dx, dy)
+  if (length === 0) return null
+  return { x: dx / length, y: dy / length }
+}
+
+function hasLineOfSight<TCoord extends CellCoord>(
+  topology: GridTopology<TCoord>,
+  origin: TCoord,
+  target: TCoord,
+  originWorld: { readonly x: number; readonly y: number },
+  targetWorld: { readonly x: number; readonly y: number },
+  isOpaque: (coord: TCoord) => boolean,
+  sampleStep: number,
+): boolean {
+  const samples = Math.max(1, Math.ceil(topology.distance(origin, target) / sampleStep))
+  const originKey = topology.serialize(origin)
+  const targetKey = topology.serialize(target)
+  for (let i = 1; i < samples; i += 1) {
+    const t = i / samples
+    const cell = topology.worldToCell({
+      x: originWorld.x + (targetWorld.x - originWorld.x) * t,
+      y: originWorld.y + (targetWorld.y - originWorld.y) * t,
+    })
+    if (!cell) continue
+    const key = topology.serialize(cell)
+    if (key === originKey || key === targetKey) continue
+    if (isOpaque(cell)) return false
+  }
+  return true
 }
 
 function earliestDefined(a: number | undefined, b: number | undefined): number | undefined {

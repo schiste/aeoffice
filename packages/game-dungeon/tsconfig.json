@@ -10,13 +10,7 @@
       "path": "../game-topology"
     },
     {
-      "path": "../game-visibility"
-    },
-    {
       "path": "../game-world"
-    },
-    {
-      "path": "../game-dungeon"
     }
   ],
   "include": [

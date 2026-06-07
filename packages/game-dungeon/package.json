@@ -1,17 +1,15 @@
 {
-  "name": "@aedventure/add-domain",
+  "name": "@aedventure/game-dungeon",
   "version": "0.1.0",
   "license": "AGPL-3.0-or-later",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc -b",
-    "test": "node test/adapters.test.js"
+    "test": "node test/dungeon.test.js"
   },
   "dependencies": {
-    "@aedventure/game-dungeon": "0.1.0",
     "@aedventure/game-topology": "0.1.0",
-    "@aedventure/game-visibility": "0.1.0",
     "@aedventure/game-world": "0.1.0"
   }
 }
