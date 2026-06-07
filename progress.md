@@ -236,6 +236,13 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   motifs/progress from the policy instead of directly reading ADD
   terrain/state/progress selectors. Targeted renderer/add-domain builds, tests,
   ADD type build, and ADD smoke passed.
+- The neutral `GameEntity` contract no longer uses vague `size`. Entity shape is
+  split into explicit `visualFootprint`, `collisionFootprint`,
+  `interactionRadius`, and `renderScale` concepts, with `cell` or `world` units.
+  `game-world` validates those fields, `game-dungeon` compiles dungeon entity
+  specs into them, and the ADD creature renderer uses `visualFootprint` for
+  sub-tile rats. Targeted game-world/game-dungeon builds and tests, add-domain
+  build/test, ADD type build, ADD smoke, and renderer QA passed.
 - Renderer/engine separation now has explicit browser-engine controllers:
   `InputController` owns held keyboard/D-pad/joystick/run state and shaped
   movement intents, while `WorldSyncController` owns the realtime transport

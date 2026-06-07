@@ -9,6 +9,9 @@ import type {
   GameCellLink,
   GameCellLinkKind,
   GameCellPlacement,
+  GameEntityCollisionFootprint,
+  GameEntityFootprint,
+  GameEntityInteractionRadius,
   GameEntity,
   GameInteraction,
   GameLayer,
@@ -34,6 +37,10 @@ export interface DungeonEntitySpec {
   readonly idSuffix: string
   readonly label: string
   readonly kind?: string
+  readonly visualFootprint?: GameEntityFootprint
+  readonly collisionFootprint?: GameEntityCollisionFootprint
+  readonly interactionRadius?: GameEntityInteractionRadius
+  readonly renderScale?: number
   readonly sourceId?: string
   readonly tags?: readonly string[]
   readonly metadata?: GameMetadata
@@ -327,10 +334,15 @@ function compileEntity(
   feature: string | undefined,
 ): GameEntity {
   return {
-    id: `${blueprintId}.entity.${entity.idSuffix}`,
+    // Coord-suffixed so the same legend glyph can place several entities.
+    id: `${blueprintId}.entity.${entity.idSuffix}.${coord.x}.${coord.y}`,
     kind: entity.kind ?? "landmark",
     label: entity.label,
     coord,
+    ...(entity.visualFootprint ? { visualFootprint: entity.visualFootprint } : {}),
+    ...(entity.collisionFootprint ? { collisionFootprint: entity.collisionFootprint } : {}),
+    ...(entity.interactionRadius ? { interactionRadius: entity.interactionRadius } : {}),
+    ...(entity.renderScale !== undefined ? { renderScale: entity.renderScale } : {}),
     tags: entity.tags ?? ["dungeon"],
     metadata: mergeMetadata(
       { sourceId: entity.sourceId ?? entity.idSuffix, feature: feature ?? "none" },

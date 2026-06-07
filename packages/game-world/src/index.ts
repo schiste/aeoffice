@@ -22,6 +22,24 @@ export type GameCellLinkKind = "dungeon" | "portal" | "map" | string
 export type GamePrimitiveValue = string | number | boolean
 export type GameMetadata = Readonly<Record<string, GamePrimitiveValue>>
 export type GameCellVisibility = VisibilityEntry
+export type GameEntityFootprintUnit = "cell" | "world"
+export type GameEntityCollisionShape = "rect" | "ellipse"
+
+export interface GameEntityFootprint {
+  readonly unit: GameEntityFootprintUnit
+  readonly width: number
+  readonly height: number
+  readonly offset?: Vector2
+}
+
+export interface GameEntityCollisionFootprint extends GameEntityFootprint {
+  readonly shape?: GameEntityCollisionShape
+}
+
+export interface GameEntityInteractionRadius {
+  readonly unit: GameEntityFootprintUnit
+  readonly value: number
+}
 
 export type GameTopologyReference =
   | SquareGameTopologyReference
@@ -97,6 +115,10 @@ export interface GameEntity {
   readonly label?: string
   readonly coord?: CellCoord
   readonly position?: Vector2
+  readonly visualFootprint?: GameEntityFootprint
+  readonly collisionFootprint?: GameEntityCollisionFootprint
+  readonly interactionRadius?: GameEntityInteractionRadius
+  readonly renderScale?: number
   readonly layerId?: string
   readonly blocksMovement?: boolean
   readonly tags?: readonly string[]
@@ -153,6 +175,7 @@ export type GameWorldValidationCheckId =
   | "layer_cells"
   | "cell_links"
   | "entity_coords"
+  | "entity_footprints"
   | "zone_cells"
   | "cell_visibility"
   | "interaction_targets"
@@ -377,6 +400,7 @@ function validateMapCoordinates(
 
   const layerIds = new Set(map.layers.map((layer) => layer.id))
   const entityCoordErrors: string[] = []
+  const entityFootprintErrors: string[] = []
   for (const entity of map.entities) {
     if (entity.coord && !coordInTopologyBounds(entity.coord, map.topology)) {
       entityCoordErrors.push(`${entity.id}:${formatCoord(entity.coord)}`)
@@ -384,12 +408,21 @@ function validateMapCoordinates(
     if (entity.layerId && !layerIds.has(entity.layerId)) {
       entityCoordErrors.push(`${entity.id}:missing-layer:${entity.layerId}`)
     }
+    entityFootprintErrors.push(...validateEntityFootprints(entity))
   }
   reportCoordinateCheck(
     "entity_coords",
     entityCoordErrors,
     `Map ${map.id} entity coordinates and layer refs are valid.`,
     "Entity coordinate/layer errors",
+    fail,
+    pass,
+  )
+  reportCoordinateCheck(
+    "entity_footprints",
+    entityFootprintErrors,
+    `Map ${map.id} entity footprints are valid.`,
+    "Entity footprint errors",
     fail,
     pass,
   )
@@ -482,6 +515,46 @@ function collectDuplicateIds(
     ids.add(item.id)
   }
   return { ids, duplicates: [...duplicates] }
+}
+
+function validateEntityFootprints(entity: GameEntity): string[] {
+  const errors: string[] = []
+  validateFootprint(`${entity.id}:visualFootprint`, entity.visualFootprint, errors)
+  validateFootprint(`${entity.id}:collisionFootprint`, entity.collisionFootprint, errors)
+  if (
+    entity.interactionRadius &&
+    (!validFootprintUnit(entity.interactionRadius.unit) ||
+      !positiveFinite(entity.interactionRadius.value))
+  ) {
+    errors.push(`${entity.id}:interactionRadius`)
+  }
+  if (entity.renderScale !== undefined && !positiveFinite(entity.renderScale)) {
+    errors.push(`${entity.id}:renderScale`)
+  }
+  return errors
+}
+
+function validateFootprint(
+  label: string,
+  footprint: GameEntityFootprint | undefined,
+  errors: string[],
+): void {
+  if (!footprint) return
+  if (
+    !validFootprintUnit(footprint.unit) ||
+    !positiveFinite(footprint.width) ||
+    !positiveFinite(footprint.height)
+  ) {
+    errors.push(label)
+  }
+}
+
+function validFootprintUnit(unit: GameEntityFootprintUnit): boolean {
+  return unit === "cell" || unit === "world"
+}
+
+function positiveFinite(value: number): boolean {
+  return Number.isFinite(value) && value > 0
 }
 
 function reportCoordinateCheck(

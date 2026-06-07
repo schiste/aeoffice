@@ -80,6 +80,10 @@ const validWorld = {
           id: "entity.hero",
           kind: "actor",
           coord: squareCoord(1, 1),
+          visualFootprint: { unit: "cell", width: 1, height: 1 },
+          collisionFootprint: { unit: "cell", width: 0.72, height: 0.48, shape: "ellipse" },
+          interactionRadius: { unit: "cell", value: 1.25 },
+          renderScale: 1,
           layerId: "layer.objects",
         },
       ],
@@ -168,6 +172,35 @@ assert.deepEqual(
     .filter((check) => check.status === "fail")
     .map((check) => check.id),
   [],
+)
+assert.equal(
+  validation.checks.some((check) => check.id === "entity_footprints"),
+  true,
+)
+
+const invalidFootprintWorld = {
+  ...validWorld,
+  maps: [
+    {
+      ...validWorld.maps[0],
+      entities: [
+        {
+          id: "entity.bad-footprint",
+          kind: "actor",
+          coord: squareCoord(1, 1),
+          visualFootprint: { unit: "cell", width: 0, height: 1 },
+          renderScale: -1,
+        },
+      ],
+    },
+  ],
+}
+const invalidFootprintValidation = validateGameWorld(invalidFootprintWorld)
+assert.equal(invalidFootprintValidation.valid, false)
+assert.ok(
+  invalidFootprintValidation.checks.some(
+    (check) => check.id === "entity_footprints" && check.status === "fail",
+  ),
 )
 
 assert.equal(

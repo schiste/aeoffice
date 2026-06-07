@@ -26,8 +26,14 @@ const blueprint = {
     },
     E: {
       kind: "floor",
-      feature: "relic",
-      entity: { idSuffix: "relic", label: "Relic", sourceId: "relic" },
+      feature: "creature",
+      entity: {
+        idSuffix: "rat",
+        label: "Rat",
+        kind: "creature",
+        visualFootprint: { unit: "cell", width: 0.3, height: 0.3 },
+        sourceId: "rat",
+      },
     },
   },
   rooms: [{ id: "test.dungeon.demo.room", label: "Main Room", chars: ".>E" }],
@@ -57,9 +63,12 @@ const wallCount = terrain.cells.filter((cell) => cell.blocked).length
 assert.equal(collision.cells.length, wallCount)
 assert.ok(wallCount > 0, "demo dungeon should have walls")
 
-// Entities: the relic landmark + an auto entrance landmark.
-assert.ok(map.entities.some((entity) => entity.id === "test.dungeon.demo.entity.relic"))
-assert.ok(map.entities.some((entity) => entity.id === "test.dungeon.demo.entity.entrance"))
+// Entities are coord-suffixed; the entrance auto-entity and a sub-tile creature.
+assert.ok(map.entities.some((entity) => entity.id === "test.dungeon.demo.entity.entrance.1.1"))
+const rat = map.entities.find((entity) => entity.id === "test.dungeon.demo.entity.rat.3.1")
+assert.ok(rat, "rat creature entity should exist at its coord")
+assert.equal(rat.kind, "creature")
+assert.deepEqual(rat.visualFootprint, { unit: "cell", width: 0.3, height: 0.3 })
 
 // The exit link rides on the entrance cell.
 const entranceCell = terrain.cells.find((cell) => cell.coord.x === 1 && cell.coord.y === 1)

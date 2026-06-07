@@ -581,6 +581,12 @@ export class AddRpgHexScene extends Phaser.Scene {
       if (cell && !this.cellPresentationPolicy.cellVisible(cell)) continue
 
       const center = centerFor(entity.coord, context)
+      if (entity.kind === "creature") {
+        // Live creatures only render where currently visible, never remembered.
+        if (cell && presentationVisibilityStateForCell(cell) !== "visible") continue
+        this.drawCreature(center, entity, squareCellSize(context))
+        continue
+      }
       const tags = new Set(entity.tags ?? [])
       if (tags.has("flora")) {
         this.drawFlora(center, entity)
@@ -590,6 +596,27 @@ export class AddRpgHexScene extends Phaser.Scene {
     }
   }
 
+  private drawCreature(center: Vector2, entity: GameEntity, cellSize: number): void {
+    const visualFootprint = entity.visualFootprint
+    const visualWidth =
+      visualFootprint?.unit === "world"
+        ? visualFootprint.width
+        : (visualFootprint?.width ?? 1) * cellSize
+    const visualHeight =
+      visualFootprint?.unit === "world"
+        ? visualFootprint.height
+        : (visualFootprint?.height ?? 1) * cellSize
+    const renderScale = entity.renderScale ?? 1
+    const bodyRx = Math.max(3, visualWidth * renderScale * 0.42)
+    const bodyRy = Math.max(2.4, visualHeight * renderScale * 0.32)
+    const shadow = this.add.ellipse(center.x, center.y + bodyRy * 0.8, bodyRx * 1.6, bodyRy * 0.7, 0x14110c, 0.22)
+    const body = this.add.ellipse(center.x, center.y, bodyRx * 2, bodyRy * 2, 0x5a5048, 0.95)
+    body.setStrokeStyle(1, 0x2c261f, 0.85)
+    const belly = this.add.ellipse(center.x, center.y + bodyRy * 0.35, bodyRx * 1.05, bodyRy * 0.8, 0x8a7d6c, 0.55)
+    const eye = this.add.ellipse(center.x + bodyRx * 0.5, center.y - bodyRy * 0.2, 1.5, 1.5, 0x0f0b07, 0.9)
+    ;[shadow, body, belly, eye].forEach((object, index) => object.setDepth(22 + index))
+    this.landmarkObjects.push(shadow, body, belly, eye)
+  }
 
   private syncMainCharacter(context: RenderContext, forceReset: boolean): void {
     const currentValid =
