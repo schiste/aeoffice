@@ -1,11 +1,4 @@
 import {
-  addSnapshotToGameWorld,
-  studioDungeonMap,
-  STUDIO_DUNGEON_MAP_ID,
-  type CatalogSnapshot,
-  type SimulationSnapshot,
-} from "@aedventure/add-domain"
-import {
   createSquareCoord,
   type SquareCoord,
 } from "@aedventure/game-topology"
@@ -17,6 +10,17 @@ import type {
   GameWorld,
   GameZone,
 } from "@aedventure/game-world"
+
+import type { CatalogSnapshot, SimulationSnapshot } from "../runtime/protocol"
+import { addSnapshotToGameWorld } from "./snapshot-to-world"
+import {
+  addDungeonByMapId,
+  SURVIVOR_CAVE_DUNGEON_MAP_ID,
+} from "../dungeons/registry"
+import {
+  studioDungeonMap,
+  STUDIO_DUNGEON_MAP_ID,
+} from "../dungeons/studio"
 
 export type AddMapMode = "overworld_hex" | "dungeon_square" | "base_square"
 
@@ -32,8 +36,6 @@ export const ADD_MAP_MODE_OPTIONS: readonly AddMapModeOption[] = [
   { id: "dungeon_square", label: "Dungeon", topology: "square", fixture: true },
   { id: "base_square", label: "Base", topology: "square", fixture: true },
 ]
-
-const SURVIVOR_CAVE_DUNGEON_MAP_ID = "add.rpg.square-dungeon-fixture"
 
 export interface CreateAddWorldOptions {
   /** Which dungeon map to load in dungeon_square mode. Defaults to the Studio. */
@@ -72,13 +74,19 @@ export function createAddWorldForMapMode(
   }
 }
 
-// Registry of dungeon maps the app can load by id. New dungeons are authored as
-// blueprints (see @aedventure/game-dungeon) and registered here.
+export function addMapModeLabel(mode: AddMapMode): string {
+  return ADD_MAP_MODE_OPTIONS.find((option) => option.id === mode)?.label ?? mode
+}
+
 function dungeonMapForId(mapId: string, snapshot: SimulationSnapshot): GameMap {
-  if (mapId === SURVIVOR_CAVE_DUNGEON_MAP_ID) return dungeonSquareMap()
+  const registered = addDungeonByMapId(mapId)
+  if (mapId === SURVIVOR_CAVE_DUNGEON_MAP_ID || registered?.mapId === SURVIVOR_CAVE_DUNGEON_MAP_ID) {
+    return survivorCaveDungeonMap()
+  }
+
   // The Studio is the canonical first dungeon; it reflects the restore state.
-  // Tag the neutral compiled map with the app's square-map context so the host
-  // reports it consistently with the other fixtures.
+  // Unknown dungeon ids intentionally fall back to the Studio until their
+  // blueprint is registered.
   const studio = studioDungeonMap(snapshot.base.studioRestored)
   return {
     ...studio,
@@ -91,11 +99,7 @@ function dungeonMapForId(mapId: string, snapshot: SimulationSnapshot): GameMap {
   }
 }
 
-export function addMapModeLabel(mode: AddMapMode): string {
-  return ADD_MAP_MODE_OPTIONS.find((option) => option.id === mode)?.label ?? mode
-}
-
-function dungeonSquareMap(): GameMap {
+function survivorCaveDungeonMap(): GameMap {
   const width = 14
   const height = 10
   const cells = squareCells(width, height, (coord) => {
@@ -125,7 +129,7 @@ function dungeonSquareMap(): GameMap {
   })
 
   return squareMap({
-    id: "add.rpg.square-dungeon-fixture",
+    id: SURVIVOR_CAVE_DUNGEON_MAP_ID,
     label: "Dungeon Square Fixture",
     mode: "dungeon_square",
     width,

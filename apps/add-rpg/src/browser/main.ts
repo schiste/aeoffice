@@ -10,9 +10,14 @@ import {
   workerRequestForAddCommand,
   applyDungeonFieldOfView,
   emptyDungeonVisibility,
+  addDungeonByMapId,
+  ADD_MAP_MODE_OPTIONS,
   STUDIO_DUNGEON_MAP_ID,
+  addMapModeLabel,
+  createAddWorldForMapMode,
   type AddUiState,
   type AddFirstPlayableAction,
+  type AddMapMode,
   type AddWorldTimeSummary,
   type CatalogSnapshot,
   type SimulationSnapshot,
@@ -20,12 +25,6 @@ import {
 } from "@aedventure/add-domain"
 import type { GameInteraction, GameWorld } from "@aedventure/game-world"
 
-import {
-  ADD_MAP_MODE_OPTIONS,
-  addMapModeLabel,
-  createAddWorldForMapMode,
-  type AddMapMode,
-} from "./add-map-modes"
 import type { VisibilityMap } from "@aedventure/game-visibility"
 import {
   AddRpgPhaserMapHost,
@@ -510,7 +509,11 @@ createEffect(() => {
       dungeonVisibilityKey = target
     }
     const activeMap = nextWorld.maps.find((map) => map.id === nextWorld.activeMapId)
-    if (activeMap) {
+    // The dungeon registry owns the visibility policy; "fully_lit" dungeons skip FOV.
+    const usesFov =
+      (addDungeonByMapId(activeMap?.id ?? "")?.visibilityPolicy ?? "directional_fov") ===
+      "directional_fov"
+    if (activeMap && usesFov) {
       const fov = applyDungeonFieldOfView(
         activeMap,
         heroDungeonCell(),

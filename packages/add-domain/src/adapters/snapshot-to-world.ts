@@ -9,7 +9,6 @@ import type {
   GameZone,
 } from "@aedventure/game-world"
 import type { VisibilityEntry } from "@aedventure/game-visibility"
-import type { CellCoord } from "@aedventure/game-topology"
 
 import type {
   CatalogSnapshot,
@@ -32,11 +31,7 @@ import {
   type AddVisibilitySummary,
   type AddKnownTileFacts,
 } from "./visibility-selectors"
-import {
-  STUDIO_DUNGEON_ENTRANCE,
-  STUDIO_DUNGEON_ID,
-  STUDIO_DUNGEON_MAP_ID,
-} from "../dungeons/studio"
+import { resolveAddDungeon } from "../dungeons/registry"
 
 export interface AddSnapshotWorldAdapterOptions {
   readonly worldId?: string
@@ -50,8 +45,6 @@ const TERRAIN_LAYER_ID = "add.layer.terrain"
 const COLLISION_LAYER_ID = "add.layer.collision"
 const BUBBLE_LAYER_ID = "add.layer.bubble"
 const OBJECT_LAYER_ID = "add.layer.landmarks"
-const SURVIVOR_CAVE_DUNGEON_ID = "dungeon.survivor_cave"
-const SURVIVOR_CAVE_DUNGEON_MAP_ID = "add.rpg.square-dungeon-fixture"
 
 export function addSnapshotToGameWorld(
   snapshot: SimulationSnapshot,
@@ -494,42 +487,22 @@ function dungeonLinksForTile(
 ): readonly GameCellLink[] {
   if (!tile || tile.dungeonIds.length === 0) return []
 
-  return tile.dungeonIds.map((dungeonId) => ({
-    id: `add.link.${dungeonId}.${hex.q}.${hex.r}`,
-    kind: "dungeon",
-    targetMapId: targetMapIdForDungeon(dungeonId),
-    targetCoord: targetEntryCoordForDungeon(dungeonId),
-    label: labelForDungeon(dungeonId),
-    enabled: hex.state !== "inactive" && hex.state !== "blocked",
-    metadata: {
-      dungeonId,
-      homeTileId: tile.id,
-      homeCoord: `${hex.q},${hex.r}`,
-    },
-  }))
-}
-
-function targetMapIdForDungeon(dungeonId: string): string {
-  if (dungeonId === SURVIVOR_CAVE_DUNGEON_ID) return SURVIVOR_CAVE_DUNGEON_MAP_ID
-  if (dungeonId === STUDIO_DUNGEON_ID) return STUDIO_DUNGEON_MAP_ID
-  return `add.rpg.dungeon.${dungeonId.replace(/^dungeon\./, "").replace(/_/g, "-")}`
-}
-
-function targetEntryCoordForDungeon(dungeonId: string): CellCoord | undefined {
-  if (dungeonId === SURVIVOR_CAVE_DUNGEON_ID) return { kind: "square", x: 2, y: 4 }
-  if (dungeonId === STUDIO_DUNGEON_ID) return STUDIO_DUNGEON_ENTRANCE
-  return undefined
-}
-
-function labelForDungeon(dungeonId: string): string {
-  if (dungeonId === SURVIVOR_CAVE_DUNGEON_ID) return "Survivor Cave Dungeon"
-  if (dungeonId === STUDIO_DUNGEON_ID) return "The Studio"
-  return dungeonId
-    .replace(/^dungeon\./, "")
-    .split(/[_-]+/)
-    .filter(Boolean)
-    .map((part) => `${part.slice(0, 1).toUpperCase()}${part.slice(1)}`)
-    .join(" ")
+  return tile.dungeonIds.map((dungeonId) => {
+    const dungeon = resolveAddDungeon(dungeonId)
+    return {
+      id: `add.link.${dungeonId}.${hex.q}.${hex.r}`,
+      kind: "dungeon",
+      targetMapId: dungeon.mapId,
+      targetCoord: dungeon.entryCoord,
+      label: dungeon.label,
+      enabled: dungeon.unlocked && hex.state !== "inactive" && hex.state !== "blocked",
+      metadata: {
+        dungeonId,
+        homeTileId: tile.id,
+        homeCoord: `${hex.q},${hex.r}`,
+      },
+    }
+  })
 }
 
 function hexBoundsFor(hexes: readonly HexSnapshot[]) {
