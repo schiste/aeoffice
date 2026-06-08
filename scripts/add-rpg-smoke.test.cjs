@@ -699,6 +699,25 @@ async function assertHeroStartsAtSurvivorCave(page, state) {
   )
 }
 
+async function characterScreenPoint(page, state) {
+  const canvas = page.locator("#add-world canvas")
+  await canvas.waitFor({ state: "visible" })
+  const box = await canvas.boundingBox()
+  assert.ok(box, "ADD RPG Phaser canvas should have a browser box")
+  const character = state.map?.character
+  const camera = state.map?.camera
+  assert.ok(character, "ADD RPG telemetry should expose character coordinates")
+  assert.ok(camera, "ADD RPG telemetry should expose camera coordinates")
+  const cameraOrigin = {
+    x: box.width / 2,
+    y: box.height / 2,
+  }
+  return {
+    x: box.x + (character.x - camera.scrollX - cameraOrigin.x) * camera.zoom + cameraOrigin.x,
+    y: box.y + (character.y - camera.scrollY - cameraOrigin.y) * camera.zoom + cameraOrigin.y,
+  }
+}
+
 async function exerciseSurvivorCaveDungeonEntry(page, consoleErrors) {
   const before = await renderGameToText(page)
   assert.equal(before.mapMode.active, "overworld_hex")
@@ -1076,22 +1095,16 @@ async function exerciseMainCharacterMovement(page, consoleErrors) {
 }
 
 async function interactWithMap(page, consoleErrors) {
-  const canvas = page.locator("#add-world canvas")
-  await canvas.waitFor({ state: "visible" })
-  const box = await canvas.boundingBox()
-  assert.ok(box, "ADD RPG Phaser canvas should have a browser box")
-  const center = {
-    x: box.x + box.width / 2,
-    y: box.y + box.height / 2,
-  }
+  const beforeInteraction = await renderGameToText(page)
+  const heroPoint = await characterScreenPoint(page, beforeInteraction)
 
-  await page.mouse.move(center.x, center.y)
+  await page.mouse.move(heroPoint.x, heroPoint.y)
   await waitForTextState(
     page,
     (state) => state.map?.interaction?.hoveredHex !== null,
     consoleErrors,
   )
-  await page.mouse.click(center.x, center.y)
+  await page.mouse.click(heroPoint.x, heroPoint.y)
   const selected = await waitForTextState(
     page,
     (state) =>
