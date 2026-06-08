@@ -2,8 +2,8 @@ use serde::Serialize;
 
 mod catalog;
 use catalog::{
-    BALANCE, CONSTRUCTION_OPTIONS, ENTITY_SCHEMAS, FLAGS, FLORA, PROCESSING_RECIPES, RESOURCES,
-    ROLES, STATIONS, STORY_BEATS, STRUCTURES, TILES, UI_ELEMENTS, WORLD_ACTIONS,
+    BALANCE, CONSTRUCTION_OPTIONS, ENTITY_SCHEMAS, FLAGS, FLORA, PERKS, PROCESSING_RECIPES,
+    RESOURCES, ROLES, STATIONS, STORY_BEATS, STRUCTURES, TILES, UI_ELEMENTS, WORLD_ACTIONS,
 };
 
 pub const RESOURCE_BASSLINE: &str = "resource.bassline";
@@ -341,6 +341,32 @@ pub enum ModelKind {
     Vibes,
     Terrain,
     Storage,
+}
+
+// Hero perk stats a perk effect can multiply. Each maps to one sim calc site.
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum PerkStat {
+    ScavengeYield,
+    ConstructionSpeed,
+    CrystalOutput,
+    HeroRecovery,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct PerkEffectDef {
+    pub stat: PerkStat,
+    pub multiplier: f64,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct PerkDef {
+    pub id: &'static str,
+    pub label: &'static str,
+    pub requires: &'static [&'static str],
+    pub effects: &'static [PerkEffectDef],
 }
 
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
@@ -2080,6 +2106,14 @@ pub fn flora_def(id: &str) -> Option<&'static FloraDef> {
 
 pub fn structure_def(id: &str) -> Option<&'static StructureDef> {
     STRUCTURES.iter().find(|structure| structure.id == id)
+}
+
+pub fn perks() -> &'static [PerkDef] {
+    PERKS
+}
+
+pub fn perk_def(id: &str) -> Option<&'static PerkDef> {
+    PERKS.iter().find(|perk| perk.id == id)
 }
 
 pub fn balance_snapshot() -> BalanceSnapshot {

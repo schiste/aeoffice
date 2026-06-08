@@ -52,6 +52,7 @@ const story = content("story")
 const uiElements = content("ui-elements")
 const entitySchemas = content("entity-schemas")
 const balance = content("balance")
+const perks = content("perks")
 
 const VIS = "pub(in crate::game_data)"
 // Balance is all-numeric; helper for the many f64 fields (from defaults to camelCase).
@@ -617,6 +618,38 @@ const FILES = [
             { name: "vibes", kind: "struct", structType: "VibesBalance", fields: f64s("negative_k", "bad_vibes_beta", "bad_vibes_pow", "doubling_time_seconds", "decay_reset_seconds") },
             { name: "recruitment", kind: "struct", structType: "RecruitmentBalance", fields: f64s("recruit_travel_seconds", "instant_recruit_delay_seconds", "good_vibes_opt_base", "good_vibes_opt_step", "t1_minutes", "t30_total_good_vibes", "t500_total_good_vibes", "t1000_total_good_vibes") },
             i64("notes_limit"),
+          ],
+        },
+      },
+    ],
+  },
+  {
+    sourceModule: "packages/add-domain/src/content/perks.ts",
+    rustPath: "crates/add-core/src/game_data/catalog/perks.rs",
+    consts: [
+      {
+        entries: perks.PERKS,
+        spec: {
+          constName: "PERKS",
+          rustType: "PerkDef",
+          visibility: VIS,
+          fields: [
+            { name: "id", kind: "string" },
+            { name: "label", kind: "string" },
+            { name: "requires", kind: "array", element: { name: "r", kind: "string" } },
+            {
+              name: "effects",
+              kind: "array",
+              element: {
+                name: "e",
+                kind: "struct",
+                structType: "PerkEffectDef",
+                fields: [
+                  { name: "stat", kind: "enum", rustEnum: "PerkStat" },
+                  { name: "multiplier", kind: "f64" },
+                ],
+              },
+            },
           ],
         },
       },

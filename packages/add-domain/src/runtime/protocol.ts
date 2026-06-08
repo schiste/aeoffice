@@ -231,6 +231,8 @@ export interface SimulationSnapshot {
   notes: string[]
   /** Open dungeon doors, keyed by `${dungeonId}:${x}:${y}`. */
   openDoors: string[]
+  /** Perk ids the Hero has learned. */
+  acquiredPerks: string[]
 }
 
 export interface ResourceDef {
@@ -738,6 +740,7 @@ export type WorkerRequest =
   | { type: 'recruitFromSurvivorCave' }
   | { type: 'moveHeroTo'; q: number; r: number }
   | { type: 'openDoor'; key: string }
+  | { type: 'acquirePerk'; perkId: string }
   | { type: 'spendBassline'; amount: number }
   | { type: 'importSave'; payload: string }
   | { type: 'exportSave' }

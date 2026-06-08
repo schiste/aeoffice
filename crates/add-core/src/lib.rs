@@ -400,6 +400,56 @@ mod tests {
             .contains("dungeon.studio:6:7"));
     }
 
+    #[test]
+    fn perks_apply_effects_with_level_gating_and_persist() {
+        let mut state = crate::state::GameState::new();
+        state.hero_progress.drummer_level = 3; // 3 perk points
+        let mut simulation = Simulation::from_state(state);
+        assert_eq!(simulation.perk_points_available(), 3);
+        assert_eq!(
+            simulation.perk_multiplier(crate::game_data::PerkStat::ScavengeYield),
+            1.0
+        );
+
+        // requires gate: crystal_attuned needs steady_hands first.
+        simulation.apply(GameCommand::AcquirePerk {
+            perk_id: "perk.crystal_attuned".to_string(),
+        });
+        assert!(!simulation.has_perk("perk.crystal_attuned"));
+
+        // acquire scavenger -> its effect multiplier applies.
+        simulation.apply(GameCommand::AcquirePerk {
+            perk_id: "perk.scavenger".to_string(),
+        });
+        assert!(simulation.has_perk("perk.scavenger"));
+        assert!(
+            (simulation.perk_multiplier(crate::game_data::PerkStat::ScavengeYield) - 1.25).abs()
+                < 1e-9
+        );
+
+        // satisfy requires, then crystal_attuned succeeds (a point remains).
+        simulation.apply(GameCommand::AcquirePerk {
+            perk_id: "perk.steady_hands".to_string(),
+        });
+        simulation.apply(GameCommand::AcquirePerk {
+            perk_id: "perk.crystal_attuned".to_string(),
+        });
+        assert!(simulation.has_perk("perk.crystal_attuned"));
+
+        // points exhausted (3 spent) -> field_medic rejected.
+        simulation.apply(GameCommand::AcquirePerk {
+            perk_id: "perk.field_medic".to_string(),
+        });
+        assert!(!simulation.has_perk("perk.field_medic"));
+        assert_eq!(simulation.perk_points_available(), 0);
+
+        // persistence round-trip.
+        let serialized = export_save(simulation.state()).expect("save serializes");
+        let restored = Simulation::from_state(import_save(&serialized).expect("save deserializes"));
+        assert!(restored.has_perk("perk.scavenger"));
+        assert!(restored.has_perk("perk.crystal_attuned"));
+    }
+
     // Golden snapshot of the whole catalog. Catalogs are migrated to TS-authored
     // data + codegen one at a time; this proves each migration leaves the data the
     // sim and client see byte-identical, regardless of how the generated Rust is

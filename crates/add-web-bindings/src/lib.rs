@@ -113,6 +113,13 @@ impl WebRuntime {
         });
     }
 
+    #[wasm_bindgen(js_name = acquirePerk)]
+    pub fn acquire_perk(&mut self, perk_id: &str) {
+        self.simulation.apply(GameCommand::AcquirePerk {
+            perk_id: perk_id.to_string(),
+        });
+    }
+
     #[wasm_bindgen(js_name = spendBassline)]
     pub fn spend_bassline(&mut self, amount: f64) {
         self.simulation.apply(GameCommand::SpendBassline { amount });

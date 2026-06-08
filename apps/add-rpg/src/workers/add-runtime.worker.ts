@@ -75,6 +75,10 @@ async function handleMessage(message: WorkerRequest) {
         runtime?.openDoor(message.key)
         postWorkerEvent({ type: 'snapshot', snapshot: snapshot() })
         break
+      case 'acquirePerk':
+        runtime?.acquirePerk(message.perkId)
+        postWorkerEvent({ type: 'snapshot', snapshot: snapshot() })
+        break
       case 'spendBassline':
         runtime?.spendBassline(message.amount)
         postWorkerEvent({ type: 'snapshot', snapshot: snapshot() })

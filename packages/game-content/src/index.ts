@@ -62,10 +62,18 @@ export interface Item extends ContentEntry {
   readonly tags?: readonly string[]
 }
 
+/** A single perk effect: multiply a named stat. The set of valid stats is defined
+ * by the consuming sim; magnitudes and stat assignment are authored data. */
+export interface PerkEffect {
+  readonly stat: string
+  readonly multiplier: number
+}
+
 export interface Perk extends ContentEntry {
   readonly label: string
   readonly description?: string
   readonly requires?: readonly string[]
+  readonly effects?: readonly PerkEffect[]
   readonly tags?: readonly string[]
 }
 

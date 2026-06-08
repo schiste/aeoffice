@@ -47,6 +47,10 @@ pub struct GameState {
     /// `${dungeonId}:${x}:${y}`. A key present here means that door is open.
     #[serde(default)]
     pub open_doors: BTreeSet<String>,
+    /// Perk ids the Hero has learned. Each costs one perk point (earned by
+    /// leveling); their effects modify sim calculations.
+    #[serde(default)]
+    pub acquired_perks: BTreeSet<String>,
 }
 
 impl GameState {
@@ -116,6 +120,7 @@ impl GameState {
                 "Bassline, Chorus, and Harmonics now drive the base economy.".to_string(),
             ],
             open_doors: BTreeSet::new(),
+            acquired_perks: BTreeSet::new(),
         }
     }
 }

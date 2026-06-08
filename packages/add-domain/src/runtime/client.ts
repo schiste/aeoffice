@@ -79,6 +79,10 @@ export class SimulationClient {
     this.post({ type: 'openDoor', key })
   }
 
+  acquirePerk(perkId: string) {
+    this.post({ type: 'acquirePerk', perkId })
+  }
+
   spendBassline(amount: number) {
     this.post({ type: 'spendBassline', amount })
   }

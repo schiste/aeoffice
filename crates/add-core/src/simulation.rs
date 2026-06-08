@@ -1,8 +1,9 @@
 use crate::command::GameCommand;
 use crate::game_data::{
-    balance_snapshot, construction_option_def, processing_recipe_def, recruit_cost_for_index,
-    role_def, station_def, stations, story_beat_def, tile_def, world_action_def, BalanceSnapshot,
-    ConstructionOptionDef, CostDef, CostItemDef, CrystalTrack, EffectDef, ProcessingTrack,
+    balance_snapshot, construction_option_def, perk_def, processing_recipe_def,
+    recruit_cost_for_index, role_def, station_def, stations, story_beat_def, tile_def,
+    world_action_def, BalanceSnapshot,
+    ConstructionOptionDef, CostDef, CostItemDef, CrystalTrack, EffectDef, PerkStat, ProcessingTrack,
     RequirementDef, RoleSlotPool, TileFeature, HeroExposureDef,
     COST_ITEM_SKIN,
     FLAG_BASE_FIRE_PIT_BUILT, FLAG_BASE_MIX_CONSOLE_BUILT,
@@ -131,6 +132,7 @@ impl Simulation {
             GameCommand::OpenDoor { key } => {
                 self.state.open_doors.insert(key);
             }
+            GameCommand::AcquirePerk { perk_id } => self.acquire_perk(&perk_id),
             GameCommand::SpendBassline { amount } => self.spend_bassline(amount),
             GameCommand::Tick { seconds } => self.tick_internal(seconds, false),
             GameCommand::RunOfflineCatchup { elapsed_seconds } => {
@@ -588,7 +590,10 @@ impl Simulation {
         let sustain_mult = 1.0
             + f64::from(self.state.hero_survival.sustain)
                 * self.balance().survival.sustain_bonus_per_level;
-        self.balance().survival.recovery_time_seconds_1_to_0 / sustain_mult.max(1.0)
+        // Perks shorten recovery time (faster recovery).
+        self.balance().survival.recovery_time_seconds_1_to_0
+            / sustain_mult.max(1.0)
+            / self.perk_multiplier(PerkStat::HeroRecovery)
     }
 
     fn hero_recovery_rate_multiplier(&self) -> f64 {
@@ -1002,23 +1007,26 @@ impl Simulation {
         let base_output = self.balance().crystal.output_per_worker_base
             + f64::from(self.state.crystal_circle.output_level)
                 * self.balance().crystal.output_per_worker_level_bonus;
-        if self.state.crystal_circle.removing_moss_completed {
+        let output = if self.state.crystal_circle.removing_moss_completed {
             base_output * self.balance().crystal.removing_moss_output_multiplier
         } else {
             base_output
-        }
+        };
+        output * self.perk_multiplier(PerkStat::CrystalOutput)
     }
 
     fn chorus_output_per_worker(&self) -> f64 {
-        self.balance().crystal.chorus_per_worker_base
+        (self.balance().crystal.chorus_per_worker_base
             + f64::from(self.state.crystal_circle.output_level)
-                * self.balance().crystal.chorus_per_worker_level_bonus
+                * self.balance().crystal.chorus_per_worker_level_bonus)
+            * self.perk_multiplier(PerkStat::CrystalOutput)
     }
 
     fn harmonics_output_per_worker(&self) -> f64 {
-        self.balance().crystal.harmonics_per_worker_base
+        (self.balance().crystal.harmonics_per_worker_base
             + f64::from(self.state.crystal_circle.output_level)
-                * self.balance().crystal.harmonics_per_worker_level_bonus
+                * self.balance().crystal.harmonics_per_worker_level_bonus)
+            * self.perk_multiplier(PerkStat::CrystalOutput)
     }
 
     fn bassline_cap(&self) -> f64 {
@@ -1068,7 +1076,9 @@ impl Simulation {
         };
         let tooling_bonus = f64::from(self.state.processing.workshop_tooling_level)
             * self.balance().build.workshop_tooling_speed_bonus_per_level;
+        // Perks speed up construction (shorter duration).
         base_duration * (1.0 - tooling_bonus).clamp(0.2, 1.0)
+            / self.perk_multiplier(PerkStat::ConstructionSpeed)
     }
 
     fn progress_scavenge(&mut self, seconds: f64, crew_efficiency: f64) -> f64 {
@@ -1087,8 +1097,11 @@ impl Simulation {
             return 0.0;
         }
 
-        let stock_rate = self.balance().scavenge.stock_rate_per_second * rate_multiplier;
-        let ambient_rate = self.balance().scavenge.ambient_rate_per_second * rate_multiplier;
+        let yield_mult = self.perk_multiplier(PerkStat::ScavengeYield);
+        let stock_rate =
+            self.balance().scavenge.stock_rate_per_second * rate_multiplier * yield_mult;
+        let ambient_rate =
+            self.balance().scavenge.ambient_rate_per_second * rate_multiplier * yield_mult;
         let mut gathered = 0.0;
         let mut remaining_time = seconds;
 
@@ -1815,6 +1828,44 @@ impl Simulation {
         self.state.hero_progress.drummer_level
             + self.state.hero_progress.vocalist_level
             + self.state.hero_progress.synth_level
+    }
+
+    /// Perk points available to spend: one per total Hero level, minus those
+    /// already spent on acquired perks.
+    pub fn perk_points_available(&self) -> u16 {
+        (self.hero_total_level()).saturating_sub(self.state.acquired_perks.len() as u16)
+    }
+
+    pub fn has_perk(&self, perk_id: &str) -> bool {
+        self.state.acquired_perks.contains(perk_id)
+    }
+
+    /// Learn a perk if it exists, isn't already owned, all `requires` are met,
+    /// and a perk point is available. No-op otherwise.
+    fn acquire_perk(&mut self, perk_id: &str) {
+        if self.has_perk(perk_id) || self.perk_points_available() == 0 {
+            return;
+        }
+        let Some(def) = perk_def(perk_id) else {
+            return;
+        };
+        if !def.requires.iter().all(|req| self.has_perk(req)) {
+            return;
+        }
+        self.state.acquired_perks.insert(perk_id.to_string());
+    }
+
+    /// Aggregate multiplier for a stat: the product of every acquired perk's
+    /// effects that target it (1.0 if none).
+    pub fn perk_multiplier(&self, stat: PerkStat) -> f64 {
+        self.state
+            .acquired_perks
+            .iter()
+            .filter_map(|id| perk_def(id))
+            .flat_map(|def| def.effects.iter())
+            .filter(|effect| effect.stat == stat)
+            .map(|effect| effect.multiplier)
+            .product::<f64>()
     }
 
     fn class_level_multiplier(&self, level: u16) -> f64 {
