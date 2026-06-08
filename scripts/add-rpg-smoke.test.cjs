@@ -1146,9 +1146,9 @@ async function interactWithMap(page, consoleErrors) {
   )
   const cameraBefore = zoomed.map.camera
 
-  await page.mouse.move(center.x, center.y)
+  await page.mouse.move(heroPoint.x, heroPoint.y)
   await page.mouse.down()
-  await page.mouse.move(center.x - 90, center.y - 54, { steps: 5 })
+  await page.mouse.move(heroPoint.x - 90, heroPoint.y - 54, { steps: 5 })
   await page.mouse.up()
 
   const panned = await waitForTextState(
