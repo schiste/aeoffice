@@ -110,7 +110,15 @@ export interface EncounterTable extends ContentEntry {
 // run rustfmt afterwards for canonical formatting. The build step that uses this
 // is what couples the (neutral) pipeline to a specific runtime.
 
-export type RustFieldKind = "string" | "idConst" | "f64" | "i64" | "u64" | "bool" | "enum"
+export type RustFieldKind =
+  | "string"
+  | "idConst"
+  | "f64"
+  | "i64"
+  | "u64"
+  | "bool"
+  | "enum"
+  | "option"
 
 export interface RustFieldSpec {
   /** Rust field name (snake_case). */
@@ -120,6 +128,8 @@ export interface RustFieldSpec {
   readonly kind: RustFieldKind
   /** Required when `kind` is "enum": the Rust enum type name. */
   readonly rustEnum?: string
+  /** Required when `kind` is "option": the inner value's kind (null -> None). */
+  readonly inner?: RustFieldKind
 }
 
 export interface RustConstSpec {
@@ -167,6 +177,10 @@ function rustFieldValue(spec: RustFieldSpec, raw: unknown): string {
       return raw ? "true" : "false"
     case "enum":
       return `${spec.rustEnum}::${pascalCase(String(raw))}`
+    case "option":
+      return raw === null || raw === undefined
+        ? "None"
+        : `Some(${rustFieldValue({ ...spec, kind: spec.inner ?? "string" }, raw)})`
   }
 }
 

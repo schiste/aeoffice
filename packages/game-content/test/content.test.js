@@ -72,4 +72,16 @@ const expected = [
 ].join("\n")
 assert.equal(rust, expected)
 
+// option kind: null -> None, value -> Some(inner-formatted)
+const optRust = toRustConst(
+  {
+    constName: "X",
+    rustType: "T",
+    fields: [{ name: "max_crew_slots", kind: "option", inner: "i64" }],
+  },
+  [{ maxCrewSlots: null }, { maxCrewSlots: 2 }],
+)
+assert.ok(optRust.includes("T { max_crew_slots: None },"))
+assert.ok(optRust.includes("T { max_crew_slots: Some(2) },"))
+
 console.log("game-content: all assertions passed")
