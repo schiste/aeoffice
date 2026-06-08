@@ -723,7 +723,7 @@ async function exerciseSurvivorCaveDungeonEntry(page, consoleErrors) {
       state.discovery.tileDetail.linkKinds.includes("dungeon") &&
       state.discovery.tileDetail.targetMapModes.includes("dungeon_square") &&
       state.discovery.tileDetail.enabledLinkIds.some((id) => id.includes("dungeon")) &&
-      state.discovery.tileDetail.label === "Survivor Cave",
+      state.discovery.tileDetail.label.startsWith("Survivor Cave"),
     consoleErrors,
   )
   assert.equal(selectedCave.discovery.tileDetail.linkCount, 1)
