@@ -49,6 +49,7 @@ const construction = content("construction")
 const worldActions = content("world-actions")
 const processing = content("processing")
 const story = content("story")
+const uiElements = content("ui-elements")
 
 const VIS = "pub(in crate::game_data)"
 
@@ -123,6 +124,57 @@ const EFFECTS_FIELD = {
       increment_processing_track: { variant: "IncrementProcessingTrack", fields: [{ name: "track", kind: "enum", rustEnum: "ProcessingTrack" }, { name: "amount", kind: "i64" }] },
     },
   },
+}
+
+// Reusable: visibility (conditions) + presentation, shared by ui_elements and
+// entity_schemas. Condition arg fields are snake_case in the JSON.
+const VISIBILITY_CONDITION = {
+  name: "cond",
+  kind: "taggedEnum",
+  rustEnum: "VisibilityConditionDef",
+  variants: {
+    always: { variant: "Always" },
+    flag_set: { variant: "FlagSet", fields: [{ name: "flag_id", from: "flag_id", kind: "string" }] },
+    flag_unset: { variant: "FlagUnset", fields: [{ name: "flag_id", from: "flag_id", kind: "string" }] },
+    resource_positive: { variant: "ResourcePositive", fields: [{ name: "resource_id", from: "resource_id", kind: "string" }] },
+    viral_load_positive: { variant: "ViralLoadPositive" },
+    hero_outside_bubble: { variant: "HeroOutsideBubble" },
+    hero_forced_return: { variant: "HeroForcedReturn" },
+    hero_recovering: { variant: "HeroRecovering" },
+    echo_scars_positive: { variant: "EchoScarsPositive" },
+    role_assigned: { variant: "RoleAssigned", fields: [{ name: "role_id", from: "role_id", kind: "string" }] },
+    role_available: { variant: "RoleAvailable", fields: [{ name: "role_id", from: "role_id", kind: "string" }] },
+    recruitment_enabled: { variant: "RecruitmentEnabled" },
+    recruitment_disabled: { variant: "RecruitmentDisabled" },
+    pending_recruits: { variant: "PendingRecruits" },
+    recruited_any: { variant: "RecruitedAny" },
+    brownout_active: { variant: "BrownoutActive" },
+  },
+}
+
+const VISIBILITY_FIELD = {
+  name: "visibility",
+  kind: "struct",
+  structType: "VisibilityDef",
+  fields: [
+    { name: "all_of", from: "allOf", kind: "array", element: VISIBILITY_CONDITION },
+    { name: "any_of", from: "anyOf", kind: "array", element: VISIBILITY_CONDITION },
+  ],
+}
+
+const PRESENTATION_FIELD = {
+  name: "presentation",
+  kind: "option",
+  inner: "struct",
+  structType: "PresentationDef",
+  fields: [
+    { name: "short_label", kind: "string" },
+    { name: "player_hint", kind: "string" },
+    { name: "cta_copy", kind: "option", inner: "string" },
+    { name: "primary_risk_copy", kind: "option", inner: "string" },
+    { name: "display_priority", kind: "i64" },
+    { name: "reveal", kind: "enum", rustEnum: "PresentationReveal" },
+  ],
 }
 
 // One entry per generated Rust file. A file may hold several catalogs (consts);
@@ -378,6 +430,27 @@ const FILES = [
               },
             },
             { name: "related_ids", kind: "array", element: { name: "r", kind: "string" } },
+          ],
+        },
+      },
+    ],
+  },
+  {
+    sourceModule: "packages/add-domain/src/content/ui-elements.ts",
+    rustPath: "crates/add-core/src/game_data/catalog/ui_elements.rs",
+    consts: [
+      {
+        entries: uiElements.UI_ELEMENTS,
+        spec: {
+          constName: "UI_ELEMENTS",
+          rustType: "UiElementDef",
+          visibility: VIS,
+          fields: [
+            { name: "id", kind: "string" },
+            { name: "label", kind: "string" },
+            { name: "related_ids", kind: "array", element: { name: "r", kind: "string" } },
+            VISIBILITY_FIELD,
+            PRESENTATION_FIELD,
           ],
         },
       },

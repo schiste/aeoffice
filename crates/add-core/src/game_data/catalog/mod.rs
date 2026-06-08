@@ -5,6 +5,7 @@ mod roles;
 mod stations;
 mod story_beats;
 mod tiles;
+mod ui_elements;
 
 pub(super) use actions::{CONSTRUCTION_OPTIONS, PROCESSING_RECIPES, WORLD_ACTIONS};
 pub(super) use flags::FLAGS;
@@ -13,3 +14,4 @@ pub(super) use roles::ROLES;
 pub(super) use stations::STATIONS;
 pub(super) use story_beats::STORY_BEATS;
 pub(super) use tiles::{FLORA, STRUCTURES, TILES};
+pub(super) use ui_elements::UI_ELEMENTS;
