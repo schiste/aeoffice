@@ -17,14 +17,9 @@ import {
   createAddTopologyNavigationPolicy,
   createAddWorldInteractionPolicy,
   displayAddCell,
-  displayAddCoord,
   dungeonLinkInfo,
-  dungeonLinksForCell,
-  knownFactsInfo,
   presentationVisibilityStateForCell,
-  stringMetadata,
   tileInteractionDetailForCoord,
-  visibilityInfo,
   visibilityStateForCell,
   type AddVisibilityRenderState,
 } from "@aedventure/add-domain"
@@ -32,7 +27,6 @@ import {
 import { ADD_TILE_TRAVEL_PRESENTATION } from "../travel-presentation-timing"
 import {
   characterMoveKeyForKeyboardKey,
-  coordsAreAdjacent,
   directionForCharacterKeys,
   entryFacingForContext,
   initialCharacterCoord,
@@ -40,13 +34,12 @@ import {
 import { inactiveTravelRevealPreview } from "./add-fog-renderer"
 import { hashCoord, setCrispText } from "./add-landmark-renderer"
 import {
-  authorityInfo,
   dungeonLinksForCoord,
   emptyMapInfo,
+  emptyRendererState,
   hasDungeonLinks,
+  projectAddPhaserMapInfo,
   rendererType,
-  tileInteractionVisibilitySamples,
-  topologyInfo,
 } from "./add-map-telemetry"
 import {
   centerFor,
@@ -78,6 +71,7 @@ import {
   type AddRpgPhaserMapHostOptions,
   type CharacterMoveStatus,
   type CharacterTravelState,
+  type PhaserMapRendererState,
   type RenderContext,
   type TravelRevealPreview,
   type TravelRevealTrailEntry,
@@ -141,6 +135,7 @@ export class AddRpgHexScene extends Phaser.Scene {
   private readonly heldCharacterKeys = new Set<AddCharacterMoveKey>()
   private readonly pendingCharacterKeys = new Set<AddCharacterMoveKey>()
   private pendingCharacterMoveTimer: number | null = null
+  private lastRendererState: PhaserMapRendererState = emptyRendererState()
   private lastInfo: AddPhaserMapInfo = emptyMapInfo()
 
   constructor(options: AddRpgPhaserMapHostOptions) {
@@ -344,12 +339,6 @@ export class AddRpgHexScene extends Phaser.Scene {
       direction,
       fromCoord,
       toCoord: nextCoord,
-      fromCell: displayAddCell(fromCoord),
-      toCell: displayAddCell(nextCoord),
-      destinationLabel,
-      destinationState,
-      destinationTerrain,
-      exposureRisk,
       startedAtMs: this.time.now,
       durationMs: ADD_TILE_TRAVEL_PRESENTATION.durationMs,
       fromPosition,
@@ -378,6 +367,11 @@ export class AddRpgHexScene extends Phaser.Scene {
     return this.lastInfo
   }
 
+  getRendererState(): PhaserMapRendererState {
+    this.refreshInfo()
+    return this.lastRendererState
+  }
+
   private renderPendingWorld(forceCameraFit: boolean): void {
     if (!this.ready || !this.pendingWorld) return
 
@@ -385,12 +379,21 @@ export class AddRpgHexScene extends Phaser.Scene {
     const validation = validateGameWorld(world)
     const map = world.maps.find((candidate) => candidate.id === world.activeMapId) ?? world.maps[0]
     if (!map || (map.topology.kind !== "hex" && map.topology.kind !== "square")) {
-      this.lastInfo = {
-        ...emptyMapInfo(),
+      this.lastRendererState = {
+        ...emptyRendererState(),
         ready: this.ready,
-        validationValid: false,
-        validationSummary: "ADD world did not contain a supported map topology.",
+        renderCount: this.renderCount,
+        validation: {
+          valid: false,
+          summary: "ADD world did not contain a supported map topology.",
+        },
+        rendererType: rendererType(this.game.renderer.type),
       }
+      this.lastInfo = projectAddPhaserMapInfo({
+        rendererState: this.lastRendererState,
+        context: null,
+        worldInteractionPolicy: this.worldInteractionPolicy,
+      })
       return
     }
 
@@ -1395,97 +1398,105 @@ export class AddRpgHexScene extends Phaser.Scene {
     return cell && this.cellPresentationPolicy.cellVisible(cell) ? coord : null
   }
 
-  private refreshInfo(summary = this.lastInfo.validationSummary, valid = this.lastInfo.validationValid): void {
+  private refreshInfo(
+    summary = this.lastRendererState.validation.summary,
+    valid = this.lastRendererState.validation.valid,
+  ): void {
     const context = this.context
-    const camera = this.cameras.main
     if (!context) {
-      this.lastInfo = {
-        ...emptyMapInfo(),
+      this.lastRendererState = {
+        ...emptyRendererState(),
         ready: this.ready,
         renderCount: this.renderCount,
+        validation: {
+          valid: false,
+          summary,
+        },
         rendererType: rendererType(this.game.renderer.type),
       }
+      this.lastInfo = projectAddPhaserMapInfo({
+        rendererState: this.lastRendererState,
+        context: null,
+        worldInteractionPolicy: this.worldInteractionPolicy,
+      })
       return
     }
-    const hoveredDetail = this.hoveredCoord
-      ? tileInteractionDetailForCoord(this.hoveredCoord, context.terrainByCoord)
-      : null
-    const selectedDetail = this.selectedCoord
-      ? tileInteractionDetailForCoord(this.selectedCoord, context.terrainByCoord)
-      : null
-    const selectedInteraction =
-      this.selectedCoord && context.terrainByCoord.has(addMapCoordKey(this.selectedCoord))
-        ? this.worldInteractionPolicy.interactionForCell(
-            this.selectedCoord,
-            context.terrainByCoord.get(addMapCoordKey(this.selectedCoord)),
-          )
-        : null
-    const travelRevealPreview = this.travelRevealPreviewForContext(context)
 
-    this.lastInfo = {
+    this.lastRendererState = this.rendererStateForContext(context, summary, valid)
+    this.lastInfo = projectAddPhaserMapInfo({
+      rendererState: this.lastRendererState,
+      context,
+      worldInteractionPolicy: this.worldInteractionPolicy,
+    })
+  }
+
+  private rendererStateForContext(
+    context: RenderContext,
+    summary: string,
+    valid: boolean,
+  ): PhaserMapRendererState {
+    const camera = this.cameras.main
+    const activeTravel = this.characterTravel
+    const rawProgress = activeTravel
+      ? clamp((this.time.now - activeTravel.startedAtMs) / activeTravel.durationMs, 0, 1)
+      : 0
+
+    return {
       hostedBy: "phaser",
       ready: this.ready,
       renderCount: this.renderCount,
       mapId: context.map.id,
-      validationValid: valid,
-      validationSummary: summary,
+      validation: {
+        valid,
+        summary,
+      },
       rendererType: rendererType(this.game.renderer.type),
-      topology: topologyInfo(context),
-      authority: authorityInfo(),
+      topology: {
+        kind: context.topologyKind,
+        mode: typeof context.map.metadata?.mapMode === "string" ? context.map.metadata.mapMode : null,
+        fixture: context.map.metadata?.fixture === true,
+        radius: context.map.topology.kind === "hex" ? context.map.topology.radius : null,
+        cellSize: context.map.topology.kind === "square" ? context.map.topology.cellSize : null,
+      },
       cells: {
         total: context.terrainCells.length,
-        inactive: context.stateCounts.inactive,
-        converting: context.stateCounts.converting,
-        stabilized: context.stateCounts.stabilized,
         blocked: context.stateCounts.blocked,
-        bubbleEdge: context.bubbleEdgeCoords.size,
+        emphasized: context.bubbleEdgeCoords.size,
       },
-      dungeonLinks: {
-        total: context.terrainCells.reduce(
-          (count, cell) => count + dungeonLinksForCell(cell).length,
-          0,
-        ),
-        cellsWithLinks: context.terrainCells.filter(hasDungeonLinks).length,
-        selected: this.selectedCoord
-          ? dungeonLinksForCoord(this.selectedCoord, context).map(dungeonLinkInfo)
-          : [],
+      renderers: {
+        cells: this.cellRenderer?.getInfo() ?? null,
+        interactions: this.cellInteractionRenderer?.getInfo() ?? null,
+        entities: this.characterRenderer?.getInfo() ?? null,
       },
-      knownFacts: knownFactsInfo(context.terrainCells),
-      visibility: {
-        ...visibilityInfo(
-          context.terrainCells,
-          this.revealTransitions.size,
-          travelRevealPreview,
-        ),
-        hiddenCellRendering: "invisible_until_known_or_travel_revealed",
-        fogRendering: "phaser_visual_overlay",
-        affectsAuthority: false,
-      },
-      character: {
+      controlledEntity: {
         id: "add.entity.hero",
         label: "Hero",
         visible: this.characterCoord !== null && this.characterPosition !== null,
-        coord: this.characterCoord ? displayAddCoord(this.characterCoord) : null,
-        cell: this.characterCoord ? displayAddCell(this.characterCoord) : null,
-        x: this.characterPosition ? round(this.characterPosition.x) : null,
-        y: this.characterPosition ? round(this.characterPosition.y) : null,
+        coord: this.characterCoord,
+        position: this.characterPosition,
         moving: this.characterIsMoving(),
         facing: this.characterFacing,
         lastMoveDirection: this.characterMoveStatus.direction,
         lastMoveAccepted: this.characterMoveStatus.accepted,
         blockedReason: this.characterMoveStatus.blockedReason,
-        dungeonLinksAtCell: this.characterCoord
-          ? dungeonLinksForCoord(this.characterCoord, context).map(dungeonLinkInfo)
-          : [],
-        authority: "browser_navigation_triggers_rust_time",
+        authority: "browser_navigation_triggers_runtime",
       },
-      travel: this.travelInfo(context),
+      movement: {
+        active: activeTravel !== null || this.travelRuntimeLocked,
+        progress: round(rawProgress),
+        direction: activeTravel?.direction ?? this.characterMoveStatus.direction,
+        fromCoord: activeTravel?.fromCoord ?? null,
+        toCoord: activeTravel?.toCoord ?? null,
+        blockedReason: this.characterMoveStatus.blockedReason,
+      },
       landmarks: {
-        baseCenter: context.baseCoord ? displayAddCoord(context.baseCoord) : null,
-        studioLabelVisible: context.baseCoord !== null,
-        survivorCave: context.survivorCaveCoord ? displayAddCoord(context.survivorCaveCoord) : null,
-        survivorCaveVisible: context.survivorCaveCoord !== null,
+        primaryAnchorCoord: context.baseCoord,
+        spawnAnchorCoord: context.survivorCaveCoord,
         renderedCount: this.landmarkObjects.length,
+      },
+      visibility: {
+        revealTransitionsActive: this.revealTransitions.size,
+        travelRevealPreview: this.travelRevealPreviewForContext(context),
       },
       camera: {
         mode: this.cameraInitialized ? "interactive_pan_zoom" : "fit",
@@ -1496,14 +1507,8 @@ export class AddRpgHexScene extends Phaser.Scene {
       interaction: {
         hoverEnabled: true,
         selectEnabled: true,
-        hoveredCell: this.hoveredCoord ? displayAddCell(this.hoveredCoord) : null,
-        selectedCell: this.selectedCoord ? displayAddCell(this.selectedCoord) : null,
-        hoveredHex: this.hoveredCoord?.kind === "hex" ? displayAddCoord(this.hoveredCoord) : null,
-        selectedHex: this.selectedCoord?.kind === "hex" ? displayAddCoord(this.selectedCoord) : null,
-        selectedLabel: selectedDetail?.label ?? selectedInteraction?.label ?? null,
-        hoveredDetail,
-        selectedDetail,
-        visibilitySamples: tileInteractionVisibilitySamples(context),
+        hoveredCoord: this.hoveredCoord,
+        selectedCoord: this.selectedCoord,
       },
       presentation: {
         terrainArt: "procedural_painterly_topology",
@@ -1516,47 +1521,6 @@ export class AddRpgHexScene extends Phaser.Scene {
         transitionProgress: round(this.transitionProgress),
         responsiveLayout: this.scale.width < 640 || this.scale.height < 520 ? "mobile" : "desktop",
       },
-    }
-  }
-
-  private travelInfo(context: RenderContext): AddPhaserMapInfo["travel"] {
-    const previewCoord = this.selectedCoord ?? this.hoveredCoord
-    const previewCell = previewCoord ? context.terrainByCoord.get(addMapCoordKey(previewCoord)) : null
-    const previewDetail = previewCoord
-      ? tileInteractionDetailForCoord(previewCoord, context.terrainByCoord)
-      : null
-    const previewInteraction =
-      previewCoord && previewCell
-        ? this.worldInteractionPolicy.interactionForCell(previewCoord, previewCell)
-        : null
-    const previewAdjacent =
-      this.characterCoord !== null && previewCoord !== null
-        ? coordsAreAdjacent(this.characterCoord, previewCoord, context)
-        : false
-    const activeTravel = this.characterTravel
-    const rawProgress = activeTravel
-      ? clamp((this.time.now - activeTravel.startedAtMs) / activeTravel.durationMs, 0, 1)
-      : 0
-
-    return {
-      costGameMinutes: ADD_TILE_TRAVEL_PRESENTATION.visibleGameMinutes,
-      costRuntimeSeconds: ADD_TILE_TRAVEL_PRESENTATION.runtimeSeconds,
-      presentationDurationMs: ADD_TILE_TRAVEL_PRESENTATION.durationMs,
-      clockStepMs: ADD_TILE_TRAVEL_PRESENTATION.msPerVisibleMinute,
-      active: activeTravel !== null || this.travelRuntimeLocked,
-      progress: round(rawProgress),
-      direction: activeTravel?.direction ?? this.characterMoveStatus.direction,
-      fromCell: activeTravel?.fromCell ?? null,
-      toCell: activeTravel?.toCell ?? null,
-      destinationLabel: activeTravel?.destinationLabel ?? null,
-      destinationState: activeTravel?.destinationState ?? null,
-      destinationTerrain: activeTravel?.destinationTerrain ?? null,
-      exposureRisk: activeTravel?.exposureRisk ?? null,
-      previewCell: previewCoord ? displayAddCell(previewCoord) : null,
-      previewLabel: previewDetail?.label ?? previewInteraction?.label ?? null,
-      previewAdjacent,
-      previewExposureRisk: previewCell ? previewDetail?.exposureRisk ?? "unknown" : null,
-      blockedReason: this.characterMoveStatus.blockedReason,
     }
   }
 }

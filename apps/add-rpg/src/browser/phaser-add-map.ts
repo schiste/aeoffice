@@ -3,4 +3,5 @@ export type {
   AddCharacterTravelEvent,
   AddPhaserMapInfo,
   AddRpgPhaserMapHostOptions,
+  PhaserMapRendererState,
 } from "./add-phaser/types"

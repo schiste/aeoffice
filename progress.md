@@ -2438,3 +2438,13 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   @aedventure/game-renderer-phaser run test`, exact renderer leakage `rg`,
   `npm run smoke:add-rpg`, `npm run qa:renderer`, and
   `npm run smoke:engine-sandbox`.
+- ADD Phaser map telemetry now has a raw/projected split. `AddWorldScene`
+  records neutral `PhaserMapRendererState` facts for renderer readiness,
+  topology, cells, renderer subsystem info, controlled entity position,
+  movement, landmarks, visibility, camera, interaction, and presentation.
+  `projectAddPhaserMapInfo()` maps that raw state plus ADD domain selectors into
+  the existing `render_game_to_text` contract, so future renderer refactors can
+  change internals without churning ADD smoke assertions. Verification passed
+  with `npm --workspace @aedventure/add-rpg run build:types`, `npm run
+  smoke:add-rpg`, `npm run qa:renderer`, `npm run smoke:engine-sandbox`, and
+  `npm run check`.

@@ -1,6 +1,11 @@
 import type { CellCoord, GridTopology, HexCoord, SquareCoord, Vector2 } from "@aedventure/game-topology"
 import type { GameCellPlacement, GameMap } from "@aedventure/game-world"
 import type {
+  GameMapCellRenderInfo,
+  WorldCellInteractionRendererInfo,
+  WorldEntityRendererInfo,
+} from "@aedventure/game-renderer-phaser"
+import type {
   AddCellState,
   AddDungeonLinkInfo,
   AddKnownFactsInfo,
@@ -11,7 +16,8 @@ import type {
   AddVisibilityRenderState,
 } from "@aedventure/add-domain"
 
-export type AddTopologyKind = "hex" | "square"
+export type PhaserMapTopologyKind = "hex" | "square"
+export type AddTopologyKind = PhaserMapTopologyKind
 export type AddCharacterMoveDirection =
   | "up"
   | "right"
@@ -43,6 +49,110 @@ export interface AddRpgPhaserMapHostOptions {
   readonly onDoorToggle?: (coord: CellCoord) => void
 }
 
+export interface PhaserMapPresentationState {
+  readonly terrainArt: "procedural_painterly_topology"
+  readonly bubbleEffects: "animated_halo_edge"
+  readonly landmarkSprites: "procedural_sprite_stack"
+  readonly labelRendering: "high_resolution_phaser_text"
+  readonly ambience: "subtle_motes_and_topographic_scan"
+  readonly visibilityPolish: {
+    readonly fogEdge: "soft_feathered_visibility_boundary"
+    readonly revealEffect: "expanding_ripple"
+    readonly caveMouthSilhouettes: true
+    readonly travelReveal: "progressive_in_travel_radius"
+    readonly authority: "visual_only"
+    readonly laterModifiers: readonly [
+      "day_night_radius",
+      "weather_season",
+      "scouting_buildings_items",
+    ]
+  }
+  readonly transitionState: "idle" | "entering"
+  readonly transitionProgress: number
+  readonly responsiveLayout: "desktop" | "mobile"
+}
+
+/**
+ * Raw renderer facts exposed by the Phaser scene before ADD-specific telemetry
+ * projection. Keep this shape centered on coordinates, counters, camera state,
+ * and renderer subsystem info rather than product labels or dungeon rules.
+ */
+export interface PhaserMapRendererState {
+  readonly hostedBy: "phaser"
+  readonly ready: boolean
+  readonly renderCount: number
+  readonly mapId: string | null
+  readonly validation: {
+    readonly valid: boolean
+    readonly summary: string
+  }
+  readonly rendererType: string
+  readonly topology: {
+    readonly kind: PhaserMapTopologyKind | "unknown"
+    readonly mode: string | null
+    readonly fixture: boolean
+    readonly radius: number | null
+    readonly cellSize: number | null
+  }
+  readonly cells: {
+    readonly total: number
+    readonly blocked: number
+    readonly emphasized: number
+  }
+  readonly renderers: {
+    readonly cells: GameMapCellRenderInfo | null
+    readonly interactions: WorldCellInteractionRendererInfo | null
+    readonly entities: WorldEntityRendererInfo | null
+  }
+  readonly controlledEntity: {
+    readonly id: string
+    readonly label: string
+    readonly visible: boolean
+    readonly coord: CellCoord | null
+    readonly position: Vector2 | null
+    readonly moving: boolean
+    readonly facing: string | null
+    readonly lastMoveDirection: string | null
+    readonly lastMoveAccepted: boolean | null
+    readonly blockedReason: string | null
+    readonly authority: "browser_navigation_triggers_runtime"
+  }
+  readonly movement: {
+    readonly active: boolean
+    readonly progress: number
+    readonly direction: string | null
+    readonly fromCoord: CellCoord | null
+    readonly toCoord: CellCoord | null
+    readonly blockedReason: string | null
+  }
+  readonly landmarks: {
+    readonly primaryAnchorCoord: CellCoord | null
+    readonly spawnAnchorCoord: CellCoord | null
+    readonly renderedCount: number
+  }
+  readonly visibility: {
+    readonly revealTransitionsActive: number
+    readonly travelRevealPreview: TravelRevealPreview
+  }
+  readonly camera: {
+    readonly mode: "fit" | "interactive_pan_zoom"
+    readonly zoom: number
+    readonly scrollX: number
+    readonly scrollY: number
+  }
+  readonly interaction: {
+    readonly hoverEnabled: true
+    readonly selectEnabled: true
+    readonly hoveredCoord: CellCoord | null
+    readonly selectedCoord: CellCoord | null
+  }
+  readonly presentation: PhaserMapPresentationState
+}
+
+/**
+ * ADD-facing map telemetry projected from `PhaserMapRendererState` plus ADD
+ * domain selectors. This is the stable shape consumed by render_game_to_text.
+ */
 export interface AddPhaserMapInfo {
   readonly hostedBy: "phaser"
   readonly ready: boolean
@@ -148,28 +258,7 @@ export interface AddPhaserMapInfo {
       readonly stale: AddTileInteractionDetail | null
     }
   }
-  readonly presentation: {
-    readonly terrainArt: "procedural_painterly_topology"
-    readonly bubbleEffects: "animated_halo_edge"
-    readonly landmarkSprites: "procedural_sprite_stack"
-    readonly labelRendering: "high_resolution_phaser_text"
-    readonly ambience: "subtle_motes_and_topographic_scan"
-    readonly visibilityPolish: {
-      readonly fogEdge: "soft_feathered_visibility_boundary"
-      readonly revealEffect: "expanding_ripple"
-      readonly caveMouthSilhouettes: true
-      readonly travelReveal: "progressive_in_travel_radius"
-      readonly authority: "visual_only"
-      readonly laterModifiers: readonly [
-        "day_night_radius",
-        "weather_season",
-        "scouting_buildings_items",
-      ]
-    }
-    readonly transitionState: "idle" | "entering"
-    readonly transitionProgress: number
-    readonly responsiveLayout: "desktop" | "mobile"
-  }
+  readonly presentation: PhaserMapPresentationState
 }
 
 export interface RenderContext {
@@ -196,12 +285,6 @@ export interface CharacterTravelState {
   readonly direction: AddCharacterMoveDirection
   readonly fromCoord: CellCoord
   readonly toCoord: CellCoord
-  readonly fromCell: string
-  readonly toCell: string
-  readonly destinationLabel: string
-  readonly destinationState: AddCellState
-  readonly destinationTerrain: AddTerrain
-  readonly exposureRisk: AddTravelExposureRisk
   readonly startedAtMs: number
   readonly durationMs: number
   readonly fromPosition: Vector2

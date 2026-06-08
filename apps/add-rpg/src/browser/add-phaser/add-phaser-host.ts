@@ -6,6 +6,7 @@ import type {
   AddCharacterMoveDirection,
   AddPhaserMapInfo,
   AddRpgPhaserMapHostOptions,
+  PhaserMapRendererState,
 } from "./types"
 
 export class AddRpgPhaserMapHost {
@@ -62,6 +63,10 @@ export class AddRpgPhaserMapHost {
 
   getInfo(): AddPhaserMapInfo {
     return this.scene.getInfo()
+  }
+
+  getRendererState(): PhaserMapRendererState {
+    return this.scene.getRendererState()
   }
 
   destroy(): void {
