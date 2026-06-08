@@ -20,6 +20,9 @@
       "path": "../../packages/game-animation"
     },
     {
+      "path": "../../packages/game-content"
+    },
+    {
       "path": "../../packages/game-visibility"
     },
     {

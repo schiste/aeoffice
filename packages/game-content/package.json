@@ -1,0 +1,11 @@
+{
+  "name": "@aedventure/game-content",
+  "version": "0.1.0",
+  "license": "AGPL-3.0-or-later",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -b",
+    "test": "node test/content.test.js"
+  }
+}

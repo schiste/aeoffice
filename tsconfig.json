@@ -26,6 +26,9 @@
       "path": "packages/game-animation"
     },
     {
+      "path": "packages/game-content"
+    },
+    {
       "path": "packages/add-domain"
     },
     {

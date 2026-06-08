@@ -37,6 +37,9 @@
       "@aedventure/game-animation": [
         "packages/game-animation/src"
       ],
+      "@aedventure/game-content": [
+        "packages/game-content/src"
+      ],
       "@aedventure/add-domain": [
         "packages/add-domain/src"
       ],

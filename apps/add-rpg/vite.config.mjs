@@ -12,6 +12,7 @@ export default defineConfig({
     alias: {
       "@aedventure/add-domain": packageSource("add-domain"),
       "@aedventure/game-animation": packageSource("game-animation"),
+      "@aedventure/game-content": packageSource("game-content"),
       "@aedventure/game-assets": packageSource("game-assets"),
       "@aedventure/game-dungeon": packageSource("game-dungeon"),
       "@aedventure/game-renderer-phaser": packageSource("game-renderer-phaser"),
