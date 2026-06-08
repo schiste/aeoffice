@@ -59,6 +59,11 @@ pub struct GameState {
     /// looted/cleared, so it stays so across re-entry and save/reload.
     #[serde(default)]
     pub cleared_locations: BTreeSet<String>,
+    /// Items dropped on the ground, keyed `${mapId}:${x}:${y}` -> (item id ->
+    /// quantity). Persists across re-entry and save/reload; picked back up by
+    /// bumping the cell.
+    #[serde(default)]
+    pub dropped_items: BTreeMap<String, BTreeMap<String, u32>>,
     /// Sub-item fractional progress toward the next scavenged scrap unit.
     /// Internal; not persisted or surfaced.
     #[serde(skip)]
@@ -135,6 +140,7 @@ impl GameState {
             acquired_perks: BTreeSet::new(),
             inventory: BTreeMap::new(),
             cleared_locations: BTreeSet::new(),
+            dropped_items: BTreeMap::new(),
             scavenge_scrap_progress: 0.0,
         }
     }

@@ -286,6 +286,15 @@ export class AddRpgHexScene extends Phaser.Scene {
       this.refreshInfo()
       return false
     }
+    // Bumping a dropped-item pile picks it up instead of moving.
+    if (nextFeature === "dropped_items") {
+      this.characterFacing = direction
+      this.characterMoveStatus = { direction, accepted: false, blockedReason: "picking_up" }
+      this.hostOptions.onPickUp?.(nextCoord)
+      this.drawOverlay()
+      this.refreshInfo()
+      return false
+    }
     if (!this.navigationPolicy.canEnterCell(nextCell)) {
       this.characterMoveStatus = {
         direction,

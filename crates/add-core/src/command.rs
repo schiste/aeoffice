@@ -18,6 +18,14 @@ pub enum GameCommand {
         loot_item: Option<String>,
         loot_qty: u32,
     },
+    DropItem {
+        key: String,
+        item_id: String,
+        qty: u32,
+    },
+    PickUpLocation {
+        key: String,
+    },
     AcquirePerk { perk_id: String },
     SpendBassline { amount: f64 },
     Tick { seconds: f64 },

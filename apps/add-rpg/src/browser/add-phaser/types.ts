@@ -54,6 +54,8 @@ export interface AddRpgPhaserMapHostOptions {
     lootItem: string | undefined,
     lootQty: number,
   ) => void
+  /** Bumping a dropped-item pile picks it up. */
+  readonly onPickUp?: (coord: CellCoord) => void
 }
 
 export interface PhaserMapPresentationState {

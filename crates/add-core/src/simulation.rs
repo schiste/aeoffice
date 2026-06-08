@@ -142,6 +142,8 @@ impl Simulation {
                 loot_item,
                 loot_qty,
             } => self.clear_location(key, loot_item, loot_qty),
+            GameCommand::DropItem { key, item_id, qty } => self.drop_item(key, item_id, qty),
+            GameCommand::PickUpLocation { key } => self.pick_up_location(&key),
             GameCommand::AcquirePerk { perk_id } => self.acquire_perk(&perk_id),
             GameCommand::SpendBassline { amount } => self.spend_bassline(amount),
             GameCommand::Tick { seconds } => self.tick_internal(seconds, false),
@@ -1162,6 +1164,40 @@ impl Simulation {
         }
         if let Some(item_id) = loot_item {
             self.grant_item(&item_id, loot_qty);
+        }
+    }
+
+    /// Move `qty` of an item from the Hero inventory onto the ground at `key`.
+    /// No-op if the inventory does not hold that quantity.
+    fn drop_item(&mut self, key: String, item_id: String, qty: u32) {
+        if qty == 0 {
+            return;
+        }
+        let held = self.state.inventory.get(&item_id).copied().unwrap_or(0);
+        if held < qty {
+            return;
+        }
+        match held - qty {
+            0 => {
+                self.state.inventory.remove(&item_id);
+            }
+            remaining => {
+                self.state.inventory.insert(item_id.clone(), remaining);
+            }
+        }
+        let pile = self.state.dropped_items.entry(key).or_default();
+        let entry = pile.entry(item_id).or_insert(0);
+        *entry = entry.saturating_add(qty);
+    }
+
+    /// Move every item dropped at `key` back into inventory (capped per
+    /// `max_stack`) and clear the pile. No-op when nothing is there.
+    fn pick_up_location(&mut self, key: &str) {
+        let Some(pile) = self.state.dropped_items.remove(key) else {
+            return;
+        };
+        for (item_id, qty) in pile {
+            self.grant_item(&item_id, qty);
         }
     }
 

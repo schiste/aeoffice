@@ -83,6 +83,14 @@ async function handleMessage(message: WorkerRequest) {
         runtime?.clearLocation(message.key, message.lootItem, message.lootQty)
         postWorkerEvent({ type: 'snapshot', snapshot: snapshot() })
         break
+      case 'dropItem':
+        runtime?.dropItem(message.key, message.itemId, message.qty)
+        postWorkerEvent({ type: 'snapshot', snapshot: snapshot() })
+        break
+      case 'pickUpLocation':
+        runtime?.pickUpLocation(message.key)
+        postWorkerEvent({ type: 'snapshot', snapshot: snapshot() })
+        break
       case 'spendBassline':
         runtime?.spendBassline(message.amount)
         postWorkerEvent({ type: 'snapshot', snapshot: snapshot() })

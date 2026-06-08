@@ -87,6 +87,14 @@ export class SimulationClient {
     this.post({ type: 'clearLocation', key, lootItem, lootQty })
   }
 
+  dropItem(key: string, itemId: string, qty: number) {
+    this.post({ type: 'dropItem', key, itemId, qty })
+  }
+
+  pickUpLocation(key: string) {
+    this.post({ type: 'pickUpLocation', key })
+  }
+
   spendBassline(amount: number) {
     this.post({ type: 'spendBassline', amount })
   }

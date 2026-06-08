@@ -13,6 +13,7 @@ import {
   workerRequestForAddCommand,
   applyDungeonFieldOfView,
   applyClearedLocations,
+  applyDroppedItems,
   applyDungeonDoorStates,
   dungeonDoorKey,
   dungeonLocationKey,
@@ -364,6 +365,8 @@ createEffect(() => {
         dungeonId,
         new Set(currentSnapshot.clearedLocations ?? []),
       )
+      // Dropped items appear as bump-to-pickup loot piles.
+      dungeonMap = applyDroppedItems(dungeonMap, dungeonId, currentSnapshot.droppedItems ?? {})
       // The dungeon registry owns the visibility policy; "fully_lit" dungeons skip FOV.
       const usesFov =
         (addDungeonByMapId(activeMap.id)?.visibilityPolicy ?? "directional_fov") ===
@@ -421,6 +424,9 @@ function AddRpgApp() {
       },
       onClearLocation: (coord, lootItem, lootQty) => {
         void handleClearLocation(coord, lootItem, lootQty)
+      },
+      onPickUp: (coord) => {
+        void handlePickUp(coord)
       },
     })
     const currentWorld = world()
@@ -1223,13 +1229,19 @@ function selectedTileLinkRows(detail: AddTileDetailSummary): readonly unknown[] 
 function selectedTileActionRows(detail: AddTileDetailSummary): readonly unknown[] {
   return detail.actions.map((action) => {
     const opensSubmap = action.kind === "enter_submap" || action.kind === "manage_base"
+    const targetLink = action.linkId
+      ? detail.links.find((link) => link.id === action.linkId)
+      : null
     return opensSubmap
       ? html`
           <button
             id=${`tile-detail-action-${safeElementId(action.id)}`}
+            data-action-id=${action.id}
+            data-target-map-mode=${targetLink?.targetMapMode ?? ""}
+            data-target-map-id=${targetLink?.targetMapId ?? ""}
             type="button"
             class="primary-action"
-            onClick=${() => runTileDetailAction(detail, action)}
+            onClick=${(event: Event) => runCurrentTileDetailAction(event)}
             disabled=${() => !action.enabled}
             title=${action.blockedReason ?? action.label}
           >
@@ -1524,11 +1536,24 @@ function inventoryRows(): readonly unknown[] {
   if (items.length === 0) {
     return [html`<p class="quick-control-empty"><small>Empty — scavenge to find scrap.</small></p>`]
   }
+  // Items can only be dropped while in a dungeon (onto the Hero's cell).
+  const canDrop = heroDungeonCell() !== null
   return items.map(
     (item) => html`
       <article class="quick-control-row">
-        <span>${item.label}</span>
-        <span class="small-chip">${item.maxStack ? `${item.quantity}/${item.maxStack}` : `${item.quantity}`}</span>
+        <span>
+          ${item.label}
+          <small>${item.maxStack ? `${item.quantity}/${item.maxStack}` : `${item.quantity}`}</small>
+        </span>
+        <button
+          id=${`drop-${safeElementId(item.id)}`}
+          type="button"
+          class="ghost-button"
+          onClick=${() => void handleDropItem(item.id)}
+          disabled=${() => !ready() || !canDrop || item.quantity <= 0}
+        >
+          Drop
+        </button>
       </article>
     `,
   )
@@ -1995,16 +2020,27 @@ function travelDialogActions(kind: TravelDialogKind): readonly unknown[] {
   ]
 }
 
-function switchMapMode(nextMode: AddMapMode): void {
+function switchMapMode(nextMode: AddMapMode, options: { readonly dungeonTargetId?: string } = {}): void {
+  if (nextMode === "dungeon_square" && options.dungeonTargetId) {
+    setDungeonTarget(options.dungeonTargetId)
+  }
   if (mapMode() === nextMode) return
   setTravelExperience(null)
   setMapMode(nextMode)
   setLastCommand(`map:${nextMode}`)
 }
 
+function enterDungeonTarget(targetMapId: string, command: string): void {
+  setDungeonTarget(targetMapId)
+  setTravelExperience(null)
+  setMapMode("dungeon_square")
+  setLastCommand(command)
+}
+
 function switchMapModeFromTab(nextMode: AddMapMode): void {
-  if (nextMode === "dungeon_square") setDungeonTarget(STUDIO_DUNGEON_MAP_ID)
-  switchMapMode(nextMode)
+  switchMapMode(nextMode, {
+    dungeonTargetId: nextMode === "dungeon_square" ? STUDIO_DUNGEON_MAP_ID : undefined,
+  })
 }
 
 function returnToOverworldFromDungeon(): void {
@@ -2015,9 +2051,28 @@ function returnToOverworldFromDungeon(): void {
 }
 
 function enterDungeonLink(link: AddPhaserMapInfo["character"]["dungeonLinksAtCell"][number]): void {
-  setDungeonTarget(link.targetMapId)
-  setLastCommand(`enter:${link.targetMapId}`)
-  switchMapMode("dungeon_square")
+  enterDungeonTarget(link.targetMapId, `enter:${link.targetMapId}`)
+}
+
+function runCurrentTileDetailAction(event: Event): void {
+  if (!(event.currentTarget instanceof HTMLElement)) return
+  const actionId = event.currentTarget.dataset.actionId
+  const targetMapMode = event.currentTarget.dataset.targetMapMode
+  const targetMapId = event.currentTarget.dataset.targetMapId
+  if (targetMapMode === "dungeon_square" && targetMapId) {
+    enterDungeonTarget(targetMapId, `tile-enter:${targetMapId}`)
+    return
+  }
+  if (targetMapMode === "base_square") {
+    setLastCommand("tile-open:base")
+    switchMapMode("base_square")
+    return
+  }
+  if (!actionId) return
+  const detail = discoveryState()?.tileDetail
+  const action = detail?.actions.find((candidate) => candidate.id === actionId)
+  if (!detail || !action) return
+  runTileDetailAction(detail, action)
 }
 
 function runTileDetailAction(detail: AddTileDetailSummary, action: AddTileAction): void {
@@ -2026,9 +2081,7 @@ function runTileDetailAction(detail: AddTileDetailSummary, action: AddTileAction
   if (!link?.targetMapMode) return
 
   if (link.targetMapMode === "dungeon_square" && link.targetMapId) {
-    setDungeonTarget(link.targetMapId)
-    setLastCommand(`tile-enter:${link.targetMapId}`)
-    switchMapMode("dungeon_square")
+    enterDungeonTarget(link.targetMapId, `tile-enter:${link.targetMapId}`)
     return
   }
 
@@ -2254,6 +2307,25 @@ async function handleClearLocation(
   })
 }
 
+async function handlePickUp(coord: CellCoord): Promise<void> {
+  const dungeonId = addDungeonByMapId(dungeonTarget())?.id ?? dungeonTarget()
+  const key = dungeonLocationKey(dungeonId, coord)
+  await sendAndWaitForSnapshot(() => {
+    client.pickUpLocation(key)
+  })
+}
+
+async function handleDropItem(itemId: string): Promise<void> {
+  // Drop one of the item onto the Hero's current dungeon cell.
+  const coord = mapHost?.getRendererState().controlledEntity.coord
+  if (!coord) return
+  const dungeonId = addDungeonByMapId(dungeonTarget())?.id ?? dungeonTarget()
+  const key = dungeonLocationKey(dungeonId, coord)
+  await sendAndWaitForSnapshot(() => {
+    client.dropItem(key, itemId, 1)
+  })
+}
+
 async function handleCharacterTravel(event: AddCharacterTravelEvent): Promise<void> {
   const currentSnapshot = snapshot()
   if (!currentSnapshot) return
@@ -2440,9 +2512,7 @@ async function runDiscoveryAction(link: AddDiscoveryActionLink): Promise<void> {
 function enterDiscoveryDungeon(): void {
   const entry = discoveryState()?.dungeonEntry
   if (!entry?.enabled) return
-  setDungeonTarget(entry.targetMapId)
-  setLastCommand(`enter:${entry.targetMapId}`)
-  switchMapMode("dungeon_square")
+  enterDungeonTarget(entry.targetMapId, `enter:${entry.targetMapId}`)
 }
 
 async function runAddAction(action: AddFirstPlayableAction): Promise<void> {
@@ -2636,6 +2706,7 @@ function toTextState(): RuntimeTextState {
     discovery: currentDiscovery,
     dungeonObjective: currentDungeonObjective,
     mapMode: mapMode(),
+    dungeonTarget: mapMode() === "dungeon_square" ? dungeonTarget() : null,
     adminOpen: adminOpen(),
     discoveryPanelCollapsed: discoveryPanelCollapsed(),
     firstPlayableCollapsed: firstPlayableCollapsed(),

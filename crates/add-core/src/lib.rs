@@ -520,6 +520,48 @@ mod tests {
         assert!(restored.state().cleared_locations.contains(&key));
     }
 
+    #[test]
+    fn dropping_then_picking_up_items_moves_them_and_persists() {
+        let mut simulation = Simulation::new();
+        simulation.grant_item("item.scrap_metal", 5);
+        let key = "dungeon.studio:4:4".to_string();
+
+        // Over-drop is a no-op.
+        simulation.apply(GameCommand::DropItem {
+            key: key.clone(),
+            item_id: "item.scrap_metal".to_string(),
+            qty: 99,
+        });
+        assert_eq!(simulation.state().inventory.get("item.scrap_metal"), Some(&5));
+        assert!(simulation.state().dropped_items.is_empty());
+
+        // Drop 2 -> inventory 3, pile 2.
+        simulation.apply(GameCommand::DropItem {
+            key: key.clone(),
+            item_id: "item.scrap_metal".to_string(),
+            qty: 2,
+        });
+        assert_eq!(simulation.state().inventory.get("item.scrap_metal"), Some(&3));
+        assert_eq!(
+            simulation.state().dropped_items.get(&key).and_then(|p| p.get("item.scrap_metal")),
+            Some(&2)
+        );
+
+        // Dropped pile survives a save round-trip.
+        let serialized = export_save(simulation.state()).expect("save serializes");
+        let mut restored =
+            Simulation::from_state(import_save(&serialized).expect("save deserializes"));
+        assert_eq!(
+            restored.state().dropped_items.get(&key).and_then(|p| p.get("item.scrap_metal")),
+            Some(&2)
+        );
+
+        // Pick up -> back to inventory, pile cleared.
+        restored.apply(GameCommand::PickUpLocation { key: key.clone() });
+        assert_eq!(restored.state().inventory.get("item.scrap_metal"), Some(&5));
+        assert!(!restored.state().dropped_items.contains_key(&key));
+    }
+
     // Golden snapshot of the whole catalog. Catalogs are migrated to TS-authored
     // data + codegen one at a time; this proves each migration leaves the data the
     // sim and client see byte-identical, regardless of how the generated Rust is

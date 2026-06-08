@@ -238,6 +238,8 @@ export interface SimulationSnapshot {
   /** Resolved per-location facts (looted containers, cleared creatures),
    * keyed `${mapId}:${x}:${y}`. */
   clearedLocations: string[]
+  /** Items dropped on the ground: `${mapId}:${x}:${y}` -> (item id -> qty). */
+  droppedItems: Record<string, Record<string, number>>
 }
 
 export interface ResourceDef {
@@ -746,6 +748,8 @@ export type WorkerRequest =
   | { type: 'moveHeroTo'; q: number; r: number }
   | { type: 'openDoor'; key: string }
   | { type: 'clearLocation'; key: string; lootItem?: string; lootQty: number }
+  | { type: 'dropItem'; key: string; itemId: string; qty: number }
+  | { type: 'pickUpLocation'; key: string }
   | { type: 'acquirePerk'; perkId: string }
   | { type: 'spendBassline'; amount: number }
   | { type: 'importSave'; payload: string }

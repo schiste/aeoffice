@@ -129,6 +129,22 @@ impl WebRuntime {
         });
     }
 
+    #[wasm_bindgen(js_name = dropItem)]
+    pub fn drop_item(&mut self, key: &str, item_id: &str, qty: u32) {
+        self.simulation.apply(GameCommand::DropItem {
+            key: key.to_string(),
+            item_id: item_id.to_string(),
+            qty,
+        });
+    }
+
+    #[wasm_bindgen(js_name = pickUpLocation)]
+    pub fn pick_up_location(&mut self, key: &str) {
+        self.simulation.apply(GameCommand::PickUpLocation {
+            key: key.to_string(),
+        });
+    }
+
     #[wasm_bindgen(js_name = spendBassline)]
     pub fn spend_bassline(&mut self, amount: f64) {
         self.simulation.apply(GameCommand::SpendBassline { amount });
