@@ -2,6 +2,7 @@ import {
   ADD_DOMAIN_BOUNDARY,
   ADD_MAP_MODE_OPTIONS,
   addMapModeLabel,
+  type AddDungeonObjectiveSummary,
   type AddDiscoverySummary,
   type AddFirstPlayableAction,
   type AddMapMode,
@@ -66,6 +67,7 @@ export interface AddRuntimeTelemetryPresenterInput {
   readonly clockAnimation: AddTelemetryClockAnimationState | null
   readonly mapInfo: AddPhaserMapInfo
   readonly discovery: AddDiscoverySummary | null
+  readonly dungeonObjective: AddDungeonObjectiveSummary | null
   readonly mapMode: AddMapMode
   readonly adminOpen: boolean
   readonly firstPlayableCollapsed: boolean
@@ -292,6 +294,19 @@ export interface RuntimeTextState {
     readonly enabledActionIds: readonly string[]
     readonly relevantResourceIds: readonly string[]
   } | null
+  readonly dungeonObjective: {
+    readonly active: boolean
+    readonly dungeonId: string
+    readonly mapId: string
+    readonly label: string
+    readonly headline: string
+    readonly currentStepId: string
+    readonly returnAvailable: boolean
+    readonly stepStatuses: readonly {
+      readonly id: string
+      readonly status: string
+    }[]
+  } | null
   readonly persistence: {
     readonly storageKey: string
     readonly autosaveEnabled: boolean
@@ -372,6 +387,21 @@ export function createAddRuntimeTextState(
           relevantResourceIds: input.discovery.resourceLinks
             .filter((link) => link.relevant)
             .map((link) => link.id),
+        }
+      : null,
+    dungeonObjective: input.dungeonObjective
+      ? {
+          active: input.dungeonObjective.active,
+          dungeonId: input.dungeonObjective.dungeonId,
+          mapId: input.dungeonObjective.mapId,
+          label: input.dungeonObjective.label,
+          headline: input.dungeonObjective.headline,
+          currentStepId: input.dungeonObjective.currentStepId,
+          returnAvailable: input.mapMode === "dungeon_square",
+          stepStatuses: input.dungeonObjective.steps.map((step) => ({
+            id: step.id,
+            status: step.status,
+          })),
         }
       : null,
     persistence: {

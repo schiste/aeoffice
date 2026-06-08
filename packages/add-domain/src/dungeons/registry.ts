@@ -30,7 +30,7 @@ export const SURVIVOR_CAVE_DUNGEON_MAP_ID = "add.rpg.square-dungeon-fixture"
 export const ADD_DUNGEON_REGISTRY: readonly AddDungeonDefinition[] = [
   {
     id: SURVIVOR_CAVE_DUNGEON_ID,
-    label: "Survivor Cave Dungeon",
+    label: "Survivor Cave",
     mapId: SURVIVOR_CAVE_DUNGEON_MAP_ID,
     entryCoord: { kind: "square", x: 2, y: 4 },
     visibilityPolicy: "directional_fov",

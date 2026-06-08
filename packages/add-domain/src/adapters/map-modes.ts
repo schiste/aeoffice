@@ -130,13 +130,19 @@ function survivorCaveDungeonMap(): GameMap {
 
   return squareMap({
     id: SURVIVOR_CAVE_DUNGEON_MAP_ID,
-    label: "Dungeon Square Fixture",
+    label: "Survivor Cave",
     mode: "dungeon_square",
     width,
     height,
     cells,
     entities: [
-      landmark("add.entity.dungeon.entry", "Dungeon Gate", createSquareCoord(2, 4), "dungeon_gate"),
+      hero("add.entity.dungeon.hero-entry", "Hero", createSquareCoord(2, 4)),
+      landmark(
+        "add.entity.dungeon.entry",
+        "Survivor Cave Mouth",
+        createSquareCoord(2, 4),
+        "survivor_cave_mouth",
+      ),
       landmark("add.entity.dungeon.relic-door", "Relic Door", createSquareCoord(11, 7), "relic_door"),
       landmark("add.entity.dungeon.echo-crystal", "Echo Crystal", createSquareCoord(8, 3), "echo_crystal"),
     ],
@@ -154,6 +160,7 @@ function survivorCaveDungeonMap(): GameMap {
         createSquareCoord(10, 7),
       ]),
     ],
+    gameplayReady: true,
   })
 }
 
@@ -220,18 +227,20 @@ function squareMap(input: {
   readonly cells: readonly GameCellPlacement[]
   readonly entities: readonly GameEntity[]
   readonly zones: readonly GameZone[]
+  readonly gameplayReady?: boolean
 }): GameMap {
+  const gameplayReady = input.gameplayReady ?? false
   const interactions: readonly GameInteraction[] = [
     {
       id: `add.interaction.${input.mode}.fixture-preview`,
       kind: "fixture_action",
       action: `add.fixture.${input.mode}.preview`,
       target: { kind: "map", id: input.id },
-      label: "Preview only",
-      enabled: false,
+      label: gameplayReady ? "Dungeon objective" : "Preview only",
+      enabled: gameplayReady,
       metadata: {
         source: "add-square-fixture",
-        gameplayReady: false,
+        gameplayReady,
       },
     },
   ]
@@ -268,7 +277,7 @@ function squareMap(input: {
       source: "add-square-fixture",
       mapMode: input.mode,
       fixture: true,
-      gameplayReady: false,
+      gameplayReady,
     },
   }
 }
@@ -301,6 +310,17 @@ function landmark(
     coord,
     tags: ["add", "fixture", "square"],
     metadata: { sourceId },
+  }
+}
+
+function hero(id: string, label: string, coord: SquareCoord): GameEntity {
+  return {
+    id,
+    kind: "hero",
+    label,
+    coord,
+    tags: ["add", "playable", "square"],
+    metadata: { sourceId: "dungeon_entry" },
   }
 }
 

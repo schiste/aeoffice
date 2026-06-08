@@ -2481,3 +2481,10 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   target enforcement for dedicated performance runs. Verification passed with
   `npm run smoke:office:built`, `npm run check`, and visual inspection of the
   renderer QA stress-map artifact.
+- Survivor Cave dungeon entry is now a real player loop. The Hero starts on the
+  Survivor Cave, the overworld exposes `Enter Survivor Cave`, entering opens the
+  linked square dungeon map, the objective panel switches to a cave-specific
+  dungeon objective, and both the top bar and objective panel can return cleanly
+  to the overworld. `render_game_to_text` now exposes the dungeon objective
+  projection, and `npm run smoke:add-rpg` covers the entry/return loop plus a
+  dedicated `tmp/add-rpg-survivor-cave-entry-smoke.png` screenshot.

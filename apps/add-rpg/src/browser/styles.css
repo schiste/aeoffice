@@ -358,6 +358,17 @@ h1 {
   border-color: rgb(240 185 93 / 76%);
 }
 
+.return-overworld-button {
+  border-color: rgb(95 209 216 / 38%);
+  background: linear-gradient(180deg, rgb(95 209 216 / 24%), rgb(32 74 67 / 32%));
+  color: #c9fff9;
+}
+
+.return-overworld-button:hover:not(:disabled) {
+  border-color: rgb(95 209 216 / 62%);
+  background: linear-gradient(180deg, rgb(95 209 216 / 34%), rgb(32 74 67 / 42%));
+}
+
 .admin-toggle {
   min-height: 1.9rem;
   border-color: rgb(95 209 216 / 36%);
@@ -977,6 +988,20 @@ h1 {
   margin: 0;
   color: rgb(247 238 210 / 78%);
   line-height: 1.45;
+}
+
+.dungeon-objective-copy {
+  display: grid;
+  gap: 0.32rem;
+}
+
+.dungeon-objective-copy strong {
+  color: #fff2bd;
+  font-size: 0.92rem;
+}
+
+.dungeon-objective-copy span {
+  color: rgb(247 238 210 / 76%);
 }
 
 .first-playable-panel {

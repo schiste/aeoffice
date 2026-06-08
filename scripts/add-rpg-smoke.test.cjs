@@ -43,6 +43,9 @@ async function main() {
     )
     await runScenario("ambient clock", () => assertIdleAmbientClockAdvances(page))
     await runScenario("hero spawn placement", () => assertHeroStartsAtSurvivorCave(page, initial))
+    await runScenario("survivor cave dungeon entry loop", () =>
+      exerciseSurvivorCaveDungeonEntry(page, consoleErrors),
+    )
     await runScenario("hidden cells and fog screenshot", async () => {
       const state = await assertHiddenMapCellsAreInvisibleToPointer(page, consoleErrors)
       assert.notEqual(state.map.interaction.selectedDetail?.visibility, "hidden")
@@ -155,10 +158,12 @@ async function assertBootAndRenderTextContract(page, consoleErrors) {
       state.map?.presentation?.landmarkSprites === "procedural_sprite_stack" &&
       state.map?.presentation?.labelRendering === "high_resolution_phaser_text" &&
       state.map?.presentation?.ambience === "subtle_motes_and_topographic_scan" &&
-      state.discovery?.phase === "act" &&
-      state.discovery?.dungeonEntryAvailable === false &&
-      typeof state.discovery?.dungeonEntryTarget === "string" &&
+      state.discovery?.phase === "enter_dungeon" &&
+      state.discovery?.dungeonEntryAvailable === true &&
+      state.discovery?.dungeonEntryTarget === "add.rpg.square-dungeon-fixture" &&
+      state.discovery?.enabledActionIds?.includes("dungeon:add.rpg.square-dungeon-fixture") &&
       state.discovery?.enabledActionIds?.includes("first-playable:reach-base") &&
+      state.dungeonObjective === null &&
       state.ui?.worldTime?.day >= 1 &&
       state.ui?.worldTime?.season === "spring" &&
       state.ui?.worldTime?.source === "estimated_solar_model" &&
@@ -681,6 +686,78 @@ async function assertHeroStartsAtSurvivorCave(page, state) {
     Math.abs(screenY - box.height / 2) <= 10,
     `Survivor Cave/Hero should start vertically centered, got ${screenY} for ${box.height}`,
   )
+}
+
+async function exerciseSurvivorCaveDungeonEntry(page, consoleErrors) {
+  const before = await renderGameToText(page)
+  assert.equal(before.mapMode.active, "overworld_hex")
+  assert.equal(before.map.character.coord, before.map.landmarks.survivorCave)
+  assert.ok(
+    before.map.character.dungeonLinksAtCell.some(
+      (link) =>
+        link.enabled === true &&
+        link.label === "Survivor Cave" &&
+        link.targetMapId === "add.rpg.square-dungeon-fixture",
+    ),
+    "The Hero should stand on an enabled Survivor Cave dungeon link.",
+  )
+  assert.equal(before.discovery.phase, "enter_dungeon")
+  assert.equal(before.discovery.dungeonEntryAvailable, true)
+  assert.match(
+    await page.locator("#enter-dungeon").innerText(),
+    /Enter Survivor Cave/,
+    "The overworld action should invite the player into the Survivor Cave.",
+  )
+
+  await page.locator("#enter-dungeon").click()
+  const dungeon = await waitForTextState(
+    page,
+    (state) =>
+      state.mapMode?.active === "dungeon_square" &&
+      state.mapMode?.topology === "square" &&
+      state.map?.mapId === "add.rpg.square-dungeon-fixture" &&
+      state.map?.topology?.kind === "square" &&
+      state.map?.validationValid === true &&
+      state.map?.character?.cell === "square:2,4" &&
+      state.dungeonObjective?.active === true &&
+      state.dungeonObjective?.label === "Survivor Cave" &&
+      state.dungeonObjective?.mapId === "add.rpg.square-dungeon-fixture" &&
+      state.dungeonObjective?.currentStepId === "survey-cave-mouth" &&
+      state.dungeonObjective?.returnAvailable === true,
+    consoleErrors,
+  )
+  assert.equal(dungeon.ui.firstPlayable.currentStepId, before.ui.firstPlayable.currentStepId)
+  assert.ok(
+    dungeon.dungeonObjective.stepStatuses.some(
+      (step) => step.id === "return-overworld" && step.status === "next",
+    ),
+    "Dungeon objective should include a return step.",
+  )
+  assert.match(
+    await page.locator("#first-playable-panel").innerText(),
+    /Survivor Cave|safe threshold|cave/i,
+    "The objective panel should switch to cave-specific dungeon copy.",
+  )
+  await assertNonBlankNamedAppScreenshot(
+    page,
+    "add-rpg-survivor-cave-entry-smoke.png",
+    "ADD RPG Survivor Cave entry screenshot",
+  )
+
+  await page.locator("#return-overworld").click()
+  const returned = await waitForTextState(
+    page,
+    (state) =>
+      state.mapMode?.active === "overworld_hex" &&
+      state.map?.topology?.kind === "hex" &&
+      state.map?.character?.coord === before.map.character.coord &&
+      state.discovery?.phase === "enter_dungeon" &&
+      state.discovery?.dungeonEntryAvailable === true &&
+      state.dungeonObjective === null,
+    consoleErrors,
+  )
+  assert.equal(returned.snapshot.clockSeconds >= before.snapshot.clockSeconds, true)
+  return returned
 }
 
 async function exerciseMainCharacterMovement(page, consoleErrors) {
@@ -1223,6 +1300,23 @@ async function assertNonBlankAppScreenshot(page) {
   assertNonBlankImageBuffer(
     fs.readFileSync(SCREENSHOT_PATH),
     "ADD RPG runtime app screenshot",
+    {
+      minWidth: 300,
+      minHeight: 220,
+      minOpaqueSamples: 500,
+      minUniqueColors: 8,
+      minLuminanceRange: 24,
+    },
+  )
+}
+
+async function assertNonBlankNamedAppScreenshot(page, filename, label) {
+  fs.mkdirSync(path.dirname(SCREENSHOT_PATH), { recursive: true })
+  const screenshotPath = path.join(ROOT_DIR, "tmp", filename)
+  await page.locator("#app").screenshot({ path: screenshotPath })
+  assertNonBlankImageBuffer(
+    fs.readFileSync(screenshotPath),
+    label,
     {
       minWidth: 300,
       minHeight: 220,

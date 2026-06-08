@@ -5,6 +5,7 @@ import {
   SimulationClient,
   addCommandForGameInteraction,
   selectAddDiscoverySummary,
+  selectAddDungeonObjective,
   selectAddUiState,
   selectAddWorldTimeForClockSeconds,
   workerRequestForAddCommand,
@@ -19,6 +20,7 @@ import {
   createAddWorldForMapMode,
   type AddUiState,
   type AddDiscoveryActionLink,
+  type AddDungeonObjectiveStep,
   type AddDiscoveryMovementEvent,
   type AddFirstPlayableAction,
   type AddMapMode,
@@ -263,6 +265,13 @@ const discoveryState = createMemo(() => {
     lastMovement: lastDiscoveryMovement(),
   })
 })
+const dungeonObjectiveState = createMemo(() =>
+  selectAddDungeonObjective({
+    mapMode: mapMode(),
+    dungeonMapId: mapMode() === "dungeon_square" ? dungeonTarget() : null,
+    heroCell: mapInfo().character.cell,
+  }),
+)
 const displayedWorldTime = createMemo<AddWorldTimeSummary | null>(() => {
   const currentSnapshot = snapshot()
   const clockSeconds = displayClockSeconds() ?? currentSnapshot?.clockSeconds
@@ -473,6 +482,16 @@ function AddRpgApp() {
                 <i style=${() => daylightMeterStyle()} aria-hidden="true" />
               </div>
               ${() => {
+                if (mapMode() === "dungeon_square") {
+                  return html`<button
+                    id="return-overworld"
+                    type="button"
+                    class="enter-dungeon-button return-overworld-button"
+                    onClick=${() => returnToOverworldFromDungeon()}
+                  >
+                    Return to Overworld
+                  </button>`
+                }
                 const link = heroDungeonLink()
                 return link
                   ? html`<button
@@ -566,10 +585,10 @@ function AddRpgApp() {
               onPointerUp=${endQuestPanelDrag}
               onPointerCancel=${endQuestPanelDrag}
             >
-              <span>First playable</span>
+              <span>${() => objectivePanelTitle()}</span>
               <div class="panel-heading-actions">
                 <span class="small-chip">
-                  ${() => `${uiState()?.firstPlayable.completedCount ?? 0}/${uiState()?.firstPlayable.totalCount ?? 0}`}
+                  ${() => objectivePanelChip()}
                 </span>
                 <button
                   id="toggle-first-playable-panel"
@@ -578,7 +597,7 @@ function AddRpgApp() {
                   onClick=${() => setFirstPlayableCollapsed(!firstPlayableCollapsed())}
                   aria-expanded=${() => !firstPlayableCollapsed()}
                   aria-controls="first-playable-body"
-                  aria-label=${() => (firstPlayableCollapsed() ? "Expand first playable tasks" : "Collapse first playable tasks")}
+                  aria-label=${() => objectivePanelToggleLabel()}
                 >
                   ${() => (firstPlayableCollapsed() ? "Show" : "Hide")}
                 </button>
@@ -589,27 +608,7 @@ function AddRpgApp() {
               class="first-playable-body"
               hidden=${() => firstPlayableCollapsed()}
             >
-              <div class="progress-track" aria-hidden="true">
-                <span style=${() => ({ width: firstPlayableProgressWidth() })} />
-              </div>
-              <p class="objective-copy">
-                ${() => firstPlayableCopy()}
-              </p>
-              <button
-                id="first-playable-action"
-                type="button"
-                class="primary-action"
-                onClick=${() => void runFirstPlayableAction()}
-                disabled=${() => !Boolean(currentFirstPlayableStep()?.action)}
-              >
-                ${() => currentFirstPlayableStep()?.actionLabel ?? "First arc complete"}
-              </button>
-              <div class="story-choice-grid">
-                ${() => storyChoiceButtons()}
-              </div>
-              <ol class="first-playable-list">
-                ${() => firstPlayableStepRows()}
-              </ol>
+              ${() => objectivePanelBody()}
             </div>
           </section>
           <div class="map-hud" aria-label="ADD map controls">
@@ -1021,6 +1020,100 @@ function discoveryActionButtons(): readonly unknown[] {
   )
 }
 
+function objectivePanelTitle(): string {
+  return dungeonObjectiveState() ? "Dungeon objective" : "First playable"
+}
+
+function objectivePanelChip(): string {
+  const dungeon = dungeonObjectiveState()
+  if (dungeon) {
+    const activeIndex = Math.max(
+      0,
+      dungeon.steps.findIndex((step) => step.status === "active"),
+    )
+    return `${activeIndex + 1}/${dungeon.steps.length}`
+  }
+  return `${uiState()?.firstPlayable.completedCount ?? 0}/${uiState()?.firstPlayable.totalCount ?? 0}`
+}
+
+function objectivePanelToggleLabel(): string {
+  const action = firstPlayableCollapsed() ? "Expand" : "Collapse"
+  return `${action} ${objectivePanelTitle().toLowerCase()} tasks`
+}
+
+function objectivePanelBody(): unknown {
+  const dungeon = dungeonObjectiveState()
+  if (dungeon) {
+    return html`
+      <div class="progress-track dungeon-progress" aria-hidden="true">
+        <span style=${() => ({ width: dungeonObjectiveProgressWidth() })} />
+      </div>
+      <p class="objective-copy dungeon-objective-copy">
+        <strong>${dungeon.headline}</strong>
+        <span>${dungeon.detail}</span>
+      </p>
+      <button
+        id="return-overworld-objective"
+        type="button"
+        class="primary-action"
+        onClick=${() => returnToOverworldFromDungeon()}
+      >
+        ${dungeon.returnLabel}
+      </button>
+      <ol class="first-playable-list dungeon-objective-list">
+        ${() => dungeonObjectiveStepRows()}
+      </ol>
+    `
+  }
+
+  return html`
+    <div class="progress-track" aria-hidden="true">
+      <span style=${() => ({ width: firstPlayableProgressWidth() })} />
+    </div>
+    <p class="objective-copy">
+      ${() => firstPlayableCopy()}
+    </p>
+    <button
+      id="first-playable-action"
+      type="button"
+      class="primary-action"
+      onClick=${() => void runFirstPlayableAction()}
+      disabled=${() => !Boolean(currentFirstPlayableStep()?.action)}
+    >
+      ${() => currentFirstPlayableStep()?.actionLabel ?? "First arc complete"}
+    </button>
+    <div class="story-choice-grid">
+      ${() => storyChoiceButtons()}
+    </div>
+    <ol class="first-playable-list">
+      ${() => firstPlayableStepRows()}
+    </ol>
+  `
+}
+
+function dungeonObjectiveProgressWidth(): string {
+  const dungeon = dungeonObjectiveState()
+  if (!dungeon || dungeon.steps.length === 0) return "0%"
+  const activeIndex = Math.max(
+    0,
+    dungeon.steps.findIndex((step) => step.status === "active"),
+  )
+  return `${Math.round(((activeIndex + 1) / dungeon.steps.length) * 100)}%`
+}
+
+function dungeonObjectiveStepRows(): readonly unknown[] {
+  return (dungeonObjectiveState()?.steps ?? []).map((step: AddDungeonObjectiveStep) => {
+    const stateLabel =
+      step.status === "complete" ? "Done" : step.status === "active" ? "Now" : "Next"
+    return html`
+      <li class=${step.status === "active" ? "active" : step.status === "complete" ? "complete" : ""}>
+        <span>${step.label}</span>
+        <small>${stateLabel}</small>
+      </li>
+    `
+  })
+}
+
 function currentFirstPlayableStep() {
   return uiState()?.firstPlayable.steps.find((step) => step.active) ?? null
 }
@@ -1157,7 +1250,7 @@ function mapModeButtons(): readonly unknown[] {
         class=${() => (mapMode() === option.id ? "map-mode-button active" : "map-mode-button")}
         role="tab"
         aria-selected=${() => mapMode() === option.id}
-        onClick=${() => switchMapMode(option.id)}
+        onClick=${() => switchMapModeFromTab(option.id)}
       >
         ${option.label}
       </button>
@@ -1601,6 +1694,18 @@ function switchMapMode(nextMode: AddMapMode): void {
   setTravelExperience(null)
   setMapMode(nextMode)
   setLastCommand(`map:${nextMode}`)
+}
+
+function switchMapModeFromTab(nextMode: AddMapMode): void {
+  if (nextMode === "dungeon_square") setDungeonTarget(STUDIO_DUNGEON_MAP_ID)
+  switchMapMode(nextMode)
+}
+
+function returnToOverworldFromDungeon(): void {
+  if (mapMode() === "overworld_hex") return
+  setTravelExperience(null)
+  setMapMode("overworld_hex")
+  setLastCommand("return:overworld")
 }
 
 function enterDungeonLink(link: AddPhaserMapInfo["character"]["dungeonLinksAtCell"][number]): void {
@@ -2167,6 +2272,11 @@ function toTextState(): RuntimeTextState {
           lastMovement: lastDiscoveryMovement(),
         })
       : null
+  const currentDungeonObjective = selectAddDungeonObjective({
+    mapMode: mapMode(),
+    dungeonMapId: mapMode() === "dungeon_square" ? dungeonTarget() : null,
+    heroCell: currentMapInfo.character.cell,
+  })
   return createAddRuntimeTextState({
     snapshot: currentSnapshot,
     catalog: currentCatalog,
@@ -2176,6 +2286,7 @@ function toTextState(): RuntimeTextState {
     clockAnimation: clockAnimation(),
     mapInfo: currentMapInfo,
     discovery: currentDiscovery,
+    dungeonObjective: currentDungeonObjective,
     mapMode: mapMode(),
     adminOpen: adminOpen(),
     firstPlayableCollapsed: firstPlayableCollapsed(),

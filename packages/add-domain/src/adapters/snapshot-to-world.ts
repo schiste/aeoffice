@@ -489,13 +489,17 @@ function dungeonLinksForTile(
 
   return tile.dungeonIds.map((dungeonId) => {
     const dungeon = resolveAddDungeon(dungeonId)
+    const reachableLandmarkEntrance = tile.feature === "survivor_cave"
     return {
       id: `add.link.${dungeonId}.${hex.q}.${hex.r}`,
       kind: "dungeon",
       targetMapId: dungeon.mapId,
       targetCoord: dungeon.entryCoord,
       label: dungeon.label,
-      enabled: dungeon.unlocked && hex.state !== "inactive" && hex.state !== "blocked",
+      enabled:
+        dungeon.unlocked &&
+        hex.state !== "blocked" &&
+        (hex.state !== "inactive" || reachableLandmarkEntrance),
       metadata: {
         dungeonId,
         homeTileId: tile.id,
