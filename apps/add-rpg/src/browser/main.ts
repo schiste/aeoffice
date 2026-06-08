@@ -6,6 +6,7 @@ import {
   addCommandForGameInteraction,
   selectAddDiscoverySummary,
   selectAddDungeonObjective,
+  selectAddPerkSummaries,
   selectAddUiState,
   selectAddWorldTimeForClockSeconds,
   workerRequestForAddCommand,
@@ -233,6 +234,10 @@ const uiState = createMemo<AddUiState | null>(() => {
   return currentSnapshot && currentCatalog
     ? selectAddUiState(currentSnapshot, currentCatalog)
     : null
+})
+const perkProgress = createMemo(() => {
+  const currentSnapshot = snapshot()
+  return currentSnapshot ? selectAddPerkSummaries(currentSnapshot) : null
 })
 const discoveryState = createMemo(() => {
   const currentSnapshot = snapshot()
@@ -783,6 +788,13 @@ function AddRpgApp() {
           </div>
           <div class="quick-control-group" aria-label="First playable construction controls">
             ${() => constructionQuickControls()}
+          </div>
+          <div class="quick-control-group" aria-label="Hero perk controls">
+            <p class="quick-control-heading">
+              Perks
+              <span class="small-chip">${() => `${perkProgress()?.pointsAvailable ?? 0} pts`}</span>
+            </p>
+            ${() => perkQuickControls()}
           </div>
           ${() => (lastError() ? html`<p class="error-line">${lastError()}</p>` : null)}
         </section>
@@ -1413,6 +1425,30 @@ function constructionQuickControls(): readonly unknown[] {
       </article>
     `
   }).filter(Boolean)
+}
+
+function perkQuickControls(): readonly unknown[] {
+  const progress = perkProgress()
+  if (!progress) return []
+  return progress.perks.map(
+    (perk) => html`
+      <article class="quick-control-row">
+        <span>
+          ${perk.label}
+          <small>${perk.acquired ? "Learned" : perk.lockedReason ?? perk.description ?? ""}</small>
+        </span>
+        <button
+          id=${`perk-${safeElementId(perk.id)}`}
+          type="button"
+          class="ghost-button"
+          onClick=${() => void acquirePerk(perk.id)}
+          disabled=${() => !ready() || !perk.available}
+        >
+          ${perk.acquired ? "Learned" : "Learn"}
+        </button>
+      </article>
+    `,
+  )
 }
 
 function actionRows(): readonly unknown[] {
@@ -2249,6 +2285,13 @@ async function startConstruction(optionId: string): Promise<void> {
   await sendAndWaitForSnapshot(() => {
     setLastCommand(`construction:${optionId}`)
     client.startConstruction(optionId)
+  })
+}
+
+async function acquirePerk(perkId: string): Promise<void> {
+  await sendAndWaitForSnapshot(() => {
+    setLastCommand(`perk:${perkId}`)
+    client.acquirePerk(perkId)
   })
 }
 
