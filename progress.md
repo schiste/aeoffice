@@ -2510,3 +2510,15 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   `npm run qa:renderer`, `npm run smoke:engine-sandbox`, `git diff --check`,
   exact renderer leakage `rg`, and `npm run check`. Visual artifact:
   `tmp/add-rpg-movement-consequences-smoke.png`.
+- Discovery panel UX is now closer to a lightweight decision helper. The
+  `add-domain` selector projects a primary `nextAction`, filters noisy disabled
+  actions down to enabled choices or one meaningful blocker, and uses more
+  player-facing copy for unknown/hidden tiles. The ADD app renders a persistent
+  Next Step card, supports panel collapse/expand while keeping the
+  recommendation visible, and exposes the collapsed state plus next-action
+  contract through `render_game_to_text`. Verification passed with
+  `npm --workspace @aedventure/add-domain run build`, `npm --workspace
+  @aedventure/add-rpg run build:types`, `npm run smoke:add-rpg`,
+  `npm run qa:renderer`, `npm run smoke:engine-sandbox`, `git diff --check`,
+  exact renderer leakage `rg`, and `npm run check`. Visual artifact:
+  `tmp/add-rpg-discovery-collapsed-smoke.png`.

@@ -576,19 +576,99 @@ h1 {
   margin-bottom: 0;
 }
 
-.discovery-panel > strong {
+.discovery-heading > div {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.discovery-toggle {
+  min-height: 1.75rem;
+  padding: 0 0.55rem;
+  font-size: 0.66rem;
+}
+
+.discovery-panel.collapsed {
+  max-height: none;
+  overflow: visible;
+}
+
+.discovery-panel-body {
+  display: grid;
+  gap: 9px;
+}
+
+.discovery-panel-body > strong {
   color: #fff2bd;
   font-size: 0.92rem;
   font-weight: 950;
 }
 
-.discovery-panel > p,
+.discovery-panel-body > p,
 .discovery-empty {
   margin: 0;
   color: rgb(247 238 210 / 78%);
   font-size: 0.78rem;
   font-weight: 720;
   line-height: 1.35;
+}
+
+.discovery-next-action {
+  display: grid;
+  gap: 0.24rem;
+  border: 1px solid rgb(95 209 216 / 28%);
+  border-radius: 8px;
+  padding: 0.72rem;
+  background:
+    linear-gradient(180deg, rgb(95 209 216 / 15%), rgb(255 244 201 / 7%)),
+    rgb(15 29 26 / 78%);
+  box-shadow: inset 3px 0 0 #5fd1d8;
+}
+
+.discovery-next-action[data-kind="enter_dungeon"],
+.discovery-next-action[data-kind="domain_action"] {
+  border-color: rgb(240 185 93 / 42%);
+  box-shadow: inset 3px 0 0 #f0b95d;
+}
+
+.discovery-next-action[data-kind="blocked"],
+.discovery-next-action[data-kind="wait"] {
+  border-color: rgb(255 244 201 / 16%);
+  background: rgb(11 17 16 / 54%);
+  box-shadow: inset 3px 0 0 rgb(247 238 210 / 34%);
+}
+
+.discovery-next-action > span {
+  color: rgb(247 238 210 / 58%);
+  font-size: 0.64rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.discovery-next-action > strong {
+  color: #fff2bd;
+  font-size: 0.94rem;
+  font-weight: 950;
+  line-height: 1.12;
+}
+
+.discovery-next-action > small,
+.discovery-next-action > em {
+  color: rgb(247 238 210 / 70%);
+  font-size: 0.7rem;
+  font-style: normal;
+  font-weight: 740;
+  line-height: 1.25;
+}
+
+.discovery-next-action > em {
+  color: #c9fff9;
+}
+
+.discovery-next-action button {
+  margin-top: 0.26rem;
+  min-height: 2.15rem;
+  font-size: 0.72rem;
 }
 
 .discovery-movement,
@@ -1571,7 +1651,7 @@ h1 {
     padding: 10px;
   }
 
-  .discovery-panel > p {
+  .discovery-panel-body > p {
     display: none;
   }
 

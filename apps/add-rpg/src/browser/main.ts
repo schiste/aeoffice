@@ -149,6 +149,7 @@ const [ready, setReady] = createSignal(false)
 const [autoTick, setAutoTick] = createSignal(true)
 const [timeSpeed, setTimeSpeed] = createSignal(1)
 const [adminOpen, setAdminOpen] = createSignal(false)
+const [discoveryPanelCollapsed, setDiscoveryPanelCollapsed] = createSignal(false)
 const [firstPlayableCollapsed, setFirstPlayableCollapsed] = createSignal(false)
 const [questPanelPosition, setQuestPanelPosition] = createSignal(defaultQuestPanelPosition())
 const [travelExperience, setTravelExperience] = createSignal<TravelExperience | null>(null)
@@ -550,28 +551,32 @@ function AddRpgApp() {
             </div>
             <i style=${() => travelProgressStyle()} aria-hidden="true" />
           </section>
-          <section id="discovery-panel" class="panel discovery-panel" aria-label="Discovery loop">
+          <section
+            id="discovery-panel"
+            class=${() =>
+              discoveryPanelCollapsed()
+                ? "panel discovery-panel collapsed"
+                : "panel discovery-panel"}
+            aria-label="Discovery loop"
+          >
             <div class="panel-heading discovery-heading">
               <span>Discovery</span>
-              <span class="small-chip">${() => discoveryPhaseLabel()}</span>
+              <div>
+                <span class="small-chip">${() => discoveryPhaseLabel()}</span>
+                <button
+                  id="toggle-discovery-panel"
+                  type="button"
+                  class="ghost-button discovery-toggle"
+                  onClick=${() => setDiscoveryPanelCollapsed((collapsed) => !collapsed)}
+                  aria-expanded=${() => !discoveryPanelCollapsed()}
+                  aria-controls="discovery-panel-body"
+                >
+                  ${() => (discoveryPanelCollapsed() ? "Open" : "Hide")}
+                </button>
+              </div>
             </div>
-            <strong>${() => discoveryState()?.headline ?? "Waiting for discovery"}</strong>
-            <p>${() => discoveryState()?.detail ?? "Move the Hero or select a tile to reveal the next choice."}</p>
-            <div class="discovery-movement">
-              <span>${() => discoveryState()?.movement.title ?? "Scout one step at a time"}</span>
-              <small>${() => discoveryMovementMetricCopy()}</small>
-            </div>
-            ${() => discoveryConsequenceCard()}
-            ${() => discoverySelectedTileCard()}
-            <div class="discovery-tiles">
-              ${() => discoveryTileRows()}
-            </div>
-            <div class="discovery-resources">
-              ${() => discoveryResourceRows()}
-            </div>
-            <div class="discovery-actions">
-              ${() => discoveryActionButtons()}
-            </div>
+            ${() => discoveryNextActionCard()}
+            ${() => discoveryPanelBody()}
           </section>
           ${() => travelDialogView()}
           <section
@@ -965,6 +970,74 @@ function discoveryMovementMetricCopy(): string {
   return parts.length > 0 ? parts.join(" · ") : "Choose an adjacent tile"
 }
 
+function discoveryNextActionCard(): unknown {
+  const nextAction = discoveryState()?.nextAction
+  if (!nextAction) {
+    return html`
+      <article id="discovery-next-action" class="discovery-next-action" data-kind="wait">
+        <span>Next step</span>
+        <strong>Waiting for runtime</strong>
+        <small>Discovery decisions will appear once the map snapshot is ready.</small>
+      </article>
+    `
+  }
+  const link = nextAction.actionId
+    ? discoveryState()?.actionLinks.find((candidate) => candidate.id === nextAction.actionId)
+    : null
+  return html`
+    <article
+      id="discovery-next-action"
+      class="discovery-next-action"
+      data-kind=${nextAction.kind}
+      data-enabled=${nextAction.enabled ? "true" : "false"}
+    >
+      <span>Next step</span>
+      <strong>${nextAction.label}</strong>
+      <small>${nextAction.detail}</small>
+      ${nextAction.inputHint ? html`<em>${nextAction.inputHint}</em>` : null}
+      ${link
+        ? html`
+            <button
+              id="discovery-primary-action"
+              type="button"
+              class="primary-action"
+              onClick=${() => void runDiscoveryAction(link)}
+              disabled=${() => !link.enabled}
+              title=${link.reason ?? nextAction.detail}
+            >
+              ${nextAction.label}
+            </button>
+          `
+        : null}
+    </article>
+  `
+}
+
+function discoveryPanelBody(): unknown {
+  if (discoveryPanelCollapsed()) return null
+  return html`
+    <div id="discovery-panel-body" class="discovery-panel-body">
+      <strong>${() => discoveryState()?.headline ?? "Waiting for discovery"}</strong>
+      <p>${() => discoveryState()?.detail ?? "Move the Hero or select a tile to reveal the next choice."}</p>
+      <div class="discovery-movement">
+        <span>${() => discoveryState()?.movement.title ?? "Scout one step at a time"}</span>
+        <small>${() => discoveryMovementMetricCopy()}</small>
+      </div>
+      ${() => discoveryConsequenceCard()}
+      ${() => discoverySelectedTileCard()}
+      <div class="discovery-tiles">
+        ${() => discoveryTileRows()}
+      </div>
+      <div class="discovery-resources">
+        ${() => discoveryResourceRows()}
+      </div>
+      <div class="discovery-actions">
+        ${() => discoveryActionButtons()}
+      </div>
+    </div>
+  `
+}
+
 function discoveryConsequenceCard(): unknown {
   const consequences = discoveryState()?.movementConsequences
   if (!consequences || (!consequences.active && consequences.safety.severity === "safe")) {
@@ -1111,9 +1184,12 @@ function discoveryResourceRows(): readonly unknown[] {
 }
 
 function discoveryActionButtons(): readonly unknown[] {
-  const links = discoveryState()?.actionLinks ?? []
+  const primaryActionId = discoveryState()?.nextAction.actionId
+  const links = (discoveryState()?.actionLinks ?? []).filter(
+    (link) => link.id !== primaryActionId,
+  )
   if (links.length === 0) {
-    return [html`<button type="button" disabled>No linked action yet</button>`]
+    return []
   }
   return links.map(
     (link) => html`
@@ -2403,6 +2479,7 @@ function toTextState(): RuntimeTextState {
     dungeonObjective: currentDungeonObjective,
     mapMode: mapMode(),
     adminOpen: adminOpen(),
+    discoveryPanelCollapsed: discoveryPanelCollapsed(),
     firstPlayableCollapsed: firstPlayableCollapsed(),
     questPanelPosition: questPanelPosition(),
     runtime: {

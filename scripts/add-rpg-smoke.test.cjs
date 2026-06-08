@@ -125,6 +125,7 @@ async function assertBootAndRenderTextContract(page, consoleErrors) {
       state.shell?.surface === "fullscreen_map_shell" &&
       state.shell?.hostsPhaserMap === true &&
       state.shell?.adminOpen === false &&
+      state.shell?.discoveryPanel?.collapsed === false &&
       state.shell?.questPanel?.collapsed === false &&
       Number.isFinite(state.shell?.questPanel?.x) &&
       Number.isFinite(state.shell?.questPanel?.y) &&
@@ -159,6 +160,10 @@ async function assertBootAndRenderTextContract(page, consoleErrors) {
       state.map?.presentation?.labelRendering === "high_resolution_phaser_text" &&
       state.map?.presentation?.ambience === "subtle_motes_and_topographic_scan" &&
       state.discovery?.phase === "enter_dungeon" &&
+      typeof state.discovery?.nextAction?.label === "string" &&
+      state.discovery.nextAction.label.length > 0 &&
+      state.discovery.nextAction.kind === "enter_dungeon" &&
+      state.discovery.nextAction.enabled === true &&
       state.discovery?.dungeonEntryAvailable === true &&
       state.discovery?.dungeonEntryTarget === "add.rpg.square-dungeon-fixture" &&
       state.discovery?.enabledActionIds?.includes("dungeon:add.rpg.square-dungeon-fixture") &&
@@ -876,6 +881,9 @@ async function exerciseMainCharacterMovement(page, consoleErrors) {
   assert.ok(moved.travel.toTime, "Travel should expose an arrival time")
   assert.ok(moved.travel.exposureRisk, "Travel should expose an exposure risk")
   assert.equal(moved.discovery.phase, "movement")
+  assert.equal(typeof moved.discovery.nextAction.label, "string")
+  assert.ok(moved.discovery.nextAction.label.length > 0)
+  assert.ok(["wait", "travel", "inspect", "enter_dungeon", "domain_action", "blocked"].includes(moved.discovery.nextAction.kind))
   assert.ok(
     moved.discovery.movementDiscoveredDelta > 0,
     "Discovery telemetry should report newly revealed cells after movement.",
@@ -907,6 +915,42 @@ async function exerciseMainCharacterMovement(page, consoleErrors) {
     page,
     "add-rpg-movement-consequences-smoke.png",
     "ADD RPG movement consequences screenshot",
+  )
+  assert.match(
+    await page.locator("#discovery-next-action").innerText(),
+    /Next step/i,
+    "Discovery panel should foreground the recommended next step.",
+  )
+  await page.locator("#toggle-discovery-panel").click()
+  const collapsedDiscovery = await waitForTextState(
+    page,
+    (state) =>
+      state.shell?.discoveryPanel?.collapsed === true &&
+      typeof state.discovery?.nextAction?.label === "string" &&
+      state.discovery.nextAction.label.length > 0,
+    consoleErrors,
+  )
+  assert.equal(collapsedDiscovery.shell.discoveryPanel.collapsed, true)
+  assert.equal(
+    await page.locator("#discovery-panel-body").count(),
+    0,
+    "Collapsed Discovery panel should hide supporting detail.",
+  )
+  assert.match(
+    await page.locator("#discovery-next-action").innerText(),
+    /Next step/i,
+    "Collapsed Discovery panel should still show the recommended next step.",
+  )
+  await assertNonBlankNamedAppScreenshot(
+    page,
+    "add-rpg-discovery-collapsed-smoke.png",
+    "ADD RPG collapsed discovery panel screenshot",
+  )
+  await page.locator("#toggle-discovery-panel").click()
+  await waitForTextState(
+    page,
+    (state) => state.shell?.discoveryPanel?.collapsed === false,
+    consoleErrors,
   )
   assert.ok(
     observedTravelClockTimes.size >= 3,

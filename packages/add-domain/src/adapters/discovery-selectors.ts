@@ -60,6 +60,7 @@ export interface AddDiscoverySummary {
   readonly phase: AddDiscoveryPhase
   readonly headline: string
   readonly detail: string
+  readonly nextAction: AddDiscoveryNextAction
   readonly movement: AddDiscoveryMovementSummary
   readonly movementConsequences: AddDiscoveryMovementConsequences
   readonly tileChoices: readonly AddDiscoveryTileChoice[]
@@ -76,6 +77,21 @@ export interface AddDiscoveryMovementSummary {
   readonly gameMinutes: number | null
   readonly discoveredDelta: number
   readonly toxicityDelta: number
+}
+
+export interface AddDiscoveryNextAction {
+  readonly label: string
+  readonly detail: string
+  readonly kind:
+    | "wait"
+    | "travel"
+    | "inspect"
+    | "enter_dungeon"
+    | "domain_action"
+    | "blocked"
+  readonly enabled: boolean
+  readonly actionId: string | null
+  readonly inputHint: string | null
 }
 
 export type AddMovementSafetySeverity = "safe" | "watch" | "danger" | "critical"
@@ -181,17 +197,25 @@ export function selectAddDiscoverySummary(
   input: AddDiscoverySelectorInput,
 ): AddDiscoverySummary {
   const dungeonEntry = dungeonEntryFor(input)
-  const actionLinks = actionLinksFor(input, dungeonEntry)
+  const rawActionLinks = actionLinksFor(input, dungeonEntry)
   const movement = movementSummaryFor(input)
   const movementConsequences = movementConsequencesFor(input)
   const tileChoices = tileChoicesFor(input)
   const selectedTile = selectedTileDecisionFor(input)
-  const phase = phaseFor(input, dungeonEntry, actionLinks)
+  const nextAction = nextActionFor({
+    input,
+    dungeonEntry,
+    actionLinks: rawActionLinks,
+    selectedTile,
+  })
+  const actionLinks = visibleActionLinksFor(rawActionLinks, nextAction)
+  const phase = phaseFor(input, dungeonEntry, rawActionLinks)
 
   return {
     phase,
     headline: headlineFor(phase, dungeonEntry, input),
     detail: detailFor(phase, movement, dungeonEntry, input),
+    nextAction,
     movement,
     movementConsequences,
     tileChoices,
@@ -199,6 +223,100 @@ export function selectAddDiscoverySummary(
     dungeonEntry,
     resourceLinks: resourceLinksFor(input.snapshot, input.catalog),
     actionLinks,
+  }
+}
+
+function nextActionFor(options: {
+  readonly input: AddDiscoverySelectorInput
+  readonly dungeonEntry: AddDiscoveryDungeonEntry | null
+  readonly actionLinks: readonly AddDiscoveryActionLink[]
+  readonly selectedTile: AddDiscoverySelectedTileDecision | null
+}): AddDiscoveryNextAction {
+  const { input, dungeonEntry, actionLinks, selectedTile } = options
+  if (input.travel.active) {
+    return {
+      label: "Let the crossing finish",
+      detail: "The Hero is already spending this hour. Wait for the clock and reveal halo before choosing again.",
+      kind: "wait",
+      enabled: false,
+      actionId: null,
+      inputHint: null,
+    }
+  }
+
+  if (dungeonEntry?.enabled) {
+    return {
+      label: `Enter ${dungeonEntry.label}`,
+      detail: "The Hero is standing on a known entrance. Enter now to switch from overworld scouting into interior exploration.",
+      kind: "enter_dungeon",
+      enabled: true,
+      actionId: `dungeon:${dungeonEntry.targetMapId}`,
+      inputHint: null,
+    }
+  }
+
+  const enabledAction = actionLinks.find((link) => link.enabled)
+  if (enabledAction) {
+    return {
+      label: enabledAction.label,
+      detail: actionDetailFor(enabledAction),
+      kind: "domain_action",
+      enabled: true,
+      actionId: enabledAction.id,
+      inputHint: null,
+    }
+  }
+
+  if (selectedTile) {
+    if (selectedTile.travel.canTravelNow) {
+      return {
+        label: `Cross to ${selectedTile.label}`,
+        detail: `${selectedTile.travel.gameMinutes} in-game minutes will pass. ${selectedTile.travel.copy}`,
+        kind: "travel",
+        enabled: true,
+        actionId: null,
+        inputHint: "Use arrows or tap the adjacent region.",
+      }
+    }
+    if (selectedTile.visibility === "hidden") {
+      return {
+        label: "Scout the unknown edge",
+        detail: "This region is intentionally vague: exact terrain, danger, and entrances stay hidden until the Hero reveals it.",
+        kind: "inspect",
+        enabled: true,
+        actionId: null,
+        inputHint: "Move one step at a time from a known neighbor.",
+      }
+    }
+    return {
+      label: selectedTile.travel.standingHere ? "Choose a neighboring region" : "Move closer first",
+      detail: selectedTile.travel.copy,
+      kind: selectedTile.travel.standingHere ? "inspect" : "blocked",
+      enabled: selectedTile.travel.standingHere,
+      actionId: null,
+      inputHint: selectedTile.travel.standingHere ? "Hover or select an adjacent tile." : null,
+    }
+  }
+
+  const blockedAction = actionLinks.find((link) => !link.enabled)
+  if (blockedAction) {
+    return {
+      label: blockedAction.label,
+      detail: blockedAction.reason ?? "This action is not available yet.",
+      kind: "blocked",
+      enabled: false,
+      actionId: blockedAction.id,
+      inputHint: null,
+    }
+  }
+
+  return {
+    label: "Pick the next scouting step",
+    detail: "Select or hover a nearby revealed tile to compare travel time, risk, and known links.",
+    kind: "inspect",
+    enabled: true,
+    actionId: null,
+    inputHint: "Use the map, arrows, or touch controls.",
   }
 }
 
@@ -422,7 +540,7 @@ function detailFor(
     return "Use the current available action to convert revealed information into resources, reach, construction, or recruitment."
   }
   if (input.previewTile?.visibility === "hidden") {
-    return "Unknown regions can be crossed, but they hide exact terrain, danger, and dungeon links until discovered."
+    return "Unknown regions are deliberate blind edges: you can plan around them, but exact terrain, danger, and entrances stay hidden until revealed."
   }
   return "Select or hover a nearby revealed tile to compare travel risk, static facts, and possible links."
 }
@@ -506,7 +624,7 @@ function addTileChoice(
     dungeonCount: tile.dungeonLinks.length,
     copy:
       tile.visibility === "hidden"
-        ? "Hidden: exact facts and dungeon links stay concealed until the Hero reveals it."
+        ? "Unknown edge: useful for scouting, but the region will not promise terrain, danger, or entrances yet."
         : tile.dungeonLinks.length > 0
           ? "Known link: this tile can open a deeper area."
           : tile.travelCopy,
@@ -606,7 +724,7 @@ function knownFactRows(tile: AddTileInteractionDetail): readonly string[] {
 
 function unknownFactRows(tile: AddTileInteractionDetail): readonly string[] {
   if (tile.visibility === "hidden") {
-    return ["Exact terrain", "toxicity risk", "dungeon links", "resource value"]
+    return ["Exact terrain", "current danger", "entrance links", "resource value"]
   }
   if (tile.knownInfoLevel === "known_static") {
     return ["Current toxicity", "active threats", "fresh resource state"]
@@ -626,7 +744,7 @@ function travelDecisionCopy(
     return "The Hero is already here; use local links or choose the next adjacent region."
   }
   if (tile.visibility === "hidden") {
-    return "Travel may be possible, but the destination is not readable yet."
+    return "A blind scouting step: the destination becomes reliable only as the Hero reveals it."
   }
   if (canTravelNow) {
     return "Adjacent destination: crossing consumes one in-game hour."
@@ -655,7 +773,9 @@ function usefulnessReasonsFor(
   input: AddDiscoverySelectorInput,
   tile: AddTileInteractionDetail,
 ): readonly string[] {
-  if (tile.visibility === "hidden") return ["Unknown region: useful mainly as a scouting choice."]
+  if (tile.visibility === "hidden") {
+    return ["Unknown edge: choose it only when you want to spend time turning uncertainty into map knowledge."]
+  }
 
   const firstPlayable = selectAddFirstPlayableSummary(input.snapshot, input.catalog)
   const currentStep = firstPlayable.currentStepId
@@ -817,6 +937,37 @@ function actionLinksFor(
   }
 
   return links.slice(0, 4)
+}
+
+function visibleActionLinksFor(
+  links: readonly AddDiscoveryActionLink[],
+  nextAction: AddDiscoveryNextAction,
+): readonly AddDiscoveryActionLink[] {
+  const enabled = links.filter((link) => link.enabled)
+  if (enabled.length > 0) return enabled.slice(0, 3)
+
+  const nextBlocked = links.find((link) => link.id === nextAction.actionId && !link.enabled)
+  const firstBlockedPrimary =
+    nextBlocked ??
+    links.find(
+      (link) =>
+        !link.enabled &&
+        (link.kind === "first_playable" || link.kind === "dungeon_entry"),
+    )
+  return firstBlockedPrimary ? [firstBlockedPrimary] : []
+}
+
+function actionDetailFor(link: AddDiscoveryActionLink): string {
+  switch (link.kind) {
+    case "dungeon_entry":
+      return "Open the linked interior map from the Hero's current tile."
+    case "first_playable":
+      return "This advances the current first-playable objective."
+    case "world_action":
+      return "Convert revealed map context into resources, reach, or repair progress."
+    case "recruitment":
+      return "Spend the recruitment resource to bring another survivor into the run."
+  }
 }
 
 function resourceValue(resources: ResourceSnapshot, id: string): number {

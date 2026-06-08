@@ -70,6 +70,7 @@ export interface AddRuntimeTelemetryPresenterInput {
   readonly dungeonObjective: AddDungeonObjectiveSummary | null
   readonly mapMode: AddMapMode
   readonly adminOpen: boolean
+  readonly discoveryPanelCollapsed: boolean
   readonly firstPlayableCollapsed: boolean
   readonly questPanelPosition: {
     readonly x: number
@@ -119,6 +120,9 @@ export interface RuntimeTextState {
       readonly collapsed: boolean
       readonly x: number
       readonly y: number
+    }
+    readonly discoveryPanel: {
+      readonly collapsed: boolean
     }
   }
   readonly boundary: typeof ADD_DOMAIN_BOUNDARY
@@ -286,6 +290,14 @@ export interface RuntimeTextState {
   readonly discovery: {
     readonly phase: string
     readonly headline: string
+    readonly nextAction: {
+      readonly label: string
+      readonly detail: string
+      readonly kind: string
+      readonly enabled: boolean
+      readonly actionId: string | null
+      readonly inputHint: string | null
+    }
     readonly movementDiscoveredDelta: number
     readonly movementToxicityDelta: number
     readonly movementConsequences: {
@@ -383,6 +395,9 @@ export function createAddRuntimeTextState(
         x: input.questPanelPosition.x,
         y: input.questPanelPosition.y,
       },
+      discoveryPanel: {
+        collapsed: input.discoveryPanelCollapsed,
+      },
     },
     boundary: ADD_DOMAIN_BOUNDARY,
     runtime: {
@@ -412,6 +427,14 @@ export function createAddRuntimeTextState(
       ? {
           phase: input.discovery.phase,
           headline: input.discovery.headline,
+          nextAction: {
+            label: input.discovery.nextAction.label,
+            detail: input.discovery.nextAction.detail,
+            kind: input.discovery.nextAction.kind,
+            enabled: input.discovery.nextAction.enabled,
+            actionId: input.discovery.nextAction.actionId,
+            inputHint: input.discovery.nextAction.inputHint,
+          },
           movementDiscoveredDelta: input.discovery.movement.discoveredDelta,
           movementToxicityDelta: round3(input.discovery.movement.toxicityDelta),
           movementConsequences: {
