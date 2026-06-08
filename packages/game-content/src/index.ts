@@ -119,6 +119,8 @@ export type RustFieldKind =
   | "bool"
   | "enum"
   | "option"
+  | "enumArray"
+  | "idConstArray"
 
 export interface RustFieldSpec {
   /** Rust field name (snake_case). */
@@ -183,6 +185,14 @@ function rustFieldValue(spec: RustFieldSpec, raw: unknown): string {
       return raw === null || raw === undefined
         ? "None"
         : `Some(${rustFieldValue({ ...spec, kind: spec.inner ?? "string" }, raw)})`
+    case "enumArray": {
+      const values = Array.isArray(raw) ? raw : []
+      return `&[${values.map((v) => `${spec.rustEnum}::${pascalCase(String(v))}`).join(", ")}]`
+    }
+    case "idConstArray": {
+      const values = Array.isArray(raw) ? raw : []
+      return `&[${values.map((v) => `${spec.prefix ?? ""}${idConstName(String(v))}`).join(", ")}]`
+    }
   }
 }
 

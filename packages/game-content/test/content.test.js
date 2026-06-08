@@ -84,4 +84,23 @@ const optRust = toRustConst(
 assert.ok(optRust.includes("T { max_crew_slots: None },"))
 assert.ok(optRust.includes("T { max_crew_slots: Some(2) },"))
 
+// array kinds: enumArray + idConstArray (+ empty)
+const arrRust = toRustConst(
+  {
+    constName: "X",
+    rustType: "T",
+    fields: [
+      { name: "tags", kind: "enumArray", rustEnum: "TileTag" },
+      { name: "structure_ids", kind: "idConstArray" },
+    ],
+  },
+  [
+    { tags: ["water_source", "easy_propagation"], structureIds: ["structure.base"] },
+    { tags: [], structureIds: [] },
+  ],
+)
+assert.ok(arrRust.includes("tags: &[TileTag::WaterSource, TileTag::EasyPropagation]"))
+assert.ok(arrRust.includes("structure_ids: &[STRUCTURE_BASE]"))
+assert.ok(arrRust.includes("T { tags: &[], structure_ids: &[] },"))
+
 console.log("game-content: all assertions passed")

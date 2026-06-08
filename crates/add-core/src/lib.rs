@@ -400,6 +400,27 @@ mod tests {
             .contains("dungeon.studio:6:7"));
     }
 
+    // Golden snapshot of the whole catalog. Catalogs are migrated to TS-authored
+    // data + codegen one at a time; this proves each migration leaves the data the
+    // sim and client see byte-identical, regardless of how the generated Rust is
+    // structured. Regenerate intentionally with UPDATE_GOLDEN=1.
+    #[test]
+    fn catalog_snapshot_matches_golden() {
+        let json =
+            serde_json::to_string_pretty(&super::catalog_snapshot()).expect("catalog serializes")
+                + "\n";
+        let path = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/golden/catalog.json");
+        if std::env::var("UPDATE_GOLDEN").is_ok() {
+            std::fs::create_dir_all(std::path::Path::new(path).parent().unwrap()).unwrap();
+            std::fs::write(path, &json).unwrap();
+        }
+        let golden = std::fs::read_to_string(path).unwrap_or_default();
+        assert_eq!(
+            json, golden,
+            "catalog snapshot drifted from golden (rerun with UPDATE_GOLDEN=1 if intended)"
+        );
+    }
+
     #[test]
     fn reset_clears_discovery_to_initial_cells() {
         let mut simulation = Simulation::new();

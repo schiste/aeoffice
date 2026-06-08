@@ -3,10 +3,11 @@
 // content modules (the single source of truth in packages/add-domain/src/content).
 // Mirrors scripts/build-internal-office-atlas.cjs: a deterministic generator with
 // a `--check` mode (used by `content:check`) that fails if the checked-in Rust has
-// drifted from the TS source.
+// drifted. Data equivalence across a migration is guarded separately by the Rust
+// `catalog_snapshot_matches_golden` test.
 //
-//   node scripts/build-add-content.cjs          # regenerate the Rust files
-//   node scripts/build-add-content.cjs --check   # verify, do not write
+//   node scripts/build-add-content.cjs           # regenerate the Rust files
+//   node scripts/build-add-content.cjs --check    # verify, do not write
 
 const fs = require("node:fs")
 const os = require("node:os")
@@ -15,14 +16,10 @@ const { execFileSync } = require("node:child_process")
 
 const ROOT = path.resolve(__dirname, "..")
 const CHECK = process.argv.includes("--check")
-
-function run(cmd, args) {
-  execFileSync(cmd, args, { cwd: ROOT, stdio: "inherit" })
-}
+const PREAMBLE = "use crate::game_data::*;"
 
 function resolveRustfmt() {
-  const candidates = ["rustfmt", path.join(os.homedir(), ".cargo", "bin", "rustfmt")]
-  for (const candidate of candidates) {
+  for (const candidate of ["rustfmt", path.join(os.homedir(), ".cargo", "bin", "rustfmt")]) {
     try {
       execFileSync(candidate, ["--version"], { stdio: "ignore" })
       return candidate
@@ -34,86 +31,162 @@ function resolveRustfmt() {
 }
 
 // Build the content source so we can require its compiled output.
-run(path.join(ROOT, "node_modules", ".bin", "tsc"), ["-b", "packages/add-domain"])
+execFileSync(path.join(ROOT, "node_modules", ".bin", "tsc"), ["-b", "packages/add-domain"], {
+  cwd: ROOT,
+  stdio: "inherit",
+})
 
 const { toRustConst } = require(path.join(ROOT, "packages/game-content/dist/index.js"))
-const resources = require(path.join(ROOT, "packages/add-domain/dist/content/resources.js"))
-const roles = require(path.join(ROOT, "packages/add-domain/dist/content/roles.js"))
-const flags = require(path.join(ROOT, "packages/add-domain/dist/content/flags.js"))
+const content = (name) => require(path.join(ROOT, "packages/add-domain/dist/content", `${name}.js`))
+const resources = content("resources")
+const roles = content("roles")
+const flags = content("flags")
+const flora = content("flora")
+const structures = content("structures")
+const tiles = content("tiles")
 
-// One entry per migrated catalog. Each maps authored TS data → a generated Rust
-// `const` array via a shape descriptor. Add a catalog here as it is lifted.
-const CATALOGS = [
+const VIS = "pub(in crate::game_data)"
+
+// One entry per generated Rust file. A file may hold several catalogs (consts);
+// each maps authored TS data → a Rust `const` array via a shape descriptor.
+const FILES = [
   {
     sourceModule: "packages/add-domain/src/content/resources.ts",
     rustPath: "crates/add-core/src/game_data/catalog/resources.rs",
-    entries: resources.RESOURCES,
-    spec: {
-      constName: "RESOURCES",
-      rustType: "ResourceDef",
-      visibility: "pub(in crate::game_data)",
-      preamble: "use crate::game_data::*;",
-      fields: [
-        { name: "id", kind: "idConst" },
-        { name: "schema_id", kind: "idConst" },
-        { name: "label", kind: "string" },
-        { name: "category", kind: "enum", rustEnum: "ResourceCategory" },
-        { name: "base_cap", kind: "f64" },
-        { name: "cap_behavior", kind: "enum", rustEnum: "CapBehavior" },
-        { name: "starts_at", kind: "f64" },
-      ],
-    },
+    consts: [
+      {
+        entries: resources.RESOURCES,
+        spec: {
+          constName: "RESOURCES",
+          rustType: "ResourceDef",
+          visibility: VIS,
+          fields: [
+            { name: "id", kind: "idConst" },
+            { name: "schema_id", kind: "idConst" },
+            { name: "label", kind: "string" },
+            { name: "category", kind: "enum", rustEnum: "ResourceCategory" },
+            { name: "base_cap", kind: "f64" },
+            { name: "cap_behavior", kind: "enum", rustEnum: "CapBehavior" },
+            { name: "starts_at", kind: "f64" },
+          ],
+        },
+      },
+    ],
   },
   {
     sourceModule: "packages/add-domain/src/content/roles.ts",
     rustPath: "crates/add-core/src/game_data/catalog/roles.rs",
-    entries: roles.ROLES,
-    spec: {
-      constName: "ROLES",
-      rustType: "RoleDef",
-      visibility: "pub(in crate::game_data)",
-      preamble: "use crate::game_data::*;",
-      fields: [
-        { name: "id", kind: "idConst" },
-        { name: "schema_id", kind: "idConst" },
-        { name: "label", kind: "string" },
-        { name: "slot_pool", kind: "enum", rustEnum: "RoleSlotPool" },
-        { name: "hero_allowed", kind: "bool" },
-        { name: "crew_allowed", kind: "bool" },
-        { name: "max_crew_slots", kind: "option", inner: "i64" },
-        { name: "ui_section", kind: "string" },
-        { name: "ui_order", kind: "i64" },
-      ],
-    },
+    consts: [
+      {
+        entries: roles.ROLES,
+        spec: {
+          constName: "ROLES",
+          rustType: "RoleDef",
+          visibility: VIS,
+          fields: [
+            { name: "id", kind: "idConst" },
+            { name: "schema_id", kind: "idConst" },
+            { name: "label", kind: "string" },
+            { name: "slot_pool", kind: "enum", rustEnum: "RoleSlotPool" },
+            { name: "hero_allowed", kind: "bool" },
+            { name: "crew_allowed", kind: "bool" },
+            { name: "max_crew_slots", kind: "option", inner: "i64" },
+            { name: "ui_section", kind: "string" },
+            { name: "ui_order", kind: "i64" },
+          ],
+        },
+      },
+    ],
   },
   {
     sourceModule: "packages/add-domain/src/content/flags.ts",
     rustPath: "crates/add-core/src/game_data/catalog/flags.rs",
-    entries: flags.FLAGS,
-    spec: {
-      constName: "FLAGS",
-      rustType: "FlagDef",
-      visibility: "pub(in crate::game_data)",
-      preamble: "use crate::game_data::*;",
-      fields: [
-        { name: "id", kind: "idConst", prefix: "FLAG_" },
-        { name: "label", kind: "string" },
-        { name: "group", kind: "string" },
-      ],
-    },
+    consts: [
+      {
+        entries: flags.FLAGS,
+        spec: {
+          constName: "FLAGS",
+          rustType: "FlagDef",
+          visibility: VIS,
+          fields: [
+            { name: "id", kind: "idConst", prefix: "FLAG_" },
+            { name: "label", kind: "string" },
+            { name: "group", kind: "string" },
+          ],
+        },
+      },
+    ],
+  },
+  {
+    sourceModule: "packages/add-domain/src/content/{flora,structures,tiles}.ts",
+    rustPath: "crates/add-core/src/game_data/catalog/tiles.rs",
+    consts: [
+      {
+        entries: flora.FLORA,
+        spec: {
+          constName: "FLORA",
+          rustType: "FloraDef",
+          visibility: VIS,
+          fields: [
+            { name: "id", kind: "idConst" },
+            { name: "schema_id", kind: "idConst" },
+            { name: "label", kind: "string" },
+            { name: "kind", kind: "enum", rustEnum: "FloraKind" },
+            { name: "tags", kind: "enumArray", rustEnum: "TileTag" },
+          ],
+        },
+      },
+      {
+        entries: structures.STRUCTURES,
+        spec: {
+          constName: "STRUCTURES",
+          rustType: "StructureDef",
+          visibility: VIS,
+          fields: [
+            { name: "id", kind: "idConst" },
+            { name: "schema_id", kind: "idConst" },
+            { name: "label", kind: "string" },
+            { name: "kind", kind: "enum", rustEnum: "StructureKind" },
+            { name: "tags", kind: "enumArray", rustEnum: "TileTag" },
+          ],
+        },
+      },
+      {
+        entries: tiles.TILES,
+        spec: {
+          constName: "TILES",
+          rustType: "TileDef",
+          visibility: VIS,
+          fields: [
+            { name: "id", kind: "idConst" },
+            { name: "schema_id", kind: "idConst" },
+            { name: "label", kind: "string" },
+            { name: "terrain", kind: "enum", rustEnum: "TerrainSnapshot" },
+            { name: "feature", kind: "enum", rustEnum: "TileFeature" },
+            { name: "impedance", kind: "f64" },
+            { name: "is_blocker", kind: "bool" },
+            { name: "tags", kind: "enumArray", rustEnum: "TileTag" },
+            { name: "flora_ids", kind: "idConstArray" },
+            { name: "structure_ids", kind: "idConstArray" },
+            { name: "dungeon_ids", kind: "idConstArray" },
+            { name: "building_capacity", kind: "i64" },
+          ],
+        },
+      },
+    ],
   },
 ]
 
 const rustfmt = resolveRustfmt()
 
-function generate(catalog) {
+function generate(file) {
   const header = [
-    `// @generated by \`npm run content:build\` from ${catalog.sourceModule}.`,
+    `// @generated by \`npm run content:build\` from ${file.sourceModule}.`,
     "// Do not edit by hand; edit the TS source and re-run the generator.",
   ].join("\n")
-  const raw = toRustConst({ ...catalog.spec, header }, catalog.entries)
-  // Format with rustfmt so output is canonical regardless of the emitter spacing.
-  const tmp = path.join(os.tmpdir(), `add-content-${catalog.spec.constName}.rs`)
+  const blocks = file.consts.map((c) => toRustConst(c.spec, c.entries))
+  const raw = [header, "", PREAMBLE, "", blocks.join("\n")].join("\n")
+  const tmp = path.join(os.tmpdir(), `add-content-${path.basename(file.rustPath)}`)
   fs.writeFileSync(tmp, raw)
   execFileSync(rustfmt, [tmp], { stdio: "ignore" })
   const formatted = fs.readFileSync(tmp, "utf8")
@@ -122,24 +195,24 @@ function generate(catalog) {
 }
 
 let drift = 0
-for (const catalog of CATALOGS) {
-  const formatted = generate(catalog)
-  const target = path.join(ROOT, catalog.rustPath)
+for (const file of FILES) {
+  const formatted = generate(file)
+  const target = path.join(ROOT, file.rustPath)
   const current = fs.existsSync(target) ? fs.readFileSync(target, "utf8") : null
   if (CHECK) {
     if (current !== formatted) {
       drift += 1
-      console.error(`[content:check] DRIFT: ${catalog.rustPath} is out of date with ${catalog.sourceModule}`)
+      console.error(`[content:check] DRIFT: ${file.rustPath} is out of date with its TS source`)
     }
   } else if (current !== formatted) {
     fs.writeFileSync(target, formatted)
-    console.log(`[content:build] wrote ${catalog.rustPath}`)
+    console.log(`[content:build] wrote ${file.rustPath}`)
   } else {
-    console.log(`[content:build] up to date: ${catalog.rustPath}`)
+    console.log(`[content:build] up to date: ${file.rustPath}`)
   }
 }
 
 if (CHECK && drift > 0) {
-  console.error(`[content:check] ${drift} catalog(s) drifted; run \`npm run content:build\`.`)
+  console.error(`[content:check] ${drift} file(s) drifted; run \`npm run content:build\`.`)
   process.exit(1)
 }
