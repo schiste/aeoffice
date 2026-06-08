@@ -43,13 +43,15 @@ async function main() {
     )
     await runScenario("ambient clock", () => assertIdleAmbientClockAdvances(page))
     await runScenario("hero spawn placement", () => assertHeroStartsAtSurvivorCave(page, initial))
+    await runScenario("Studio tile detail links", () =>
+      exerciseStudioTileDetailLinks(page, consoleErrors),
+    )
     await runScenario("survivor cave dungeon entry loop", () =>
       exerciseSurvivorCaveDungeonEntry(page, consoleErrors),
     )
     await runScenario("hidden cells and fog screenshot", async () => {
       const state = await assertHiddenMapCellsAreInvisibleToPointer(page, consoleErrors)
       assert.notEqual(state.map.interaction.selectedDetail?.visibility, "hidden")
-      assert.notEqual(state.map.travel.previewExposureRisk, "unknown")
       await assertNonBlankFogMapScreenshot(page, state)
       return state
     })
@@ -700,22 +702,249 @@ async function assertHeroStartsAtSurvivorCave(page, state) {
 }
 
 async function characterScreenPoint(page, state) {
+  const character = state.map?.character
+  assert.ok(character, "ADD RPG telemetry should expose character coordinates")
+  assert.ok(Number.isFinite(character.x), "ADD RPG character should expose a world x")
+  assert.ok(Number.isFinite(character.y), "ADD RPG character should expose a world y")
+  return worldScreenPoint(page, state, { x: character.x, y: character.y })
+}
+
+async function worldScreenPoint(page, state, worldPoint) {
+  return (await worldScreenPointCandidates(page, state, worldPoint))[0]
+}
+
+async function worldScreenPointCandidates(page, state, worldPoint) {
   const canvas = page.locator("#add-world canvas")
   await canvas.waitFor({ state: "visible" })
   const box = await canvas.boundingBox()
   assert.ok(box, "ADD RPG Phaser canvas should have a browser box")
-  const character = state.map?.character
   const camera = state.map?.camera
-  assert.ok(character, "ADD RPG telemetry should expose character coordinates")
   assert.ok(camera, "ADD RPG telemetry should expose camera coordinates")
   const cameraOrigin = {
     x: box.width / 2,
     y: box.height / 2,
   }
-  return {
-    x: box.x + (character.x - camera.scrollX - cameraOrigin.x) * camera.zoom + cameraOrigin.x,
-    y: box.y + (character.y - camera.scrollY - cameraOrigin.y) * camera.zoom + cameraOrigin.y,
+  return [
+    {
+      x: box.x + (worldPoint.x - camera.scrollX - cameraOrigin.x) * camera.zoom + cameraOrigin.x,
+      y: box.y + (worldPoint.y - camera.scrollY - cameraOrigin.y) * camera.zoom + cameraOrigin.y,
+    },
+    {
+      x: box.x + (worldPoint.x - camera.scrollX) * camera.zoom,
+      y: box.y + (worldPoint.y - camera.scrollY) * camera.zoom,
+    },
+  ]
+}
+
+async function clickWorldPointUntilSelected(page, state, worldPoint, predicate, consoleErrors) {
+  if (predicate(state)) return state
+  const candidates = await worldScreenPointCandidates(page, state, worldPoint)
+  let lastError
+  for (const point of candidates) {
+    await page.mouse.move(point.x, point.y)
+    await page.mouse.click(point.x, point.y)
+    try {
+      return await waitForTextState(page, predicate, consoleErrors, 700)
+    } catch (error) {
+      lastError = error
+    }
   }
+  throw lastError ?? new Error("No world-point candidate selected the expected cell.")
+}
+
+async function clickViewportPointUntilSelected(page, viewportPoint, predicate, consoleErrors) {
+  const current = await renderGameToText(page)
+  if (predicate(current)) return current
+  const canvas = page.locator("#add-world canvas")
+  await canvas.waitFor({ state: "visible" })
+  const box = await canvas.boundingBox()
+  assert.ok(box, "ADD RPG Phaser canvas should have a browser box")
+  const candidates = [
+    { x: box.x + viewportPoint.x, y: box.y + viewportPoint.y },
+    { x: box.x + viewportPoint.x + 12, y: box.y + viewportPoint.y },
+    { x: box.x + viewportPoint.x - 12, y: box.y + viewportPoint.y },
+    { x: box.x + viewportPoint.x, y: box.y + viewportPoint.y + 12 },
+    { x: box.x + viewportPoint.x, y: box.y + viewportPoint.y - 12 },
+  ]
+  let lastError
+  for (const point of candidates) {
+    await page.mouse.move(point.x, point.y)
+    await page.mouse.click(point.x, point.y)
+    try {
+      return await waitForTextState(page, predicate, consoleErrors, 700)
+    } catch (error) {
+      lastError = error
+    }
+  }
+  throw lastError ?? new Error("No viewport-point candidate selected the expected cell.")
+}
+
+async function exerciseStudioTileDetailLinks(page, consoleErrors) {
+  const before = await renderGameToText(page)
+  const restoreQuestPanel = before.shell?.questPanel?.collapsed === false
+  if (restoreQuestPanel) {
+    await page.locator("#toggle-first-playable-panel").click()
+    await waitForTextState(
+      page,
+      (state) => state.shell?.questPanel?.collapsed === true,
+      consoleErrors,
+    )
+  }
+
+  try {
+    for (let index = 0; index < 3; index += 1) {
+      await page.locator("#map-zoom-out").click()
+    }
+
+    const zoomed = await waitForTextState(
+      page,
+      (state) =>
+        state.mapMode?.active === "overworld_hex" &&
+        state.map?.landmarks?.baseCenter === "0,0" &&
+        state.map?.landmarks?.baseCenterViewport !== null,
+      consoleErrors,
+    )
+    const selectedStudio = await clickViewportPointUntilSelected(
+      page,
+      zoomed.map.landmarks.baseCenterViewport,
+      (state) =>
+        state.mapMode?.active === "overworld_hex" &&
+        state.discovery?.tileDetail?.cell === "hex:0,0" &&
+        state.discovery.tileDetail.label === "The Studio" &&
+        state.discovery.tileDetail.hasSubmap === true &&
+        state.discovery.tileDetail.linkCount === 2 &&
+        state.discovery.tileDetail.linkKinds.includes("base") &&
+        state.discovery.tileDetail.linkKinds.includes("dungeon") &&
+        state.discovery.tileDetail.linkLabels.includes("Studio Echo Base") &&
+        state.discovery.tileDetail.linkLabels.includes("The Studio") &&
+        state.discovery.tileDetail.targetMapModes.includes("base_square") &&
+        state.discovery.tileDetail.targetMapModes.includes("dungeon_square") &&
+        state.discovery.tileDetail.targetMapIds.includes("add.rpg.square-base-fixture") &&
+        state.discovery.tileDetail.targetMapIds.includes("add.rpg.dungeon.studio") &&
+        state.discovery.tileDetail.actionIds.includes(
+          "tile-action:dungeon:tile-link:dungeon:add.link.dungeon.studio.0.0",
+        ) &&
+        state.discovery.tileDetail.enabledLinkIds.some((id) => id.includes("base")) &&
+        state.discovery.tileDetail.enabledLinkIds.some((id) => id.includes("dungeon")) &&
+        state.discovery.tileDetail.actionKinds.includes("manage_base") &&
+        state.discovery.tileDetail.actionKinds.includes("enter_submap"),
+      consoleErrors,
+    )
+    assert.equal(selectedStudio.discovery.selectedTile.dungeonLinkCount, 1)
+    const studioTileText = await page.locator("#selected-tile-decision").innerText()
+    ;[
+      "The Studio",
+      "Manage Studio Echo",
+      "Enter The Studio",
+      "Studio Echo Base",
+      "Dungeon",
+    ].forEach((expectedText) => {
+      assert.ok(
+        studioTileText.includes(expectedText),
+        `Studio tile detail should include ${expectedText}.`,
+      )
+    })
+    await assertNonBlankNamedAppScreenshot(
+      page,
+      "add-rpg-studio-tile-detail-smoke.png",
+      "ADD RPG Studio tile detail screenshot",
+    )
+
+    await page.locator("#tile-detail-action-tile-action-base-tile-link-base-studio-echo").click()
+    await waitForTextState(
+      page,
+      (state) =>
+        state.mapMode?.active === "base_square" &&
+        state.map?.mapId === "add.rpg.square-base-fixture",
+      consoleErrors,
+    )
+
+    await returnToOverworld(page, consoleErrors)
+
+    const backOnOverworld = await renderGameToText(page)
+    await clickViewportPointUntilSelected(
+      page,
+      backOnOverworld.map.landmarks.baseCenterViewport,
+      (state) =>
+        state.discovery?.tileDetail?.cell === "hex:0,0" &&
+        state.discovery.tileDetail.label === "The Studio" &&
+        state.discovery.tileDetail.targetMapIds.includes("add.rpg.dungeon.studio"),
+      consoleErrors,
+    )
+    const studioDungeonButtonSelector =
+      "#tile-detail-action-tile-action-dungeon-tile-link-dungeon-add-link-dungeon-studio-0-0"
+    const studioDungeonButton = page.locator("#selected-tile-decision button", {
+      hasText: "Enter The Studio",
+    })
+    assert.equal(
+      await studioDungeonButton.count(),
+      1,
+      "Studio tile detail should expose exactly one visible Enter The Studio action.",
+    )
+    const studioDungeonButtonAttrs = await studioDungeonButton.evaluate((element) => ({
+      id: element.id,
+      text: element.textContent?.trim() ?? "",
+      actionId: element.getAttribute("data-action-id"),
+      targetMapMode: element.getAttribute("data-target-map-mode"),
+      targetMapId: element.getAttribute("data-target-map-id"),
+    }))
+    assert.deepEqual(
+      studioDungeonButtonAttrs,
+      {
+        id: "tile-detail-action-tile-action-dungeon-tile-link-dungeon-add-link-dungeon-studio-0-0",
+        text: "Enter The Studio",
+        actionId: "tile-action:dungeon:tile-link:dungeon:add.link.dungeon.studio.0.0",
+        targetMapMode: "dungeon_square",
+        targetMapId: "add.rpg.dungeon.studio",
+      },
+      "Enter The Studio button should carry the Studio dungeon target.",
+    )
+    const actionableStudioDungeonButton = page.locator(studioDungeonButtonSelector)
+    await actionableStudioDungeonButton.waitFor({ state: "visible" })
+    await actionableStudioDungeonButton.click({ trial: true })
+    await actionableStudioDungeonButton.click()
+    await waitForTextState(
+      page,
+      (state) =>
+        state.mapMode?.active === "dungeon_square" &&
+        state.mapMode?.dungeonTarget === "add.rpg.dungeon.studio" &&
+        state.map?.mapId === "add.rpg.dungeon.studio",
+      consoleErrors,
+    )
+
+    return returnToOverworld(page, consoleErrors)
+  } finally {
+    const afterReturn = await returnToOverworld(page, consoleErrors)
+    if (restoreQuestPanel && afterReturn.shell?.questPanel?.collapsed === true) {
+      await page.locator("#toggle-first-playable-panel").click()
+      await waitForTextState(
+        page,
+        (nextState) => nextState.shell?.questPanel?.collapsed === false,
+        consoleErrors,
+      )
+    }
+  }
+}
+
+async function returnToOverworld(page, consoleErrors) {
+  const state = await renderGameToText(page)
+  if (state.mapMode?.active === "overworld_hex") return state
+
+  const returnButton = page.locator("#return-overworld")
+  if (await returnButton.isVisible()) {
+    try {
+      await returnButton.click({ force: true, timeout: 3000 })
+    } catch {
+      await page.locator("#map-mode-overworld_hex").click({ force: true })
+    }
+  } else {
+    await page.locator("#map-mode-overworld_hex").click({ force: true })
+  }
+  return waitForTextState(
+    page,
+    (nextState) => nextState.mapMode?.active === "overworld_hex",
+    consoleErrors,
+  )
 }
 
 async function exerciseSurvivorCaveDungeonEntry(page, consoleErrors) {

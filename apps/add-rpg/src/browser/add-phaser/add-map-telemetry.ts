@@ -194,6 +194,12 @@ export function projectAddPhaserMapInfo(
             y: round(rendererState.landmarks.primaryAnchorPosition.y),
           }
         : null,
+      baseCenterViewport: rendererState.landmarks.primaryAnchorViewport
+        ? {
+            x: round(rendererState.landmarks.primaryAnchorViewport.x),
+            y: round(rendererState.landmarks.primaryAnchorViewport.y),
+          }
+        : null,
       studioLabelVisible: rendererState.landmarks.primaryAnchorCoord !== null,
       survivorCave: rendererState.landmarks.spawnAnchorCoord
         ? displayAddCoord(rendererState.landmarks.spawnAnchorCoord)
@@ -202,6 +208,12 @@ export function projectAddPhaserMapInfo(
         ? {
             x: round(rendererState.landmarks.spawnAnchorPosition.x),
             y: round(rendererState.landmarks.spawnAnchorPosition.y),
+          }
+        : null,
+      survivorCaveViewport: rendererState.landmarks.spawnAnchorViewport
+        ? {
+            x: round(rendererState.landmarks.spawnAnchorViewport.x),
+            y: round(rendererState.landmarks.spawnAnchorViewport.y),
           }
         : null,
       survivorCaveVisible: rendererState.landmarks.spawnAnchorCoord !== null,
@@ -285,8 +297,10 @@ export function emptyRendererState(): PhaserMapRendererState {
     landmarks: {
       primaryAnchorCoord: null,
       primaryAnchorPosition: null,
+      primaryAnchorViewport: null,
       spawnAnchorCoord: null,
       spawnAnchorPosition: null,
+      spawnAnchorViewport: null,
       renderedCount: 0,
     },
     visibility: {
@@ -513,9 +527,11 @@ export function emptyMapInfo(): AddPhaserMapInfo {
     landmarks: {
       baseCenter: null,
       baseCenterWorld: null,
+      baseCenterViewport: null,
       studioLabelVisible: false,
       survivorCave: null,
       survivorCaveWorld: null,
+      survivorCaveViewport: null,
       survivorCaveVisible: false,
       renderedCount: 0,
     },

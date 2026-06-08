@@ -2534,3 +2534,15 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   `npm run qa:renderer`, `npm run smoke:engine-sandbox`, `git diff --check`,
   exact renderer leakage `rg`, and `npm run check`. Visual artifact:
   `tmp/add-rpg-discovery-collapsed-smoke.png`.
+- The Studio now has a proper tile-detail path. Selecting the Studio overworld
+  tile exposes both `Manage Studio Echo` and `Enter The Studio`, routes base
+  management to `add.rpg.square-base-fixture`, routes the Studio dungeon action
+  to `add.rpg.dungeon.studio`, and keeps top-bar Survivor Cave entry from
+  stealing the same click gesture. The Discovery panel action layer is hardened
+  for pointer events, and `render_game_to_text` now exposes selected tile link
+  labels/action ids plus map-mode routing telemetry for smoke coverage.
+  Verification passed with `node --check scripts/add-rpg-smoke.test.cjs`,
+  `npm --workspace @aedventure/add-rpg run build:types`,
+  `npm run smoke:add-rpg`, `npm run qa:renderer`,
+  `npm run smoke:engine-sandbox`, `git diff --check`, and `npm run check`.
+  Visual artifact: `tmp/add-rpg-studio-tile-detail-smoke.png`.

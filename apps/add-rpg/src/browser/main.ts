@@ -167,12 +167,15 @@ const [displayClockSeconds, setDisplayClockSeconds] = createSignal<number | null
 const [clockAnimation, setClockAnimation] = createSignal<ClockAnimationState | null>(null)
 const [lastEvent, setLastEvent] = createSignal("booting")
 const [lastCommand, setLastCommand] = createSignal<string | null>(null)
+const [lastDungeonEntryCommand, setLastDungeonEntryCommand] = createSignal<string | null>(null)
+const [lastTileActionTarget, setLastTileActionTarget] = createSignal<string | null>(null)
 const [lastError, setLastError] = createSignal<string | null>(null)
 
 let mapHost: AddRpgPhaserMapHost | null = null
 let travelClearTimer: number | undefined
 let clockAnimationFrameId: number | undefined
 let travelDramaState: TravelDramaState = "fresh"
+let lastTileActionAtMs = 0
 let questPanelDrag:
   | {
       readonly pointerId: number
@@ -1170,6 +1173,12 @@ function discoverySelectedTileCard(): unknown {
         </span>
         <small>${detail.hasSubmap ? "Submap" : "No submap"}</small>
       </header>
+      <div class="selected-tile-actions">
+        ${() => selectedTileActionRows(detail)}
+      </div>
+      <div class="selected-tile-links">
+        ${() => selectedTileLinkRows(detail)}
+      </div>
       <div class="selected-tile-metrics">
         <span>
           Travel
@@ -1199,12 +1208,6 @@ function discoverySelectedTileCard(): unknown {
           ${detail.facts.unknown.map((fact) => html`<span>${fact}</span>`)}
         </div>
       </div>
-      <div class="selected-tile-links">
-        ${() => selectedTileLinkRows(detail)}
-      </div>
-      <div class="selected-tile-actions">
-        ${() => selectedTileActionRows(detail)}
-      </div>
     </article>
   `
 }
@@ -1227,7 +1230,7 @@ function selectedTileLinkRows(detail: AddTileDetailSummary): readonly unknown[] 
 }
 
 function selectedTileActionRows(detail: AddTileDetailSummary): readonly unknown[] {
-  return detail.actions.map((action) => {
+  return [...detail.actions].sort(compareTileActionPriority).map((action) => {
     const opensSubmap = action.kind === "enter_submap" || action.kind === "manage_base"
     const targetLink = action.linkId
       ? detail.links.find((link) => link.id === action.linkId)
@@ -1254,6 +1257,17 @@ function selectedTileActionRows(detail: AddTileDetailSummary): readonly unknown[
           </span>
         `
   })
+}
+
+function compareTileActionPriority(left: AddTileAction, right: AddTileAction): number {
+  return tileActionPriority(left) - tileActionPriority(right)
+}
+
+function tileActionPriority(action: AddTileAction): number {
+  if (action.kind === "manage_base") return 0
+  if (action.kind === "enter_submap") return 1
+  if (action.kind === "travel") return 2
+  return 3
 }
 
 function discoveryResourceRows(): readonly unknown[] {
@@ -2031,6 +2045,7 @@ function switchMapMode(nextMode: AddMapMode, options: { readonly dungeonTargetId
 }
 
 function enterDungeonTarget(targetMapId: string, command: string): void {
+  setLastDungeonEntryCommand(command)
   setDungeonTarget(targetMapId)
   setTravelExperience(null)
   setMapMode("dungeon_square")
@@ -2051,19 +2066,32 @@ function returnToOverworldFromDungeon(): void {
 }
 
 function enterDungeonLink(link: AddPhaserMapInfo["character"]["dungeonLinksAtCell"][number]): void {
-  enterDungeonTarget(link.targetMapId, `enter:${link.targetMapId}`)
+  if (Date.now() - lastTileActionAtMs < 120) return
+  enterDungeonTarget(link.targetMapId, `hero-link-enter:${link.targetMapId}`)
 }
 
 function runCurrentTileDetailAction(event: Event): void {
-  if (!(event.currentTarget instanceof HTMLElement)) return
-  const actionId = event.currentTarget.dataset.actionId
-  const targetMapMode = event.currentTarget.dataset.targetMapMode
-  const targetMapId = event.currentTarget.dataset.targetMapId
+  event.preventDefault()
+  event.stopPropagation()
+  const button =
+    event.target instanceof HTMLElement
+      ? event.target.closest<HTMLButtonElement>("button[data-action-id]")
+      : event.currentTarget instanceof HTMLElement
+        ? event.currentTarget.closest<HTMLButtonElement>("button[data-action-id]")
+        : null
+  if (!button) return
+  const actionId = button.dataset.actionId
+  const targetMapMode = button.dataset.targetMapMode
+  const targetMapId = button.dataset.targetMapId
+  if (!actionId) return
+  lastTileActionAtMs = Date.now()
   if (targetMapMode === "dungeon_square" && targetMapId) {
+    setLastTileActionTarget(targetMapId)
     enterDungeonTarget(targetMapId, `tile-enter:${targetMapId}`)
     return
   }
   if (targetMapMode === "base_square") {
+    setLastTileActionTarget(targetMapId ?? "base_square")
     setLastCommand("tile-open:base")
     switchMapMode("base_square")
     return
@@ -2512,7 +2540,7 @@ async function runDiscoveryAction(link: AddDiscoveryActionLink): Promise<void> {
 function enterDiscoveryDungeon(): void {
   const entry = discoveryState()?.dungeonEntry
   if (!entry?.enabled) return
-  enterDungeonTarget(entry.targetMapId, `enter:${entry.targetMapId}`)
+  enterDungeonTarget(entry.targetMapId, `discovery-enter:${entry.targetMapId}`)
 }
 
 async function runAddAction(action: AddFirstPlayableAction): Promise<void> {
@@ -2707,6 +2735,8 @@ function toTextState(): RuntimeTextState {
     dungeonObjective: currentDungeonObjective,
     mapMode: mapMode(),
     dungeonTarget: mapMode() === "dungeon_square" ? dungeonTarget() : null,
+    lastDungeonEntryCommand: lastDungeonEntryCommand(),
+    lastTileActionTarget: lastTileActionTarget(),
     adminOpen: adminOpen(),
     discoveryPanelCollapsed: discoveryPanelCollapsed(),
     firstPlayableCollapsed: firstPlayableCollapsed(),

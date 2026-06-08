@@ -556,11 +556,11 @@ h1 {
   position: absolute;
   top: 170px;
   right: calc(12px + var(--map-side-rail-space));
-  z-index: 5;
+  z-index: 8;
   display: grid;
   width: min(430px, calc(100vw - 430px));
   min-width: 320px;
-  max-height: calc(100vh - 280px);
+  max-height: calc(100vh - 190px);
   gap: 9px;
   overflow: auto;
   border: 1px solid rgb(95 209 216 / 20%);
@@ -570,6 +570,7 @@ h1 {
     rgb(12 21 19 / 76%);
   box-shadow: 0 18px 44px rgb(0 0 0 / 24%);
   backdrop-filter: blur(16px);
+  pointer-events: auto;
 }
 
 .discovery-heading {
@@ -684,6 +685,8 @@ h1 {
 }
 
 .discovery-selected-tile {
+  position: relative;
+  z-index: 1;
   display: grid;
   gap: 8px;
   border: 1px solid rgb(95 209 216 / 26%);
@@ -810,8 +813,16 @@ h1 {
 
 .selected-tile-links,
 .selected-tile-actions {
+  position: relative;
+  z-index: 2;
   display: grid;
   gap: 6px;
+}
+
+.selected-tile-actions button {
+  position: relative;
+  z-index: 3;
+  pointer-events: auto;
 }
 
 .selected-tile-link {

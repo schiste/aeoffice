@@ -71,6 +71,9 @@ export interface AddRuntimeTelemetryPresenterInput {
   readonly discovery: AddDiscoverySummary | null
   readonly dungeonObjective: AddDungeonObjectiveSummary | null
   readonly mapMode: AddMapMode
+  readonly dungeonTarget: string | null
+  readonly lastDungeonEntryCommand: string | null
+  readonly lastTileActionTarget: string | null
   readonly adminOpen: boolean
   readonly discoveryPanelCollapsed: boolean
   readonly firstPlayableCollapsed: boolean
@@ -258,6 +261,9 @@ export interface RuntimeTextState {
   readonly mapMode: {
     readonly active: AddMapMode
     readonly label: string
+    readonly dungeonTarget: string | null
+    readonly lastDungeonEntryCommand: string | null
+    readonly lastTileActionTarget: string | null
     readonly available: readonly AddMapMode[]
     readonly topology: "hex" | "square" | "unknown"
     readonly fixture: boolean
@@ -354,6 +360,7 @@ export interface RuntimeTextState {
       readonly linkLabels: readonly string[]
       readonly targetMapModes: readonly string[]
       readonly targetMapIds: readonly string[]
+      readonly actionIds: readonly string[]
       readonly actionKinds: readonly string[]
     } | null
     readonly dungeonEntryAvailable: boolean
@@ -436,6 +443,9 @@ export function createAddRuntimeTextState(
     mapMode: {
       active: input.mapMode,
       label: addMapModeLabel(input.mapMode),
+      dungeonTarget: input.dungeonTarget,
+      lastDungeonEntryCommand: input.lastDungeonEntryCommand,
+      lastTileActionTarget: input.lastTileActionTarget,
       available: ADD_MAP_MODE_OPTIONS.map((option) => option.id),
       topology: input.mapInfo.topology.kind,
       fixture: input.mapInfo.topology.fixture,
@@ -525,6 +535,7 @@ export function createAddRuntimeTextState(
                 targetMapIds: input.discovery.tileDetail.links.flatMap((link) =>
                   link.targetMapId ? [link.targetMapId] : [],
                 ),
+                actionIds: input.discovery.tileDetail.actions.map((action) => action.id),
                 actionKinds: input.discovery.tileDetail.actions.map((action) => action.kind),
               }
             : null,
