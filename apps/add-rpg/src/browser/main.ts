@@ -25,6 +25,8 @@ import {
   type AddDiscoveryMovementEvent,
   type AddFirstPlayableAction,
   type AddMapMode,
+  type AddTileAction,
+  type AddTileDetailSummary,
   type AddWorldTimeSummary,
   type CatalogSnapshot,
   type SimulationSnapshot,
@@ -1126,54 +1128,100 @@ function discoveryTileRows(): readonly unknown[] {
 }
 
 function discoverySelectedTileCard(): unknown {
-  const selected = discoveryState()?.selectedTile
-  if (!selected) return null
+  const detail = discoveryState()?.tileDetail
+  if (!detail) return null
   return html`
     <article
       id="selected-tile-decision"
       class="discovery-selected-tile"
-      data-usefulness=${selected.usefulness.level}
-      data-visibility=${selected.visibility}
+      data-usefulness=${() => discoveryState()?.selectedTile?.usefulness.level ?? "low"}
+      data-visibility=${detail.visibility}
     >
       <header>
         <span>
           Selected tile
-          <strong>${selected.label}</strong>
+          <strong>${detail.label}</strong>
         </span>
-        <small>${titleCase(selected.usefulness.level)} value</small>
+        <small>${detail.hasSubmap ? "Submap" : "No submap"}</small>
       </header>
       <div class="selected-tile-metrics">
         <span>
           Travel
-          <strong>${selected.travel.gameMinutes}m</strong>
-          <small>${selected.travel.standingHere ? "Here" : selected.travel.canTravelNow ? "Ready now" : selected.travel.adjacent ? "Readable" : "Move closer"}</small>
+          <strong>${detail.travel.gameMinutes}m</strong>
+          <small>${detail.travel.standingHere ? "Here" : detail.travel.canTravelNow ? "Ready now" : detail.travel.adjacent ? "Readable" : "Move closer"}</small>
         </span>
         <span>
           Toxicity
-          <strong>${titleCase(selected.travel.risk.replaceAll("_", " "))}</strong>
-          <small>${selected.travel.copy}</small>
+          <strong>${titleCase(detail.travel.risk.replaceAll("_", " "))}</strong>
+          <small>${detail.travel.copy}</small>
         </span>
         <span>
           Links
-          <strong>${selected.dungeonLinks.count}</strong>
-          <small>${selected.dungeonLinks.copy}</small>
+          <strong>${detail.links.length}</strong>
+          <small>${detail.hasSubmap ? "Optional detail map available here" : "No known submap on this tile"}</small>
         </span>
       </div>
       <div class="selected-tile-facts">
         <div>
           <small>Known</small>
-          ${selected.facts.known.length > 0
-            ? selected.facts.known.map((fact) => html`<span>${fact}</span>`)
+          ${detail.facts.known.length > 0
+            ? detail.facts.known.map((fact) => html`<span>${fact}</span>`)
             : html`<span>Nothing precise yet</span>`}
         </div>
         <div>
           <small>Unknown</small>
-          ${selected.facts.unknown.map((fact) => html`<span>${fact}</span>`)}
+          ${detail.facts.unknown.map((fact) => html`<span>${fact}</span>`)}
         </div>
       </div>
-      <p>${selected.usefulness.reasons.join(" ")}</p>
+      <div class="selected-tile-links">
+        ${() => selectedTileLinkRows(detail)}
+      </div>
+      <div class="selected-tile-actions">
+        ${() => selectedTileActionRows(detail)}
+      </div>
     </article>
   `
+}
+
+function selectedTileLinkRows(detail: AddTileDetailSummary): readonly unknown[] {
+  if (detail.links.length === 0) {
+    return [html`<span class="selected-tile-empty-link">No building, base, or dungeon submap is known here.</span>`]
+  }
+  return detail.links.map(
+    (link) => html`
+      <article class="selected-tile-link" data-kind=${link.kind}>
+        <span>
+          ${link.label}
+          <small>${link.enabled ? "Available" : link.blockedReason ?? "Locked"}</small>
+        </span>
+        <strong>${titleCase(link.kind.replaceAll("_", " "))}</strong>
+      </article>
+    `,
+  )
+}
+
+function selectedTileActionRows(detail: AddTileDetailSummary): readonly unknown[] {
+  return detail.actions.map((action) => {
+    const opensSubmap = action.kind === "enter_submap" || action.kind === "manage_base"
+    return opensSubmap
+      ? html`
+          <button
+            id=${`tile-detail-action-${safeElementId(action.id)}`}
+            type="button"
+            class="primary-action"
+            onClick=${() => runTileDetailAction(detail, action)}
+            disabled=${() => !action.enabled}
+            title=${action.blockedReason ?? action.label}
+          >
+            ${action.label}
+          </button>
+        `
+      : html`
+          <span class="selected-tile-action-note" title=${action.blockedReason ?? action.label}>
+            ${action.label}
+          </span>
+        `
+  })
 }
 
 function discoveryResourceRows(): readonly unknown[] {
@@ -1935,6 +1983,24 @@ function enterDungeonLink(link: AddPhaserMapInfo["character"]["dungeonLinksAtCel
   setDungeonTarget(link.targetMapId)
   setLastCommand(`enter:${link.targetMapId}`)
   switchMapMode("dungeon_square")
+}
+
+function runTileDetailAction(detail: AddTileDetailSummary, action: AddTileAction): void {
+  if (!action.enabled || !action.linkId) return
+  const link = detail.links.find((candidate) => candidate.id === action.linkId)
+  if (!link?.targetMapMode) return
+
+  if (link.targetMapMode === "dungeon_square" && link.targetMapId) {
+    setDungeonTarget(link.targetMapId)
+    setLastCommand(`tile-enter:${link.targetMapId}`)
+    switchMapMode("dungeon_square")
+    return
+  }
+
+  if (link.targetMapMode === "base_square") {
+    setLastCommand("tile-open:base")
+    switchMapMode("base_square")
+  }
 }
 
 function refreshMapInfo(): void {

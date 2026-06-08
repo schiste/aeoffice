@@ -19,6 +19,10 @@ import {
   selectAddWorldTime,
   type AddDaylightPhase,
 } from "./world-time"
+import {
+  selectAddTileDetail,
+  type AddTileDetailSummary,
+} from "./tile-detail"
 
 export type AddDiscoveryPhase = "movement" | "choose_tile" | "enter_dungeon" | "act"
 
@@ -64,6 +68,7 @@ export interface AddDiscoverySummary {
   readonly movement: AddDiscoveryMovementSummary
   readonly movementConsequences: AddDiscoveryMovementConsequences
   readonly tileChoices: readonly AddDiscoveryTileChoice[]
+  readonly tileDetail: AddTileDetailSummary | null
   readonly selectedTile: AddDiscoverySelectedTileDecision | null
   readonly dungeonEntry: AddDiscoveryDungeonEntry | null
   readonly resourceLinks: readonly AddDiscoveryResourceLink[]
@@ -202,6 +207,16 @@ export function selectAddDiscoverySummary(
   const movementConsequences = movementConsequencesFor(input)
   const tileChoices = tileChoicesFor(input)
   const selectedTile = selectedTileDecisionFor(input)
+  const tileDetail = selectAddTileDetail({
+    tile: input.selectedTile,
+    heroCell: input.heroCell,
+    heroDungeonLinks: input.heroDungeonLinks,
+    travel: {
+      gameMinutes: input.travel.gameMinutes,
+      previewAdjacent: input.travel.previewAdjacent,
+      previewCell: input.travel.previewCell,
+    },
+  })
   const nextAction = nextActionFor({
     input,
     dungeonEntry,
@@ -219,6 +234,7 @@ export function selectAddDiscoverySummary(
     movement,
     movementConsequences,
     tileChoices,
+    tileDetail,
     selectedTile,
     dungeonEntry,
     resourceLinks: resourceLinksFor(input.snapshot, input.catalog),

@@ -808,6 +808,54 @@ h1 {
   margin: 0;
 }
 
+.selected-tile-links,
+.selected-tile-actions {
+  display: grid;
+  gap: 6px;
+}
+
+.selected-tile-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  border-radius: 7px;
+  padding: 0.5rem 0.56rem;
+  background: rgb(255 244 201 / 7%);
+}
+
+.selected-tile-link span {
+  display: grid;
+  gap: 0.14rem;
+  min-width: 0;
+  color: #fff2bd;
+  font-size: 0.68rem;
+  font-weight: 850;
+}
+
+.selected-tile-link small,
+.selected-tile-empty-link,
+.selected-tile-action-note {
+  color: rgb(247 238 210 / 62%);
+  font-size: 0.64rem;
+  font-weight: 740;
+  line-height: 1.22;
+}
+
+.selected-tile-link strong {
+  flex: 0 0 auto;
+  color: #c9fff9;
+  font-size: 0.64rem;
+  font-weight: 920;
+}
+
+.selected-tile-empty-link,
+.selected-tile-action-note {
+  border-radius: 7px;
+  padding: 0.5rem 0.56rem;
+  background: rgb(11 17 16 / 24%);
+}
+
 .movement-consequences {
   display: grid;
   gap: 8px;
