@@ -36,7 +36,7 @@ execFileSync(path.join(ROOT, "node_modules", ".bin", "tsc"), ["-b", "packages/ad
   stdio: "inherit",
 })
 
-const { toRustConst } = require(path.join(ROOT, "packages/game-content/dist/index.js"))
+const { toRustConst, toRustStatic } = require(path.join(ROOT, "packages/game-content/dist/index.js"))
 const content = (name) => require(path.join(ROOT, "packages/add-domain/dist/content", `${name}.js`))
 const resources = content("resources")
 const roles = content("roles")
@@ -51,8 +51,12 @@ const processing = content("processing")
 const story = content("story")
 const uiElements = content("ui-elements")
 const entitySchemas = content("entity-schemas")
+const balance = content("balance")
 
 const VIS = "pub(in crate::game_data)"
+// Balance is all-numeric; helper for the many f64 fields (from defaults to camelCase).
+const f64s = (...names) => names.map((name) => ({ name, kind: "f64" }))
+const i64 = (name) => ({ name, kind: "i64" })
 
 // Reusable: a `requirements: &[RequirementDef]` field (tuple-variant enum).
 const REQUIREMENTS_FIELD = {
@@ -572,6 +576,52 @@ const FILES = [
       },
     ],
   },
+  {
+    sourceModule: "packages/add-domain/src/content/balance.ts",
+    rustPath: "crates/add-core/src/game_data/catalog/balance.rs",
+    consts: [
+      {
+        singleton: true,
+        entries: balance.BALANCE,
+        spec: {
+          constName: "BALANCE",
+          rustType: "BalanceSnapshot",
+          visibility: VIS,
+          fields: [
+            { name: "bubble", kind: "struct", structType: "BubbleBalance", fields: f64s("hold_seconds", "degrade_seconds_per_ring", "field_k_base") },
+            {
+              name: "crystal", kind: "struct", structType: "CrystalBalance",
+              fields: [
+                ...f64s("base_bassline_cap", "base_chorus_cap", "base_harmonics_cap", "bassline_cap_per_storage_level", "chorus_cap_per_storage_level", "harmonics_cap_per_storage_level", "output_per_worker_base", "output_per_worker_level_bonus", "chorus_per_worker_base", "chorus_per_worker_level_bonus", "harmonics_per_worker_base", "harmonics_per_worker_level_bonus", "removing_moss_output_multiplier", "removing_moss_passive_bassline_per_second", "field_k_bonus_per_polish_level"),
+                i64("fire_pit_crew_slots"),
+              ],
+            },
+            {
+              name: "power", kind: "struct", structType: "PowerBalance",
+              fields: [
+                i64("life_support_free_staff"),
+                ...f64s("life_support_upkeep_per_staff_per_second", "harmonics_continuous_bonus_per_unit", "harmonics_continuous_bonus_cap", "harmonics_tier_one_threshold", "harmonics_tier_two_threshold", "harmonics_tier_three_threshold", "harmonics_tier_bonus", "bassline_generation_bonus_weight", "chorus_generation_bonus_weight", "harmonics_generation_bonus_weight", "resonance_chamber_field_bonus", "mix_console_harmonics_bonus", "mix_console_brownout_tolerance", "tier_two_brownout_tolerance", "tier_three_brownout_tolerance", "tier_three_upkeep_discount", "brownout_bassline_penalty_weight", "brownout_chorus_penalty_weight", "brownout_harmonics_penalty_weight", "brownout_field_penalty_weight", "resonance_processing_field_bonus_per_level", "mix_processing_harmonics_bonus_per_level", "mix_processing_brownout_tolerance_per_level"),
+                i64("research_chorus_free_staff_per_level"),
+                ...f64s("research_harmonics_threshold_reduction_per_level"),
+              ],
+            },
+            { name: "progression", kind: "struct", structType: "ProgressionBalance", fields: f64s("level_multiplier_a", "xp0", "xp_growth") },
+            {
+              name: "survival", kind: "struct", structType: "SurvivalBalance",
+              fields: f64s("hero_time_seconds_0_to_1", "normal_human_time_seconds_0_to_1", "recovery_time_seconds_1_to_0", "sustain_bonus_per_level", "tier_one_threshold_ratio", "tier_two_threshold_ratio", "tier_three_threshold_ratio", "tier_one_work_efficiency_multiplier", "tier_two_work_efficiency_multiplier", "tier_three_work_efficiency_multiplier", "tier_one_movement_speed_multiplier", "tier_two_movement_speed_multiplier", "tier_three_movement_speed_multiplier", "tier_one_encounter_rate_multiplier", "tier_two_encounter_rate_multiplier", "tier_three_encounter_rate_multiplier", "recovery_brownout_penalty_weight", "recovery_brownout_stop_threshold"),
+            },
+            { name: "build", kind: "struct", structType: "BuildBalance", fields: f64s("workshop_tooling_speed_bonus_per_level") },
+            { name: "scavenge", kind: "struct", structType: "ScavengeBalance", fields: f64s("base_stock_max", "stock_rate_per_second", "ambient_rate_per_second") },
+            { name: "fire_pit", kind: "struct", structType: "FirePitBalance", fields: f64s("base_vibes_per_second", "staff_vibes_per_second") },
+            { name: "water", kind: "struct", structType: "WaterBalance", fields: f64s("water_cap", "base_stock_max", "collection_rate_per_second", "tile_regen_per_second", "workshop_water_cap_per_level", "workshop_regen_bonus_per_level") },
+            { name: "vibes", kind: "struct", structType: "VibesBalance", fields: f64s("negative_k", "bad_vibes_beta", "bad_vibes_pow", "doubling_time_seconds", "decay_reset_seconds") },
+            { name: "recruitment", kind: "struct", structType: "RecruitmentBalance", fields: f64s("recruit_travel_seconds", "instant_recruit_delay_seconds", "good_vibes_opt_base", "good_vibes_opt_step", "t1_minutes", "t30_total_good_vibes", "t500_total_good_vibes", "t1000_total_good_vibes") },
+            i64("notes_limit"),
+          ],
+        },
+      },
+    ],
+  },
 ]
 
 const rustfmt = resolveRustfmt()
@@ -581,11 +631,19 @@ function generate(file) {
     `// @generated by \`npm run content:build\` from ${file.sourceModule}.`,
     "// Do not edit by hand; edit the TS source and re-run the generator.",
   ].join("\n")
-  const blocks = file.consts.map((c) => toRustConst(c.spec, c.entries))
+  const blocks = file.consts.map((c) =>
+    c.singleton ? toRustStatic(c.spec, c.entries) : toRustConst(c.spec, c.entries),
+  )
   const raw = [header, "", PREAMBLE, "", blocks.join("\n")].join("\n")
   const tmp = path.join(os.tmpdir(), `add-content-${path.basename(file.rustPath)}`)
   fs.writeFileSync(tmp, raw)
-  execFileSync(rustfmt, [tmp], { stdio: "ignore" })
+  try {
+    execFileSync(rustfmt, [tmp], { stdio: ["ignore", "ignore", "pipe"] })
+  } catch (err) {
+    console.error(`[content:build] rustfmt failed for ${file.rustPath}:\n${err.stderr || err}`)
+    console.error(`[content:build] raw left at ${tmp}`)
+    throw err
+  }
   const formatted = fs.readFileSync(tmp, "utf8")
   fs.unlinkSync(tmp)
   return formatted

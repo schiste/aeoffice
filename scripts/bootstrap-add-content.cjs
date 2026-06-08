@@ -23,22 +23,25 @@ const omit = (omitArg || "").split(",").filter(Boolean)
 
 const golden = require(path.join(ROOT, "crates/add-core/tests/golden/catalog.json"))
 const raw = golden[key]
-if (!Array.isArray(raw)) {
-  console.error(`catalog key "${key}" is not an array in the golden snapshot`)
+if (raw === undefined) {
+  console.error(`catalog key "${key}" is missing from the golden snapshot`)
   process.exit(1)
 }
-const data = raw.map((entry) => {
-  if (!omit.length) return entry
-  const copy = { ...entry }
+const drop = (obj) => {
+  if (!omit.length) return obj
+  const copy = { ...obj }
   for (const k of omit) delete copy[k]
   return copy
-})
+}
+const isArray = Array.isArray(raw)
+const data = isArray ? raw.map(drop) : drop(raw)
+const annotation = isArray ? `readonly ${constType}[]` : constType
 
 const body = `import type { ${importType} } from "../runtime/protocol"
 
 // Bootstrapped from the catalog snapshot, then owned here as the source of truth.
 // \`content:build\` codegens the Rust catalog from this module.
-export const ${constName}: readonly ${constType}[] = ${JSON.stringify(data, null, 2)}
+export const ${constName}: ${annotation} = ${JSON.stringify(data, null, 2)}
 `
 fs.writeFileSync(path.join(ROOT, tsRel), body)
-console.log(`[bootstrap] wrote ${tsRel} (${data.length} entries)`)
+console.log(`[bootstrap] wrote ${tsRel} (${isArray ? `${data.length} entries` : "1 object"})`)

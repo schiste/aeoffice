@@ -265,3 +265,20 @@ export function toRustConst(
   lines.push("];", "")
   return lines.join("\n")
 }
+
+/**
+ * Emit a single `const NAME: Type = Type { ... };` from one object (not an
+ * array) — for catalogs that are a single deep struct (e.g. a balance table).
+ */
+export function toRustStatic(spec: RustConstSpec, value: Record<string, unknown>): string {
+  const lines: string[] = []
+  if (spec.header) lines.push(spec.header, "")
+  if (spec.preamble) lines.push(spec.preamble, "")
+  const visibility = spec.visibility ? `${spec.visibility} ` : ""
+  const struct = rustFieldValue(
+    { name: spec.constName, kind: "struct", structType: spec.rustType, fields: spec.fields },
+    value,
+  )
+  lines.push(`${visibility}const ${spec.constName}: ${spec.rustType} = ${struct};`, "")
+  return lines.join("\n")
+}

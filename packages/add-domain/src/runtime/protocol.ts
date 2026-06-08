@@ -714,6 +714,12 @@ export interface VibesBalance {
 export interface RecruitmentBalance {
   recruitTravelSeconds: number
   instantRecruitDelaySeconds: number
+  goodVibesOptBase: number
+  goodVibesOptStep: number
+  t1Minutes: number
+  t30TotalGoodVibes: number
+  t500TotalGoodVibes: number
+  t1000TotalGoodVibes: number
 }
 
 export type WorkerRequest =
