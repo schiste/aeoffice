@@ -288,6 +288,29 @@ export interface RuntimeTextState {
     readonly headline: string
     readonly movementDiscoveredDelta: number
     readonly movementToxicityDelta: number
+    readonly movementConsequences: {
+      readonly active: boolean
+      readonly viralLoad: {
+        readonly before: number | null
+        readonly after: number
+        readonly delta: number
+        readonly percent: number
+      }
+      readonly timeOfDay: {
+        readonly localTime: string
+        readonly phase: string
+        readonly riskModifier: string
+      }
+      readonly safety: {
+        readonly severity: string
+        readonly headline: string
+        readonly secondsUntilForcedReturn: number
+        readonly pointOfNoReturnRatio: number
+        readonly forcedReturnPhase: string | null
+      }
+      readonly warnings: readonly string[]
+      readonly futureAuthority: string
+    }
     readonly tileChoiceCount: number
     readonly selectedTile: {
       readonly cell: string
@@ -391,6 +414,35 @@ export function createAddRuntimeTextState(
           headline: input.discovery.headline,
           movementDiscoveredDelta: input.discovery.movement.discoveredDelta,
           movementToxicityDelta: round3(input.discovery.movement.toxicityDelta),
+          movementConsequences: {
+            active: input.discovery.movementConsequences.active,
+            viralLoad: {
+              before:
+                input.discovery.movementConsequences.viralLoad.before === null
+                  ? null
+                  : round3(input.discovery.movementConsequences.viralLoad.before),
+              after: round3(input.discovery.movementConsequences.viralLoad.after),
+              delta: round3(input.discovery.movementConsequences.viralLoad.delta),
+              percent: input.discovery.movementConsequences.viralLoad.percent,
+            },
+            timeOfDay: {
+              localTime: input.discovery.movementConsequences.timeOfDay.localTime,
+              phase: input.discovery.movementConsequences.timeOfDay.phase,
+              riskModifier: input.discovery.movementConsequences.timeOfDay.riskModifier,
+            },
+            safety: {
+              severity: input.discovery.movementConsequences.safety.severity,
+              headline: input.discovery.movementConsequences.safety.headline,
+              secondsUntilForcedReturn:
+                input.discovery.movementConsequences.safety.secondsUntilForcedReturn,
+              pointOfNoReturnRatio:
+                input.discovery.movementConsequences.safety.pointOfNoReturnRatio,
+              forcedReturnPhase:
+                input.discovery.movementConsequences.safety.forcedReturnPhase,
+            },
+            warnings: input.discovery.movementConsequences.warnings,
+            futureAuthority: input.discovery.movementConsequences.futureAuthority,
+          },
           tileChoiceCount: input.discovery.tileChoices.length,
           selectedTile: input.discovery.selectedTile
             ? {

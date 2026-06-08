@@ -884,6 +884,30 @@ async function exerciseMainCharacterMovement(page, consoleErrors) {
     moved.discovery.tileChoiceCount > 0,
     "Discovery telemetry should expose at least one tile choice after movement.",
   )
+  assert.equal(moved.discovery.movementConsequences.active, true)
+  assert.equal(typeof moved.discovery.movementConsequences.viralLoad.percent, "number")
+  assert.equal(typeof moved.discovery.movementConsequences.viralLoad.delta, "number")
+  assert.equal(typeof moved.discovery.movementConsequences.timeOfDay.phase, "string")
+  assert.ok(
+    ["safe", "watch", "danger", "critical"].includes(
+      moved.discovery.movementConsequences.safety.severity,
+    ),
+    "Movement consequence safety severity should use the known survival scale.",
+  )
+  assert.equal(
+    moved.discovery.movementConsequences.futureAuthority,
+    "automatic_return_thresholds_later",
+  )
+  assert.match(
+    await page.locator("#movement-consequences").innerText(),
+    /Movement consequences|Viral load|Time|Safety/,
+    "Movement consequence card should explain viral load, time, and safety pressure.",
+  )
+  await assertNonBlankNamedAppScreenshot(
+    page,
+    "add-rpg-movement-consequences-smoke.png",
+    "ADD RPG movement consequences screenshot",
+  )
   assert.ok(
     observedTravelClockTimes.size >= 3,
     `Travel clock should show multiple minute values, saw ${Array.from(observedTravelClockTimes).join(", ")}`,

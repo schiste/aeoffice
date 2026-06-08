@@ -15,6 +15,10 @@ import {
   selectAddFirstPlayableSummary,
   type AddFirstPlayableAction,
 } from "./first-playable-script"
+import {
+  selectAddWorldTime,
+  type AddDaylightPhase,
+} from "./world-time"
 
 export type AddDiscoveryPhase = "movement" | "choose_tile" | "enter_dungeon" | "act"
 
@@ -57,6 +61,7 @@ export interface AddDiscoverySummary {
   readonly headline: string
   readonly detail: string
   readonly movement: AddDiscoveryMovementSummary
+  readonly movementConsequences: AddDiscoveryMovementConsequences
   readonly tileChoices: readonly AddDiscoveryTileChoice[]
   readonly selectedTile: AddDiscoverySelectedTileDecision | null
   readonly dungeonEntry: AddDiscoveryDungeonEntry | null
@@ -71,6 +76,37 @@ export interface AddDiscoveryMovementSummary {
   readonly gameMinutes: number | null
   readonly discoveredDelta: number
   readonly toxicityDelta: number
+}
+
+export type AddMovementSafetySeverity = "safe" | "watch" | "danger" | "critical"
+export type AddMovementTimeRiskModifier = "low" | "normal" | "elevated"
+
+export interface AddDiscoveryMovementConsequences {
+  readonly active: boolean
+  readonly viralLoad: {
+    readonly before: number | null
+    readonly after: number
+    readonly delta: number
+    readonly percent: number
+    readonly copy: string
+  }
+  readonly timeOfDay: {
+    readonly localTime: string
+    readonly phase: AddDaylightPhase
+    readonly daylightRatio: number
+    readonly copy: string
+    readonly riskModifier: AddMovementTimeRiskModifier
+  }
+  readonly safety: {
+    readonly severity: AddMovementSafetySeverity
+    readonly headline: string
+    readonly detail: string
+    readonly secondsUntilForcedReturn: number
+    readonly pointOfNoReturnRatio: number
+    readonly forcedReturnPhase: string | null
+  }
+  readonly warnings: readonly string[]
+  readonly futureAuthority: "automatic_return_thresholds_later"
 }
 
 export interface AddDiscoveryTileChoice {
@@ -147,6 +183,7 @@ export function selectAddDiscoverySummary(
   const dungeonEntry = dungeonEntryFor(input)
   const actionLinks = actionLinksFor(input, dungeonEntry)
   const movement = movementSummaryFor(input)
+  const movementConsequences = movementConsequencesFor(input)
   const tileChoices = tileChoicesFor(input)
   const selectedTile = selectedTileDecisionFor(input)
   const phase = phaseFor(input, dungeonEntry, actionLinks)
@@ -156,12 +193,195 @@ export function selectAddDiscoverySummary(
     headline: headlineFor(phase, dungeonEntry, input),
     detail: detailFor(phase, movement, dungeonEntry, input),
     movement,
+    movementConsequences,
     tileChoices,
     selectedTile,
     dungeonEntry,
     resourceLinks: resourceLinksFor(input.snapshot, input.catalog),
     actionLinks,
   }
+}
+
+function movementConsequencesFor(
+  input: AddDiscoverySelectorInput,
+): AddDiscoveryMovementConsequences {
+  const time = selectAddWorldTime(input.snapshot)
+  const survival = input.snapshot.heroSurvival
+  const before = input.lastMovement?.toxicityBefore ?? null
+  const after = input.lastMovement?.toxicityAfter ?? survival.viralLoadRatio
+  const delta = input.lastMovement
+    ? Math.max(0, input.lastMovement.toxicityAfter - input.lastMovement.toxicityBefore)
+    : 0
+  const safety = movementSafetyFor(survival)
+  const timeOfDay = movementTimeOfDayFor(time)
+  const warnings = movementWarningsFor({
+    delta,
+    location: survival.location,
+    safety,
+    timeOfDay,
+  })
+
+  return {
+    active: input.travel.active || input.lastMovement !== null,
+    viralLoad: {
+      before,
+      after,
+      delta,
+      percent: ratioPercent(after),
+      copy: viralLoadCopy(before, after, delta),
+    },
+    timeOfDay,
+    safety,
+    warnings,
+    futureAuthority: "automatic_return_thresholds_later",
+  }
+}
+
+function movementTimeOfDayFor(
+  time: ReturnType<typeof selectAddWorldTime>,
+): AddDiscoveryMovementConsequences["timeOfDay"] {
+  switch (time.daylightPhase) {
+    case "night":
+      return {
+        localTime: time.localTime,
+        phase: time.daylightPhase,
+        daylightRatio: time.daylightRatio,
+        riskModifier: "elevated",
+        copy: `Night travel at ${time.localTime} makes routes harder to read and should feel riskier.`,
+      }
+    case "dawn":
+      return {
+        localTime: time.localTime,
+        phase: time.daylightPhase,
+        daylightRatio: time.daylightRatio,
+        riskModifier: "normal",
+        copy: `Dawn at ${time.localTime} gives partial visibility while the day opens.`,
+      }
+    case "dusk":
+      return {
+        localTime: time.localTime,
+        phase: time.daylightPhase,
+        daylightRatio: time.daylightRatio,
+        riskModifier: "normal",
+        copy: `Dusk at ${time.localTime} is still readable, but the safe scouting window is closing.`,
+      }
+    case "day":
+      return {
+        localTime: time.localTime,
+        phase: time.daylightPhase,
+        daylightRatio: time.daylightRatio,
+        riskModifier: "low",
+        copy: `Daylight at ${time.localTime} is the safest scouting window for crossing regions.`,
+      }
+  }
+}
+
+function movementSafetyFor(
+  survival: SimulationSnapshot["heroSurvival"],
+): AddDiscoveryMovementConsequences["safety"] {
+  const forcedReturnPhase = survival.forcedReturn?.phase ?? null
+  const secondsUntilForcedReturn = Math.max(0, survival.secondsUntilForcedReturn)
+  const pointOfNoReturnRatio = Math.max(0.01, survival.pointOfNoReturnRatio)
+  const viralPressure = survival.viralLoadRatio / pointOfNoReturnRatio
+  const returnPressure =
+    survival.requiredTimeToReenterBubbleSeconds > 0
+      ? survival.requiredTimeToReenterBubbleSeconds / Math.max(1, secondsUntilForcedReturn)
+      : 0
+  let severity: AddMovementSafetySeverity = "safe"
+
+  if (forcedReturnPhase) {
+    severity = "critical"
+  } else if (
+    viralPressure >= 0.85 ||
+    (secondsUntilForcedReturn > 0 && secondsUntilForcedReturn <= 900) ||
+    returnPressure >= 0.75
+  ) {
+    severity = "danger"
+  } else if (
+    survival.location === "outside_bubble" ||
+    viralPressure >= 0.55 ||
+    returnPressure >= 0.35
+  ) {
+    severity = "watch"
+  }
+
+  return {
+    severity,
+    headline: safetyHeadline(severity),
+    detail: safetyDetail(severity, survival, viralPressure),
+    secondsUntilForcedReturn,
+    pointOfNoReturnRatio,
+    forcedReturnPhase,
+  }
+}
+
+function movementWarningsFor(options: {
+  readonly delta: number
+  readonly location: SimulationSnapshot["heroSurvival"]["location"]
+  readonly safety: AddDiscoveryMovementConsequences["safety"]
+  readonly timeOfDay: AddDiscoveryMovementConsequences["timeOfDay"]
+}): readonly string[] {
+  const warnings: string[] = []
+
+  if (options.delta > 0.0005) {
+    warnings.push(`Viral load rose by ${formatPercent(options.delta)} during the crossing.`)
+  }
+  if (options.timeOfDay.riskModifier === "elevated") {
+    warnings.push("Night crossings should carry heavier scouting and encounter pressure.")
+  } else if (options.timeOfDay.phase === "dusk") {
+    warnings.push("Dusk means the next crossing may happen after the safe daylight window.")
+  }
+  if (options.location === "outside_bubble") {
+    warnings.push("The Hero is outside the bubble; every extra region should feel like commitment.")
+  }
+  if (options.safety.severity === "danger") {
+    warnings.push("You are pushing far enough that return pressure should become part of the choice.")
+  }
+  if (options.safety.severity === "critical") {
+    warnings.push("Forced-return pressure is active; automatic return thresholds remain a later rule gate.")
+  }
+
+  return warnings.slice(0, 4)
+}
+
+function viralLoadCopy(before: number | null, after: number, delta: number): string {
+  if (before === null) {
+    return `Current viral load is ${formatPercent(after)} before the next crossing.`
+  }
+  if (delta > 0.0005) {
+    return `The crossing pushed viral load from ${formatPercent(before)} to ${formatPercent(after)}.`
+  }
+  return `Viral load stayed near ${formatPercent(after)} during this crossing.`
+}
+
+function safetyHeadline(severity: AddMovementSafetySeverity): string {
+  switch (severity) {
+    case "safe":
+      return "Return route stable"
+    case "watch":
+      return "Watch the distance from safety"
+    case "danger":
+      return "Return pressure is rising"
+    case "critical":
+      return "Forced return pressure"
+  }
+}
+
+function safetyDetail(
+  severity: AddMovementSafetySeverity,
+  survival: SimulationSnapshot["heroSurvival"],
+  viralPressure: number,
+): string {
+  if (severity === "critical") {
+    return `The runtime reports ${survival.forcedReturn?.phase ?? "forced-return pressure"}; later rules can turn this into automatic return.`
+  }
+  if (severity === "danger") {
+    return `Viral pressure is ${formatPercent(Math.min(1, viralPressure))} of the current point-of-no-return budget.`
+  }
+  if (severity === "watch") {
+    return "The Hero is far enough from safety that the next move should be a deliberate commitment."
+  }
+  return "The Hero can still return before survival pressure becomes the main problem."
 }
 
 function phaseFor(
@@ -618,4 +838,12 @@ function titleCase(value: string): string {
     .filter(Boolean)
     .map((part) => part[0].toUpperCase() + part.slice(1))
     .join(" ")
+}
+
+function ratioPercent(value: number): number {
+  return Math.round(Math.max(0, value) * 1000) / 10
+}
+
+function formatPercent(value: number): string {
+  return `${ratioPercent(value)}%`
 }

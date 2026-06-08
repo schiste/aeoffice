@@ -561,6 +561,7 @@ function AddRpgApp() {
               <span>${() => discoveryState()?.movement.title ?? "Scout one step at a time"}</span>
               <small>${() => discoveryMovementMetricCopy()}</small>
             </div>
+            ${() => discoveryConsequenceCard()}
             ${() => discoverySelectedTileCard()}
             <div class="discovery-tiles">
               ${() => discoveryTileRows()}
@@ -962,6 +963,61 @@ function discoveryMovementMetricCopy(): string {
   if (movement.toxicityDelta > 0) parts.push(`+${Math.round(movement.toxicityDelta * 100)}% toxicity`)
   if (movement.risk) parts.push(titleCase(movement.risk.replaceAll("_", " ")))
   return parts.length > 0 ? parts.join(" · ") : "Choose an adjacent tile"
+}
+
+function discoveryConsequenceCard(): unknown {
+  const consequences = discoveryState()?.movementConsequences
+  if (!consequences || (!consequences.active && consequences.safety.severity === "safe")) {
+    return null
+  }
+  return html`
+    <article
+      id="movement-consequences"
+      class="movement-consequences"
+      data-severity=${consequences.safety.severity}
+    >
+      <header>
+        <span>
+          Movement consequences
+          <strong>${consequences.safety.headline}</strong>
+        </span>
+        <small>${titleCase(consequences.safety.severity)}</small>
+      </header>
+      <div class="consequence-metrics">
+        <span>
+          Viral load
+          <strong>${consequences.viralLoad.percent}%</strong>
+          <small>${formatSignedRatioPercent(consequences.viralLoad.delta)} this step</small>
+        </span>
+        <span>
+          Time
+          <strong>${titleCase(consequences.timeOfDay.phase)}</strong>
+          <small>${consequences.timeOfDay.localTime} · ${titleCase(consequences.timeOfDay.riskModifier)} risk</small>
+        </span>
+        <span>
+          Safety
+          <strong>${titleCase(consequences.safety.severity)}</strong>
+          <small>${consequences.safety.detail}</small>
+        </span>
+      </div>
+      <p>
+        <span>${consequences.viralLoad.copy}</span>
+        <span>${consequences.timeOfDay.copy}</span>
+      </p>
+      <ul class="consequence-warnings">
+        ${() => discoveryConsequenceWarnings()}
+      </ul>
+    </article>
+  `
+}
+
+function discoveryConsequenceWarnings(): readonly unknown[] {
+  const consequences = discoveryState()?.movementConsequences
+  const warnings =
+    consequences && consequences.warnings.length > 0
+      ? consequences?.warnings
+      : ["Automatic return or failure thresholds are tracked here but remain a later rule gate."]
+  return (warnings ?? []).map((warning) => html`<li>${warning}</li>`)
 }
 
 function discoveryTileRows(): readonly unknown[] {
@@ -2439,6 +2495,11 @@ function persistenceReadyForFirstPlayable(): boolean {
 
 function formatResource(value: number): string {
   return Number.isInteger(value) ? `${value}` : value.toFixed(1)
+}
+
+function formatSignedRatioPercent(value: number): string {
+  const percent = Math.round(Math.abs(value) * 1000) / 10
+  return `${value >= 0 ? "+" : "-"}${percent}%`
 }
 
 function titleCase(value: string): string {

@@ -728,6 +728,127 @@ h1 {
   margin: 0;
 }
 
+.movement-consequences {
+  display: grid;
+  gap: 8px;
+  border: 1px solid rgb(95 209 216 / 22%);
+  border-radius: 8px;
+  padding: 0.72rem;
+  background:
+    linear-gradient(180deg, rgb(12 21 19 / 34%), rgb(255 244 201 / 5%)),
+    rgb(12 21 19 / 62%);
+  box-shadow: inset 3px 0 0 rgb(95 209 216 / 52%);
+}
+
+.movement-consequences[data-severity="watch"] {
+  border-color: rgb(240 185 93 / 34%);
+  box-shadow: inset 3px 0 0 rgb(240 185 93 / 74%);
+}
+
+.movement-consequences[data-severity="danger"],
+.movement-consequences[data-severity="critical"] {
+  border-color: rgb(200 101 75 / 44%);
+  box-shadow: inset 3px 0 0 rgb(200 101 75 / 82%);
+}
+
+.movement-consequences header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 0.7rem;
+}
+
+.movement-consequences header span {
+  display: grid;
+  min-width: 0;
+  gap: 0.15rem;
+  color: rgb(247 238 210 / 58%);
+  font-size: 0.66rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.movement-consequences header strong {
+  overflow: hidden;
+  color: #fff2bd;
+  font-size: 0.86rem;
+  text-overflow: ellipsis;
+  text-transform: none;
+  white-space: nowrap;
+}
+
+.movement-consequences header small {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  padding: 0.24rem 0.5rem;
+  background: rgb(255 244 201 / 10%);
+  color: rgb(247 238 210 / 80%);
+  font-size: 0.64rem;
+  font-weight: 950;
+}
+
+.consequence-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.consequence-metrics span {
+  display: grid;
+  min-width: 0;
+  gap: 0.13rem;
+  border-radius: 7px;
+  padding: 0.48rem;
+  background: rgb(255 244 201 / 7%);
+  color: rgb(247 238 210 / 56%);
+  font-size: 0.62rem;
+  font-weight: 850;
+}
+
+.consequence-metrics strong {
+  color: #c9fff9;
+  font-size: 0.78rem;
+  font-weight: 950;
+}
+
+.consequence-metrics small {
+  overflow-wrap: anywhere;
+  color: rgb(247 238 210 / 60%);
+  font-size: 0.61rem;
+  font-weight: 720;
+  line-height: 1.18;
+}
+
+.movement-consequences p {
+  margin: 0;
+  color: rgb(247 238 210 / 72%);
+  font-size: 0.66rem;
+  font-weight: 740;
+  line-height: 1.24;
+}
+
+.movement-consequences p span {
+  display: block;
+}
+
+.consequence-warnings {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.consequence-warnings li {
+  border-radius: 6px;
+  padding: 0.4rem 0.48rem;
+  background: rgb(11 17 16 / 32%);
+  color: rgb(247 238 210 / 70%);
+  font-size: 0.64rem;
+  font-weight: 760;
+  line-height: 1.2;
+}
+
 .discovery-movement span,
 .discovery-tile span,
 .discovery-resource span {
@@ -1459,6 +1580,7 @@ h1 {
   }
 
   .selected-tile-metrics,
+  .consequence-metrics,
   .selected-tile-facts {
     grid-template-columns: 1fr;
   }

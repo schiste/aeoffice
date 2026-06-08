@@ -2499,3 +2499,14 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   `npm run qa:renderer`, `npm run smoke:engine-sandbox`, `git diff --check`,
   exact renderer leakage `rg`, and `npm run check`. Visual artifact:
   `tmp/add-rpg-selected-tile-decision-smoke.png`.
+- Movement consequences are now tied into the Discovery loop. `add-domain`
+  projects viral-load feedback, daylight/time-of-day risk, return-safety
+  severity, player-facing warnings, and a future automatic-return authority flag
+  from the authoritative ADD snapshot. The ADD app renders a compact Movement
+  Consequences card after travel, and `render_game_to_text` exposes the same
+  consequence projection for agent/smoke inspection. Verification passed with
+  `npm --workspace @aedventure/add-domain run build`, `npm --workspace
+  @aedventure/add-rpg run build:types`, `npm run smoke:add-rpg`,
+  `npm run qa:renderer`, `npm run smoke:engine-sandbox`, `git diff --check`,
+  exact renderer leakage `rg`, and `npm run check`. Visual artifact:
+  `tmp/add-rpg-movement-consequences-smoke.png`.
