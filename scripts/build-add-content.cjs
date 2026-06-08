@@ -48,6 +48,7 @@ const stations = content("stations")
 const construction = content("construction")
 const worldActions = content("world-actions")
 const processing = content("processing")
+const story = content("story")
 
 const VIS = "pub(in crate::game_data)"
 
@@ -339,6 +340,44 @@ const FILES = [
             EFFECTS_FIELD,
             { name: "max_level", kind: "i64" },
             { name: "ui_order", kind: "i64" },
+          ],
+        },
+      },
+    ],
+  },
+  {
+    sourceModule: "packages/add-domain/src/content/story.ts",
+    rustPath: "crates/add-core/src/game_data/catalog/story_beats.rs",
+    consts: [
+      {
+        entries: story.STORY_BEATS,
+        spec: {
+          constName: "STORY_BEATS",
+          rustType: "StoryBeatDef",
+          visibility: VIS,
+          fields: [
+            { name: "id", kind: "idConst" },
+            { name: "schema_id", kind: "idConst" },
+            { name: "label", kind: "string" },
+            { name: "body", kind: "string" },
+            { name: "arc", kind: "string" },
+            { name: "sequence", kind: "i64" },
+            { name: "world_action_id", kind: "option", inner: "string" },
+            {
+              name: "choices",
+              kind: "array",
+              element: {
+                name: "c",
+                kind: "struct",
+                structType: "StoryChoiceDef",
+                fields: [
+                  { name: "id", kind: "string" },
+                  { name: "label", kind: "string" },
+                  { name: "response", kind: "string" },
+                ],
+              },
+            },
+            { name: "related_ids", kind: "array", element: { name: "r", kind: "string" } },
           ],
         },
       },
