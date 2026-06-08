@@ -2,10 +2,12 @@ import {
   ADD_DOMAIN_BOUNDARY,
   ADD_MAP_MODE_OPTIONS,
   addMapModeLabel,
+  selectAddMapScaleForMode,
   type AddDungeonObjectiveSummary,
   type AddDiscoverySummary,
   type AddFirstPlayableAction,
   type AddMapMode,
+  type AddMapScaleSummary,
   type AddUiState,
   type AddWorldTimeSummary,
   type CatalogSnapshot,
@@ -259,6 +261,7 @@ export interface RuntimeTextState {
     readonly available: readonly AddMapMode[]
     readonly topology: "hex" | "square" | "unknown"
     readonly fixture: boolean
+    readonly scale: AddMapScaleSummary
   }
   readonly travel: {
     readonly costGameMinutes: number
@@ -336,6 +339,20 @@ export interface RuntimeTextState {
       readonly dungeonLinkCount: number
       readonly usefulnessLevel: string
       readonly usefulnessReasons: readonly string[]
+    } | null
+    readonly tileDetail: {
+      readonly cell: string
+      readonly label: string
+      readonly visibility: string
+      readonly terrain: string | null
+      readonly feature: string | null
+      readonly hasSubmap: boolean
+      readonly linkCount: number
+      readonly visibleLinkIds: readonly string[]
+      readonly enabledLinkIds: readonly string[]
+      readonly linkKinds: readonly string[]
+      readonly targetMapModes: readonly string[]
+      readonly actionKinds: readonly string[]
     } | null
     readonly dungeonEntryAvailable: boolean
     readonly dungeonEntryTarget: string | null
@@ -420,6 +437,7 @@ export function createAddRuntimeTextState(
       available: ADD_MAP_MODE_OPTIONS.map((option) => option.id),
       topology: input.mapInfo.topology.kind,
       fixture: input.mapInfo.topology.fixture,
+      scale: selectAddMapScaleForMode(input.mapMode),
     },
     travel: travelTelemetry(input),
     map: input.mapInfo,
@@ -480,6 +498,28 @@ export function createAddRuntimeTextState(
                 dungeonLinkCount: input.discovery.selectedTile.dungeonLinks.count,
                 usefulnessLevel: input.discovery.selectedTile.usefulness.level,
                 usefulnessReasons: input.discovery.selectedTile.usefulness.reasons,
+              }
+            : null,
+          tileDetail: input.discovery.tileDetail
+            ? {
+                cell: input.discovery.tileDetail.cell,
+                label: input.discovery.tileDetail.label,
+                visibility: input.discovery.tileDetail.visibility,
+                terrain: input.discovery.tileDetail.terrain,
+                feature: input.discovery.tileDetail.feature,
+                hasSubmap: input.discovery.tileDetail.hasSubmap,
+                linkCount: input.discovery.tileDetail.links.length,
+                visibleLinkIds: input.discovery.tileDetail.links
+                  .filter((link) => link.visible)
+                  .map((link) => link.id),
+                enabledLinkIds: input.discovery.tileDetail.links
+                  .filter((link) => link.enabled)
+                  .map((link) => link.id),
+                linkKinds: input.discovery.tileDetail.links.map((link) => link.kind),
+                targetMapModes: input.discovery.tileDetail.links.flatMap((link) =>
+                  link.targetMapMode ? [link.targetMapMode] : [],
+                ),
+                actionKinds: input.discovery.tileDetail.actions.map((action) => action.kind),
               }
             : null,
           dungeonEntryAvailable: input.discovery.dungeonEntry?.enabled ?? false,
