@@ -3,14 +3,16 @@ import {
   dungeonEntranceCoord,
   type DungeonBlueprint,
   type DungeonCellSpec,
+  type DungeonRoomSpec,
 } from "@aedventure/game-dungeon"
 import type { CellCoord } from "@aedventure/game-topology"
 import type { GameMap } from "@aedventure/game-world"
 
-// The Studio is the first concrete dungeon. Its layout is authored as a reusable
-// blueprint (see @aedventure/game-dungeon) and compiled to a neutral GameMap.
-// Two variants share the same footprint and entrance so the dungeon visibly
-// reflects the `studio_restored` game state.
+// The Studio is the first concrete dungeon: the ground floor of an old Champagne
+// dairy-farm main building. Its layout is authored once as a reusable blueprint
+// (see @aedventure/game-dungeon) and compiled to a neutral GameMap. Both the
+// restored and ruined variants share the SAME footprint/grid and differ only by
+// legend (clean fittings vs. rubble), so the dungeon reflects `studio_restored`.
 
 export const STUDIO_DUNGEON_ID = "dungeon.studio"
 export const STUDIO_DUNGEON_MAP_ID = "add.rpg.dungeon.studio"
@@ -24,6 +26,7 @@ const EXIT_LINK = {
   targetCoord: { kind: "hex" as const, q: 0, r: 0 },
 }
 
+// Shared structure (identical in both variants).
 const WALL: DungeonCellSpec = { kind: "wall" }
 const FLOOR: DungeonCellSpec = { kind: "floor" }
 const ENTRANCE: DungeonCellSpec = {
@@ -32,79 +35,155 @@ const ENTRANCE: DungeonCellSpec = {
   feature: "entrance",
   link: EXIT_LINK,
 }
-
-function ratCell(instanceId: string): DungeonCellSpec {
-  return {
-    kind: "floor",
-    feature: "creature",
-    entity: {
-      idSuffix: "rat",
-      instanceId,
-      label: "Rat",
-      kind: "creature",
-      visualFootprint: { unit: "cell", width: 0.35, height: 0.35 },
-      sourceId: "rat",
-    },
-  }
+const ARCHWAY: DungeonCellSpec = { kind: "floor", feature: "archway" }
+// A door: passable floor whose open/closed state is authoritative (Rust snapshot
+// `openDoors`). `applyDungeonDoorStates` flips `blocked` from the live state, which
+// gates both movement and the FOV cone. Starts closed.
+const DOOR: DungeonCellSpec = { kind: "floor", feature: "door", metadata: { door: true } }
+const STAIRS_UP: DungeonCellSpec = {
+  kind: "floor",
+  feature: "stairs",
+  entity: { idSuffix: "stairs-up", label: "Up to the Loft", kind: "stairs", sourceId: "stairs_up", tags: ["fixture"] },
+}
+const STAIRS_DOWN: DungeonCellSpec = {
+  kind: "floor",
+  feature: "stairs",
+  entity: { idSuffix: "stairs-down", label: "Down to the Cellars", kind: "stairs", sourceId: "stairs_down", tags: ["fixture"] },
+}
+const RUBBLE_WALL: DungeonCellSpec = {
+  kind: "wall",
+  feature: "rubble",
+  tokenId: "add.fixture.dungeon.rubble",
+}
+// A sub-tile creature (~a third of a tile). The shared glyph appears several
+// times; compileDungeon gives each occurrence a unique id.
+const RAT: DungeonCellSpec = {
+  kind: "floor",
+  feature: "creature",
+  entity: {
+    idSuffix: "rat",
+    label: "Rat",
+    kind: "creature",
+    visualFootprint: { unit: "cell", width: 0.35, height: 0.35 },
+    sourceId: "rat",
+  },
 }
 
-const RAT_A = ratCell("studio-rat-a")
-const RAT_B = ratCell("studio-rat-b")
-const RAT_C = ratCell("studio-rat-c")
+// Ground-floor plan. N is "up" (the way the Hero enters). Legend:
+//   # wall   . floor   > entrance(foyer)   = archway   ^ up stairs   v down stairs
+//   1/2/3 studio fittings   K kitchen hearth   D dining table
+//   r rat (ruined only)     ~ collapsed spot (floor when restored, rubble when ruined)
+const BUILDING_GRID = [
+  "######################",
+  "#.....#..#...........#",
+  "#..3..+..#.....K.....#",
+  "#.....#..#..r....~...#",
+  "#.....#..#...........#",
+  "#######..######+######",
+  "#.....#..#...........#",
+  "#..2..+..#...~.......#",
+  "#..r..#..#.....D.....#",
+  "#.~...#..#........r..#",
+  "#######..#...........#",
+  "#.....#..#####.=.#####",
+  "#..1..+..#.^v........#",
+  "#...~.#..+...........#",
+  "##########...........#",
+  "###############>######",
+]
+
+const STUDIO_ROOMS: readonly DungeonRoomSpec[] = [
+  { id: `${STUDIO_DUNGEON_MAP_ID}.foyer`, label: "Foyer", kind: "room", rect: { x: 10, y: 12, width: 11, height: 3 } },
+  { id: `${STUDIO_DUNGEON_MAP_ID}.dining-room`, label: "Dining Room", kind: "room", rect: { x: 10, y: 6, width: 11, height: 5 } },
+  { id: `${STUDIO_DUNGEON_MAP_ID}.kitchen`, label: "Kitchen", kind: "room", rect: { x: 10, y: 1, width: 11, height: 4 } },
+  { id: `${STUDIO_DUNGEON_MAP_ID}.corridor`, label: "Corridor", kind: "hall", rect: { x: 7, y: 1, width: 2, height: 13 } },
+  { id: `${STUDIO_DUNGEON_MAP_ID}.studio-1`, label: "Recording Studio 1", kind: "room", rect: { x: 1, y: 11, width: 5, height: 3 } },
+  { id: `${STUDIO_DUNGEON_MAP_ID}.studio-2`, label: "Recording Studio 2", kind: "room", rect: { x: 1, y: 6, width: 5, height: 4 } },
+  { id: `${STUDIO_DUNGEON_MAP_ID}.studio-3`, label: "Recording Studio 3", kind: "room", rect: { x: 1, y: 1, width: 5, height: 4 } },
+]
+
+const RESTORED_LEGEND: Readonly<Record<string, DungeonCellSpec>> = {
+  "#": WALL,
+  ".": FLOOR,
+  ">": ENTRANCE,
+  "=": ARCHWAY,
+  "+": DOOR,
+  "^": STAIRS_UP,
+  v: STAIRS_DOWN,
+  r: FLOOR,
+  "~": FLOOR,
+  "1": {
+    kind: "floor",
+    feature: "console",
+    entity: { idSuffix: "mixing-console", label: "Mixing Console", sourceId: "mixing_console" },
+  },
+  "2": {
+    kind: "floor",
+    feature: "crystal",
+    entity: { idSuffix: "echo-crystal", label: "Echo Crystal", sourceId: "echo_crystal" },
+  },
+  "3": {
+    kind: "floor",
+    feature: "bassline",
+    entity: { idSuffix: "crystal-bassline", label: "Crystal Bassline", sourceId: "crystal_bassline" },
+  },
+  K: {
+    kind: "floor",
+    feature: "hearth",
+    entity: { idSuffix: "kitchen-hearth", label: "Kitchen Hearth", sourceId: "kitchen_hearth" },
+  },
+  D: {
+    kind: "floor",
+    feature: "table",
+    entity: { idSuffix: "banquet-table", label: "Banquet Table", sourceId: "banquet_table" },
+  },
+}
+
+const RUINED_LEGEND: Readonly<Record<string, DungeonCellSpec>> = {
+  "#": WALL,
+  ".": FLOOR,
+  ">": ENTRANCE,
+  "=": ARCHWAY,
+  "+": DOOR,
+  "^": STAIRS_UP,
+  v: STAIRS_DOWN,
+  r: RAT,
+  "~": RUBBLE_WALL,
+  "1": {
+    kind: "floor",
+    feature: "rubble",
+    entity: { idSuffix: "collapsed-console", label: "Collapsed Console", sourceId: "collapsed_console" },
+  },
+  "2": {
+    kind: "floor",
+    feature: "rubble",
+    entity: { idSuffix: "cracked-crystal", label: "Cracked Echo Crystal", sourceId: "echo_crystal" },
+  },
+  "3": {
+    kind: "floor",
+    feature: "rubble",
+    entity: { idSuffix: "silent-bassline", label: "Silent Bassline", sourceId: "crystal_bassline" },
+  },
+  K: {
+    kind: "floor",
+    feature: "rubble",
+    entity: { idSuffix: "cold-hearth", label: "Cold Hearth", sourceId: "kitchen_hearth" },
+  },
+  D: {
+    kind: "floor",
+    feature: "rubble",
+    entity: { idSuffix: "broken-table", label: "Broken Table", sourceId: "banquet_table" },
+  },
+}
 
 const STUDIO_RESTORED_BLUEPRINT: DungeonBlueprint = {
   id: STUDIO_DUNGEON_MAP_ID,
   label: "The Studio",
   metadata: { theme: "studio", studioState: "restored" },
   entryFacing: "up",
-  grid: [
-    "############",
-    "#..........#",
-    "#.C......E.#",
-    "#..........#",
-    "#....ab....#",
-    "#..........#",
-    "#.B......d.#",
-    "#..........#",
-    "#####>######",
-  ],
-  legend: {
-    "#": WALL,
-    ".": FLOOR,
-    ">": ENTRANCE,
-    a: RAT_A,
-    b: RAT_B,
-    d: RAT_C,
-    C: {
-      kind: "floor",
-      feature: "console",
-      entity: { idSuffix: "mixing-console", label: "Mixing Console", sourceId: "mixing_console" },
-    },
-    E: {
-      kind: "floor",
-      feature: "crystal",
-      entity: { idSuffix: "echo-crystal", label: "Echo Crystal", sourceId: "echo_crystal" },
-    },
-    B: {
-      kind: "floor",
-      feature: "bassline",
-      entity: { idSuffix: "crystal-bassline", label: "Crystal Bassline", sourceId: "crystal_bassline" },
-    },
-  },
-  rooms: [
-    {
-      id: `${STUDIO_DUNGEON_MAP_ID}.live-room`,
-      label: "Live Room",
-      kind: "room",
-      rect: { x: 1, y: 1, width: 5, height: 6 },
-    },
-    {
-      id: `${STUDIO_DUNGEON_MAP_ID}.control-booth`,
-      label: "Control Booth",
-      kind: "room",
-      rect: { x: 6, y: 1, width: 5, height: 6 },
-    },
-  ],
+  grid: BUILDING_GRID,
+  legend: RESTORED_LEGEND,
+  rooms: STUDIO_ROOMS,
 }
 
 const STUDIO_RUINED_BLUEPRINT: DungeonBlueprint = {
@@ -112,43 +191,9 @@ const STUDIO_RUINED_BLUEPRINT: DungeonBlueprint = {
   label: "The Studio",
   metadata: { theme: "studio", studioState: "ruined" },
   entryFacing: "up",
-  grid: [
-    "############",
-    "#..x.....x.#",
-    "#.x...c....#",
-    "#....xx....#",
-    "#..x....x..#",
-    "#....xx....#",
-    "#.x.ab..x..#",
-    "#..x.d...x.#",
-    "#####>######",
-  ],
-  legend: {
-    "#": WALL,
-    ".": FLOOR,
-    ">": ENTRANCE,
-    a: RAT_A,
-    b: RAT_B,
-    d: RAT_C,
-    x: {
-      kind: "wall",
-      feature: "rubble",
-      tokenId: "add.fixture.dungeon.rubble",
-    },
-    c: {
-      kind: "floor",
-      feature: "rubble",
-      entity: { idSuffix: "collapsed-console", label: "Collapsed Console", sourceId: "collapsed_console" },
-    },
-  },
-  rooms: [
-    {
-      id: `${STUDIO_DUNGEON_MAP_ID}.rubble`,
-      label: "Collapsed Floor",
-      kind: "room",
-      rect: { x: 1, y: 1, width: 10, height: 7 },
-    },
-  ],
+  grid: BUILDING_GRID,
+  legend: RUINED_LEGEND,
+  rooms: STUDIO_ROOMS,
 }
 
 export function studioDungeonBlueprint(restored: boolean): DungeonBlueprint {
@@ -160,4 +205,4 @@ export function studioDungeonMap(restored: boolean): GameMap {
 }
 
 export const STUDIO_DUNGEON_ENTRANCE: CellCoord =
-  dungeonEntranceCoord(STUDIO_RESTORED_BLUEPRINT) ?? { kind: "square", x: 5, y: 8 }
+  dungeonEntranceCoord(STUDIO_RESTORED_BLUEPRINT) ?? { kind: "square", x: 15, y: 15 }
