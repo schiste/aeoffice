@@ -218,6 +218,18 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   systems: the tuning model owns body radius, analog curve, and corner-slide
   assist, client prediction uses those values, and the development world server
   can receive matching movement tuning through a dev-only route.
+- ADD Phase 0 tile-detail foundation is now in progress: `add-domain` exposes
+  a renderer-agnostic selected tile detail contract with optional base/dungeon
+  links, map scale metadata distinguishes strategic overworld hex travel from
+  local/interior square submaps, the selected-tile card renders link/action
+  rows from the domain projection, and smoke assertions cover normal tiles
+  having no submap plus Survivor Cave/base/dungeon scale rules.
+- Verification for this slice: `npm --workspace @aedventure/add-domain run
+  build`, `npm --workspace @aedventure/add-rpg run build:types`, and `node
+  --check scripts/add-rpg-smoke.test.cjs` pass. Full ADD browser build/smoke is
+  currently blocked by unrelated dirty inventory runtime work:
+  `crates/add-core/src/simulation.rs` references `SCRAP_PER_STONE` without a
+  visible definition.
 - Dungeon entity identity is no longer tied to cell coordinates. Mutable
   entities can declare stable `instanceId`s, static fallback entities use
   occurrence-based ids, duplicate instance ids are validated, and Studio rats now
