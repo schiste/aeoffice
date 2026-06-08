@@ -105,6 +105,36 @@ export interface EncounterTable extends ContentEntry {
   readonly entries: readonly EncounterChance[]
 }
 
+/** Pick a weighted entry for a `roll` in [0,1). Deterministic; pass any roll
+ * source (a seeded value, or evenly-spaced indices for fixed placements). */
+export function rollEncounter(
+  table: EncounterTable,
+  roll: number,
+): EncounterChance | undefined {
+  const total = table.entries.reduce((sum, e) => sum + Math.max(0, e.weight), 0)
+  if (total <= 0) return undefined
+  let remaining = Math.min(1, Math.max(0, roll)) * total
+  for (const entry of table.entries) {
+    remaining -= Math.max(0, entry.weight)
+    if (remaining < 0) return entry
+  }
+  return table.entries[table.entries.length - 1]
+}
+
+/** Deterministically resolve `count` spawns from a table by spreading evenly
+ * across the weight distribution (no RNG) — for fixed spawn slots. */
+export function resolveEncounterSpawns(
+  table: EncounterTable,
+  count: number,
+): EncounterChance[] {
+  const spawns: EncounterChance[] = []
+  for (let i = 0; i < count; i += 1) {
+    const pick = rollEncounter(table, count <= 1 ? 0 : (i + 0.5) / count)
+    if (pick) spawns.push(pick)
+  }
+  return spawns
+}
+
 // --- Rust-literal emitter ---------------------------------------------------
 // Emits a catalog as a generated Rust `const` array literal. Output is compact;
 // run rustfmt afterwards for canonical formatting. The build step that uses this

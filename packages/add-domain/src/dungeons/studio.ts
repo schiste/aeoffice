@@ -5,8 +5,11 @@ import {
   type DungeonCellSpec,
   type DungeonRoomSpec,
 } from "@aedventure/game-dungeon"
+import { resolveEncounterSpawns } from "@aedventure/game-content"
 import type { CellCoord } from "@aedventure/game-topology"
 import type { GameMap } from "@aedventure/game-world"
+
+import { encounterTableById } from "../content/encounter-tables"
 
 // The Studio is the first concrete dungeon: the ground floor of an old Champagne
 // dairy-farm main building. Its layout is authored once as a reusable blueprint
@@ -55,19 +58,38 @@ const RUBBLE_WALL: DungeonCellSpec = {
   feature: "rubble",
   tokenId: "add.fixture.dungeon.rubble",
 }
-// A sub-tile creature (~a third of a tile). The shared glyph appears several
-// times; compileDungeon gives each occurrence a unique id.
-const RAT: DungeonCellSpec = {
-  kind: "floor",
-  feature: "creature",
-  entity: {
-    idSuffix: "rat",
-    label: "Rat",
-    kind: "creature",
-    visualFootprint: { unit: "cell", width: 0.35, height: 0.35 },
-    sourceId: "rat",
-  },
+// Creatures the Studio's encounter table can place (id -> presentation).
+const STUDIO_CREATURES: Record<string, { readonly label: string; readonly size: number }> = {
+  rat: { label: "Rat", size: 0.35 },
+  giant_rat: { label: "Giant Rat", size: 0.6 },
 }
+
+// A sub-tile creature cell for a given creature id. compileDungeon gives each
+// occurrence a unique id.
+function creatureCell(creatureId: string): DungeonCellSpec {
+  const creature = STUDIO_CREATURES[creatureId] ?? { label: creatureId, size: 0.4 }
+  return {
+    kind: "floor",
+    feature: "creature",
+    entity: {
+      idSuffix: creatureId,
+      label: creature.label,
+      kind: "creature",
+      visualFootprint: { unit: "cell", width: creature.size, height: creature.size },
+      sourceId: creatureId,
+    },
+  }
+}
+
+// The ruined Studio's three vermin spawn slots are filled deterministically from
+// the studio_vermin encounter table (3:1 rats:giant -> rat, rat, giant rat).
+const STUDIO_VERMIN_TABLE = encounterTableById("encounter.studio_vermin") ?? {
+  id: "encounter.studio_vermin",
+  entries: [],
+}
+const STUDIO_VERMIN: readonly DungeonCellSpec[] = resolveEncounterSpawns(STUDIO_VERMIN_TABLE, 3).map(
+  (spawn) => creatureCell(spawn.creatureId),
+)
 
 // Ground-floor plan. N is "up" (the way the Hero enters). Legend:
 //   # wall   . floor   > entrance(foyer)   = archway   ^ up stairs   v down stairs
@@ -82,8 +104,8 @@ const BUILDING_GRID = [
   "#######..######+######",
   "#.....#..#...........#",
   "#..2..+..#...~.......#",
-  "#..r..#..#.....D.....#",
-  "#.~...#..#........r..#",
+  "#..s..#..#.....D.....#",
+  "#.~...#..#........t..#",
   "#######..#...........#",
   "#.....#..#####.=.#####",
   "#..1..+..#.^v........#",
@@ -111,6 +133,8 @@ const RESTORED_LEGEND: Readonly<Record<string, DungeonCellSpec>> = {
   "^": STAIRS_UP,
   v: STAIRS_DOWN,
   r: FLOOR,
+  s: FLOOR,
+  t: FLOOR,
   "~": FLOOR,
   "1": {
     kind: "floor",
@@ -147,7 +171,9 @@ const RUINED_LEGEND: Readonly<Record<string, DungeonCellSpec>> = {
   "+": DOOR,
   "^": STAIRS_UP,
   v: STAIRS_DOWN,
-  r: RAT,
+  r: STUDIO_VERMIN[0],
+  s: STUDIO_VERMIN[1],
+  t: STUDIO_VERMIN[2],
   "~": RUBBLE_WALL,
   "1": {
     kind: "floor",

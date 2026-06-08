@@ -128,4 +128,16 @@ const reqRust = toRustConst(
 assert.ok(reqRust.includes("requirements: &[RequirementDef::FlagSet(FLAG_BASE_FIRE_PIT_BUILT)]"))
 assert.ok(reqRust.includes("T { requirements: &[] },"))
 
+// encounter resolver: weighted pick + deterministic fixed spawns
+const { rollEncounter, resolveEncounterSpawns } = require("../dist/index.js")
+const encTable = { id: "t", entries: [{ creatureId: "rat", weight: 3 }, { creatureId: "giant_rat", weight: 1 }] }
+assert.equal(rollEncounter(encTable, 0).creatureId, "rat")
+assert.equal(rollEncounter(encTable, 0.9).creatureId, "giant_rat")
+assert.equal(rollEncounter({ id: "e", entries: [] }, 0.5), undefined)
+assert.deepEqual(
+  resolveEncounterSpawns(encTable, 4).map((s) => s.creatureId),
+  ["rat", "rat", "rat", "giant_rat"],
+)
+assert.equal(resolveEncounterSpawns(encTable, 1)[0].creatureId, "rat")
+
 console.log("game-content: all assertions passed")
