@@ -1231,7 +1231,11 @@ export class AddRpgHexScene extends Phaser.Scene {
       },
       landmarks: {
         primaryAnchorCoord: context.baseCoord,
+        primaryAnchorPosition: context.baseCoord ? centerFor(context.baseCoord, context) : null,
         spawnAnchorCoord: context.survivorCaveCoord,
+        spawnAnchorPosition: context.survivorCaveCoord
+          ? centerFor(context.survivorCaveCoord, context)
+          : null,
         renderedCount: this.landmarkObjects.length,
       },
       visibility: {

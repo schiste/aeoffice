@@ -2883,8 +2883,10 @@ function emptyMapInfo(): AddPhaserMapInfo {
     },
     landmarks: {
       baseCenter: null,
+      baseCenterWorld: null,
       studioLabelVisible: false,
       survivorCave: null,
+      survivorCaveWorld: null,
       survivorCaveVisible: false,
       renderedCount: 0,
     },

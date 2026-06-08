@@ -129,7 +129,9 @@ export interface PhaserMapRendererState {
   }
   readonly landmarks: {
     readonly primaryAnchorCoord: CellCoord | null
+    readonly primaryAnchorPosition: Vector2 | null
     readonly spawnAnchorCoord: CellCoord | null
+    readonly spawnAnchorPosition: Vector2 | null
     readonly renderedCount: number
   }
   readonly visibility: {
@@ -232,8 +234,10 @@ export interface AddPhaserMapInfo {
   }
   readonly landmarks: {
     readonly baseCenter: string | null
+    readonly baseCenterWorld: Vector2 | null
     readonly studioLabelVisible: boolean
     readonly survivorCave: string | null
+    readonly survivorCaveWorld: Vector2 | null
     readonly survivorCaveVisible: boolean
     readonly renderedCount: number
   }

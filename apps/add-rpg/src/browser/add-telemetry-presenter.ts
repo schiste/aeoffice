@@ -351,7 +351,9 @@ export interface RuntimeTextState {
       readonly visibleLinkIds: readonly string[]
       readonly enabledLinkIds: readonly string[]
       readonly linkKinds: readonly string[]
+      readonly linkLabels: readonly string[]
       readonly targetMapModes: readonly string[]
+      readonly targetMapIds: readonly string[]
       readonly actionKinds: readonly string[]
     } | null
     readonly dungeonEntryAvailable: boolean
@@ -516,8 +518,12 @@ export function createAddRuntimeTextState(
                   .filter((link) => link.enabled)
                   .map((link) => link.id),
                 linkKinds: input.discovery.tileDetail.links.map((link) => link.kind),
+                linkLabels: input.discovery.tileDetail.links.map((link) => link.label),
                 targetMapModes: input.discovery.tileDetail.links.flatMap((link) =>
                   link.targetMapMode ? [link.targetMapMode] : [],
+                ),
+                targetMapIds: input.discovery.tileDetail.links.flatMap((link) =>
+                  link.targetMapId ? [link.targetMapId] : [],
                 ),
                 actionKinds: input.discovery.tileDetail.actions.map((action) => action.kind),
               }

@@ -89,7 +89,7 @@ export function selectAddTileDetail(
 
   return {
     cell: tile.cell,
-    label: conciseTileLabel(tile.label),
+    label: tileDetailLabel(tile),
     visibility: tile.visibility,
     terrain: tile.visibility === "hidden" ? null : tile.terrain,
     feature: tile.visibility === "hidden" ? null : tile.feature,
@@ -161,7 +161,7 @@ function tileLinks(
     links.push({
       id: "tile-link:base:studio-echo",
       kind: "base",
-      label: "Studio Echo",
+      label: "Studio Echo Base",
       targetMapMode: "base_square",
       targetMapId: ADD_BASE_SQUARE_MAP_ID,
       visible: true,
@@ -172,7 +172,7 @@ function tileLinks(
 
   tile.dungeonLinks.forEach((link) => {
     const heroLink = heroDungeonLinks.find((candidate) => candidate.id === link.id)
-    const enabled = Boolean(heroLink?.enabled)
+    const enabled = isBaseFeature(tile.feature) ? link.enabled : Boolean(heroLink?.enabled)
     links.push({
       id: `tile-link:dungeon:${link.id}`,
       kind: "dungeon",
@@ -181,7 +181,11 @@ function tileLinks(
       targetMapId: link.targetMapId,
       visible: true,
       enabled,
-      blockedReason: enabled ? null : "Move the Hero onto this entrance to enter.",
+      blockedReason: enabled
+        ? null
+        : isBaseFeature(tile.feature)
+          ? "The Studio interior is not available yet."
+          : "Move the Hero onto this entrance to enter.",
     })
   })
 
@@ -199,7 +203,7 @@ function tileActions(input: {
     actions.push({
       id: `tile-action:travel:${input.tile.cell}`,
       kind: "travel",
-      label: input.tile.visibility === "hidden" ? "Scout edge" : `Cross to ${conciseTileLabel(input.tile.label)}`,
+      label: input.tile.visibility === "hidden" ? "Scout edge" : `Cross to ${tileDetailLabel(input.tile)}`,
       enabled: input.travel.canTravelNow,
       blockedReason: input.travel.canTravelNow
         ? null
@@ -214,7 +218,7 @@ function tileActions(input: {
     actions.push({
       id: `tile-action:${link.kind}:${link.id}`,
       kind: link.kind === "base" ? "manage_base" : "enter_submap",
-      label: link.kind === "base" ? "Open Studio Echo" : `Enter ${link.label}`,
+      label: link.kind === "base" ? "Manage Studio Echo" : `Enter ${link.label}`,
       enabled: link.enabled,
       blockedReason: link.blockedReason,
       linkId: link.id,
@@ -265,6 +269,11 @@ function hasSubmapTarget(link: AddTileLink): boolean {
 
 function isBaseFeature(feature: AddFeature): boolean {
   return feature === "base" || feature === "base_core"
+}
+
+function tileDetailLabel(tile: AddTileInteractionDetail): string {
+  if (isBaseFeature(tile.feature)) return "The Studio"
+  return conciseTileLabel(tile.label)
 }
 
 function conciseTileLabel(label: string): string {
