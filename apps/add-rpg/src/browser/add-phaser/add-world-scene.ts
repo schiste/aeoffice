@@ -1,4 +1,5 @@
 import Phaser from "phaser"
+import { TransitionRegistry } from "@aedventure/game-animation"
 import type { CellCoord, SquareCoord, Vector2 } from "@aedventure/game-topology"
 import { validateGameWorld, type GameCellPlacement, type GameEntity, type GameWorld } from "@aedventure/game-world"
 import {
@@ -82,6 +83,17 @@ import {
   type TravelRevealTrailEntry,
 } from "./types"
 
+// How long a door takes to swing open/closed (presentation only).
+const DOOR_SWING_MS = 300
+
+interface DoorVisual {
+  panel: Phaser.GameObjects.Rectangle
+  coord: SquareCoord
+  closedRot: number
+  openRot: number
+  open: boolean
+}
+
 export class AddRpgHexScene extends Phaser.Scene {
   private readonly hostOptions: AddRpgPhaserMapHostOptions
   private readonly cellPresentationPolicy = createAddCellPresentationPolicy()
@@ -94,6 +106,8 @@ export class AddRpgHexScene extends Phaser.Scene {
   private fogGraphics?: Phaser.GameObjects.Graphics
   private transitionGraphics?: Phaser.GameObjects.Graphics
   private landmarkObjects: Phaser.GameObjects.GameObject[] = []
+  private readonly doorVisuals = new Map<string, DoorVisual>()
+  private readonly transitions = new TransitionRegistry()
   private pendingWorld?: GameWorld
   private context?: RenderContext
   private ready = false
@@ -167,6 +181,7 @@ export class AddRpgHexScene extends Phaser.Scene {
     this.updateMainCharacter(delta)
     this.drawAmbience(this.context)
     this.drawFog(this.context)
+    this.tickDoors()
     this.drawOverlay()
     this.refreshInfo()
   }
@@ -395,6 +410,9 @@ export class AddRpgHexScene extends Phaser.Scene {
       this.travelRevealTrail.clear()
       this.cellInteractionRenderer?.clear()
       this.characterRenderer?.clear()
+      this.doorVisuals.forEach((visual) => visual.panel.destroy())
+      this.doorVisuals.clear()
+      this.transitions.clear()
     }
 
     this.context = createRenderContext(map, this.scale.width, this.scale.height)
@@ -403,6 +421,7 @@ export class AddRpgHexScene extends Phaser.Scene {
     this.drawAmbience(this.context)
     this.drawFog(this.context)
     this.drawLandmarks(this.context)
+    this.syncDoors(this.context)
     this.syncMainCharacter(this.context, mapChanged)
     this.drawOverlay()
     this.renderCount += 1
@@ -472,6 +491,101 @@ export class AddRpgHexScene extends Phaser.Scene {
     const eye = this.add.ellipse(center.x + bodyRx * 0.5, center.y - bodyRy * 0.2, 1.5, 1.5, 0x0f0b07, 0.9)
     ;[shadow, body, belly, eye].forEach((object, index) => object.setDepth(22 + index))
     this.landmarkObjects.push(shadow, body, belly, eye)
+  }
+
+  // Build/update persistent door panels from the map's door cells and start a
+  // swing transition whenever a door's open state changed since the last render.
+  private syncDoors(context: RenderContext): void {
+    const cellSize = squareCellSize(context)
+    const seen = new Set<string>()
+    for (const cell of context.terrainCells) {
+      if (cell.metadata?.door !== true || cell.coord.kind !== "square") continue
+      const key = addMapCoordKey(cell.coord)
+      seen.add(key)
+      const open = cell.metadata?.doorOpen === true
+      const center = centerFor(cell.coord, context)
+      const geo = this.doorGeometry(cell.coord, center, cellSize, context)
+      const existing = this.doorVisuals.get(key)
+      if (!existing) {
+        const panel = this.add.rectangle(geo.hingeX, geo.hingeY, geo.length, geo.thickness, 0x6e4a2c)
+        panel.setOrigin(0, 0.5)
+        panel.setStrokeStyle(2, 0x33230f, 0.9)
+        panel.setDepth(22)
+        panel.setRotation(open ? geo.openRot : geo.closedRot)
+        this.doorVisuals.set(key, {
+          panel,
+          coord: cell.coord,
+          closedRot: geo.closedRot,
+          openRot: geo.openRot,
+          open,
+        })
+      } else {
+        existing.panel.setPosition(geo.hingeX, geo.hingeY)
+        existing.panel.setSize(geo.length, geo.thickness)
+        existing.closedRot = geo.closedRot
+        existing.openRot = geo.openRot
+        if (existing.open !== open) {
+          // Swing from wherever the panel currently is to the new target angle.
+          const current = this.transitions.value(
+            `door:${key}`,
+            this.time.now,
+            existing.open ? existing.openRot : existing.closedRot,
+          )
+          this.transitions.begin(`door:${key}`, {
+            from: current,
+            to: open ? geo.openRot : geo.closedRot,
+            durationMs: DOOR_SWING_MS,
+            startedAt: this.time.now,
+            easing: smoothStep,
+          })
+          existing.open = open
+        }
+      }
+    }
+    for (const [key, visual] of this.doorVisuals) {
+      if (!seen.has(key)) {
+        visual.panel.destroy()
+        this.doorVisuals.delete(key)
+        this.transitions.delete(`door:${key}`)
+      }
+    }
+    this.tickDoors()
+  }
+
+  // Per-frame: ease each door toward its target angle and hide doors in fog.
+  private tickDoors(): void {
+    const now = this.time.now
+    for (const [key, visual] of this.doorVisuals) {
+      const targetRot = visual.open ? visual.openRot : visual.closedRot
+      visual.panel.setRotation(this.transitions.value(`door:${key}`, now, targetRot))
+      const cell = this.context?.terrainByCoord.get(addMapCoordKey(visual.coord))
+      visual.panel.setVisible(cell ? presentationVisibilityStateForCell(cell) !== "hidden" : true)
+    }
+    this.transitions.prune(now)
+  }
+
+  // A door slab spans its doorway when closed and swings a quarter-turn open.
+  private doorGeometry(
+    coord: SquareCoord,
+    center: Vector2,
+    cellSize: number,
+    context: RenderContext,
+  ): { hingeX: number; hingeY: number; length: number; thickness: number; closedRot: number; openRot: number } {
+    const isWall = (dx: number, dy: number): boolean => {
+      const neighbor = context.terrainByCoord.get(
+        addMapCoordKey({ kind: "square", x: coord.x + dx, y: coord.y + dy }),
+      )
+      return !neighbor || neighbor.blocked === true
+    }
+    const length = cellSize * 0.92
+    const thickness = Math.max(3, cellSize * 0.16)
+    const half = cellSize / 2
+    // Walls north & south → passage runs E-W → slab spans N-S, hinged at the north jamb.
+    if (isWall(0, -1) && isWall(0, 1)) {
+      return { hingeX: center.x, hingeY: center.y - half, length, thickness, closedRot: Math.PI / 2, openRot: 0 }
+    }
+    // Otherwise the passage runs N-S → slab spans E-W, hinged at the west jamb.
+    return { hingeX: center.x - half, hingeY: center.y, length, thickness, closedRot: 0, openRot: -Math.PI / 2 }
   }
 
   private syncMainCharacter(context: RenderContext, forceReset: boolean): void {

@@ -382,6 +382,25 @@ mod tests {
     }
 
     #[test]
+    fn open_door_records_key_and_persists_in_save() {
+        let mut simulation = Simulation::new();
+        assert!(simulation.state().open_doors.is_empty());
+
+        simulation.apply(GameCommand::OpenDoor {
+            key: "dungeon.studio:6:7".to_string(),
+        });
+        assert!(simulation.state().open_doors.contains("dungeon.studio:6:7"));
+
+        let serialized = export_save(simulation.state()).expect("save should serialize");
+        let restored = import_save(&serialized).expect("save should deserialize");
+        let restored_simulation = Simulation::from_state(restored);
+        assert!(restored_simulation
+            .state()
+            .open_doors
+            .contains("dungeon.studio:6:7"));
+    }
+
+    #[test]
     fn reset_clears_discovery_to_initial_cells() {
         let mut simulation = Simulation::new();
         simulation.apply(GameCommand::MoveHeroTo { q: 0, r: 0 });

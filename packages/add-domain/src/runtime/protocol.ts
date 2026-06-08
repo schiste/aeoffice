@@ -229,6 +229,8 @@ export interface SimulationSnapshot {
   activeConstruction: ConstructionSnapshot | null
   activeWorldAction: WorldActionSnapshot | null
   notes: string[]
+  /** Open dungeon doors, keyed by `${dungeonId}:${x}:${y}`. */
+  openDoors: string[]
 }
 
 export interface ResourceDef {
@@ -729,6 +731,7 @@ export type WorkerRequest =
   | { type: 'startProcessing'; recipeId: string }
   | { type: 'recruitFromSurvivorCave' }
   | { type: 'moveHeroTo'; q: number; r: number }
+  | { type: 'openDoor'; key: string }
   | { type: 'spendBassline'; amount: number }
   | { type: 'importSave'; payload: string }
   | { type: 'exportSave' }

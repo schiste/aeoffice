@@ -43,6 +43,10 @@ pub struct GameState {
     pub active_construction: Option<ConstructionJob>,
     pub active_world_action: Option<WorldAction>,
     pub notes: Vec<String>,
+    /// Authoritative open/closed state for dungeon doors, keyed by
+    /// `${dungeonId}:${x}:${y}`. A key present here means that door is open.
+    #[serde(default)]
+    pub open_doors: BTreeSet<String>,
 }
 
 impl GameState {
@@ -111,6 +115,7 @@ impl GameState {
                 "Phase 0 runtime initialized.".to_string(),
                 "Bassline, Chorus, and Harmonics now drive the base economy.".to_string(),
             ],
+            open_doors: BTreeSet::new(),
         }
     }
 }

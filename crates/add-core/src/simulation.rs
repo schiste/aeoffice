@@ -128,6 +128,9 @@ impl Simulation {
             GameCommand::StartProcessing { recipe_id } => self.start_processing(&recipe_id),
             GameCommand::RecruitFromSurvivorCave => self.recruit_from_survivor_cave(),
             GameCommand::MoveHeroTo { q, r } => self.move_hero_to(q, r),
+            GameCommand::OpenDoor { key } => {
+                self.state.open_doors.insert(key);
+            }
             GameCommand::SpendBassline { amount } => self.spend_bassline(amount),
             GameCommand::Tick { seconds } => self.tick_internal(seconds, false),
             GameCommand::RunOfflineCatchup { elapsed_seconds } => {

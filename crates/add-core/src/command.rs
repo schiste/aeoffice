@@ -12,6 +12,7 @@ pub enum GameCommand {
     StartProcessing { recipe_id: String },
     RecruitFromSurvivorCave,
     MoveHeroTo { q: i8, r: i8 },
+    OpenDoor { key: String },
     SpendBassline { amount: f64 },
     Tick { seconds: f64 },
     RunOfflineCatchup { elapsed_seconds: f64 },

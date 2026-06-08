@@ -106,6 +106,13 @@ impl WebRuntime {
         self.simulation.apply(GameCommand::MoveHeroTo { q, r });
     }
 
+    #[wasm_bindgen(js_name = openDoor)]
+    pub fn open_door(&mut self, key: &str) {
+        self.simulation.apply(GameCommand::OpenDoor {
+            key: key.to_string(),
+        });
+    }
+
     #[wasm_bindgen(js_name = spendBassline)]
     pub fn spend_bassline(&mut self, amount: f64) {
         self.simulation.apply(GameCommand::SpendBassline { amount });

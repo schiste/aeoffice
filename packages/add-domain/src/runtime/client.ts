@@ -75,6 +75,10 @@ export class SimulationClient {
     this.post({ type: 'moveHeroTo', q, r })
   }
 
+  openDoor(key: string) {
+    this.post({ type: 'openDoor', key })
+  }
+
   spendBassline(amount: number) {
     this.post({ type: 'spendBassline', amount })
   }

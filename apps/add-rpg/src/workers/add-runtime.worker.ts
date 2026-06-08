@@ -71,6 +71,10 @@ async function handleMessage(message: WorkerRequest) {
         runtime?.moveHeroTo(message.q, message.r)
         postWorkerEvent({ type: 'snapshot', snapshot: snapshot() })
         break
+      case 'openDoor':
+        runtime?.openDoor(message.key)
+        postWorkerEvent({ type: 'snapshot', snapshot: snapshot() })
+        break
       case 'spendBassline':
         runtime?.spendBassline(message.amount)
         postWorkerEvent({ type: 'snapshot', snapshot: snapshot() })

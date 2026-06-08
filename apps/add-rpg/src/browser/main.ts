@@ -8,6 +8,8 @@ import {
   selectAddWorldTimeForClockSeconds,
   workerRequestForAddCommand,
   applyDungeonFieldOfView,
+  applyDungeonDoorStates,
+  dungeonDoorKey,
   emptyDungeonVisibility,
   addDungeonByMapId,
   ADD_MAP_MODE_OPTIONS,
@@ -21,6 +23,7 @@ import {
   type SimulationSnapshot,
   type WorkerRequest,
 } from "@aedventure/add-domain"
+import type { CellCoord } from "@aedventure/game-topology"
 import type { GameInteraction, GameWorld } from "@aedventure/game-world"
 
 import type { VisibilityMap } from "@aedventure/game-visibility"
@@ -281,21 +284,32 @@ createEffect(() => {
       dungeonVisibilityKey = target
     }
     const activeMap = nextWorld.maps.find((map) => map.id === nextWorld.activeMapId)
-    // The dungeon registry owns the visibility policy; "fully_lit" dungeons skip FOV.
-    const usesFov =
-      (addDungeonByMapId(activeMap?.id ?? "")?.visibilityPolicy ?? "directional_fov") ===
-      "directional_fov"
-    if (activeMap && usesFov) {
-      const fov = applyDungeonFieldOfView(
+    if (activeMap) {
+      const dungeonId = addDungeonByMapId(activeMap.id)?.id ?? activeMap.id
+      // Doors are authoritative game state: overlay open/closed (which drives
+      // `blocked`, gating both movement and the FOV cone) before computing FOV.
+      let dungeonMap = applyDungeonDoorStates(
         activeMap,
-        heroDungeonCell(),
-        heroDungeonFacing(),
-        dungeonVisibility,
+        dungeonId,
+        new Set(currentSnapshot.openDoors ?? []),
       )
-      dungeonVisibility = fov.visibility
+      // The dungeon registry owns the visibility policy; "fully_lit" dungeons skip FOV.
+      const usesFov =
+        (addDungeonByMapId(activeMap.id)?.visibilityPolicy ?? "directional_fov") ===
+        "directional_fov"
+      if (usesFov) {
+        const fov = applyDungeonFieldOfView(
+          dungeonMap,
+          heroDungeonCell(),
+          heroDungeonFacing(),
+          dungeonVisibility,
+        )
+        dungeonVisibility = fov.visibility
+        dungeonMap = fov.map
+      }
       nextWorld = {
         ...nextWorld,
-        maps: nextWorld.maps.map((map) => (map.id === activeMap.id ? fov.map : map)),
+        maps: nextWorld.maps.map((map) => (map.id === activeMap.id ? dungeonMap : map)),
       }
     }
   } else {
@@ -330,6 +344,9 @@ function AddRpgApp() {
       onBeforeCharacterTravel: confirmFirstCharacterTravel,
       onCharacterTravel: (event) => {
         void handleCharacterTravel(event)
+      },
+      onDoorToggle: (coord) => {
+        void handleDoorToggle(coord)
       },
     })
     const currentWorld = world()
@@ -1637,6 +1654,16 @@ function lastOfflineCopy(): string {
   const seconds = lastOfflineCatchupSeconds()
   if (seconds <= 0) return online() ? "Ready" : "Browser offline"
   return `${formatDuration(seconds)} applied`
+}
+
+async function handleDoorToggle(coord: CellCoord): Promise<void> {
+  // Doors are Rust-authoritative: send openDoor and let the new snapshot drive
+  // the door overlay + FOV recompute (and the swing animation in the scene).
+  const dungeonId = addDungeonByMapId(dungeonTarget())?.id ?? dungeonTarget()
+  const key = dungeonDoorKey(dungeonId, coord)
+  await sendAndWaitForSnapshot(() => {
+    client.openDoor(key)
+  })
 }
 
 async function handleCharacterTravel(event: AddCharacterTravelEvent): Promise<void> {
