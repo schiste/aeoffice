@@ -183,6 +183,10 @@ async function assertBootAndRenderTextContract(page, consoleErrors) {
   assert.equal(initial.boundary.firstTargetApp, "apps/add-rpg")
   assert.equal(initial.runtime.error, null)
   assert.equal(initial.snapshot.heroMap, initial.map.landmarks.survivorCave)
+  assert.equal(initial.mapMode.scale.topology, "hex")
+  assert.equal(initial.mapMode.scale.travelScale, "strategic")
+  assert.equal(initial.mapMode.scale.timePerCellSeconds, 3600)
+  assert.equal(initial.mapMode.scale.preserveAspectRatio, true)
   assert.ok(initial.ui.resourceCount > 0)
   assert.ok(initial.catalog.worldActionCount > 0)
   return initial
@@ -300,6 +304,8 @@ async function exerciseMapModeSwitching(page, consoleErrors) {
     page,
     (state) =>
       state.mapMode?.active === "base_square" &&
+      state.mapMode?.scale?.travelScale === "interior" &&
+      state.mapMode?.scale?.timePerCellSeconds === null &&
       state.map?.topology?.kind === "square" &&
       state.map?.mapId === "add.rpg.square-base-fixture" &&
       state.map?.cells?.blocked > 0 &&
@@ -708,6 +714,23 @@ async function exerciseSurvivorCaveDungeonEntry(page, consoleErrors) {
   )
   assert.equal(before.discovery.phase, "enter_dungeon")
   assert.equal(before.discovery.dungeonEntryAvailable, true)
+
+  await selectMapCenter(page)
+  const selectedCave = await waitForTextState(
+    page,
+    (state) =>
+      state.discovery?.tileDetail?.hasSubmap === true &&
+      state.discovery.tileDetail.linkKinds.includes("dungeon") &&
+      state.discovery.tileDetail.targetMapModes.includes("dungeon_square") &&
+      state.discovery.tileDetail.enabledLinkIds.some((id) => id.includes("dungeon")) &&
+      state.discovery.tileDetail.label === "Survivor Cave",
+    consoleErrors,
+  )
+  assert.equal(selectedCave.discovery.tileDetail.linkCount, 1)
+  assert.ok(
+    selectedCave.discovery.tileDetail.visibleLinkIds[0].includes("dungeon"),
+    "Selecting Survivor Cave should expose its optional dungeon link.",
+  )
   assert.match(
     await page.locator("#enter-dungeon").innerText(),
     /Enter Survivor Cave/,
@@ -720,6 +743,8 @@ async function exerciseSurvivorCaveDungeonEntry(page, consoleErrors) {
     (state) =>
       state.mapMode?.active === "dungeon_square" &&
       state.mapMode?.topology === "square" &&
+      state.mapMode?.scale?.travelScale === "local" &&
+      state.mapMode?.scale?.timePerCellSeconds === null &&
       state.map?.mapId === "add.rpg.square-dungeon-fixture" &&
       state.map?.topology?.kind === "square" &&
       state.map?.validationValid === true &&
@@ -754,6 +779,7 @@ async function exerciseSurvivorCaveDungeonEntry(page, consoleErrors) {
     page,
     (state) =>
       state.mapMode?.active === "overworld_hex" &&
+      state.mapMode?.scale?.travelScale === "strategic" &&
       state.map?.topology?.kind === "hex" &&
       state.map?.character?.coord === before.map.character.coord &&
       state.discovery?.phase === "enter_dungeon" &&
@@ -1071,6 +1097,10 @@ async function interactWithMap(page, consoleErrors) {
     (state) =>
       state.map?.interaction?.selectedHex !== null &&
       state.discovery?.selectedTile !== null &&
+      state.discovery?.tileDetail !== null &&
+      state.discovery.tileDetail.hasSubmap === false &&
+      state.discovery.tileDetail.linkCount === 0 &&
+      state.discovery.tileDetail.visibleLinkIds.length === 0 &&
       state.discovery.selectedTile.travelMinutes === 60 &&
       typeof state.discovery.selectedTile.travelRisk === "string" &&
       typeof state.discovery.selectedTile.standingHere === "boolean" &&
@@ -1083,8 +1113,8 @@ async function interactWithMap(page, consoleErrors) {
   )
   assert.match(
     await page.locator("#selected-tile-decision").innerText(),
-    /Travel|Toxicity|Known|Unknown|Links/,
-    "Selected tile card should explain travel, risk, facts, and links.",
+    /Travel|Toxicity|Known|Unknown|Links|No known submap/,
+    "Selected tile card should explain travel, risk, facts, and optional submap links.",
   )
   await assertNonBlankNamedAppScreenshot(
     page,
