@@ -2448,3 +2448,15 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   with `npm --workspace @aedventure/add-rpg run build:types`, `npm run
   smoke:add-rpg`, `npm run qa:renderer`, `npm run smoke:engine-sandbox`, and
   `npm run check`.
+- ADD fog and visibility presentation now routes through a shared neutral
+  `WorldFogRenderer` in `@aedventure/game-renderer-phaser`. ADD domain maps its
+  visibility rules into neutral fog treatments (`none`, `concealed`,
+  `remembered`), while the shared renderer owns soft square/hex fog primitives,
+  reveal pulses, travel halo previews, and trail fade-out state. The ADD scene
+  now only supplies the Hero travel preview input and no longer contains the fog
+  drawing algorithms. Verification passed with `npm --workspace
+  @aedventure/game-renderer-phaser run build`, `npm --workspace
+  @aedventure/add-domain run build`, `npm --workspace @aedventure/add-rpg run
+  build:types`, `npm --workspace @aedventure/game-renderer-phaser run test`,
+  `npm run smoke:add-rpg`, `npm run qa:renderer`, `npm run smoke:engine-sandbox`,
+  exact renderer leakage `rg`, `git diff --check`, and `npm run check`.

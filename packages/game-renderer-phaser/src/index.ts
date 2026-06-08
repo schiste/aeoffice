@@ -33,6 +33,13 @@ export {
   type WorldCellInteractionZone,
   type WorldCellInteractionZoneKind,
 } from "./shared/world-cell-interaction-renderer"
+export {
+  WorldFogRenderer,
+  emptyWorldFogRendererInfo,
+  type WorldFogRendererInfo,
+  type WorldFogRenderOptions,
+  type WorldFogTravelRevealPreview,
+} from "./shared/world-fog-renderer"
 export { ZoneRenderer } from "./shared/zone-renderer"
 export { CameraController } from "./shared/camera-controller"
 export { DomWorldOverlayRenderer } from "./renderer/dom-world-overlay-renderer"
@@ -85,6 +92,7 @@ export type {
   CellVisualMotif,
   CellVisualStyle,
   FogVisualStyle,
+  FogVisualTreatment,
   TopologyNavigationInput,
   TopologyNavigationPolicy,
   WorldInteractionDetail,

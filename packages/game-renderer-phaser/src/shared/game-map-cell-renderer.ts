@@ -23,6 +23,7 @@ export interface GameMapCellRenderOptions {
   readonly layerKinds?: readonly GameLayerKind[]
   readonly emphasizedCoordKeys?: ReadonlySet<string>
   readonly style?: "simple" | "painterly"
+  readonly renderFog?: boolean
 }
 
 export interface GameMapCellRenderInfo {
@@ -81,6 +82,7 @@ export class GameMapCellRenderer {
     let emphasizedCellCount = 0
     const layerKinds = new Set(options.layerKinds ?? ["terrain"])
     const styleMode = options.style ?? "simple"
+    const renderFog = options.renderFog ?? true
 
     for (const layer of map.layers) {
       if (layer.visible === false) continue
@@ -122,24 +124,26 @@ export class GameMapCellRenderer {
           )
         }
 
-        const fog = policy.fogStyle(cell)
-        if (!fog.visible || fog.alpha <= 0) continue
-        foggedCellCount += 1
-        if (cell.coord.kind === "hex" && hexTopology && map.topology.kind === "hex") {
-          drawHexFog(fogGraphics, cell.coord, hexTopology, map.topology.radius, fog.fill, fog.alpha)
-        } else if (
-          cell.coord.kind === "square" &&
-          squareTopology &&
-          map.topology.kind === "square"
-        ) {
-          drawSquareFog(
-            fogGraphics,
-            cell.coord,
-            squareTopology,
-            map.topology.cellSize,
-            fog.fill,
-            fog.alpha,
-          )
+        if (renderFog) {
+          const fog = policy.fogStyle(cell)
+          if (!fog.visible || fog.alpha <= 0) continue
+          foggedCellCount += 1
+          if (cell.coord.kind === "hex" && hexTopology && map.topology.kind === "hex") {
+            drawHexFog(fogGraphics, cell.coord, hexTopology, map.topology.radius, fog.fill, fog.alpha)
+          } else if (
+            cell.coord.kind === "square" &&
+            squareTopology &&
+            map.topology.kind === "square"
+          ) {
+            drawSquareFog(
+              fogGraphics,
+              cell.coord,
+              squareTopology,
+              map.topology.cellSize,
+              fog.fill,
+              fog.alpha,
+            )
+          }
         }
       }
     }

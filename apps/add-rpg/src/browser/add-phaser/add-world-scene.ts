@@ -6,6 +6,7 @@ import {
   GameMapCellRenderer,
   WorldCellInteractionRenderer,
   WorldEntityRenderer,
+  WorldFogRenderer,
   type WorldCellInteractionAffordance,
   type WorldCellInteractionSelection,
   type WorldCellInteractionZone,
@@ -20,8 +21,6 @@ import {
   dungeonLinkInfo,
   presentationVisibilityStateForCell,
   tileInteractionDetailForCoord,
-  visibilityStateForCell,
-  type AddVisibilityRenderState,
 } from "@aedventure/add-domain"
 
 import { ADD_TILE_TRAVEL_PRESENTATION } from "../travel-presentation-timing"
@@ -50,10 +49,8 @@ import {
   sameCoord,
   smoothStep,
   squareCellSize,
-  squareTopLeftFor,
   visualCellRadius,
 } from "./add-render-context"
-import { drawHexPath } from "./add-terrain-renderer"
 import {
   DEFAULT_RADIUS,
   KEY_CHORD_DELAY_MS,
@@ -74,7 +71,6 @@ import {
   type PhaserMapRendererState,
   type RenderContext,
   type TravelRevealPreview,
-  type TravelRevealTrailEntry,
 } from "./types"
 
 // How long a door takes to swing open/closed (presentation only).
@@ -96,8 +92,8 @@ export class AddRpgHexScene extends Phaser.Scene {
   private cellRenderer?: GameMapCellRenderer
   private cellInteractionRenderer?: WorldCellInteractionRenderer
   private characterRenderer?: WorldEntityRenderer
+  private fogRenderer?: WorldFogRenderer
   private ambienceGraphics?: Phaser.GameObjects.Graphics
-  private fogGraphics?: Phaser.GameObjects.Graphics
   private transitionGraphics?: Phaser.GameObjects.Graphics
   private landmarkObjects: Phaser.GameObjects.GameObject[] = []
   private readonly doorVisuals = new Map<string, DoorVisual>()
@@ -117,9 +113,6 @@ export class AddRpgHexScene extends Phaser.Scene {
   private dragStartScroll: Vector2 = { x: 0, y: 0 }
   private transitionState: "idle" | "entering" = "idle"
   private transitionProgress = 1
-  private previousVisibilityStates = new Map<string, AddVisibilityRenderState>()
-  private revealTransitions = new Map<string, number>()
-  private travelRevealTrail = new Map<string, TravelRevealTrailEntry>()
   private characterCoord: CellCoord | null = null
   private characterPosition: Vector2 | null = null
   private characterTarget: Vector2 | null = null
@@ -147,11 +140,10 @@ export class AddRpgHexScene extends Phaser.Scene {
     this.cellRenderer = new GameMapCellRenderer(this)
     this.cellInteractionRenderer = new WorldCellInteractionRenderer(this)
     this.characterRenderer = new WorldEntityRenderer(this)
+    this.fogRenderer = new WorldFogRenderer(this)
     this.ambienceGraphics = this.add.graphics()
-    this.fogGraphics = this.add.graphics()
     this.transitionGraphics = this.add.graphics()
     this.ambienceGraphics.setDepth(10)
-    this.fogGraphics.setDepth(12)
     this.transitionGraphics.setDepth(80)
     this.transitionGraphics.setScrollFactor(0)
     this.ready = true
@@ -408,18 +400,15 @@ export class AddRpgHexScene extends Phaser.Scene {
       this.lastRenderedMapId = map.id
       this.transitionState = "entering"
       this.transitionProgress = 0
-      this.previousVisibilityStates.clear()
-      this.revealTransitions.clear()
-      this.travelRevealTrail.clear()
       this.cellInteractionRenderer?.clear()
       this.characterRenderer?.clear()
+      this.fogRenderer?.clear()
       this.doorVisuals.forEach((visual) => visual.panel.destroy())
       this.doorVisuals.clear()
       this.transitions.clear()
     }
 
     this.context = createRenderContext(map, this.scale.width, this.scale.height)
-    this.trackVisibilityTransitions(this.context)
     this.drawTerrain(this.context)
     this.drawAmbience(this.context)
     this.drawFog(this.context)
@@ -445,6 +434,7 @@ export class AddRpgHexScene extends Phaser.Scene {
       layerKinds: ["terrain"],
       emphasizedCoordKeys: context.bubbleEdgeCoords,
       style: "painterly",
+      renderFog: false,
     })
   }
 
@@ -832,219 +822,19 @@ export class AddRpgHexScene extends Phaser.Scene {
     }
   }
 
-  private trackVisibilityTransitions(context: RenderContext): void {
-    const nextStates = new Map<string, AddVisibilityRenderState>()
-    for (const cell of context.terrainCells) {
-      const key = addMapCoordKey(cell.coord)
-      const current = visibilityStateForCell(cell)
-      const previous = this.previousVisibilityStates.get(key)
-      if (previous === "hidden" && current !== "hidden") {
-        this.revealTransitions.set(key, this.time.now)
-      }
-      nextStates.set(key, current)
-    }
-    this.previousVisibilityStates = nextStates
-  }
-
   private drawFog(context: RenderContext): void {
-    const graphics = this.fogGraphics
-    if (!graphics) return
-    graphics.clear()
-    const travelRevealPreview = this.travelRevealPreviewForContext(context)
-
-    for (const cell of context.terrainCells) {
-      const key = addMapCoordKey(cell.coord)
-      const visibilityState =
-        (this.cellPresentationPolicy.fogStyle(cell).state as AddVisibilityRenderState | undefined) ??
-        presentationVisibilityStateForCell(cell)
-      const travelRevealProgress = this.travelRevealProgressForCell(
-        cell,
-        context,
-        travelRevealPreview,
-      )
-      if (visibilityState === "hidden") {
-        if (travelRevealProgress > 0) {
-          this.drawTravelRevealPreview(graphics, cell, context, travelRevealProgress)
-        }
-        continue
-      }
-      if (cell.coord.kind === "square") {
-        this.drawSquareFogCell(graphics, cell, context, visibilityState, travelRevealProgress)
-      } else {
-        this.drawHexFogCell(graphics, cell, context, visibilityState, travelRevealProgress)
-      }
-      if (travelRevealProgress > 0 && visibilityState !== "visible") {
-        this.drawTravelRevealPreview(graphics, cell, context, travelRevealProgress)
-      }
-
-      const revealStartedAt = this.revealTransitions.get(key)
-      if (revealStartedAt === undefined) continue
-      const progress = clamp((this.time.now - revealStartedAt) / REVEAL_TRANSITION_MS, 0, 1)
-      this.drawRevealTransition(graphics, cell, context, progress)
-      if (progress >= 1) this.revealTransitions.delete(key)
-    }
-
-    if (travelRevealPreview.active && travelRevealPreview.center) {
-      this.drawTravelRevealHalo(graphics, context, travelRevealPreview)
-    }
-  }
-
-  private drawSquareFogCell(
-    graphics: Phaser.GameObjects.Graphics,
-    cell: GameCellPlacement,
-    context: RenderContext,
-    visibilityState: AddVisibilityRenderState,
-    travelRevealProgress: number,
-  ): void {
-    const topLeft = squareTopLeftFor(cell.coord as SquareCoord, context)
-    const cellSize = squareCellSize(context)
-    if (visibilityState === "visible") return
-    const revealFade = 1 - smoothStep(travelRevealProgress) * 0.82
-
-    if (visibilityState === "hidden") {
-      graphics.fillStyle(0x0b1110, 0.18 * revealFade)
-      graphics.fillRect(topLeft.x - 2.4, topLeft.y - 2.4, cellSize + 4.8, cellSize + 4.8)
-      graphics.fillStyle(0x111817, 0.34 * revealFade)
-      graphics.fillRect(topLeft.x - 0.4, topLeft.y - 0.4, cellSize + 0.8, cellSize + 0.8)
-      graphics.fillStyle(0x111817, 0.66 * revealFade)
-      graphics.fillRect(topLeft.x + 1.5, topLeft.y + 1.5, cellSize - 3, cellSize - 3)
-      graphics.lineStyle(1.2, 0x9c9275, 0.16)
-      graphics.strokeRect(topLeft.x + 5, topLeft.y + 5, cellSize - 10, cellSize - 10)
-      return
-    }
-
-    const alpha = (visibilityState === "stale" ? 0.38 : 0.26) * (1 - travelRevealProgress * 0.58)
-    graphics.fillStyle(0x2b302b, alpha * 0.34)
-    graphics.fillRect(topLeft.x - 1.8, topLeft.y - 1.8, cellSize + 3.6, cellSize + 3.6)
-    graphics.fillStyle(0x3f4039, alpha)
-    graphics.fillRect(topLeft.x + 1.2, topLeft.y + 1.2, cellSize - 2.4, cellSize - 2.4)
-    graphics.lineStyle(1, 0xf0dfac, 0.10)
-    graphics.lineBetween(topLeft.x + 5, topLeft.y + 6, topLeft.x + cellSize - 5, topLeft.y + cellSize - 6)
-  }
-
-  private drawHexFogCell(
-    graphics: Phaser.GameObjects.Graphics,
-    cell: GameCellPlacement,
-    context: RenderContext,
-    visibilityState: AddVisibilityRenderState,
-    travelRevealProgress: number,
-  ): void {
-    if (visibilityState === "visible") return
-
-    const center = centerFor(cell.coord, context)
-    const radius = context.map.topology.kind === "hex" ? context.map.topology.radius : DEFAULT_RADIUS
-    const revealFade = 1 - smoothStep(travelRevealProgress) * 0.82
-    if (visibilityState === "hidden") {
-      drawHexPath(graphics, center, radius + 3.2)
-      graphics.fillStyle(0x0a1110, 0.14 * revealFade)
-      graphics.fillPath()
-      drawHexPath(graphics, center, radius + 1.4)
-      graphics.fillStyle(0x0c1413, 0.26 * revealFade)
-      graphics.fillPath()
-      drawHexPath(graphics, center, radius - 1.3)
-      graphics.fillStyle(0x0f1716, 0.68 * revealFade)
-      graphics.fillPath()
-      drawHexPath(graphics, { x: center.x - radius * 0.12, y: center.y - radius * 0.10 }, radius * 0.42)
-      graphics.lineStyle(1.3, 0xa89c78, 0.14)
-      graphics.strokePath()
-      graphics.fillStyle(0xf0e4b4, 0.10)
-      graphics.fillCircle(center.x + radius * 0.30, center.y - radius * 0.24, 1.8)
-      return
-    }
-
-    const alpha = (visibilityState === "stale" ? 0.40 : 0.27) * (1 - travelRevealProgress * 0.58)
-    drawHexPath(graphics, center, radius + 2.5)
-    graphics.fillStyle(0x262d2a, alpha * 0.30)
-    graphics.fillPath()
-    drawHexPath(graphics, center, radius - 1.5)
-    graphics.fillStyle(0x3d4139, alpha)
-    graphics.fillPath()
-    drawHexPath(graphics, center, radius - 6)
-    graphics.lineStyle(1.1, 0xf1dfaa, visibilityState === "stale" ? 0.13 : 0.09)
-    graphics.strokePath()
-  }
-
-  private drawRevealTransition(
-    graphics: Phaser.GameObjects.Graphics,
-    cell: GameCellPlacement,
-    context: RenderContext,
-    progress: number,
-  ): void {
-    const eased = smoothStep(progress)
-    const alpha = 1 - eased
-    if (cell.coord.kind === "square") {
-      const topLeft = squareTopLeftFor(cell.coord as SquareCoord, context)
-      const cellSize = squareCellSize(context)
-      graphics.fillStyle(0xf6e5a9, 0.16 * alpha)
-      graphics.fillRect(topLeft.x + cellSize * 0.16, topLeft.y + cellSize * 0.16, cellSize * 0.68, cellSize * 0.68)
-      for (let ring = 0; ring < 3; ring += 1) {
-        const ringProgress = clamp(eased - ring * 0.16, 0, 1)
-        const inset = cellSize * (0.24 - ringProgress * 0.22)
-        graphics.lineStyle(1.4 + ring * 0.8, 0xf9d978, (0.44 - ring * 0.10) * alpha)
-        graphics.strokeRect(topLeft.x + inset, topLeft.y + inset, cellSize - inset * 2, cellSize - inset * 2)
-      }
-      return
-    }
-
-    const center = centerFor(cell.coord, context)
-    const radius = context.map.topology.kind === "hex" ? context.map.topology.radius : DEFAULT_RADIUS
-    drawHexPath(graphics, center, radius * (0.32 + eased * 0.58))
-    graphics.fillStyle(0xf9e4a1, 0.13 * alpha)
-    graphics.fillPath()
-    for (let ring = 0; ring < 3; ring += 1) {
-      const ringProgress = clamp(eased - ring * 0.15, 0, 1)
-      drawHexPath(graphics, center, radius * (0.40 + ringProgress * (0.72 + ring * 0.10)))
-      graphics.lineStyle(2.2 - ring * 0.35, 0xf5d36c, (0.52 - ring * 0.12) * alpha)
-      graphics.strokePath()
-    }
-  }
-
-  private drawTravelRevealPreview(
-    graphics: Phaser.GameObjects.Graphics,
-    cell: GameCellPlacement,
-    context: RenderContext,
-    progress: number,
-  ): void {
-    const eased = smoothStep(progress)
-    const pulse = Math.sin(eased * Math.PI)
-    if (cell.coord.kind === "square") {
-      const topLeft = squareTopLeftFor(cell.coord as SquareCoord, context)
-      const cellSize = squareCellSize(context)
-      const inset = cellSize * (0.34 - eased * 0.26)
-      graphics.fillStyle(0xf8e4a4, 0.05 + pulse * 0.08)
-      graphics.fillRect(topLeft.x + inset, topLeft.y + inset, cellSize - inset * 2, cellSize - inset * 2)
-      graphics.lineStyle(1.4, 0xf5d36c, 0.24 + pulse * 0.32)
-      graphics.strokeRect(topLeft.x + inset, topLeft.y + inset, cellSize - inset * 2, cellSize - inset * 2)
-      return
-    }
-
-    const center = centerFor(cell.coord, context)
-    const radius = context.map.topology.kind === "hex" ? context.map.topology.radius : DEFAULT_RADIUS
-    drawHexPath(graphics, center, radius * (0.34 + eased * 0.62))
-    graphics.fillStyle(0xf8e4a4, 0.04 + pulse * 0.07)
-    graphics.fillPath()
-    drawHexPath(graphics, center, radius * (0.42 + eased * 0.58))
-    graphics.lineStyle(1.6, 0xf5d36c, 0.24 + pulse * 0.34)
-    graphics.strokePath()
-  }
-
-  private drawTravelRevealHalo(
-    graphics: Phaser.GameObjects.Graphics,
-    context: RenderContext,
-    preview: TravelRevealPreview,
-  ): void {
-    if (!preview.center) return
-    const progressAlpha = smoothStep(clamp(preview.progress / 0.22, 0, 1))
-    const pulse = (Math.sin(this.frameCount / 7) + 1) / 2
-    const radius = preview.radius + preview.feather * 0.42 + pulse * 1.8
-    graphics.fillStyle(0xf7dda0, 0.045 * progressAlpha)
-    graphics.fillCircle(preview.center.x, preview.center.y, radius)
-    graphics.lineStyle(1.6, 0xf5d36c, 0.20 * progressAlpha)
-    graphics.strokeCircle(preview.center.x, preview.center.y, radius * 0.72)
-    if (context.topologyKind === "hex") {
-      graphics.lineStyle(1.1, 0xffffff, 0.10 * progressAlpha)
-      graphics.strokeCircle(preview.center.x, preview.center.y, radius * 0.42)
-    }
+    this.fogRenderer?.render(context.map, {
+      origin: context.origin,
+      depth: 12,
+      presentationPolicy: this.cellPresentationPolicy,
+      layerKinds: ["terrain"],
+      nowMs: this.time.now,
+      frameCount: this.frameCount,
+      transitionDurationMs: REVEAL_TRANSITION_MS,
+      travelRevealTrailMs: TRAVEL_REVEAL_TRAIL_MS,
+      travelRevealPreview: this.travelRevealPreviewForContext(context),
+      style: "soft",
+    })
   }
 
   private travelRevealPreviewForContext(context: RenderContext): TravelRevealPreview {
@@ -1073,57 +863,6 @@ export class AddRpgHexScene extends Phaser.Scene {
       radius: haloRadius,
       feather: haloFeather,
     }
-  }
-
-  private travelRevealProgressForCell(
-    cell: GameCellPlacement,
-    context: RenderContext,
-    preview: TravelRevealPreview,
-  ): number {
-    const key = addMapCoordKey(cell.coord)
-    let liveProgress = 0
-
-    if (preview.active && preview.cells.has(key) && this.characterTravel && preview.center) {
-      const cellCenter = centerFor(cell.coord, context)
-      const distance = distanceBetween(preview.center, cellCenter)
-      const haloCoverage = clamp(
-        (preview.radius + preview.feather - distance) / Math.max(1, preview.feather),
-        0,
-        1,
-      )
-      liveProgress =
-        smoothStep(haloCoverage) * smoothStep(clamp(preview.progress / 0.18, 0, 1))
-    }
-
-    return this.blendTravelRevealTrail(key, liveProgress)
-  }
-
-  private blendTravelRevealTrail(key: string, liveProgress: number): number {
-    const existing = this.travelRevealTrail.get(key)
-
-    if (liveProgress > 0) {
-      this.travelRevealTrail.set(key, {
-        strength: liveProgress,
-        updatedAtMs: this.time.now,
-      })
-      return liveProgress
-    }
-
-    if (!existing) return 0
-
-    const elapsedMs = this.time.now - existing.updatedAtMs
-    if (elapsedMs >= TRAVEL_REVEAL_TRAIL_MS) {
-      this.travelRevealTrail.delete(key)
-      return 0
-    }
-
-    const trailProgress = clamp(elapsedMs / TRAVEL_REVEAL_TRAIL_MS, 0, 1)
-    const trailStrength = existing.strength * (1 - smoothStep(trailProgress))
-    if (trailStrength <= 0.015) {
-      this.travelRevealTrail.delete(key)
-      return 0
-    }
-    return trailStrength
   }
 
   private currentTravelProgress(): number {
@@ -1465,6 +1204,7 @@ export class AddRpgHexScene extends Phaser.Scene {
       },
       renderers: {
         cells: this.cellRenderer?.getInfo() ?? null,
+        fog: this.fogRenderer?.getInfo() ?? null,
         interactions: this.cellInteractionRenderer?.getInfo() ?? null,
         entities: this.characterRenderer?.getInfo() ?? null,
       },
@@ -1495,7 +1235,7 @@ export class AddRpgHexScene extends Phaser.Scene {
         renderedCount: this.landmarkObjects.length,
       },
       visibility: {
-        revealTransitionsActive: this.revealTransitions.size,
+        revealTransitionsActive: this.fogRenderer?.getInfo().revealTransitionCount ?? 0,
         travelRevealPreview: this.travelRevealPreviewForContext(context),
       },
       camera: {

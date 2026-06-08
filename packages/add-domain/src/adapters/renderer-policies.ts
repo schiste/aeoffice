@@ -184,15 +184,17 @@ export function addFogVisualStyle(cell: GameCellPlacement): FogVisualStyle {
       visible: false,
       fill: 0x000000,
       alpha: 0,
+      treatment: "none",
       state: visibility,
     }
   }
   if (visibility === "hidden") {
     return {
-      visible: true,
+      visible: false,
       fill: 0x101417,
       alpha: 0.82,
       feather: 0.22,
+      treatment: "concealed",
       state: visibility,
     }
   }
@@ -201,6 +203,7 @@ export function addFogVisualStyle(cell: GameCellPlacement): FogVisualStyle {
     fill: visibility === "stale" ? 0x1f2630 : 0x1b211f,
     alpha: visibility === "stale" ? 0.42 : 0.30,
     feather: 0.16,
+    treatment: "remembered",
     state: visibility,
   }
 }

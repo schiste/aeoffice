@@ -245,6 +245,7 @@ export function emptyRendererState(): PhaserMapRendererState {
     },
     renderers: {
       cells: null,
+      fog: null,
       interactions: null,
       entities: null,
     },

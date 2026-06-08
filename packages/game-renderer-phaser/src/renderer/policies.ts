@@ -33,8 +33,11 @@ export interface FogVisualStyle {
   readonly fill: number
   readonly alpha: number
   readonly feather?: number
+  readonly treatment?: FogVisualTreatment
   readonly state?: string
 }
+
+export type FogVisualTreatment = "none" | "concealed" | "remembered"
 
 export interface CellPresentationPolicy {
   cellVisible(cell: GameCellPlacement): boolean

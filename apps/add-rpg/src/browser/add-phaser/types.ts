@@ -2,6 +2,7 @@ import type { CellCoord, GridTopology, HexCoord, SquareCoord, Vector2 } from "@a
 import type { GameCellPlacement, GameMap } from "@aedventure/game-world"
 import type {
   GameMapCellRenderInfo,
+  WorldFogRendererInfo,
   WorldCellInteractionRendererInfo,
   WorldEntityRendererInfo,
 } from "@aedventure/game-renderer-phaser"
@@ -101,6 +102,7 @@ export interface PhaserMapRendererState {
   }
   readonly renderers: {
     readonly cells: GameMapCellRenderInfo | null
+    readonly fog: WorldFogRendererInfo | null
     readonly interactions: WorldCellInteractionRendererInfo | null
     readonly entities: WorldEntityRendererInfo | null
   }
@@ -306,11 +308,6 @@ export interface TravelRevealPreview {
   readonly center: Vector2 | null
   readonly radius: number
   readonly feather: number
-}
-
-export interface TravelRevealTrailEntry {
-  readonly strength: number
-  readonly updatedAtMs: number
 }
 
 export const DEFAULT_RADIUS = 28
