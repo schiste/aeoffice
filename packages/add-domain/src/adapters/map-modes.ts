@@ -24,6 +24,8 @@ import {
 
 export type AddMapMode = "overworld_hex" | "dungeon_square" | "base_square"
 
+export const ADD_BASE_SQUARE_MAP_ID = "add.rpg.square-base-fixture"
+
 export interface AddMapModeOption {
   readonly id: AddMapMode
   readonly label: string
@@ -188,7 +190,7 @@ function baseSquareMap(): GameMap {
   })
 
   return squareMap({
-    id: "add.rpg.square-base-fixture",
+    id: ADD_BASE_SQUARE_MAP_ID,
     label: "Base Square Fixture",
     mode: "base_square",
     width,
