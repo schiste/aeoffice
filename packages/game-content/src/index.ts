@@ -123,6 +123,7 @@ export type RustFieldKind =
   | "idConstArray"
   | "array"
   | "taggedEnum"
+  | "struct"
 
 /** A Rust enum variant emitted from a tagged-union object (`tagField` selects it). */
 export interface RustVariantSpec {
@@ -151,6 +152,10 @@ export interface RustFieldSpec {
   readonly tagField?: string
   /** For "taggedEnum": tag value -> Rust variant. */
   readonly variants?: Readonly<Record<string, RustVariantSpec>>
+  /** For "struct": the Rust struct type name. */
+  readonly structType?: string
+  /** For "struct": the struct's fields. */
+  readonly fields?: readonly RustFieldSpec[]
 }
 
 export interface RustConstSpec {
@@ -231,6 +236,13 @@ function rustFieldValue(spec: RustFieldSpec, raw: unknown): string {
           .join(", ")} }`
       }
       return `${spec.rustEnum}::${variant.variant}`
+    }
+    case "struct": {
+      const obj = (raw ?? {}) as Record<string, unknown>
+      const fields = spec.fields ?? []
+      return `${spec.structType} { ${fields
+        .map((f) => `${f.name}: ${rustFieldValue(f, obj[f.from ?? camelCase(f.name)])}`)
+        .join(", ")} }`
     }
   }
 }

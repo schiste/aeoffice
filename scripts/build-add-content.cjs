@@ -45,6 +45,9 @@ const flora = content("flora")
 const structures = content("structures")
 const tiles = content("tiles")
 const stations = content("stations")
+const construction = content("construction")
+const worldActions = content("world-actions")
+const processing = content("processing")
 
 const VIS = "pub(in crate::game_data)"
 
@@ -59,6 +62,64 @@ const REQUIREMENTS_FIELD = {
     variants: {
       flag_set: { variant: "FlagSet", tuple: [{ name: "flag", from: "flag_id", kind: "idConst", prefix: "FLAG_" }] },
       flag_unset: { variant: "FlagUnset", tuple: [{ name: "flag", from: "flag_id", kind: "idConst", prefix: "FLAG_" }] },
+    },
+  },
+}
+
+// Reusable: cost / duration / effects (kind-tagged Rust enums). Cross-catalog id
+// references (resource_id, item_id) emit as string literals (value-equivalent,
+// dodges irregular id-const names like COST_ITEM_SKIN); flag ids stay id-consts.
+const COST_FIELD = {
+  name: "cost",
+  kind: "taggedEnum",
+  rustEnum: "CostDef",
+  variants: {
+    upfront: { variant: "Upfront", fields: [{ name: "resource_id", from: "resource_id", kind: "string" }, { name: "amount", kind: "f64" }] },
+    upfront_bundle: {
+      variant: "UpfrontBundle",
+      fields: [
+        {
+          name: "costs",
+          kind: "array",
+          element: { name: "c", kind: "struct", structType: "CostItemDef", fields: [{ name: "item_id", from: "item_id", kind: "string" }, { name: "amount", kind: "f64" }] },
+        },
+      ],
+    },
+    drain_per_worker_second: { variant: "DrainPerWorkerSecond", fields: [{ name: "resource_id", from: "resource_id", kind: "string" }, { name: "amount", kind: "f64" }] },
+    time_only: { variant: "TimeOnly" },
+  },
+}
+
+const DURATION_FIELD = {
+  name: "duration",
+  kind: "taggedEnum",
+  rustEnum: "DurationDef",
+  variants: {
+    fixed: { variant: "Fixed", fields: [{ name: "seconds", kind: "f64" }] },
+    crystal_level_scaled: {
+      variant: "CrystalLevelScaled",
+      fields: [
+        { name: "track", kind: "enum", rustEnum: "CrystalTrack" },
+        { name: "base_seconds", from: "base_seconds", kind: "f64" },
+        { name: "per_level_seconds", from: "per_level_seconds", kind: "f64" },
+      ],
+    },
+  },
+}
+
+const EFFECTS_FIELD = {
+  name: "effects",
+  kind: "array",
+  element: {
+    name: "eff",
+    kind: "taggedEnum",
+    rustEnum: "EffectDef",
+    variants: {
+      set_flag: { variant: "SetFlag", fields: [{ name: "flag_id", from: "flag_id", kind: "idConst", prefix: "FLAG_" }, { name: "value", kind: "bool" }] },
+      add_bunks: { variant: "AddBunks", fields: [{ name: "amount", kind: "i64" }] },
+      add_skins: { variant: "AddSkins", fields: [{ name: "amount", kind: "i64" }] },
+      increment_crystal_track: { variant: "IncrementCrystalTrack", fields: [{ name: "track", kind: "enum", rustEnum: "CrystalTrack" }, { name: "amount", kind: "i64" }] },
+      increment_processing_track: { variant: "IncrementProcessingTrack", fields: [{ name: "track", kind: "enum", rustEnum: "ProcessingTrack" }, { name: "amount", kind: "i64" }] },
     },
   },
 }
@@ -210,6 +271,73 @@ const FILES = [
             { name: "manual_power", kind: "bool" },
             { name: "starts_requested", kind: "bool" },
             REQUIREMENTS_FIELD,
+            { name: "ui_order", kind: "i64" },
+          ],
+        },
+      },
+    ],
+  },
+  {
+    sourceModule: "packages/add-domain/src/content/{construction,world-actions,processing}.ts",
+    rustPath: "crates/add-core/src/game_data/catalog/actions.rs",
+    consts: [
+      {
+        entries: construction.CONSTRUCTION_OPTIONS,
+        spec: {
+          constName: "CONSTRUCTION_OPTIONS",
+          rustType: "ConstructionOptionDef",
+          visibility: VIS,
+          fields: [
+            { name: "id", kind: "idConst" },
+            { name: "schema_id", kind: "idConst" },
+            { name: "label", kind: "string" },
+            { name: "group", kind: "enum", rustEnum: "ConstructionGroup" },
+            COST_FIELD,
+            DURATION_FIELD,
+            REQUIREMENTS_FIELD,
+            EFFECTS_FIELD,
+            { name: "ui_order", kind: "i64" },
+          ],
+        },
+      },
+      {
+        entries: worldActions.WORLD_ACTIONS,
+        spec: {
+          constName: "WORLD_ACTIONS",
+          rustType: "WorldActionDef",
+          visibility: VIS,
+          fields: [
+            { name: "id", kind: "idConst" },
+            { name: "schema_id", kind: "idConst" },
+            { name: "label", kind: "string" },
+            { name: "duration_seconds", kind: "f64" },
+            { name: "hero_only", kind: "bool" },
+            { name: "offline_progress", kind: "bool" },
+            { name: "hero_exposure", kind: "enum", rustEnum: "HeroExposureDef" },
+            { name: "return_to_bubble_seconds", kind: "f64" },
+            { name: "return_to_studio_seconds", kind: "f64" },
+            REQUIREMENTS_FIELD,
+            EFFECTS_FIELD,
+            { name: "ui_order", kind: "i64" },
+          ],
+        },
+      },
+      {
+        entries: processing.PROCESSING_RECIPES,
+        spec: {
+          constName: "PROCESSING_RECIPES",
+          rustType: "ProcessingRecipeDef",
+          visibility: VIS,
+          fields: [
+            { name: "id", kind: "idConst" },
+            { name: "schema_id", kind: "idConst" },
+            { name: "label", kind: "string" },
+            { name: "station_id", kind: "string" },
+            COST_FIELD,
+            DURATION_FIELD,
+            REQUIREMENTS_FIELD,
+            EFFECTS_FIELD,
+            { name: "max_level", kind: "i64" },
             { name: "ui_order", kind: "i64" },
           ],
         },
