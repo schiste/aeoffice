@@ -130,6 +130,8 @@ export interface RustFieldSpec {
   readonly rustEnum?: string
   /** Required when `kind` is "option": the inner value's kind (null -> None). */
   readonly inner?: RustFieldKind
+  /** For "idConst": prefix prepended to the derived const name (e.g. "FLAG_"). */
+  readonly prefix?: string
 }
 
 export interface RustConstSpec {
@@ -167,7 +169,7 @@ function rustFieldValue(spec: RustFieldSpec, raw: unknown): string {
     case "string":
       return JSON.stringify(String(raw))
     case "idConst":
-      return idConstName(String(raw))
+      return `${spec.prefix ?? ""}${idConstName(String(raw))}`
     case "f64":
       return rustF64(Number(raw))
     case "i64":

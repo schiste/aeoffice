@@ -39,6 +39,7 @@ run(path.join(ROOT, "node_modules", ".bin", "tsc"), ["-b", "packages/add-domain"
 const { toRustConst } = require(path.join(ROOT, "packages/game-content/dist/index.js"))
 const resources = require(path.join(ROOT, "packages/add-domain/dist/content/resources.js"))
 const roles = require(path.join(ROOT, "packages/add-domain/dist/content/roles.js"))
+const flags = require(path.join(ROOT, "packages/add-domain/dist/content/flags.js"))
 
 // One entry per migrated catalog. Each maps authored TS data → a generated Rust
 // `const` array via a shape descriptor. Add a catalog here as it is lifted.
@@ -82,6 +83,22 @@ const CATALOGS = [
         { name: "max_crew_slots", kind: "option", inner: "i64" },
         { name: "ui_section", kind: "string" },
         { name: "ui_order", kind: "i64" },
+      ],
+    },
+  },
+  {
+    sourceModule: "packages/add-domain/src/content/flags.ts",
+    rustPath: "crates/add-core/src/game_data/catalog/flags.rs",
+    entries: flags.FLAGS,
+    spec: {
+      constName: "FLAGS",
+      rustType: "FlagDef",
+      visibility: "pub(in crate::game_data)",
+      preamble: "use crate::game_data::*;",
+      fields: [
+        { name: "id", kind: "idConst", prefix: "FLAG_" },
+        { name: "label", kind: "string" },
+        { name: "group", kind: "string" },
       ],
     },
   },
