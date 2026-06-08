@@ -44,8 +44,24 @@ const flags = content("flags")
 const flora = content("flora")
 const structures = content("structures")
 const tiles = content("tiles")
+const stations = content("stations")
 
 const VIS = "pub(in crate::game_data)"
+
+// Reusable: a `requirements: &[RequirementDef]` field (tuple-variant enum).
+const REQUIREMENTS_FIELD = {
+  name: "requirements",
+  kind: "array",
+  element: {
+    name: "req",
+    kind: "taggedEnum",
+    rustEnum: "RequirementDef",
+    variants: {
+      flag_set: { variant: "FlagSet", tuple: [{ name: "flag", from: "flag_id", kind: "idConst", prefix: "FLAG_" }] },
+      flag_unset: { variant: "FlagUnset", tuple: [{ name: "flag", from: "flag_id", kind: "idConst", prefix: "FLAG_" }] },
+    },
+  },
+}
 
 // One entry per generated Rust file. A file may hold several catalogs (consts);
 // each maps authored TS data → a Rust `const` array via a shape descriptor.
@@ -170,6 +186,31 @@ const FILES = [
             { name: "structure_ids", kind: "idConstArray" },
             { name: "dungeon_ids", kind: "idConstArray" },
             { name: "building_capacity", kind: "i64" },
+          ],
+        },
+      },
+    ],
+  },
+  {
+    sourceModule: "packages/add-domain/src/content/stations.ts",
+    rustPath: "crates/add-core/src/game_data/catalog/stations.rs",
+    consts: [
+      {
+        entries: stations.STATIONS,
+        spec: {
+          constName: "STATIONS",
+          rustType: "StationDef",
+          visibility: VIS,
+          fields: [
+            { name: "id", kind: "idConst" },
+            { name: "schema_id", kind: "idConst" },
+            { name: "label", kind: "string" },
+            { name: "category", kind: "enum", rustEnum: "StationCategory" },
+            { name: "chorus_upkeep_per_second", kind: "f64" },
+            { name: "manual_power", kind: "bool" },
+            { name: "starts_requested", kind: "bool" },
+            REQUIREMENTS_FIELD,
+            { name: "ui_order", kind: "i64" },
           ],
         },
       },

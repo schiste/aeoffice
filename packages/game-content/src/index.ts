@@ -121,6 +121,17 @@ export type RustFieldKind =
   | "option"
   | "enumArray"
   | "idConstArray"
+  | "array"
+  | "taggedEnum"
+
+/** A Rust enum variant emitted from a tagged-union object (`tagField` selects it). */
+export interface RustVariantSpec {
+  readonly variant: string
+  /** Positional tuple args, e.g. `Variant(a, b)`. */
+  readonly tuple?: readonly RustFieldSpec[]
+  /** Named struct fields, e.g. `Variant { a, b }`. */
+  readonly fields?: readonly RustFieldSpec[]
+}
 
 export interface RustFieldSpec {
   /** Rust field name (snake_case). */
@@ -134,6 +145,12 @@ export interface RustFieldSpec {
   readonly inner?: RustFieldKind
   /** For "idConst": prefix prepended to the derived const name (e.g. "FLAG_"). */
   readonly prefix?: string
+  /** Required when `kind` is "array": how to emit each element (raw item value). */
+  readonly element?: RustFieldSpec
+  /** For "taggedEnum": the discriminant key on the object (defaults to "kind"). */
+  readonly tagField?: string
+  /** For "taggedEnum": tag value -> Rust variant. */
+  readonly variants?: Readonly<Record<string, RustVariantSpec>>
 }
 
 export interface RustConstSpec {
@@ -192,6 +209,28 @@ function rustFieldValue(spec: RustFieldSpec, raw: unknown): string {
     case "idConstArray": {
       const values = Array.isArray(raw) ? raw : []
       return `&[${values.map((v) => `${spec.prefix ?? ""}${idConstName(String(v))}`).join(", ")}]`
+    }
+    case "array": {
+      const values = Array.isArray(raw) ? raw : []
+      const element = spec.element
+      if (!element) throw new Error(`array field "${spec.name}" needs an element spec`)
+      return `&[${values.map((v) => rustFieldValue(element, v)).join(", ")}]`
+    }
+    case "taggedEnum": {
+      const obj = (raw ?? {}) as Record<string, unknown>
+      const tag = String(obj[spec.tagField ?? "kind"])
+      const variant = spec.variants?.[tag]
+      if (!variant) throw new Error(`taggedEnum "${spec.rustEnum}" has no variant for tag "${tag}"`)
+      const field = (f: RustFieldSpec) => rustFieldValue(f, obj[f.from ?? camelCase(f.name)])
+      if (variant.tuple) {
+        return `${spec.rustEnum}::${variant.variant}(${variant.tuple.map(field).join(", ")})`
+      }
+      if (variant.fields) {
+        return `${spec.rustEnum}::${variant.variant} { ${variant.fields
+          .map((f) => `${f.name}: ${field(f)}`)
+          .join(", ")} }`
+      }
+      return `${spec.rustEnum}::${variant.variant}`
     }
   }
 }

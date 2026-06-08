@@ -103,4 +103,29 @@ assert.ok(arrRust.includes("tags: &[TileTag::WaterSource, TileTag::EasyPropagati
 assert.ok(arrRust.includes("structure_ids: &[STRUCTURE_BASE]"))
 assert.ok(arrRust.includes("T { tags: &[], structure_ids: &[] },"))
 
+// taggedEnum inside array: tuple-variant Rust enums (RequirementDef-like)
+const reqRust = toRustConst(
+  {
+    constName: "X",
+    rustType: "T",
+    fields: [
+      {
+        name: "requirements",
+        kind: "array",
+        element: {
+          name: "req",
+          kind: "taggedEnum",
+          rustEnum: "RequirementDef",
+          variants: {
+            flag_set: { variant: "FlagSet", tuple: [{ name: "flag", from: "flag_id", kind: "idConst", prefix: "FLAG_" }] },
+          },
+        },
+      },
+    ],
+  },
+  [{ requirements: [{ kind: "flag_set", flag_id: "base.fire_pit_built" }] }, { requirements: [] }],
+)
+assert.ok(reqRust.includes("requirements: &[RequirementDef::FlagSet(FLAG_BASE_FIRE_PIT_BUILT)]"))
+assert.ok(reqRust.includes("T { requirements: &[] },"))
+
 console.log("game-content: all assertions passed")
