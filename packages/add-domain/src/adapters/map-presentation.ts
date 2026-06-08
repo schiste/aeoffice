@@ -34,6 +34,7 @@ export interface AddTileInteractionDetail {
   readonly visibility: AddVisibilityRenderState
   readonly knownInfoLevel: AddTileKnownInfoLevel
   readonly terrain: AddTerrain
+  readonly feature: AddFeature
   readonly state: AddTileInteractionState
   readonly exposureRisk: AddTravelExposureRisk
   readonly dungeonActionsVisible: boolean
@@ -148,6 +149,7 @@ export function tileInteractionDetailForCoord(
       visibility,
       knownInfoLevel: "unknown",
       terrain: "unknown",
+      feature: "none",
       state: "unknown",
       exposureRisk: "unknown",
       dungeonActionsVisible: false,
@@ -157,6 +159,7 @@ export function tileInteractionDetailForCoord(
   }
 
   const terrain = terrainForCell(cell)
+  const feature = featureForCell(cell)
   const state = visibility === "visible" ? stateForCell(cell) : "unknown"
   const exposureRisk = visibility === "visible" ? exposureRiskForCell(cell) : "unknown"
   const knownInfoLevel: AddTileKnownInfoLevel =
@@ -178,6 +181,7 @@ export function tileInteractionDetailForCoord(
     visibility,
     knownInfoLevel,
     terrain,
+    feature,
     state,
     exposureRisk,
     dungeonActionsVisible: dungeonLinks.length > 0,

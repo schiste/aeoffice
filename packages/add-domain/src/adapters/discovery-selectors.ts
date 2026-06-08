@@ -33,14 +33,17 @@ export interface AddDiscoveryMovementEvent {
 export interface AddDiscoveryTravelInput {
   readonly active: boolean
   readonly phase: "idle" | "preview" | "traveling" | "arrived"
+  readonly previewCell: string | null
   readonly destinationLabel: string | null
   readonly exposureRisk: string | null
   readonly previewAdjacent: boolean
+  readonly gameMinutes: number
 }
 
 export interface AddDiscoverySelectorInput {
   readonly snapshot: SimulationSnapshot
   readonly catalog: CatalogSnapshot
+  readonly heroCell: string | null
   readonly selectedTile: AddTileInteractionDetail | null
   readonly previewTile: AddTileInteractionDetail | null
   readonly heroDungeonLinks: readonly AddDungeonLinkInfo[]
@@ -55,6 +58,7 @@ export interface AddDiscoverySummary {
   readonly detail: string
   readonly movement: AddDiscoveryMovementSummary
   readonly tileChoices: readonly AddDiscoveryTileChoice[]
+  readonly selectedTile: AddDiscoverySelectedTileDecision | null
   readonly dungeonEntry: AddDiscoveryDungeonEntry | null
   readonly resourceLinks: readonly AddDiscoveryResourceLink[]
   readonly actionLinks: readonly AddDiscoveryActionLink[]
@@ -79,6 +83,36 @@ export interface AddDiscoveryTileChoice {
   readonly adjacent: boolean
   readonly dungeonCount: number
   readonly copy: string
+}
+
+export type AddDiscoveryTileUsefulnessLevel = "high" | "medium" | "low" | "unknown"
+
+export interface AddDiscoverySelectedTileDecision {
+  readonly cell: string
+  readonly label: string
+  readonly visibility: AddTileInteractionDetail["visibility"]
+  readonly travel: {
+    readonly gameMinutes: number
+    readonly standingHere: boolean
+    readonly adjacent: boolean
+    readonly canTravelNow: boolean
+    readonly risk: AddTravelExposureRisk
+    readonly copy: string
+  }
+  readonly facts: {
+    readonly known: readonly string[]
+    readonly unknown: readonly string[]
+  }
+  readonly dungeonLinks: {
+    readonly count: number
+    readonly labels: readonly string[]
+    readonly enterableHere: boolean
+    readonly copy: string
+  }
+  readonly usefulness: {
+    readonly level: AddDiscoveryTileUsefulnessLevel
+    readonly reasons: readonly string[]
+  }
 }
 
 export interface AddDiscoveryDungeonEntry {
@@ -114,6 +148,7 @@ export function selectAddDiscoverySummary(
   const actionLinks = actionLinksFor(input, dungeonEntry)
   const movement = movementSummaryFor(input)
   const tileChoices = tileChoicesFor(input)
+  const selectedTile = selectedTileDecisionFor(input)
   const phase = phaseFor(input, dungeonEntry, actionLinks)
 
   return {
@@ -122,6 +157,7 @@ export function selectAddDiscoverySummary(
     detail: detailFor(phase, movement, dungeonEntry, input),
     movement,
     tileChoices,
+    selectedTile,
     dungeonEntry,
     resourceLinks: resourceLinksFor(input.snapshot, input.catalog),
     actionLinks,
@@ -291,6 +327,165 @@ function dungeonEntryFor(input: AddDiscoverySelectorInput): AddDiscoveryDungeonE
   }
 }
 
+function selectedTileDecisionFor(
+  input: AddDiscoverySelectorInput,
+): AddDiscoverySelectedTileDecision | null {
+  const tile = input.selectedTile
+  if (!tile) return null
+
+  const standingHere = input.heroCell === tile.cell
+  const adjacent =
+    !standingHere && input.travel.previewAdjacent && input.travel.previewCell === tile.cell
+  const canTravelNow = adjacent && tile.visibility !== "hidden"
+  const known = knownFactRows(tile)
+  const unknown = unknownFactRows(tile)
+  const usefulnessReasons = usefulnessReasonsFor(input, tile)
+  return {
+    cell: tile.cell,
+    label: conciseTileLabel(tile.label),
+    visibility: tile.visibility,
+    travel: {
+      gameMinutes: input.travel.gameMinutes,
+      standingHere,
+      adjacent,
+      canTravelNow,
+      risk: tile.exposureRisk,
+      copy: travelDecisionCopy(tile, standingHere, adjacent, canTravelNow),
+    },
+    facts: {
+      known,
+      unknown,
+    },
+    dungeonLinks: {
+      count: tile.dungeonLinks.length,
+      labels: tile.dungeonLinks.map((link) => link.label),
+      enterableHere: input.heroDungeonLinks.some(
+        (link) => link.enabled && tile.dungeonLinks.some((tileLink) => tileLink.id === link.id),
+      ),
+      copy: dungeonDecisionCopy(tile, input.heroDungeonLinks),
+    },
+    usefulness: {
+      level: usefulnessLevelFor(tile, usefulnessReasons),
+      reasons: usefulnessReasons,
+    },
+  }
+}
+
+function knownFactRows(tile: AddTileInteractionDetail): readonly string[] {
+  if (tile.visibility === "hidden") return []
+  const rows = [`Terrain: ${titleCase(tile.terrain.replaceAll("_", " "))}`]
+  if (tile.knownInfoLevel === "full_current") {
+    rows.push(`Current state: ${titleCase(tile.state.replaceAll("_", " "))}`)
+    rows.push(`Toxicity: ${titleCase(tile.exposureRisk.replaceAll("_", " "))}`)
+  }
+  if (tile.dungeonLinks.length > 0) {
+    rows.push(`${tile.dungeonLinks.length} dungeon link${tile.dungeonLinks.length === 1 ? "" : "s"} known`)
+  }
+  return rows.slice(0, 4)
+}
+
+function unknownFactRows(tile: AddTileInteractionDetail): readonly string[] {
+  if (tile.visibility === "hidden") {
+    return ["Exact terrain", "toxicity risk", "dungeon links", "resource value"]
+  }
+  if (tile.knownInfoLevel === "known_static") {
+    return ["Current toxicity", "active threats", "fresh resource state"]
+  }
+  return tile.dungeonLinks.length === 0
+    ? ["No interior link is currently known here"]
+    : ["Interior details remain unknown until entered"]
+}
+
+function travelDecisionCopy(
+  tile: AddTileInteractionDetail,
+  standingHere: boolean,
+  adjacent: boolean,
+  canTravelNow: boolean,
+): string {
+  if (standingHere) {
+    return "The Hero is already here; use local links or choose the next adjacent region."
+  }
+  if (tile.visibility === "hidden") {
+    return "Travel may be possible, but the destination is not readable yet."
+  }
+  if (canTravelNow) {
+    return "Adjacent destination: crossing consumes one in-game hour."
+  }
+  if (!adjacent) {
+    return "Select an adjacent revealed tile or move closer before crossing."
+  }
+  return "The tile is readable, but movement is not currently available."
+}
+
+function dungeonDecisionCopy(
+  tile: AddTileInteractionDetail,
+  heroLinks: readonly AddDungeonLinkInfo[],
+): string {
+  if (tile.visibility === "hidden") return "Dungeon links are hidden until discovery."
+  if (tile.dungeonLinks.length === 0) return "No dungeon entrance is known on this tile."
+  const enterable = tile.dungeonLinks.some((tileLink) =>
+    heroLinks.some((heroLink) => heroLink.enabled && heroLink.id === tileLink.id),
+  )
+  return enterable
+    ? "The Hero is standing on this entrance and can enter now."
+    : "Move the Hero onto this linked tile to enter."
+}
+
+function usefulnessReasonsFor(
+  input: AddDiscoverySelectorInput,
+  tile: AddTileInteractionDetail,
+): readonly string[] {
+  if (tile.visibility === "hidden") return ["Unknown region: useful mainly as a scouting choice."]
+
+  const firstPlayable = selectAddFirstPlayableSummary(input.snapshot, input.catalog)
+  const currentStep = firstPlayable.currentStepId
+  const reasons: string[] = []
+  if (tile.dungeonLinks.length > 0) {
+    reasons.push("Opens an interior map or future dungeon objective.")
+  }
+  if (tile.feature === "survivor_cave") {
+    reasons.push("Relevant to Survivor Cave entry and recruitment progression.")
+  }
+  if (tile.feature === "base" || tile.feature === "base_core") {
+    reasons.push("Relevant to Base actions, repairs, and early resource loops.")
+  }
+  if (tile.terrain === "river") reasons.push("Likely relevant to water collection later.")
+  if (tile.terrain === "scrub") reasons.push("Likely relevant to scavenging and material pressure.")
+  if (tile.exposureRisk === "studio" || tile.exposureRisk === "safe_field") {
+    reasons.push("Low-risk staging tile for the next move.")
+  }
+  if (
+    (currentStep === "bubble-reach" || currentStep === "unlock-recruitment") &&
+    tile.dungeonLinks.length > 0
+  ) {
+    reasons.push("Directly supports the current first-playable reach objective.")
+  }
+  if (
+    (currentStep === "generate-resources" || currentStep === "restore-studio") &&
+    (tile.feature === "base" || tile.feature === "base_core" || tile.terrain === "scrub")
+  ) {
+    reasons.push("Supports the current resource and repair objective.")
+  }
+  if (reasons.length === 0) {
+    reasons.push("Useful for map knowledge and choosing a safer future route.")
+  }
+  return reasons.slice(0, 3)
+}
+
+function usefulnessLevelFor(
+  tile: AddTileInteractionDetail,
+  reasons: readonly string[],
+): AddDiscoveryTileUsefulnessLevel {
+  if (tile.visibility === "hidden") return "unknown"
+  if (tile.dungeonLinks.length > 0 || tile.feature === "survivor_cave") return "high"
+  if (reasons.length > 1 || tile.feature === "base" || tile.feature === "base_core") return "medium"
+  return "low"
+}
+
+function conciseTileLabel(label: string): string {
+  return label.replace(/\s*->.*$/, "")
+}
+
 function resourceLinksFor(
   snapshot: SimulationSnapshot,
   catalog: CatalogSnapshot,
@@ -415,4 +610,12 @@ function resourceValue(resources: ResourceSnapshot, id: string): number {
     default:
       return 0
   }
+}
+
+function titleCase(value: string): string {
+  return value
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((part) => part[0].toUpperCase() + part.slice(1))
+    .join(" ")
 }

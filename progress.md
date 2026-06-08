@@ -2488,3 +2488,14 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   to the overworld. `render_game_to_text` now exposes the dungeon objective
   projection, and `npm run smoke:add-rpg` covers the entry/return loop plus a
   dedicated `tmp/add-rpg-survivor-cave-entry-smoke.png` screenshot.
+- Revealed tile choices are now actionable. Selecting a revealed tile projects a
+  domain-owned decision card with travel minutes, whether the Hero is standing
+  there or can travel now, toxicity risk, known facts, unknown facts, dungeon
+  link count/copy, and objective/resource usefulness reasons. The Discovery
+  panel renders that card, and `render_game_to_text` exposes the same selected
+  tile decision for agents and smoke tests. Verification passed with
+  `npm --workspace @aedventure/add-domain run build`, `npm --workspace
+  @aedventure/add-rpg run build:types`, `npm run smoke:add-rpg`,
+  `npm run qa:renderer`, `npm run smoke:engine-sandbox`, `git diff --check`,
+  exact renderer leakage `rg`, and `npm run check`. Visual artifact:
+  `tmp/add-rpg-selected-tile-decision-smoke.png`.

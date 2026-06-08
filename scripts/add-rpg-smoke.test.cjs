@@ -1000,8 +1000,28 @@ async function interactWithMap(page, consoleErrors) {
   await page.mouse.click(center.x, center.y)
   const selected = await waitForTextState(
     page,
-    (state) => state.map?.interaction?.selectedHex !== null,
+    (state) =>
+      state.map?.interaction?.selectedHex !== null &&
+      state.discovery?.selectedTile !== null &&
+      state.discovery.selectedTile.travelMinutes === 60 &&
+      typeof state.discovery.selectedTile.travelRisk === "string" &&
+      typeof state.discovery.selectedTile.standingHere === "boolean" &&
+      Array.isArray(state.discovery.selectedTile.knownFacts) &&
+      Array.isArray(state.discovery.selectedTile.unknownFacts) &&
+      Number.isInteger(state.discovery.selectedTile.dungeonLinkCount) &&
+      typeof state.discovery.selectedTile.usefulnessLevel === "string" &&
+      state.discovery.selectedTile.usefulnessReasons.length > 0,
     consoleErrors,
+  )
+  assert.match(
+    await page.locator("#selected-tile-decision").innerText(),
+    /Travel|Toxicity|Known|Unknown|Links/,
+    "Selected tile card should explain travel, risk, facts, and links.",
+  )
+  await assertNonBlankNamedAppScreenshot(
+    page,
+    "add-rpg-selected-tile-decision-smoke.png",
+    "ADD RPG selected tile decision screenshot",
   )
 
   const zoomBefore = selected.map.camera.zoom

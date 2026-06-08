@@ -245,6 +245,7 @@ const discoveryState = createMemo(() => {
   return selectAddDiscoverySummary({
     snapshot: currentSnapshot,
     catalog: currentCatalog,
+    heroCell: info.character.cell,
     selectedTile: info.interaction.selectedDetail,
     previewTile: info.interaction.hoveredDetail ?? info.interaction.selectedDetail,
     heroDungeonLinks: info.character.dungeonLinksAtCell,
@@ -252,6 +253,7 @@ const discoveryState = createMemo(() => {
     travel: {
       active: experience?.phase === "traveling" || info.travel.active,
       phase: travelPhase,
+      previewCell: info.travel.previewCell,
       destinationLabel:
         experience?.event.destinationLabel ??
         info.travel.destinationLabel ??
@@ -261,6 +263,7 @@ const discoveryState = createMemo(() => {
         info.travel.exposureRisk ??
         info.travel.previewExposureRisk,
       previewAdjacent: info.travel.previewAdjacent,
+      gameMinutes: info.travel.costGameMinutes,
     },
     lastMovement: lastDiscoveryMovement(),
   })
@@ -558,6 +561,7 @@ function AddRpgApp() {
               <span>${() => discoveryState()?.movement.title ?? "Scout one step at a time"}</span>
               <small>${() => discoveryMovementMetricCopy()}</small>
             </div>
+            ${() => discoverySelectedTileCard()}
             <div class="discovery-tiles">
               ${() => discoveryTileRows()}
             </div>
@@ -978,6 +982,57 @@ function discoveryTileRows(): readonly unknown[] {
       </article>
     `,
   )
+}
+
+function discoverySelectedTileCard(): unknown {
+  const selected = discoveryState()?.selectedTile
+  if (!selected) return null
+  return html`
+    <article
+      id="selected-tile-decision"
+      class="discovery-selected-tile"
+      data-usefulness=${selected.usefulness.level}
+      data-visibility=${selected.visibility}
+    >
+      <header>
+        <span>
+          Selected tile
+          <strong>${selected.label}</strong>
+        </span>
+        <small>${titleCase(selected.usefulness.level)} value</small>
+      </header>
+      <div class="selected-tile-metrics">
+        <span>
+          Travel
+          <strong>${selected.travel.gameMinutes}m</strong>
+          <small>${selected.travel.standingHere ? "Here" : selected.travel.canTravelNow ? "Ready now" : selected.travel.adjacent ? "Readable" : "Move closer"}</small>
+        </span>
+        <span>
+          Toxicity
+          <strong>${titleCase(selected.travel.risk.replaceAll("_", " "))}</strong>
+          <small>${selected.travel.copy}</small>
+        </span>
+        <span>
+          Links
+          <strong>${selected.dungeonLinks.count}</strong>
+          <small>${selected.dungeonLinks.copy}</small>
+        </span>
+      </div>
+      <div class="selected-tile-facts">
+        <div>
+          <small>Known</small>
+          ${selected.facts.known.length > 0
+            ? selected.facts.known.map((fact) => html`<span>${fact}</span>`)
+            : html`<span>Nothing precise yet</span>`}
+        </div>
+        <div>
+          <small>Unknown</small>
+          ${selected.facts.unknown.map((fact) => html`<span>${fact}</span>`)}
+        </div>
+      </div>
+      <p>${selected.usefulness.reasons.join(" ")}</p>
+    </article>
+  `
 }
 
 function discoveryResourceRows(): readonly unknown[] {
@@ -2248,6 +2303,7 @@ function toTextState(): RuntimeTextState {
       ? selectAddDiscoverySummary({
           snapshot: currentSnapshot,
           catalog: currentCatalog,
+          heroCell: currentMapInfo.character.cell,
           selectedTile: currentMapInfo.interaction.selectedDetail,
           previewTile:
             currentMapInfo.interaction.hoveredDetail ??
@@ -2259,6 +2315,7 @@ function toTextState(): RuntimeTextState {
             phase:
               travelExperience()?.phase ??
               (currentMapInfo.travel.previewCell ? "preview" : "idle"),
+            previewCell: currentMapInfo.travel.previewCell,
             destinationLabel:
               travelExperience()?.event.destinationLabel ??
               currentMapInfo.travel.destinationLabel ??
@@ -2268,6 +2325,7 @@ function toTextState(): RuntimeTextState {
               currentMapInfo.travel.exposureRisk ??
               currentMapInfo.travel.previewExposureRisk,
             previewAdjacent: currentMapInfo.travel.previewAdjacent,
+            gameMinutes: currentMapInfo.travel.costGameMinutes,
           },
           lastMovement: lastDiscoveryMovement(),
         })

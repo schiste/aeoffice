@@ -289,6 +289,19 @@ export interface RuntimeTextState {
     readonly movementDiscoveredDelta: number
     readonly movementToxicityDelta: number
     readonly tileChoiceCount: number
+    readonly selectedTile: {
+      readonly cell: string
+      readonly label: string
+      readonly travelMinutes: number
+      readonly travelRisk: string
+      readonly standingHere: boolean
+      readonly canTravelNow: boolean
+      readonly knownFacts: readonly string[]
+      readonly unknownFacts: readonly string[]
+      readonly dungeonLinkCount: number
+      readonly usefulnessLevel: string
+      readonly usefulnessReasons: readonly string[]
+    } | null
     readonly dungeonEntryAvailable: boolean
     readonly dungeonEntryTarget: string | null
     readonly enabledActionIds: readonly string[]
@@ -379,6 +392,21 @@ export function createAddRuntimeTextState(
           movementDiscoveredDelta: input.discovery.movement.discoveredDelta,
           movementToxicityDelta: round3(input.discovery.movement.toxicityDelta),
           tileChoiceCount: input.discovery.tileChoices.length,
+          selectedTile: input.discovery.selectedTile
+            ? {
+                cell: input.discovery.selectedTile.cell,
+                label: input.discovery.selectedTile.label,
+                travelMinutes: input.discovery.selectedTile.travel.gameMinutes,
+                travelRisk: input.discovery.selectedTile.travel.risk,
+                standingHere: input.discovery.selectedTile.travel.standingHere,
+                canTravelNow: input.discovery.selectedTile.travel.canTravelNow,
+                knownFacts: input.discovery.selectedTile.facts.known,
+                unknownFacts: input.discovery.selectedTile.facts.unknown,
+                dungeonLinkCount: input.discovery.selectedTile.dungeonLinks.count,
+                usefulnessLevel: input.discovery.selectedTile.usefulness.level,
+                usefulnessReasons: input.discovery.selectedTile.usefulness.reasons,
+              }
+            : null,
           dungeonEntryAvailable: input.discovery.dungeonEntry?.enabled ?? false,
           dungeonEntryTarget: input.discovery.dungeonEntry?.targetMapId ?? null,
           enabledActionIds: input.discovery.actionLinks
