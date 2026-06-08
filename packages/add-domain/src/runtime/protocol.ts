@@ -233,6 +233,8 @@ export interface SimulationSnapshot {
   openDoors: string[]
   /** Perk ids the Hero has learned. */
   acquiredPerks: string[]
+  /** Hero inventory: item id -> quantity. */
+  inventory: Record<string, number>
 }
 
 export interface ResourceDef {

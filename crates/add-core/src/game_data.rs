@@ -2,7 +2,7 @@ use serde::Serialize;
 
 mod catalog;
 use catalog::{
-    BALANCE, CONSTRUCTION_OPTIONS, ENTITY_SCHEMAS, FLAGS, FLORA, PERKS, PROCESSING_RECIPES,
+    BALANCE, CONSTRUCTION_OPTIONS, ENTITY_SCHEMAS, FLAGS, FLORA, ITEMS, PERKS, PROCESSING_RECIPES,
     RESOURCES, ROLES, STATIONS, STORY_BEATS, STRUCTURES, TILES, UI_ELEMENTS, WORLD_ACTIONS,
 };
 
@@ -367,6 +367,15 @@ pub struct PerkDef {
     pub label: &'static str,
     pub requires: &'static [&'static str],
     pub effects: &'static [PerkEffectDef],
+}
+
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct ItemDef {
+    pub id: &'static str,
+    pub label: &'static str,
+    pub stackable: bool,
+    pub max_stack: u32,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
@@ -2114,6 +2123,14 @@ pub fn perks() -> &'static [PerkDef] {
 
 pub fn perk_def(id: &str) -> Option<&'static PerkDef> {
     PERKS.iter().find(|perk| perk.id == id)
+}
+
+pub fn items() -> &'static [ItemDef] {
+    ITEMS
+}
+
+pub fn item_def(id: &str) -> Option<&'static ItemDef> {
+    ITEMS.iter().find(|item| item.id == id)
 }
 
 pub fn balance_snapshot() -> BalanceSnapshot {

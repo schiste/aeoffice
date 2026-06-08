@@ -51,6 +51,13 @@ pub struct GameState {
     /// leveling); their effects modify sim calculations.
     #[serde(default)]
     pub acquired_perks: BTreeSet<String>,
+    /// Hero inventory: item id -> quantity (capped per item's `max_stack`).
+    #[serde(default)]
+    pub inventory: BTreeMap<String, u32>,
+    /// Sub-item fractional progress toward the next scavenged scrap unit.
+    /// Internal; not persisted or surfaced.
+    #[serde(skip)]
+    pub scavenge_scrap_progress: f64,
 }
 
 impl GameState {
@@ -121,6 +128,8 @@ impl GameState {
             ],
             open_doors: BTreeSet::new(),
             acquired_perks: BTreeSet::new(),
+            inventory: BTreeMap::new(),
+            scavenge_scrap_progress: 0.0,
         }
     }
 }

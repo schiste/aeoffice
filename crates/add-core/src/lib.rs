@@ -450,6 +450,48 @@ mod tests {
         assert!(restored.has_perk("perk.crystal_attuned"));
     }
 
+    #[test]
+    fn inventory_grants_cap_at_max_stack_and_persist() {
+        let mut simulation = Simulation::new();
+        // Stackable item caps at its max_stack (scrap = 99).
+        simulation.grant_item("item.scrap_metal", 200);
+        assert_eq!(
+            simulation.state().inventory.get("item.scrap_metal"),
+            Some(&99)
+        );
+        // Non-stackable caps at 1.
+        simulation.grant_item("item.field_kit", 5);
+        assert_eq!(simulation.state().inventory.get("item.field_kit"), Some(&1));
+
+        // Inventory survives a save round-trip.
+        let serialized = export_save(simulation.state()).expect("save serializes");
+        let restored = Simulation::from_state(import_save(&serialized).expect("save deserializes"));
+        assert_eq!(
+            restored.state().inventory.get("item.scrap_metal"),
+            Some(&99)
+        );
+    }
+
+    #[test]
+    fn scavenging_effort_yields_scrap_even_when_stone_is_full() {
+        let mut state = crate::state::GameState::new();
+        state
+            .roster
+            .crew_by_role
+            .insert("role.scavenge".to_string(), 3);
+        // Stone at cap: proves scrap comes from effort, not from hauled stone.
+        state.resources.stone = state.resources.stone_cap;
+        let mut simulation = Simulation::from_state(state);
+        simulation.apply(GameCommand::Tick { seconds: 10.0 });
+        let scrap = simulation
+            .state()
+            .inventory
+            .get("item.scrap_metal")
+            .copied()
+            .unwrap_or(0);
+        assert!(scrap > 0, "expected scrap from scavenging effort, got {scrap}");
+    }
+
     // Golden snapshot of the whole catalog. Catalogs are migrated to TS-authored
     // data + codegen one at a time; this proves each migration leaves the data the
     // sim and client see byte-identical, regardless of how the generated Rust is

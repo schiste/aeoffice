@@ -1,6 +1,6 @@
 use crate::command::GameCommand;
 use crate::game_data::{
-    balance_snapshot, construction_option_def, perk_def, processing_recipe_def,
+    balance_snapshot, construction_option_def, item_def, perk_def, processing_recipe_def,
     recruit_cost_for_index, role_def, station_def, stations, story_beat_def, tile_def,
     world_action_def, BalanceSnapshot,
     ConstructionOptionDef, CostDef, CostItemDef, CrystalTrack, EffectDef, PerkStat, ProcessingTrack,
@@ -24,6 +24,11 @@ use crate::state::{
     initial_discovered_cells, ConstructionJob, ForcedReturnPhase, ForcedReturnState, GameState,
     HeroLocationState, HexCoordState, HexState, HexVisualState, WorldAction, GRID_RADIUS,
 };
+
+/// Scrap-metal items yielded per second of scavenging effort (a unit of effort
+/// is one worker at full efficiency). Independent of stone storage.
+const SCRAP_PER_EFFORT_SECOND: f64 = 0.2;
+const ITEM_SCRAP_METAL: &str = "item.scrap_metal";
 
 #[derive(Debug, Clone)]
 pub struct Simulation {
@@ -1091,13 +1096,23 @@ impl Simulation {
         if rate_multiplier <= 0.0 {
             return 0.0;
         }
+
+        let yield_mult = self.perk_multiplier(PerkStat::ScavengeYield);
+        // Scavenging effort yields scrap metal even when the stone shed is full.
+        self.state.scavenge_scrap_progress +=
+            rate_multiplier * seconds * SCRAP_PER_EFFORT_SECOND * yield_mult;
+        let scrap_units = self.state.scavenge_scrap_progress.floor();
+        if scrap_units >= 1.0 {
+            self.state.scavenge_scrap_progress -= scrap_units;
+            self.grant_item(ITEM_SCRAP_METAL, scrap_units as u32);
+        }
+
         let free_capacity = (self.state.resources.stone_cap - self.state.resources.stone).max(0.0);
         if free_capacity <= 0.0 {
             self.push_note("Scavenge blocked: Stone storage is full.");
             return 0.0;
         }
 
-        let yield_mult = self.perk_multiplier(PerkStat::ScavengeYield);
         let stock_rate =
             self.balance().scavenge.stock_rate_per_second * rate_multiplier * yield_mult;
         let ambient_rate =
@@ -1131,6 +1146,17 @@ impl Simulation {
         }
 
         gathered
+    }
+
+    /// Add items to the Hero inventory, capped at the item's `max_stack`
+    /// (uncapped for unknown ids).
+    pub(crate) fn grant_item(&mut self, item_id: &str, quantity: u32) {
+        if quantity == 0 {
+            return;
+        }
+        let cap = item_def(item_id).map_or(u32::MAX, |def| def.max_stack);
+        let entry = self.state.inventory.entry(item_id.to_string()).or_insert(0);
+        *entry = entry.saturating_add(quantity).min(cap);
     }
 
     fn regenerate_water_stock(&mut self, seconds: f64) {

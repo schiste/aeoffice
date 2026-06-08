@@ -2,6 +2,7 @@ mod actions;
 mod balance;
 mod entity_schemas;
 mod flags;
+mod items;
 mod perks;
 mod resources;
 mod roles;
@@ -14,6 +15,7 @@ pub(super) use actions::{CONSTRUCTION_OPTIONS, PROCESSING_RECIPES, WORLD_ACTIONS
 pub(super) use balance::BALANCE;
 pub(super) use entity_schemas::ENTITY_SCHEMAS;
 pub(super) use flags::FLAGS;
+pub(super) use items::ITEMS;
 pub(super) use perks::PERKS;
 pub(super) use resources::RESOURCES;
 pub(super) use roles::ROLES;

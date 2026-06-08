@@ -6,6 +6,7 @@ import {
   addCommandForGameInteraction,
   selectAddDiscoverySummary,
   selectAddDungeonObjective,
+  selectAddInventory,
   selectAddPerkSummaries,
   selectAddUiState,
   selectAddWorldTimeForClockSeconds,
@@ -240,6 +241,10 @@ const uiState = createMemo<AddUiState | null>(() => {
 const perkProgress = createMemo(() => {
   const currentSnapshot = snapshot()
   return currentSnapshot ? selectAddPerkSummaries(currentSnapshot) : null
+})
+const inventoryItems = createMemo(() => {
+  const currentSnapshot = snapshot()
+  return currentSnapshot ? selectAddInventory(currentSnapshot) : []
 })
 const discoveryState = createMemo(() => {
   const currentSnapshot = snapshot()
@@ -797,6 +802,10 @@ function AddRpgApp() {
               <span class="small-chip">${() => `${perkProgress()?.pointsAvailable ?? 0} pts`}</span>
             </p>
             ${() => perkQuickControls()}
+          </div>
+          <div class="quick-control-group" aria-label="Hero inventory">
+            <p class="quick-control-heading">Inventory</p>
+            ${() => inventoryRows()}
           </div>
           ${() => (lastError() ? html`<p class="error-line">${lastError()}</p>` : null)}
         </section>
@@ -1494,6 +1503,21 @@ function perkQuickControls(): readonly unknown[] {
         >
           ${perk.acquired ? "Learned" : "Learn"}
         </button>
+      </article>
+    `,
+  )
+}
+
+function inventoryRows(): readonly unknown[] {
+  const items = inventoryItems()
+  if (items.length === 0) {
+    return [html`<p class="quick-control-empty"><small>Empty — scavenge to find scrap.</small></p>`]
+  }
+  return items.map(
+    (item) => html`
+      <article class="quick-control-row">
+        <span>${item.label}</span>
+        <span class="small-chip">${item.maxStack ? `${item.quantity}/${item.maxStack}` : `${item.quantity}`}</span>
       </article>
     `,
   )

@@ -53,6 +53,7 @@ const uiElements = content("ui-elements")
 const entitySchemas = content("entity-schemas")
 const balance = content("balance")
 const perks = content("perks")
+const items = content("items")
 
 const VIS = "pub(in crate::game_data)"
 // Balance is all-numeric; helper for the many f64 fields (from defaults to camelCase).
@@ -650,6 +651,26 @@ const FILES = [
                 ],
               },
             },
+          ],
+        },
+      },
+    ],
+  },
+  {
+    sourceModule: "packages/add-domain/src/content/items.ts",
+    rustPath: "crates/add-core/src/game_data/catalog/items.rs",
+    consts: [
+      {
+        entries: items.ITEMS,
+        spec: {
+          constName: "ITEMS",
+          rustType: "ItemDef",
+          visibility: VIS,
+          fields: [
+            { name: "id", kind: "string" },
+            { name: "label", kind: "string" },
+            { name: "stackable", kind: "bool" },
+            { name: "max_stack", kind: "u64" },
           ],
         },
       },
