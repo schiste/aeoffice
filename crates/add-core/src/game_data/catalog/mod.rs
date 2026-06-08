@@ -1,4 +1,5 @@
 mod actions;
+mod entity_schemas;
 mod flags;
 mod resources;
 mod roles;
@@ -8,6 +9,7 @@ mod tiles;
 mod ui_elements;
 
 pub(super) use actions::{CONSTRUCTION_OPTIONS, PROCESSING_RECIPES, WORLD_ACTIONS};
+pub(super) use entity_schemas::ENTITY_SCHEMAS;
 pub(super) use flags::FLAGS;
 pub(super) use resources::RESOURCES;
 pub(super) use roles::ROLES;

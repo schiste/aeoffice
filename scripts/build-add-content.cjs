@@ -50,6 +50,7 @@ const worldActions = content("world-actions")
 const processing = content("processing")
 const story = content("story")
 const uiElements = content("ui-elements")
+const entitySchemas = content("entity-schemas")
 
 const VIS = "pub(in crate::game_data)"
 
@@ -451,6 +452,121 @@ const FILES = [
             { name: "related_ids", kind: "array", element: { name: "r", kind: "string" } },
             VISIBILITY_FIELD,
             PRESENTATION_FIELD,
+          ],
+        },
+      },
+    ],
+  },
+  {
+    sourceModule: "packages/add-domain/src/content/entity-schemas.ts",
+    rustPath: "crates/add-core/src/game_data/catalog/entity_schemas.rs",
+    consts: [
+      {
+        entries: entitySchemas.ENTITY_SCHEMAS,
+        spec: {
+          constName: "ENTITY_SCHEMAS",
+          rustType: "EntitySchemaDef",
+          visibility: VIS,
+          fields: [
+            { name: "id", kind: "string" },
+            { name: "entity_kind", kind: "enum", rustEnum: "EntityKind" },
+            {
+              name: "persistence",
+              kind: "option",
+              inner: "struct",
+              structType: "PersistenceDef",
+              fields: [
+                { name: "scope", kind: "enum", rustEnum: "PersistenceScope" },
+                { name: "tuning_affinity", kind: "enum", rustEnum: "TuningAffinity" },
+                { name: "resets_on_tuning", kind: "bool" },
+              ],
+            },
+            {
+              name: "unlocks",
+              kind: "array",
+              element: {
+                name: "unlock",
+                kind: "struct",
+                structType: "UnlockDef",
+                fields: [
+                  { name: "kind", kind: "enum", rustEnum: "UnlockKind" },
+                  { name: "label", kind: "string" },
+                  { name: "related_ids", kind: "array", element: { name: "id", kind: "string" } },
+                ],
+              },
+            },
+            {
+              name: "blockers",
+              kind: "array",
+              element: {
+                name: "blocker",
+                kind: "struct",
+                structType: "BlockerDef",
+                fields: [
+                  { name: "kind", kind: "enum", rustEnum: "BlockerKind" },
+                  { name: "label", kind: "string" },
+                  { name: "related_ids", kind: "array", element: { name: "id", kind: "string" } },
+                ],
+              },
+            },
+            {
+              name: "access_rules",
+              kind: "array",
+              element: {
+                name: "rule",
+                kind: "struct",
+                structType: "AccessRuleDef",
+                fields: [
+                  { name: "kind", kind: "enum", rustEnum: "AccessRuleKind" },
+                  { name: "label", kind: "string" },
+                  { name: "related_ids", kind: "array", element: { name: "id", kind: "string" } },
+                ],
+              },
+            },
+            {
+              name: "power",
+              kind: "option",
+              inner: "struct",
+              structType: "PowerProfileDef",
+              fields: [
+                { name: "resource_id", kind: "string" },
+                { name: "upkeep_per_second", kind: "f64" },
+                { name: "manual_power", kind: "bool" },
+                { name: "starts_requested", kind: "bool" },
+                { name: "fallback_mode", kind: "enum", rustEnum: "PowerFallbackMode" },
+              ],
+            },
+            {
+              name: "flows",
+              kind: "array",
+              element: {
+                name: "flow",
+                kind: "struct",
+                structType: "FlowDef",
+                fields: [
+                  { name: "item_id", kind: "string" },
+                  { name: "label", kind: "string" },
+                  { name: "direction", kind: "enum", rustEnum: "FlowDirection" },
+                  { name: "cadence", kind: "enum", rustEnum: "FlowCadence" },
+                  { name: "related_ids", kind: "array", element: { name: "id", kind: "string" } },
+                ],
+              },
+            },
+            {
+              name: "model_refs",
+              kind: "array",
+              element: {
+                name: "model_ref",
+                kind: "struct",
+                structType: "ModelRefDef",
+                fields: [
+                  { name: "kind", kind: "enum", rustEnum: "ModelKind" },
+                  { name: "reference_id", kind: "string" },
+                  { name: "label", kind: "string" },
+                ],
+              },
+            },
+            { name: "notes", kind: "array", element: { name: "note", kind: "string" } },
           ],
         },
       },
