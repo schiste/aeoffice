@@ -17,6 +17,9 @@
       "path": "../../packages/game-topology"
     },
     {
+      "path": "../../packages/game-animation"
+    },
+    {
       "path": "../../packages/game-visibility"
     },
     {

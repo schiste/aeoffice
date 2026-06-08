@@ -23,6 +23,9 @@
       "path": "packages/game-dungeon"
     },
     {
+      "path": "packages/game-animation"
+    },
+    {
       "path": "packages/add-domain"
     },
     {
