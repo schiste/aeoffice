@@ -155,6 +155,10 @@ async function assertBootAndRenderTextContract(page, consoleErrors) {
       state.map?.presentation?.landmarkSprites === "procedural_sprite_stack" &&
       state.map?.presentation?.labelRendering === "high_resolution_phaser_text" &&
       state.map?.presentation?.ambience === "subtle_motes_and_topographic_scan" &&
+      state.discovery?.phase === "act" &&
+      state.discovery?.dungeonEntryAvailable === false &&
+      typeof state.discovery?.dungeonEntryTarget === "string" &&
+      state.discovery?.enabledActionIds?.includes("first-playable:reach-base") &&
       state.ui?.worldTime?.day >= 1 &&
       state.ui?.worldTime?.season === "spring" &&
       state.ui?.worldTime?.source === "estimated_solar_model" &&
@@ -794,6 +798,15 @@ async function exerciseMainCharacterMovement(page, consoleErrors) {
   )
   assert.ok(moved.travel.toTime, "Travel should expose an arrival time")
   assert.ok(moved.travel.exposureRisk, "Travel should expose an exposure risk")
+  assert.equal(moved.discovery.phase, "movement")
+  assert.ok(
+    moved.discovery.movementDiscoveredDelta > 0,
+    "Discovery telemetry should report newly revealed cells after movement.",
+  )
+  assert.ok(
+    moved.discovery.tileChoiceCount > 0,
+    "Discovery telemetry should expose at least one tile choice after movement.",
+  )
   assert.ok(
     observedTravelClockTimes.size >= 3,
     `Travel clock should show multiple minute values, saw ${Array.from(observedTravelClockTimes).join(", ")}`,

@@ -2,6 +2,7 @@ import {
   ADD_DOMAIN_BOUNDARY,
   ADD_MAP_MODE_OPTIONS,
   addMapModeLabel,
+  type AddDiscoverySummary,
   type AddFirstPlayableAction,
   type AddMapMode,
   type AddUiState,
@@ -64,6 +65,7 @@ export interface AddRuntimeTelemetryPresenterInput {
   readonly displayClockSeconds: number | null
   readonly clockAnimation: AddTelemetryClockAnimationState | null
   readonly mapInfo: AddPhaserMapInfo
+  readonly discovery: AddDiscoverySummary | null
   readonly mapMode: AddMapMode
   readonly adminOpen: boolean
   readonly firstPlayableCollapsed: boolean
@@ -279,6 +281,17 @@ export interface RuntimeTextState {
     }
   }
   readonly map: AddPhaserMapInfo
+  readonly discovery: {
+    readonly phase: string
+    readonly headline: string
+    readonly movementDiscoveredDelta: number
+    readonly movementToxicityDelta: number
+    readonly tileChoiceCount: number
+    readonly dungeonEntryAvailable: boolean
+    readonly dungeonEntryTarget: string | null
+    readonly enabledActionIds: readonly string[]
+    readonly relevantResourceIds: readonly string[]
+  } | null
   readonly persistence: {
     readonly storageKey: string
     readonly autosaveEnabled: boolean
@@ -344,6 +357,23 @@ export function createAddRuntimeTextState(
     },
     travel: travelTelemetry(input),
     map: input.mapInfo,
+    discovery: input.discovery
+      ? {
+          phase: input.discovery.phase,
+          headline: input.discovery.headline,
+          movementDiscoveredDelta: input.discovery.movement.discoveredDelta,
+          movementToxicityDelta: round3(input.discovery.movement.toxicityDelta),
+          tileChoiceCount: input.discovery.tileChoices.length,
+          dungeonEntryAvailable: input.discovery.dungeonEntry?.enabled ?? false,
+          dungeonEntryTarget: input.discovery.dungeonEntry?.targetMapId ?? null,
+          enabledActionIds: input.discovery.actionLinks
+            .filter((link) => link.enabled)
+            .map((link) => link.id),
+          relevantResourceIds: input.discovery.resourceLinks
+            .filter((link) => link.relevant)
+            .map((link) => link.id),
+        }
+      : null,
     persistence: {
       storageKey: ADD_AUTOSAVE_STORAGE_KEY,
       autosaveEnabled: input.persistence.autosaveEnabled,

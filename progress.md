@@ -2460,3 +2460,16 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   build:types`, `npm --workspace @aedventure/game-renderer-phaser run test`,
   `npm run smoke:add-rpg`, `npm run qa:renderer`, `npm run smoke:engine-sandbox`,
   exact renderer leakage `rg`, `git diff --check`, and `npm run check`.
+- ADD has started the post-renderer-neutralization gameplay loop. A new
+  `selectAddDiscoverySummary()` selector in `@aedventure/add-domain` projects
+  movement consequences, revealed tile choices, first dungeon entry readiness,
+  resource links, and available actions without importing Phaser or browser UI.
+  `apps/add-rpg` renders that as a compact Discovery panel over the map, and
+  `render_game_to_text` now exposes a typed discovery projection for smoke and
+  agent inspection. Verification passed with `npm --workspace
+  @aedventure/add-domain run build`, `npm --workspace @aedventure/add-rpg run
+  build:types`, `npm run smoke:add-rpg`, `npm run qa:renderer`, `npm run
+  smoke:engine-sandbox`, and the exact renderer leakage `rg`. A full `npm run
+  check` reached the office smoke and failed only on the large GPU map
+  real-time cadence threshold while the machine was under heavy unrelated CPU
+  load; the ADD and renderer portions completed successfully.

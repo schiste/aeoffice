@@ -4,6 +4,7 @@ import { render } from "solid-js/web"
 import {
   SimulationClient,
   addCommandForGameInteraction,
+  selectAddDiscoverySummary,
   selectAddUiState,
   selectAddWorldTimeForClockSeconds,
   workerRequestForAddCommand,
@@ -17,6 +18,9 @@ import {
   addMapModeLabel,
   createAddWorldForMapMode,
   type AddUiState,
+  type AddDiscoveryActionLink,
+  type AddDiscoveryMovementEvent,
+  type AddFirstPlayableAction,
   type AddMapMode,
   type AddWorldTimeSummary,
   type CatalogSnapshot,
@@ -146,6 +150,8 @@ const [adminOpen, setAdminOpen] = createSignal(false)
 const [firstPlayableCollapsed, setFirstPlayableCollapsed] = createSignal(false)
 const [questPanelPosition, setQuestPanelPosition] = createSignal(defaultQuestPanelPosition())
 const [travelExperience, setTravelExperience] = createSignal<TravelExperience | null>(null)
+const [lastDiscoveryMovement, setLastDiscoveryMovement] =
+  createSignal<AddDiscoveryMovementEvent | null>(null)
 const [travelDialog, setTravelDialog] = createSignal<TravelDialogState | null>(null)
 const [displayClockSeconds, setDisplayClockSeconds] = createSignal<number | null>(null)
 const [clockAnimation, setClockAnimation] = createSignal<ClockAnimationState | null>(null)
@@ -224,6 +230,38 @@ const uiState = createMemo<AddUiState | null>(() => {
   return currentSnapshot && currentCatalog
     ? selectAddUiState(currentSnapshot, currentCatalog)
     : null
+})
+const discoveryState = createMemo(() => {
+  const currentSnapshot = snapshot()
+  const currentCatalog = catalog()
+  if (!currentSnapshot || !currentCatalog) return null
+
+  const info = mapInfo()
+  const experience = travelExperience()
+  const travelPhase =
+    experience?.phase ?? (info.travel.previewCell ? "preview" : "idle")
+  return selectAddDiscoverySummary({
+    snapshot: currentSnapshot,
+    catalog: currentCatalog,
+    selectedTile: info.interaction.selectedDetail,
+    previewTile: info.interaction.hoveredDetail ?? info.interaction.selectedDetail,
+    heroDungeonLinks: info.character.dungeonLinksAtCell,
+    selectedDungeonLinks: info.dungeonLinks.selected,
+    travel: {
+      active: experience?.phase === "traveling" || info.travel.active,
+      phase: travelPhase,
+      destinationLabel:
+        experience?.event.destinationLabel ??
+        info.travel.destinationLabel ??
+        info.travel.previewLabel,
+      exposureRisk:
+        experience?.event.exposureRisk ??
+        info.travel.exposureRisk ??
+        info.travel.previewExposureRisk,
+      previewAdjacent: info.travel.previewAdjacent,
+    },
+    lastMovement: lastDiscoveryMovement(),
+  })
 })
 const displayedWorldTime = createMemo<AddWorldTimeSummary | null>(() => {
   const currentSnapshot = snapshot()
@@ -489,6 +527,27 @@ function AddRpgApp() {
               <span>${ADD_TILE_TRAVEL_PRESENTATION.visibleGameMinutes}m daylight step</span>
             </div>
             <i style=${() => travelProgressStyle()} aria-hidden="true" />
+          </section>
+          <section id="discovery-panel" class="panel discovery-panel" aria-label="Discovery loop">
+            <div class="panel-heading discovery-heading">
+              <span>Discovery</span>
+              <span class="small-chip">${() => discoveryPhaseLabel()}</span>
+            </div>
+            <strong>${() => discoveryState()?.headline ?? "Waiting for discovery"}</strong>
+            <p>${() => discoveryState()?.detail ?? "Move the Hero or select a tile to reveal the next choice."}</p>
+            <div class="discovery-movement">
+              <span>${() => discoveryState()?.movement.title ?? "Scout one step at a time"}</span>
+              <small>${() => discoveryMovementMetricCopy()}</small>
+            </div>
+            <div class="discovery-tiles">
+              ${() => discoveryTileRows()}
+            </div>
+            <div class="discovery-resources">
+              ${() => discoveryResourceRows()}
+            </div>
+            <div class="discovery-actions">
+              ${() => discoveryActionButtons()}
+            </div>
           </section>
           ${() => travelDialogView()}
           <section
@@ -872,6 +931,92 @@ function resourceRows(): readonly unknown[] {
         </span>
         <strong>${formatResource(resource.value)} / ${formatResource(resource.cap)}</strong>
       </article>
+    `,
+  )
+}
+
+function discoveryPhaseLabel(): string {
+  switch (discoveryState()?.phase) {
+    case "movement":
+      return "Movement"
+    case "enter_dungeon":
+      return "Entrance"
+    case "act":
+      return "Action"
+    case "choose_tile":
+      return "Choice"
+    default:
+      return "Waiting"
+  }
+}
+
+function discoveryMovementMetricCopy(): string {
+  const movement = discoveryState()?.movement
+  if (!movement) return "No movement yet"
+  const parts: string[] = []
+  if (movement.gameMinutes !== null) parts.push(`${movement.gameMinutes}m`)
+  if (movement.discoveredDelta > 0) parts.push(`+${movement.discoveredDelta} revealed`)
+  if (movement.toxicityDelta > 0) parts.push(`+${Math.round(movement.toxicityDelta * 100)}% toxicity`)
+  if (movement.risk) parts.push(titleCase(movement.risk.replaceAll("_", " ")))
+  return parts.length > 0 ? parts.join(" · ") : "Choose an adjacent tile"
+}
+
+function discoveryTileRows(): readonly unknown[] {
+  const choices = discoveryState()?.tileChoices ?? []
+  if (choices.length === 0) {
+    return [
+      html`<article class="discovery-empty">Select a visible tile or move the Hero to reveal new choices.</article>`,
+    ]
+  }
+  return choices.map(
+    (choice) => html`
+      <article class="discovery-tile" data-visibility=${choice.visibility}>
+        <span>
+          ${choice.label}
+          <small>${choice.copy}</small>
+        </span>
+        <strong>${choice.dungeonCount > 0 ? `${choice.dungeonCount} link` : titleCase(choice.risk.replaceAll("_", " "))}</strong>
+      </article>
+    `,
+  )
+}
+
+function discoveryResourceRows(): readonly unknown[] {
+  const resources = discoveryState()?.resourceLinks ?? []
+  const visible = resources.filter((resource) => resource.relevant)
+  const rows = visible.length > 0 ? visible : resources.slice(0, 2)
+  return rows.map(
+    (resource) => html`
+      <article class=${resource.relevant ? "discovery-resource relevant" : "discovery-resource"}>
+        <span>
+          ${resource.label}
+          <small>${resource.copy}</small>
+        </span>
+        <strong>
+          ${formatResource(resource.value)}${resource.target !== null ? ` / ${formatResource(resource.target)}` : ""}
+        </strong>
+      </article>
+    `,
+  )
+}
+
+function discoveryActionButtons(): readonly unknown[] {
+  const links = discoveryState()?.actionLinks ?? []
+  if (links.length === 0) {
+    return [html`<button type="button" disabled>No linked action yet</button>`]
+  }
+  return links.map(
+    (link) => html`
+      <button
+        id=${`discovery-action-${safeElementId(link.id)}`}
+        type="button"
+        class=${link.kind === "dungeon_entry" ? "primary-action" : ""}
+        onClick=${() => void runDiscoveryAction(link)}
+        disabled=${() => !link.enabled}
+        title=${link.reason ?? link.label}
+      >
+        ${link.label}
+      </button>
     `,
   )
 }
@@ -1718,6 +1863,19 @@ async function handleCharacterTravel(event: AddCharacterTravelEvent): Promise<vo
   await revealHeroDestination(event)
 
   const afterSnapshot = snapshot()
+  if (afterSnapshot) {
+    setLastDiscoveryMovement({
+      fromCell: event.fromCell,
+      toCell: event.toCell,
+      destinationLabel: event.destinationLabel,
+      exposureRisk: event.exposureRisk,
+      gameMinutes: travelTiming.visibleGameMinutes,
+      discoveredBefore: currentSnapshot.discoveredCells.length,
+      discoveredAfter: afterSnapshot.discoveredCells.length,
+      toxicityBefore: currentSnapshot.heroSurvival.viralLoadRatio,
+      toxicityAfter: afterSnapshot.heroSurvival.viralLoadRatio,
+    })
+  }
   setTravelExperience((current) =>
     current
       ? {
@@ -1808,6 +1966,7 @@ async function resetRuntime(): Promise<void> {
     setResetCount((count) => count + 1)
     travelDramaState = "fresh"
     setTravelDialog(null)
+    setLastDiscoveryMovement(null)
     client.reset()
   })
   if (!lastError()) await requestSave("reset")
@@ -1816,6 +1975,27 @@ async function resetRuntime(): Promise<void> {
 async function runFirstPlayableAction(): Promise<void> {
   const action = currentFirstPlayableStep()?.action
   if (!action) return
+  await runAddAction(action)
+}
+
+async function runDiscoveryAction(link: AddDiscoveryActionLink): Promise<void> {
+  if (!link.enabled) return
+  if (link.kind === "dungeon_entry") {
+    enterDiscoveryDungeon()
+    return
+  }
+  if (link.action) await runAddAction(link.action)
+}
+
+function enterDiscoveryDungeon(): void {
+  const entry = discoveryState()?.dungeonEntry
+  if (!entry?.enabled) return
+  setDungeonTarget(entry.targetMapId)
+  setLastCommand(`enter:${entry.targetMapId}`)
+  switchMapMode("dungeon_square")
+}
+
+async function runAddAction(action: AddFirstPlayableAction): Promise<void> {
   switch (action.type) {
     case "choose_story_option":
       await chooseStoryOption(action.beatId, action.optionId)
@@ -1958,6 +2138,35 @@ function toTextState(): RuntimeTextState {
   const currentCatalog = catalog()
   const currentUi = uiState()
   const currentMapInfo = mapHost?.getInfo() ?? mapInfo()
+  const currentDiscovery =
+    currentSnapshot && currentCatalog
+      ? selectAddDiscoverySummary({
+          snapshot: currentSnapshot,
+          catalog: currentCatalog,
+          selectedTile: currentMapInfo.interaction.selectedDetail,
+          previewTile:
+            currentMapInfo.interaction.hoveredDetail ??
+            currentMapInfo.interaction.selectedDetail,
+          heroDungeonLinks: currentMapInfo.character.dungeonLinksAtCell,
+          selectedDungeonLinks: currentMapInfo.dungeonLinks.selected,
+          travel: {
+            active: travelExperience()?.phase === "traveling" || currentMapInfo.travel.active,
+            phase:
+              travelExperience()?.phase ??
+              (currentMapInfo.travel.previewCell ? "preview" : "idle"),
+            destinationLabel:
+              travelExperience()?.event.destinationLabel ??
+              currentMapInfo.travel.destinationLabel ??
+              currentMapInfo.travel.previewLabel,
+            exposureRisk:
+              travelExperience()?.event.exposureRisk ??
+              currentMapInfo.travel.exposureRisk ??
+              currentMapInfo.travel.previewExposureRisk,
+            previewAdjacent: currentMapInfo.travel.previewAdjacent,
+          },
+          lastMovement: lastDiscoveryMovement(),
+        })
+      : null
   return createAddRuntimeTextState({
     snapshot: currentSnapshot,
     catalog: currentCatalog,
@@ -1966,6 +2175,7 @@ function toTextState(): RuntimeTextState {
     displayClockSeconds: displayClockSeconds(),
     clockAnimation: clockAnimation(),
     mapInfo: currentMapInfo,
+    discovery: currentDiscovery,
     mapMode: mapMode(),
     adminOpen: adminOpen(),
     firstPlayableCollapsed: firstPlayableCollapsed(),
@@ -2064,6 +2274,10 @@ function formatResource(value: number): string {
 
 function titleCase(value: string): string {
   return value.length === 0 ? value : `${value[0].toUpperCase()}${value.slice(1)}`
+}
+
+function safeElementId(value: string): string {
+  return value.replace(/[^a-zA-Z0-9_-]+/g, "-")
 }
 
 function slugForRole(roleId: string): string {

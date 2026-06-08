@@ -8,6 +8,7 @@
   --accent: #e6a84e;
   --aqua: #5fd1d8;
   --danger: #c8654b;
+  --map-side-rail-space: 0px;
   color: var(--paper);
   background: var(--ink);
   font-family:
@@ -17,6 +18,12 @@
   text-rendering: geometricprecision;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+@media (min-width: 981px) {
+  :root {
+    --map-side-rail-space: 92px;
+  }
 }
 
 * {
@@ -457,7 +464,7 @@ h1 {
 .travel-panel {
   position: absolute;
   top: 58px;
-  right: 12px;
+  right: calc(12px + var(--map-side-rail-space));
   z-index: 5;
   display: grid;
   width: min(430px, calc(100vw - 430px));
@@ -532,6 +539,111 @@ h1 {
 
 .travel-panel.arrived {
   border-color: rgb(95 209 216 / 40%);
+}
+
+.discovery-panel {
+  position: absolute;
+  top: 170px;
+  right: calc(12px + var(--map-side-rail-space));
+  z-index: 5;
+  display: grid;
+  width: min(430px, calc(100vw - 430px));
+  min-width: 320px;
+  max-height: calc(100vh - 280px);
+  gap: 9px;
+  overflow: auto;
+  border: 1px solid rgb(95 209 216 / 20%);
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgb(95 209 216 / 11%), rgb(255 244 201 / 6%)),
+    rgb(12 21 19 / 76%);
+  box-shadow: 0 18px 44px rgb(0 0 0 / 24%);
+  backdrop-filter: blur(16px);
+}
+
+.discovery-heading {
+  margin-bottom: 0;
+}
+
+.discovery-panel > strong {
+  color: #fff2bd;
+  font-size: 0.92rem;
+  font-weight: 950;
+}
+
+.discovery-panel > p,
+.discovery-empty {
+  margin: 0;
+  color: rgb(247 238 210 / 78%);
+  font-size: 0.78rem;
+  font-weight: 720;
+  line-height: 1.35;
+}
+
+.discovery-movement,
+.discovery-tile,
+.discovery-resource {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+  border-radius: 8px;
+  padding: 0.62rem 0.7rem;
+  background: rgb(255 244 201 / 7%);
+}
+
+.discovery-movement span,
+.discovery-tile span,
+.discovery-resource span {
+  min-width: 0;
+  color: var(--paper);
+  font-size: 0.78rem;
+  font-weight: 850;
+}
+
+.discovery-movement small,
+.discovery-tile small,
+.discovery-resource small {
+  display: block;
+  margin-top: 0.18rem;
+  color: rgb(247 238 210 / 58%);
+  font-size: 0.68rem;
+  font-weight: 720;
+  line-height: 1.25;
+}
+
+.discovery-tile strong,
+.discovery-resource strong {
+  flex: 0 0 auto;
+  color: #c9fff9;
+  font-size: 0.74rem;
+  font-weight: 900;
+  text-align: right;
+}
+
+.discovery-tile[data-visibility="hidden"] {
+  border: 1px solid rgb(255 244 201 / 10%);
+  background: rgb(11 17 16 / 46%);
+}
+
+.discovery-resource.relevant {
+  box-shadow: inset 3px 0 0 #f0b95d;
+}
+
+.discovery-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.discovery-actions button {
+  min-height: 2.15rem;
+  padding: 0 0.72rem;
+  font-size: 0.72rem;
+}
+
+.discovery-actions button:first-child {
+  grid-column: 1 / -1;
 }
 
 .travel-risk-row {
@@ -639,7 +751,7 @@ h1 {
 
 .map-hud {
   position: absolute;
-  right: 12px;
+  right: calc(12px + var(--map-side-rail-space));
   bottom: 12px;
   left: 12px;
   z-index: 5;
@@ -1132,6 +1244,16 @@ h1 {
     width: auto;
     min-width: 0;
   }
+
+  .discovery-panel {
+    top: auto;
+    right: 12px;
+    bottom: 202px;
+    left: 12px;
+    width: auto;
+    min-width: 0;
+    max-height: 30vh;
+  }
 }
 
 @media (max-width: 520px) {
@@ -1171,6 +1293,19 @@ h1 {
 
   .travel-panel p {
     font-size: 0.78rem;
+  }
+
+  .discovery-panel {
+    bottom: 194px;
+    padding: 10px;
+  }
+
+  .discovery-panel > p {
+    display: none;
+  }
+
+  .discovery-actions {
+    grid-template-columns: 1fr;
   }
 
   .first-playable-overlay {
