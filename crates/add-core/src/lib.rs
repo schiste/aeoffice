@@ -492,6 +492,34 @@ mod tests {
         assert!(scrap > 0, "expected scrap from scavenging effort, got {scrap}");
     }
 
+    #[test]
+    fn clearing_a_location_loots_once_and_persists() {
+        let mut simulation = Simulation::new();
+        let key = "dungeon.studio:3:3".to_string();
+
+        // First clear marks the location and grants its loot.
+        simulation.apply(GameCommand::ClearLocation {
+            key: key.clone(),
+            loot_item: Some("item.scrap_metal".to_string()),
+            loot_qty: 4,
+        });
+        assert!(simulation.state().cleared_locations.contains(&key));
+        assert_eq!(simulation.state().inventory.get("item.scrap_metal"), Some(&4));
+
+        // Re-clearing the same location is a no-op (no double loot).
+        simulation.apply(GameCommand::ClearLocation {
+            key: key.clone(),
+            loot_item: Some("item.scrap_metal".to_string()),
+            loot_qty: 4,
+        });
+        assert_eq!(simulation.state().inventory.get("item.scrap_metal"), Some(&4));
+
+        // Cleared locations survive a save round-trip.
+        let serialized = export_save(simulation.state()).expect("save serializes");
+        let restored = Simulation::from_state(import_save(&serialized).expect("save deserializes"));
+        assert!(restored.state().cleared_locations.contains(&key));
+    }
+
     // Golden snapshot of the whole catalog. Catalogs are migrated to TS-authored
     // data + codegen one at a time; this proves each migration leaves the data the
     // sim and client see byte-identical, regardless of how the generated Rust is

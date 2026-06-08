@@ -58,16 +58,22 @@ const RUBBLE_WALL: DungeonCellSpec = {
   feature: "rubble",
   tokenId: "add.fixture.dungeon.rubble",
 }
-// Creatures the Studio's encounter table can place (id -> presentation).
-const STUDIO_CREATURES: Record<string, { readonly label: string; readonly size: number }> = {
-  rat: { label: "Rat", size: 0.35 },
-  giant_rat: { label: "Giant Rat", size: 0.6 },
+// Creatures the Studio's encounter table can place (id -> presentation + loot
+// dropped when cleared).
+const STUDIO_CREATURES: Record<
+  string,
+  { readonly label: string; readonly size: number; readonly lootItem: string; readonly lootQty: number }
+> = {
+  rat: { label: "Rat", size: 0.35, lootItem: "item.scrap_metal", lootQty: 1 },
+  giant_rat: { label: "Giant Rat", size: 0.6, lootItem: "item.scrap_metal", lootQty: 2 },
 }
 
 // A sub-tile creature cell for a given creature id. compileDungeon gives each
-// occurrence a unique id.
+// occurrence a unique id. `feature: "creature"` + loot metadata make it a
+// bump-to-clear target (see dungeon-locations.ts).
 function creatureCell(creatureId: string): DungeonCellSpec {
-  const creature = STUDIO_CREATURES[creatureId] ?? { label: creatureId, size: 0.4 }
+  const creature =
+    STUDIO_CREATURES[creatureId] ?? { label: creatureId, size: 0.4, lootItem: "item.scrap_metal", lootQty: 1 }
   return {
     kind: "floor",
     feature: "creature",
@@ -78,6 +84,29 @@ function creatureCell(creatureId: string): DungeonCellSpec {
       visualFootprint: { unit: "cell", width: creature.size, height: creature.size },
       sourceId: creatureId,
     },
+    metadata: { lootItem: creature.lootItem, lootQty: creature.lootQty },
+  }
+}
+
+// A bump-to-loot container. Renders as a landmark; clearing it grants its loot
+// once and persists (cleared_locations).
+function containerCell(
+  idSuffix: string,
+  label: string,
+  lootItem: string,
+  lootQty: number,
+): DungeonCellSpec {
+  return {
+    kind: "floor",
+    feature: "container",
+    entity: {
+      idSuffix,
+      label,
+      kind: "container",
+      visualFootprint: { unit: "cell", width: 0.55, height: 0.55 },
+      sourceId: "container",
+    },
+    metadata: { lootItem, lootQty },
   }
 }
 
@@ -97,12 +126,12 @@ const STUDIO_VERMIN: readonly DungeonCellSpec[] = resolveEncounterSpawns(STUDIO_
 //   r rat (ruined only)     ~ collapsed spot (floor when restored, rubble when ruined)
 const BUILDING_GRID = [
   "######################",
-  "#.....#..#...........#",
+  "#.....#..#......u....#",
   "#..3..+..#.....K.....#",
   "#.....#..#..r....~...#",
   "#.....#..#...........#",
   "#######..######+######",
-  "#.....#..#...........#",
+  "#.....#..#..c........#",
   "#..2..+..#...~.......#",
   "#..s..#..#.....D.....#",
   "#.~...#..#........t..#",
@@ -135,6 +164,8 @@ const RESTORED_LEGEND: Readonly<Record<string, DungeonCellSpec>> = {
   r: FLOOR,
   s: FLOOR,
   t: FLOOR,
+  c: FLOOR,
+  u: FLOOR,
   "~": FLOOR,
   "1": {
     kind: "floor",
@@ -174,6 +205,8 @@ const RUINED_LEGEND: Readonly<Record<string, DungeonCellSpec>> = {
   r: STUDIO_VERMIN[0],
   s: STUDIO_VERMIN[1],
   t: STUDIO_VERMIN[2],
+  c: containerCell("supply-crate", "Supply Crate", "item.scrap_metal", 3),
+  u: containerCell("larder-cupboard", "Larder Cupboard", "item.ration", 2),
   "~": RUBBLE_WALL,
   "1": {
     kind: "floor",

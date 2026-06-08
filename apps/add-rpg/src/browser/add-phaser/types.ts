@@ -48,6 +48,12 @@ export interface AddRpgPhaserMapHostOptions {
   readonly onCharacterTravel?: (event: AddCharacterTravelEvent) => void
   /** Bumping a closed door requests it be opened (authoritative toggle). */
   readonly onDoorToggle?: (coord: CellCoord) => void
+  /** Bumping an un-cleared creature/container resolves it (clear/loot, once). */
+  readonly onClearLocation?: (
+    coord: CellCoord,
+    lootItem: string | undefined,
+    lootQty: number,
+  ) => void
 }
 
 export interface PhaserMapPresentationState {
@@ -130,8 +136,10 @@ export interface PhaserMapRendererState {
   readonly landmarks: {
     readonly primaryAnchorCoord: CellCoord | null
     readonly primaryAnchorPosition: Vector2 | null
+    readonly primaryAnchorViewport: Vector2 | null
     readonly spawnAnchorCoord: CellCoord | null
     readonly spawnAnchorPosition: Vector2 | null
+    readonly spawnAnchorViewport: Vector2 | null
     readonly renderedCount: number
   }
   readonly visibility: {
@@ -235,9 +243,11 @@ export interface AddPhaserMapInfo {
   readonly landmarks: {
     readonly baseCenter: string | null
     readonly baseCenterWorld: Vector2 | null
+    readonly baseCenterViewport: Vector2 | null
     readonly studioLabelVisible: boolean
     readonly survivorCave: string | null
     readonly survivorCaveWorld: Vector2 | null
+    readonly survivorCaveViewport: Vector2 | null
     readonly survivorCaveVisible: boolean
     readonly renderedCount: number
   }

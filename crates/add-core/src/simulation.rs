@@ -137,6 +137,11 @@ impl Simulation {
             GameCommand::OpenDoor { key } => {
                 self.state.open_doors.insert(key);
             }
+            GameCommand::ClearLocation {
+                key,
+                loot_item,
+                loot_qty,
+            } => self.clear_location(key, loot_item, loot_qty),
             GameCommand::AcquirePerk { perk_id } => self.acquire_perk(&perk_id),
             GameCommand::SpendBassline { amount } => self.spend_bassline(amount),
             GameCommand::Tick { seconds } => self.tick_internal(seconds, false),
@@ -1146,6 +1151,18 @@ impl Simulation {
         }
 
         gathered
+    }
+
+    /// Mark a per-location fact resolved (a looted container, a cleared
+    /// creature). Idempotent and once-only: the first clear grants the optional
+    /// loot; re-clearing an already-resolved key is a no-op (no double loot).
+    fn clear_location(&mut self, key: String, loot_item: Option<String>, loot_qty: u32) {
+        if !self.state.cleared_locations.insert(key) {
+            return;
+        }
+        if let Some(item_id) = loot_item {
+            self.grant_item(&item_id, loot_qty);
+        }
     }
 
     /// Add items to the Hero inventory, capped at the item's `max_stack`

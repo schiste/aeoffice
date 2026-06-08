@@ -54,6 +54,11 @@ pub struct GameState {
     /// Hero inventory: item id -> quantity (capped per item's `max_stack`).
     #[serde(default)]
     pub inventory: BTreeMap<String, u32>,
+    /// Resolved per-location facts (looted containers, cleared creatures), keyed
+    /// `${mapId}:${x}:${y}` like `open_doors`. A key present = that location is
+    /// looted/cleared, so it stays so across re-entry and save/reload.
+    #[serde(default)]
+    pub cleared_locations: BTreeSet<String>,
     /// Sub-item fractional progress toward the next scavenged scrap unit.
     /// Internal; not persisted or surfaced.
     #[serde(skip)]
@@ -129,6 +134,7 @@ impl GameState {
             open_doors: BTreeSet::new(),
             acquired_perks: BTreeSet::new(),
             inventory: BTreeMap::new(),
+            cleared_locations: BTreeSet::new(),
             scavenge_scrap_progress: 0.0,
         }
     }

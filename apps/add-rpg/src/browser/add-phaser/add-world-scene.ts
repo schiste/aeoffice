@@ -268,6 +268,24 @@ export class AddRpgHexScene extends Phaser.Scene {
       this.refreshInfo()
       return false
     }
+    // Bumping an un-cleared creature/container resolves it (clear/loot) instead
+    // of moving; the next step enters once the snapshot drops it.
+    const nextFeature = nextCell.metadata?.feature
+    if (
+      (nextFeature === "creature" || nextFeature === "container") &&
+      nextCell.metadata?.cleared !== true
+    ) {
+      this.characterFacing = direction
+      this.characterMoveStatus = { direction, accepted: false, blockedReason: "clearing_location" }
+      const lootItem =
+        typeof nextCell.metadata?.lootItem === "string" ? nextCell.metadata.lootItem : undefined
+      const lootQty =
+        typeof nextCell.metadata?.lootQty === "number" ? nextCell.metadata.lootQty : 0
+      this.hostOptions.onClearLocation?.(nextCoord, lootItem, lootQty)
+      this.drawOverlay()
+      this.refreshInfo()
+      return false
+    }
     if (!this.navigationPolicy.canEnterCell(nextCell)) {
       this.characterMoveStatus = {
         direction,
@@ -415,6 +433,7 @@ export class AddRpgHexScene extends Phaser.Scene {
     this.drawLandmarks(this.context)
     this.syncDoors(this.context)
     this.syncMainCharacter(this.context, mapChanged)
+    this.ensureSelectedCoord(this.context)
     this.drawOverlay()
     this.renderCount += 1
 
@@ -1179,6 +1198,10 @@ export class AddRpgHexScene extends Phaser.Scene {
     const rawProgress = activeTravel
       ? clamp((this.time.now - activeTravel.startedAtMs) / activeTravel.durationMs, 0, 1)
       : 0
+    const primaryAnchorPosition = context.baseCoord ? centerFor(context.baseCoord, context) : null
+    const spawnAnchorPosition = context.survivorCaveCoord
+      ? centerFor(context.survivorCaveCoord, context)
+      : null
 
     return {
       hostedBy: "phaser",
@@ -1231,10 +1254,14 @@ export class AddRpgHexScene extends Phaser.Scene {
       },
       landmarks: {
         primaryAnchorCoord: context.baseCoord,
-        primaryAnchorPosition: context.baseCoord ? centerFor(context.baseCoord, context) : null,
+        primaryAnchorPosition,
+        primaryAnchorViewport: primaryAnchorPosition
+          ? viewportPointFor(primaryAnchorPosition, camera, this.scale.width, this.scale.height)
+          : null,
         spawnAnchorCoord: context.survivorCaveCoord,
-        spawnAnchorPosition: context.survivorCaveCoord
-          ? centerFor(context.survivorCaveCoord, context)
+        spawnAnchorPosition,
+        spawnAnchorViewport: spawnAnchorPosition
+          ? viewportPointFor(spawnAnchorPosition, camera, this.scale.width, this.scale.height)
           : null,
         renderedCount: this.landmarkObjects.length,
       },
@@ -1266,5 +1293,28 @@ export class AddRpgHexScene extends Phaser.Scene {
         responsiveLayout: this.scale.width < 640 || this.scale.height < 520 ? "mobile" : "desktop",
       },
     }
+  }
+
+  private ensureSelectedCoord(context: RenderContext): void {
+    if (
+      this.selectedCoord &&
+      context.terrainByCoord.has(addMapCoordKey(this.selectedCoord))
+    ) {
+      return
+    }
+    this.selectedCoord = context.baseCoord
+  }
+}
+
+function viewportPointFor(
+  worldPoint: Vector2,
+  camera: Phaser.Cameras.Scene2D.Camera,
+  width: number,
+  height: number,
+): Vector2 {
+  const view = camera.worldView
+  return {
+    x: ((worldPoint.x - view.x) / Math.max(1, view.width)) * width,
+    y: ((worldPoint.y - view.y) / Math.max(1, view.height)) * height,
   }
 }

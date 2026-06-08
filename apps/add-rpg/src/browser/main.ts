@@ -12,8 +12,10 @@ import {
   selectAddWorldTimeForClockSeconds,
   workerRequestForAddCommand,
   applyDungeonFieldOfView,
+  applyClearedLocations,
   applyDungeonDoorStates,
   dungeonDoorKey,
+  dungeonLocationKey,
   emptyDungeonVisibility,
   addDungeonByMapId,
   ADD_MAP_MODE_OPTIONS,
@@ -356,6 +358,12 @@ createEffect(() => {
         dungeonId,
         new Set(currentSnapshot.openDoors ?? []),
       )
+      // Per-location persistence: looted containers / cleared creatures drop out.
+      dungeonMap = applyClearedLocations(
+        dungeonMap,
+        dungeonId,
+        new Set(currentSnapshot.clearedLocations ?? []),
+      )
       // The dungeon registry owns the visibility policy; "fully_lit" dungeons skip FOV.
       const usesFov =
         (addDungeonByMapId(activeMap.id)?.visibilityPolicy ?? "directional_fov") ===
@@ -410,6 +418,9 @@ function AddRpgApp() {
       },
       onDoorToggle: (coord) => {
         void handleDoorToggle(coord)
+      },
+      onClearLocation: (coord, lootItem, lootQty) => {
+        void handleClearLocation(coord, lootItem, lootQty)
       },
     })
     const currentWorld = world()
@@ -2229,6 +2240,20 @@ async function handleDoorToggle(coord: CellCoord): Promise<void> {
   })
 }
 
+async function handleClearLocation(
+  coord: CellCoord,
+  lootItem: string | undefined,
+  lootQty: number,
+): Promise<void> {
+  // Per-location facts are Rust-authoritative: clearLocation loots once + records
+  // the cell, and the new snapshot drives the cleared-location overlay.
+  const dungeonId = addDungeonByMapId(dungeonTarget())?.id ?? dungeonTarget()
+  const key = dungeonLocationKey(dungeonId, coord)
+  await sendAndWaitForSnapshot(() => {
+    client.clearLocation(key, lootItem, lootQty)
+  })
+}
+
 async function handleCharacterTravel(event: AddCharacterTravelEvent): Promise<void> {
   const currentSnapshot = snapshot()
   if (!currentSnapshot) return
@@ -2884,9 +2909,11 @@ function emptyMapInfo(): AddPhaserMapInfo {
     landmarks: {
       baseCenter: null,
       baseCenterWorld: null,
+      baseCenterViewport: null,
       studioLabelVisible: false,
       survivorCave: null,
       survivorCaveWorld: null,
+      survivorCaveViewport: null,
       survivorCaveVisible: false,
       renderedCount: 0,
     },

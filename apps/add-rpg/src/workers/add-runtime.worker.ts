@@ -79,6 +79,10 @@ async function handleMessage(message: WorkerRequest) {
         runtime?.acquirePerk(message.perkId)
         postWorkerEvent({ type: 'snapshot', snapshot: snapshot() })
         break
+      case 'clearLocation':
+        runtime?.clearLocation(message.key, message.lootItem, message.lootQty)
+        postWorkerEvent({ type: 'snapshot', snapshot: snapshot() })
+        break
       case 'spendBassline':
         runtime?.spendBassline(message.amount)
         postWorkerEvent({ type: 'snapshot', snapshot: snapshot() })

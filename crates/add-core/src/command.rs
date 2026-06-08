@@ -13,6 +13,11 @@ pub enum GameCommand {
     RecruitFromSurvivorCave,
     MoveHeroTo { q: i8, r: i8 },
     OpenDoor { key: String },
+    ClearLocation {
+        key: String,
+        loot_item: Option<String>,
+        loot_qty: u32,
+    },
     AcquirePerk { perk_id: String },
     SpendBassline { amount: f64 },
     Tick { seconds: f64 },

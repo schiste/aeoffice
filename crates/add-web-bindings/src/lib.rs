@@ -120,6 +120,15 @@ impl WebRuntime {
         });
     }
 
+    #[wasm_bindgen(js_name = clearLocation)]
+    pub fn clear_location(&mut self, key: &str, loot_item: Option<String>, loot_qty: u32) {
+        self.simulation.apply(GameCommand::ClearLocation {
+            key: key.to_string(),
+            loot_item,
+            loot_qty,
+        });
+    }
+
     #[wasm_bindgen(js_name = spendBassline)]
     pub fn spend_bassline(&mut self, amount: f64) {
         self.simulation.apply(GameCommand::SpendBassline { amount });

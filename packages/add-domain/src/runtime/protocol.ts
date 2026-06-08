@@ -235,6 +235,9 @@ export interface SimulationSnapshot {
   acquiredPerks: string[]
   /** Hero inventory: item id -> quantity. */
   inventory: Record<string, number>
+  /** Resolved per-location facts (looted containers, cleared creatures),
+   * keyed `${mapId}:${x}:${y}`. */
+  clearedLocations: string[]
 }
 
 export interface ResourceDef {
@@ -742,6 +745,7 @@ export type WorkerRequest =
   | { type: 'recruitFromSurvivorCave' }
   | { type: 'moveHeroTo'; q: number; r: number }
   | { type: 'openDoor'; key: string }
+  | { type: 'clearLocation'; key: string; lootItem?: string; lootQty: number }
   | { type: 'acquirePerk'; perkId: string }
   | { type: 'spendBassline'; amount: number }
   | { type: 'importSave'; payload: string }

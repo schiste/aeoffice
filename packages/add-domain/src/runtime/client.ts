@@ -83,6 +83,10 @@ export class SimulationClient {
     this.post({ type: 'acquirePerk', perkId })
   }
 
+  clearLocation(key: string, lootItem: string | undefined, lootQty: number) {
+    this.post({ type: 'clearLocation', key, lootItem, lootQty })
+  }
+
   spendBassline(amount: number) {
     this.post({ type: 'spendBassline', amount })
   }
