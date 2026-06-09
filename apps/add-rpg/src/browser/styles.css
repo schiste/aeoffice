@@ -1226,6 +1226,192 @@ h1 {
   opacity: 0.72;
 }
 
+.base-machine-summary,
+.base-machine-card,
+.base-machine-group {
+  display: grid;
+  min-width: 0;
+  gap: 0.48rem;
+  border-radius: 8px;
+}
+
+.base-machine-summary {
+  border: 1px solid rgb(95 209 216 / 22%);
+  padding: 0.64rem 0.68rem;
+  background:
+    linear-gradient(180deg, rgb(95 209 216 / 11%), rgb(255 244 201 / 4%)),
+    rgb(11 17 16 / 42%);
+  box-shadow: inset 3px 0 0 #5fd1d8;
+}
+
+.base-machine-summary[data-brownout="true"] {
+  border-color: rgb(200 101 75 / 34%);
+  background: rgb(200 101 75 / 12%);
+  box-shadow: inset 3px 0 0 #c8654b;
+}
+
+.base-machine-summary > span,
+.base-machine-group-heading > span,
+.base-machine-card-heading > span {
+  color: rgb(247 238 210 / 58%);
+  font-size: 0.62rem;
+  font-weight: 920;
+  text-transform: uppercase;
+}
+
+.base-machine-summary > strong,
+.base-machine-card-heading > strong {
+  color: #fff2bd;
+  font-size: 0.84rem;
+  font-weight: 940;
+  line-height: 1.12;
+}
+
+.base-machine-summary > small,
+.base-machine-card > small,
+.base-machine-empty,
+.base-machine-blocker {
+  color: rgb(247 238 210 / 68%);
+  font-size: 0.64rem;
+  font-weight: 720;
+  line-height: 1.24;
+}
+
+.base-machine-group {
+  padding: 0.56rem;
+  background: rgb(7 12 12 / 24%);
+}
+
+.base-machine-group-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.base-machine-card {
+  border: 1px solid rgb(255 244 201 / 12%);
+  padding: 0.62rem 0.66rem;
+  background: rgb(255 244 201 / 7%);
+}
+
+.base-machine-card[data-status="powered"] {
+  border-color: rgb(95 209 216 / 26%);
+  background: rgb(95 209 216 / 10%);
+}
+
+.base-machine-card[data-status="browned_out"] {
+  border-color: rgb(200 101 75 / 36%);
+  background: rgb(200 101 75 / 13%);
+}
+
+.base-machine-card[data-status="locked"] {
+  opacity: 0.76;
+}
+
+.base-machine-card-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.base-machine-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.28rem;
+}
+
+.base-machine-tags span {
+  border-radius: 999px;
+  padding: 0.18rem 0.4rem;
+  background: rgb(7 12 12 / 36%);
+  color: rgb(247 238 210 / 70%);
+  font-size: 0.58rem;
+  font-weight: 850;
+  line-height: 1.1;
+}
+
+.base-machine-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.base-machine-detail-grid > span {
+  display: grid;
+  gap: 0.12rem;
+  border-radius: 7px;
+  padding: 0.44rem 0.48rem;
+  background: rgb(7 12 12 / 28%);
+}
+
+.base-machine-detail-grid strong,
+.base-machine-recipe strong {
+  color: #fff2bd;
+  font-size: 0.65rem;
+  font-weight: 890;
+  line-height: 1.14;
+}
+
+.base-machine-detail-grid small,
+.base-machine-recipe small,
+.base-machine-recipe em {
+  color: rgb(247 238 210 / 66%);
+  font-size: 0.6rem;
+  font-style: normal;
+  font-weight: 720;
+  line-height: 1.22;
+}
+
+.base-machine-blocker {
+  border-radius: 7px;
+  padding: 0.42rem 0.48rem;
+  background: rgb(200 101 75 / 13%);
+}
+
+.base-machine-recipes {
+  display: grid;
+  gap: 5px;
+}
+
+.base-machine-recipes-heading {
+  color: rgb(247 238 210 / 58%);
+  font-size: 0.58rem;
+  font-weight: 920;
+  text-transform: uppercase;
+}
+
+.base-machine-recipe {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 0.44rem;
+  border-radius: 7px;
+  padding: 0.42rem 0.48rem;
+  background: rgb(7 12 12 / 30%);
+}
+
+.base-machine-recipe > span {
+  display: grid;
+  min-width: 0;
+  gap: 0.08rem;
+}
+
+.base-machine-recipe[data-enabled="true"] {
+  background: rgb(95 209 216 / 10%);
+}
+
+.base-machine-recipe button {
+  min-height: 1.7rem;
+  padding: 0 0.5rem;
+  font-size: 0.64rem;
+}
+
+.base-machine-card > button {
+  min-height: 1.9rem;
+  font-size: 0.68rem;
+}
+
 .base-economy-line {
   display: flex;
   min-width: 0;
@@ -2147,6 +2333,11 @@ h1 {
   }
 
   .base-staffing-presets {
+    grid-template-columns: 1fr;
+  }
+
+  .base-machine-detail-grid,
+  .base-machine-recipe {
     grid-template-columns: 1fr;
   }
 

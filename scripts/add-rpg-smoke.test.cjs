@@ -366,6 +366,11 @@ async function exerciseBaseManagementSurface(page, consoleErrors) {
       state.baseManagement?.staffing?.presets?.some((preset) => preset.id === "recover_power") &&
       state.baseManagement?.staffing?.slotPools?.some((pool) => pool.id === "crystal_circle") &&
       state.baseManagement?.staffing?.slotPools?.some((pool) => pool.id === "fire_pit") &&
+      state.baseManagement?.stationMachine?.cards?.some((card) => card.id === "station.studio") &&
+      state.baseManagement?.stationMachine?.cards?.some((card) => card.id === "station.crystal_circle") &&
+      state.baseManagement?.stationMachine?.cards?.some((card) => card.id === "station.fire_pit") &&
+      state.baseManagement?.stationMachine?.groups?.some((group) => group.id === "studio") &&
+      state.baseManagement?.stationMachine?.groups?.some((group) => group.id === "crystal") &&
       typeof state.baseManagement?.recommendedAction?.label === "string" &&
       typeof state.baseManagement?.nextBottleneck?.label === "string",
     consoleErrors,
@@ -395,6 +400,33 @@ async function exerciseBaseManagementSurface(page, consoleErrors) {
         typeof role.pressureCopy === "string",
     ),
     "Bassline staffing should expose slot pressure and next-worker impact.",
+  )
+  assert.ok(base.baseManagement.stationMachine.cards.length >= 7)
+  assert.ok(
+    base.baseManagement.stationMachine.cards.every(
+      (card) =>
+        typeof card.outputEffect === "string" &&
+        card.outputEffect.length > 0 &&
+        typeof card.brownoutPriorityCopy === "string" &&
+        card.brownoutPriorityCopy.length > 0,
+    ),
+    "Every station machine card should explain output effect and brownout priority.",
+  )
+  assert.ok(
+    base.baseManagement.stationMachine.cards.some(
+      (card) =>
+        card.id === "station.resonance_chamber" &&
+        card.availableRecipeIds.includes("recipe.resonance_field_calibration"),
+    ),
+    "Resonance Chamber should expose its processing recipe.",
+  )
+  assert.ok(
+    base.baseManagement.stationMachine.cards.some(
+      (card) =>
+        card.id === "station.crystal_circle" &&
+        card.availableRecipeIds.includes("construction.slot_capacity"),
+    ),
+    "Crystal Circle should expose crystal upgrade work as recipes.",
   )
 
   await page.locator("#base-management-panel").waitFor({ state: "visible" })
@@ -487,6 +519,39 @@ async function exerciseBaseManagementSurface(page, consoleErrors) {
     page,
     "add-rpg-staffing-management-smoke.png",
     "ADD RPG staffing management surface screenshot",
+  )
+
+  await page.locator("#base-tab-power").click()
+  await waitForTextState(
+    page,
+    (state) => state.baseManagement?.active === true && state.baseManagement?.selectedTab === "power",
+    consoleErrors,
+  )
+  const machinePanelText = await page.locator("#base-management-panel").innerText()
+  ;[
+    "Station machine",
+    "Crystal Circle",
+    "Studio",
+    "Fire Pit",
+    "Resonance Chamber",
+    "Mix Console",
+    "Workshop",
+    "Research Booth",
+    "Current job",
+    "Available recipes",
+    "Brownout priority",
+    "Chorus/s",
+  ].forEach((expectedText) => {
+    assert.match(
+      machinePanelText,
+      new RegExp(expectedText, "i"),
+      `Station machine panel should include ${expectedText}.`,
+    )
+  })
+  await assertNonBlankNamedAppScreenshot(
+    page,
+    "add-rpg-station-machine-smoke.png",
+    "ADD RPG station machine surface screenshot",
   )
 
   for (const tab of ["build", "power", "crew", "social", "processing", "crystal"]) {

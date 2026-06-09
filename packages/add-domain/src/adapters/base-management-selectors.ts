@@ -186,7 +186,75 @@ export interface AddBaseStationManagementSummary {
   readonly requestedEnabled: boolean
   readonly powered: boolean
   readonly upkeepPerSecond: number
+  readonly brownoutPriority: number | null
   readonly blockedReason: string | null
+}
+
+export type AddBaseStationMachineStatus =
+  | "built"
+  | "locked"
+  | "powered"
+  | "browned_out"
+  | "off"
+
+export interface AddBaseStationMachineRecipe {
+  readonly id: string
+  readonly label: string
+  readonly level: number
+  readonly maxLevel: number
+  readonly enabled: boolean
+  readonly inProgress: boolean
+  readonly blockedReason: string | null
+  readonly costLabel: string
+}
+
+export interface AddBaseStationMachineCard {
+  readonly id: string
+  readonly label: string
+  readonly group:
+    | "crystal"
+    | "studio"
+    | "social"
+    | "field"
+    | "tuning"
+    | "workshop"
+    | "research"
+  readonly status: AddBaseStationMachineStatus
+  readonly built: boolean
+  readonly locked: boolean
+  readonly powered: boolean
+  readonly brownedOut: boolean
+  readonly requestedEnabled: boolean
+  readonly manualPower: boolean
+  readonly chorusUpkeepPerSecond: number
+  readonly brownoutPriority: number | null
+  readonly currentJob: {
+    readonly id: string
+    readonly label: string
+    readonly remainingSeconds: number
+  } | null
+  readonly availableRecipes: readonly AddBaseStationMachineRecipe[]
+  readonly outputEffect: string
+  readonly blockedReason: string | null
+  readonly brownoutPriorityCopy: string
+  readonly canTogglePower: boolean
+}
+
+export interface AddBaseStationMachineGroup {
+  readonly id: AddBaseStationMachineCard["group"]
+  readonly label: string
+  readonly cards: readonly AddBaseStationMachineCard[]
+}
+
+export interface AddBaseStationMachineProjection {
+  readonly groups: readonly AddBaseStationMachineGroup[]
+  readonly cards: readonly AddBaseStationMachineCard[]
+  readonly poweredCount: number
+  readonly brownedOutCount: number
+  readonly activeJobCount: number
+  readonly requestedUpkeepPerSecond: number
+  readonly activeUpkeepPerSecond: number
+  readonly summary: string
 }
 
 export interface AddBaseProcessingManagementSummary {
@@ -223,6 +291,7 @@ export interface AddBaseManagementState {
   readonly construction: readonly AddConstructionSummary[]
   readonly stations: readonly AddBaseStationManagementSummary[]
   readonly processing: readonly AddBaseProcessingManagementSummary[]
+  readonly stationMachine: AddBaseStationMachineProjection
   readonly economy: AddBaseEconomyProjection
   readonly sections: readonly AddBaseManagementSection[]
   readonly activeConstruction: AddConstructionSummary | null
@@ -324,6 +393,12 @@ export function selectAddBaseManagementState(
     processing,
   )
   const staffing = selectBaseStaffingProjection(snapshot, roles, resources, nextBottleneck)
+  const stationMachine = selectBaseStationMachineProjection(
+    snapshot,
+    stations,
+    processing,
+    construction,
+  )
 
   return {
     title: "The Studio",
@@ -336,6 +411,7 @@ export function selectAddBaseManagementState(
     construction,
     stations,
     processing,
+    stationMachine,
     economy,
     sections: baseSections({
       snapshot,
@@ -464,6 +540,7 @@ function baseStationSummary(
     requestedEnabled: runtime?.requestedEnabled ?? station.startsRequested,
     powered: runtime?.isPowered ?? (!station.manualPower && available),
     upkeepPerSecond: station.chorusUpkeepPerSecond,
+    brownoutPriority: station.manualPower ? runtime?.powerOrder ?? null : null,
     blockedReason: available ? null : "Build or unlock this station first.",
   }
 }
@@ -504,6 +581,268 @@ function baseProcessingSummary(
     costLabel: costLabel(recipe.cost),
     blockedReason,
   }
+}
+
+function selectBaseStationMachineProjection(
+  snapshot: SimulationSnapshot,
+  stations: readonly AddBaseStationManagementSummary[],
+  processing: readonly AddBaseProcessingManagementSummary[],
+  construction: readonly AddConstructionSummary[],
+): AddBaseStationMachineProjection {
+  const cards = [
+    syntheticStudioStationCard(snapshot, construction),
+    ...stations.map((station) =>
+      stationMachineCard(snapshot, station, processing, construction),
+    ),
+  ]
+  const groups = stationMachineGroupOrder().map((group) => ({
+    id: group.id,
+    label: group.label,
+    cards: cards.filter((card) => card.group === group.id),
+  })).filter((group) => group.cards.length > 0)
+  const poweredCount = cards.filter((card) => card.powered).length
+  const brownedOutCount = cards.filter((card) => card.brownedOut).length
+  const activeJobCount = cards.filter((card) => card.currentJob !== null).length
+  return {
+    groups,
+    cards,
+    poweredCount,
+    brownedOutCount,
+    activeJobCount,
+    requestedUpkeepPerSecond: snapshot.power.requestedUpkeepPerSecond,
+    activeUpkeepPerSecond: snapshot.power.activeUpkeepPerSecond,
+    summary:
+      brownedOutCount > 0
+        ? `${brownedOutCount} station ${brownedOutCount === 1 ? "is" : "are"} browned out.`
+        : `${poweredCount} station ${poweredCount === 1 ? "is" : "are"} powered; ${activeJobCount} job ${activeJobCount === 1 ? "is" : "are"} running.`,
+  }
+}
+
+function stationMachineCard(
+  snapshot: SimulationSnapshot,
+  station: AddBaseStationManagementSummary,
+  processing: readonly AddBaseProcessingManagementSummary[],
+  construction: readonly AddConstructionSummary[],
+): AddBaseStationMachineCard {
+  const stationProcessing = processing.filter((recipe) => recipe.stationId === station.id)
+  const stationConstruction = construction.filter((option) =>
+    constructionStationId(option.id) === station.id || stationUpgradeOwner(option.id) === station.id,
+  )
+  const activeRecipe = stationProcessing.find((recipe) => recipe.inProgress)
+  const activeConstruction = stationConstruction.find((option) => option.inProgress)
+  const currentJob = activeRecipe
+    ? {
+        id: activeRecipe.id,
+        label: activeRecipe.label,
+        remainingSeconds: activeRecipe.remainingSeconds ?? 0,
+      }
+    : activeConstruction
+      ? {
+          id: activeConstruction.id,
+          label: activeConstruction.label,
+          remainingSeconds: activeConstruction.remainingSeconds ?? 0,
+        }
+      : null
+  const brownedOut = station.available && station.requestedEnabled && !station.powered
+  return {
+    id: station.id,
+    label: station.label,
+    group: stationGroupFor(station.id, station.category),
+    status: stationStatus(station, brownedOut),
+    built: station.available,
+    locked: !station.available,
+    powered: station.powered,
+    brownedOut,
+    requestedEnabled: station.requestedEnabled,
+    manualPower: station.manualPower,
+    chorusUpkeepPerSecond: station.upkeepPerSecond,
+    brownoutPriority: station.brownoutPriority,
+    currentJob,
+    availableRecipes: [
+      ...stationConstruction.map(constructionMachineRecipe),
+      ...stationProcessing.map(processingMachineRecipe),
+    ],
+    outputEffect: stationOutputEffect(snapshot, station.id),
+    blockedReason:
+      station.blockedReason ??
+      (brownedOut ? `${station.label} is requested but Chorus cannot power it.` : null),
+    brownoutPriorityCopy: brownoutPriorityCopy(station),
+    canTogglePower: station.manualPower && station.available,
+  }
+}
+
+function syntheticStudioStationCard(
+  snapshot: SimulationSnapshot,
+  construction: readonly AddConstructionSummary[],
+): AddBaseStationMachineCard {
+  const studioConstruction = construction.filter((option) =>
+    [
+      PROJECT_RESTORE_STUDIO,
+      PROJECT_BUILD_FIRE_PIT,
+      "project.build_resonance_chamber",
+      "project.build_mix_console",
+      "project.build_workshop",
+      "project.build_research_booth",
+    ].includes(option.id),
+  )
+  const activeConstruction = studioConstruction.find((option) => option.inProgress)
+  return {
+    id: "station.studio",
+    label: "Studio",
+    group: "studio",
+    status: snapshot.base.studioRestored ? "built" : "locked",
+    built: snapshot.base.studioRestored,
+    locked: !snapshot.base.studioRestored,
+    powered: true,
+    brownedOut: false,
+    requestedEnabled: true,
+    manualPower: false,
+    chorusUpkeepPerSecond: 0,
+    brownoutPriority: null,
+    currentJob: activeConstruction
+      ? {
+          id: activeConstruction.id,
+          label: activeConstruction.label,
+          remainingSeconds: activeConstruction.remainingSeconds ?? 0,
+        }
+      : null,
+    availableRecipes: studioConstruction.map(constructionMachineRecipe),
+    outputEffect: snapshot.base.studioRestored
+      ? `Chorus unlocked, ${snapshot.base.bunksCapacity} bunks, recovery at Studio.`
+      : "Restore the Studio to unlock Chorus, housing, and recovery.",
+    blockedReason: snapshot.base.studioRestored
+      ? null
+      : "Studio restoration is the first base-machine bottleneck.",
+    brownoutPriorityCopy: "Core shelter stays available; it is not in the Chorus brownout queue.",
+    canTogglePower: false,
+  }
+}
+
+function constructionMachineRecipe(
+  option: AddConstructionSummary,
+): AddBaseStationMachineRecipe {
+  return {
+    id: option.id,
+    label: option.label,
+    level: option.complete ? 1 : 0,
+    maxLevel: 1,
+    enabled: option.enabled,
+    inProgress: option.inProgress,
+    blockedReason: option.blockedReason,
+    costLabel: option.costLabel,
+  }
+}
+
+function processingMachineRecipe(
+  recipe: AddBaseProcessingManagementSummary,
+): AddBaseStationMachineRecipe {
+  return {
+    id: recipe.id,
+    label: recipe.label,
+    level: recipe.level,
+    maxLevel: recipe.maxLevel,
+    enabled: recipe.enabled,
+    inProgress: recipe.inProgress,
+    blockedReason: recipe.blockedReason,
+    costLabel: recipe.costLabel,
+  }
+}
+
+function stationStatus(
+  station: AddBaseStationManagementSummary,
+  brownedOut: boolean,
+): AddBaseStationMachineStatus {
+  if (!station.available) return "locked"
+  if (brownedOut) return "browned_out"
+  if (station.powered) return "powered"
+  if (!station.requestedEnabled) return "off"
+  return "built"
+}
+
+function stationGroupFor(
+  stationId: string,
+  category: StationDef["category"],
+): AddBaseStationMachineCard["group"] {
+  switch (stationId) {
+    case "station.crystal_circle":
+      return "crystal"
+    case "station.fire_pit":
+      return "social"
+    case "station.resonance_chamber":
+      return "field"
+    case "station.mix_console":
+      return "tuning"
+    case "station.workshop":
+      return "workshop"
+    case "station.research_booth":
+      return "research"
+    default:
+      return category === "social" ? "social" : "studio"
+  }
+}
+
+function stationMachineGroupOrder(): readonly {
+  readonly id: AddBaseStationMachineCard["group"]
+  readonly label: string
+}[] {
+  return [
+    { id: "crystal", label: "Crystal Circle" },
+    { id: "studio", label: "Studio" },
+    { id: "social", label: "Fire Pit" },
+    { id: "field", label: "Resonance Chamber" },
+    { id: "tuning", label: "Mix Console" },
+    { id: "workshop", label: "Workshop" },
+    { id: "research", label: "Research Booth" },
+  ]
+}
+
+function constructionStationId(constructionId: string): string | null {
+  switch (constructionId) {
+    case PROJECT_BUILD_FIRE_PIT:
+      return "station.fire_pit"
+    case "project.build_resonance_chamber":
+      return "station.resonance_chamber"
+    case "project.build_mix_console":
+      return "station.mix_console"
+    case "project.build_workshop":
+      return "station.workshop"
+    case "project.build_research_booth":
+      return "station.research_booth"
+    default:
+      return null
+  }
+}
+
+function stationUpgradeOwner(constructionId: string): string | null {
+  return constructionId.startsWith("construction.") ? "station.crystal_circle" : null
+}
+
+function stationOutputEffect(snapshot: SimulationSnapshot, stationId: string): string {
+  switch (stationId) {
+    case "station.crystal_circle":
+      return `Band production: ${formatSignedRate(snapshot.power.basslineGenerationPerSecond)} Bassline, ${formatSignedRate(snapshot.power.chorusGenerationPerSecond)} Chorus, ${formatSignedRate(snapshot.power.harmonicsGenerationPerSecond)} Harmonics.`
+    case "station.fire_pit":
+      return snapshot.base.firePitBuilt
+        ? `Vibes, morale, recruitment; ${snapshot.base.freeBunks} bunks free.`
+        : "Build Fire Pit to unlock Vibes, morale, and recruitment support."
+    case "station.resonance_chamber":
+      return `Field efficiency +${formatAmount(snapshot.processing.resonanceCalibrationLevel * BALANCE.power.resonanceProcessingFieldBonusPerLevel)} from calibration.`
+    case "station.mix_console":
+      return `Harmonics processing and brownout tolerance level ${snapshot.processing.mixCalibrationLevel}.`
+    case "station.workshop":
+      return `Construction tooling level ${snapshot.processing.workshopToolingLevel}; water condenser level ${snapshot.processing.workshopWaterCondensersLevel}.`
+    case "station.research_booth":
+      return `Chorus routing level ${snapshot.processing.researchChorusRoutingLevel}; harmonic study level ${snapshot.processing.researchHarmonicStudyLevel}.`
+    default:
+      return "Station output is not yet described."
+  }
+}
+
+function brownoutPriorityCopy(station: AddBaseStationManagementSummary): string {
+  if (!station.manualPower) return "Always-on station; no brownout priority."
+  if (!station.requestedEnabled) return "Not requested, so it is outside the brownout queue."
+  if (station.brownoutPriority === null) return "Requested; runtime priority will appear when power queue is active."
+  return `Brownout priority ${station.brownoutPriority}; later requested stations brown out first.`
 }
 
 function baseSections(input: {

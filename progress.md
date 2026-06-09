@@ -2600,3 +2600,23 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   exposes the base-management contract for agent/smoke inspection. Verification
   passed with `npm run smoke:add-rpg:built`, `npm run smoke:add-rpg`, visual
   inspection of `tmp/add-rpg-base-management-smoke.png`, and `npm run check`.
+- Phase 2 economy legibility and Phase 3 staffing are now active base-management
+  layers. `add-domain` projects per-resource gain/spend, time-to-cap,
+  time-to-afford, zero-output reasons, limiting resources, wait previews, Hero
+  task options, crew allocation pressure, and staffing presets. The ADD base
+  view exposes this through Crystal, Build, and Crew panels so moving workers
+  visibly changes rates, blockers, and recommendations. Verification passed
+  with focused ADD domain/app builds, ADD smoke coverage, and full `npm run
+  check`.
+- Phase 4 stations-as-a-machine is implemented. `add-domain` now projects a
+  station-machine model spanning the synthetic Studio plus Crystal Circle, Fire
+  Pit, Resonance Chamber, Mix Console, Workshop, and Research Booth, including
+  built/locked/powered/browned-out state, Chorus upkeep, current jobs, available
+  recipes, output effects, blocked reasons, and brownout priority. The ADD app
+  leads the Power and Processing tabs with grouped station cards instead of
+  loose controls, and `render_game_to_text` exposes the station-machine contract
+  for agent/smoke inspection. Verification passed with `npm --workspace
+  @aedventure/add-domain run build`, `npm --workspace @aedventure/add-rpg run
+  build`, `node --check scripts/add-rpg-smoke.test.cjs`, `npm run
+  smoke:add-rpg`, visual inspection of `tmp/add-rpg-station-machine-smoke.png`,
+  and full `npm run check`.

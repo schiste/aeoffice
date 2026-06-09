@@ -479,6 +479,39 @@ export interface RuntimeTextState {
     }
     readonly activeConstructionId: string | null
     readonly enabledConstructionIds: readonly string[]
+    readonly stationMachine: {
+      readonly summary: string
+      readonly poweredCount: number
+      readonly brownedOutCount: number
+      readonly activeJobCount: number
+      readonly requestedUpkeepPerSecond: number
+      readonly activeUpkeepPerSecond: number
+      readonly groups: readonly {
+        readonly id: string
+        readonly label: string
+        readonly cardIds: readonly string[]
+      }[]
+      readonly cards: readonly {
+        readonly id: string
+        readonly label: string
+        readonly group: string
+        readonly status: string
+        readonly built: boolean
+        readonly locked: boolean
+        readonly powered: boolean
+        readonly brownedOut: boolean
+        readonly requestedEnabled: boolean
+        readonly chorusUpkeepPerSecond: number
+        readonly brownoutPriority: number | null
+        readonly currentJobId: string | null
+        readonly currentJobLabel: string | null
+        readonly availableRecipeIds: readonly string[]
+        readonly enabledRecipeIds: readonly string[]
+        readonly outputEffect: string
+        readonly blockedReason: string | null
+        readonly brownoutPriorityCopy: string
+      }[]
+    }
     readonly poweredStationIds: readonly string[]
     readonly requestedStationIds: readonly string[]
     readonly activeProcessingIds: readonly string[]
@@ -980,6 +1013,41 @@ function baseManagementTelemetry(
     enabledConstructionIds: state.construction
       .filter((option) => option.enabled)
       .map((option) => option.id),
+    stationMachine: {
+      summary: state.stationMachine.summary,
+      poweredCount: state.stationMachine.poweredCount,
+      brownedOutCount: state.stationMachine.brownedOutCount,
+      activeJobCount: state.stationMachine.activeJobCount,
+      requestedUpkeepPerSecond: round3(state.stationMachine.requestedUpkeepPerSecond),
+      activeUpkeepPerSecond: round3(state.stationMachine.activeUpkeepPerSecond),
+      groups: state.stationMachine.groups.map((group) => ({
+        id: group.id,
+        label: group.label,
+        cardIds: group.cards.map((card) => card.id),
+      })),
+      cards: state.stationMachine.cards.map((card) => ({
+        id: card.id,
+        label: card.label,
+        group: card.group,
+        status: card.status,
+        built: card.built,
+        locked: card.locked,
+        powered: card.powered,
+        brownedOut: card.brownedOut,
+        requestedEnabled: card.requestedEnabled,
+        chorusUpkeepPerSecond: round3(card.chorusUpkeepPerSecond),
+        brownoutPriority: card.brownoutPriority,
+        currentJobId: card.currentJob?.id ?? null,
+        currentJobLabel: card.currentJob?.label ?? null,
+        availableRecipeIds: card.availableRecipes.map((recipe) => recipe.id),
+        enabledRecipeIds: card.availableRecipes
+          .filter((recipe) => recipe.enabled)
+          .map((recipe) => recipe.id),
+        outputEffect: card.outputEffect,
+        blockedReason: card.blockedReason,
+        brownoutPriorityCopy: card.brownoutPriorityCopy,
+      })),
+    },
     poweredStationIds: state.stations
       .filter((station) => station.powered)
       .map((station) => station.id),

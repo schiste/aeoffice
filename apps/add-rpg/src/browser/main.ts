@@ -1057,6 +1057,7 @@ function baseManagementPanel(): unknown {
   const state = baseManagementState()
   if (!state) return null
   const section = activeBaseManagementSection(state)
+  const machineTab = () => ["power", "processing"].includes(baseManagementTab())
   return html`
     <section
       id="base-management-panel"
@@ -1083,18 +1084,38 @@ function baseManagementPanel(): unknown {
         ${() => baseManagementTabButtons(state)}
       </div>
       <div class="base-management-body">
-        <article class="base-section-summary" data-severity=${section?.blockedReason ? "warning" : "neutral"}>
-          <span>${section?.headline ?? state.subtitle}</span>
-          <small>${section?.detail ?? state.nextBottleneck.detail}</small>
-        </article>
-        ${() => baseManagementTab() === "crew" ? baseStaffingCommandPanel(state) : baseEconomyOverview(state)}
-        <div class="base-metric-grid">
-          ${() => baseManagementMetricRows(section)}
-        </div>
+        ${() => machineTab()
+          ? null
+          : html`
+              <article class="base-section-summary" data-severity=${section?.blockedReason ? "warning" : "neutral"}>
+                <span>${section?.headline ?? state.subtitle}</span>
+                <small>${section?.detail ?? state.nextBottleneck.detail}</small>
+              </article>
+            `}
+        ${() => baseManagementLeadPanel(state)}
+        ${() => machineTab()
+          ? null
+          : html`
+              <div class="base-metric-grid">
+                ${() => baseManagementMetricRows(section)}
+              </div>
+            `}
         ${() => baseManagementTabContent(state)}
       </div>
     </section>
   `
+}
+
+function baseManagementLeadPanel(state: AddBaseManagementState): unknown {
+  switch (baseManagementTab()) {
+    case "crew":
+      return baseStaffingCommandPanel(state)
+    case "power":
+    case "processing":
+      return baseStationMachineSummary(state)
+    default:
+      return baseEconomyOverview(state)
+  }
 }
 
 function activeBaseManagementSection(state: AddBaseManagementState) {
@@ -1256,12 +1277,7 @@ function baseBuildPanel(state: AddBaseManagementState): unknown {
 function basePowerPanel(state: AddBaseManagementState): unknown {
   return html`
     <div class="base-card-list">
-      <article class="base-management-card">
-        <span>Power balance</span>
-        <strong>${formatResource(state.power.activeUpkeepPerSecond)} / ${formatResource(state.power.requestedUpkeepPerSecond)} Chorus/s</strong>
-        <small>${state.power.brownoutActive ? `Brownout severity ${formatResource(state.power.brownoutSeverity)}` : "Requested stations are covered."}</small>
-      </article>
-      ${() => baseStationRows(state.stations)}
+      ${() => baseStationMachineGroups(state.stationMachine.groups)}
     </div>
   `
 }
@@ -1312,7 +1328,12 @@ function baseSocialPanel(state: AddBaseManagementState): unknown {
 function baseProcessingPanel(state: AddBaseManagementState): unknown {
   return html`
     <div class="base-card-list">
-      ${() => baseProcessingRows(state.processing)}
+      ${() =>
+        baseStationMachineGroups(
+          state.stationMachine.groups.filter((group) =>
+            ["field", "tuning", "workshop", "research"].includes(group.id),
+          ),
+        )}
     </div>
   `
 }
@@ -1485,6 +1506,139 @@ function baseActiveConstructionCard(option: AddBaseManagementState["activeConstr
       <small>${option.remainingSeconds ?? 0}s remaining</small>
     </article>
   `
+}
+
+function baseStationMachineSummary(state: AddBaseManagementState): unknown {
+  return html`
+    <article class="base-machine-summary" data-brownout=${state.stationMachine.brownedOutCount > 0 ? "true" : "false"}>
+      <span>Station machine</span>
+      <strong>
+        ${state.stationMachine.poweredCount} powered / ${state.stationMachine.activeJobCount} jobs
+      </strong>
+      <small>${state.stationMachine.summary}</small>
+      <div class="base-economy-line">
+        <span>Active upkeep ${formatResource(state.stationMachine.activeUpkeepPerSecond)} Chorus/s</span>
+        <span>Requested ${formatResource(state.stationMachine.requestedUpkeepPerSecond)} Chorus/s</span>
+      </div>
+    </article>
+  `
+}
+
+function baseStationMachineGroups(
+  groups: readonly AddBaseManagementState["stationMachine"]["groups"][number][],
+): readonly unknown[] {
+  return groups.map((group) => html`
+    <section class="base-machine-group" aria-label=${group.label}>
+      <div class="base-machine-group-heading">
+        <span>${group.label}</span>
+      </div>
+      ${() => group.cards.map(baseStationMachineCard)}
+    </section>
+  `)
+}
+
+function baseStationMachineCard(
+  card: AddBaseManagementState["stationMachine"]["cards"][number],
+): unknown {
+  return html`
+    <article
+      class="base-machine-card"
+      data-status=${card.status}
+      data-powered=${card.powered ? "true" : "false"}
+    >
+      <div class="base-machine-card-heading">
+        <span>${card.label}</span>
+        <strong>${machineStatusCopy(card.status)}</strong>
+      </div>
+      <div class="base-machine-tags">
+        <span>${card.built ? "Built" : "Locked"}</span>
+        <span>${card.powered ? "Powered" : card.brownedOut ? "Browned out" : card.requestedEnabled ? "Requested" : "Off"}</span>
+        <span>${formatResource(card.chorusUpkeepPerSecond)} Chorus/s</span>
+      </div>
+      <small>${card.outputEffect}</small>
+      <div class="base-machine-detail-grid">
+        <span>
+          <strong>Current job</strong>
+          <small>${card.currentJob ? `${card.currentJob.label}, ${formatResource(card.currentJob.remainingSeconds)}s` : "No active job"}</small>
+        </span>
+        <span>
+          <strong>Brownout priority</strong>
+          <small>${card.brownoutPriorityCopy}</small>
+        </span>
+      </div>
+      ${card.blockedReason
+        ? html`<small class="base-machine-blocker">${card.blockedReason}</small>`
+        : null}
+      ${card.availableRecipes.length > 0
+        ? html`
+            <div class="base-machine-recipes">
+              <span class="base-machine-recipes-heading">Available recipes</span>
+              ${() => card.availableRecipes.slice(0, 3).map((recipe) => baseMachineRecipeRow(card, recipe))}
+            </div>
+          `
+        : html`<small class="base-machine-empty">No station recipe available yet.</small>`}
+      ${card.canTogglePower
+        ? html`
+            <button
+              id=${`base-machine-toggle-${safeElementId(card.id)}`}
+              type="button"
+              class="ghost-button"
+              onClick=${() => void setStationEnabled(card.id, !card.requestedEnabled)}
+              disabled=${() => !ready() || card.locked}
+            >
+              ${card.requestedEnabled ? "Stop power" : "Request power"}
+            </button>
+          `
+        : null}
+    </article>
+  `
+}
+
+function baseMachineRecipeRow(
+  card: AddBaseManagementState["stationMachine"]["cards"][number],
+  recipe: AddBaseManagementState["stationMachine"]["cards"][number]["availableRecipes"][number],
+): unknown {
+  const processingRecipe = stateRecipeIsProcessing(recipe.id)
+  return html`
+    <div class="base-machine-recipe" data-enabled=${recipe.enabled ? "true" : "false"}>
+      <span>
+        <strong>${recipe.label}</strong>
+        <small>${recipe.inProgress ? "Running" : recipe.blockedReason ?? recipe.costLabel}</small>
+      </span>
+      <em>Lv ${recipe.level}/${recipe.maxLevel}</em>
+      ${processingRecipe
+        ? html`
+            <button
+              id=${`base-machine-recipe-${safeElementId(recipe.id)}`}
+              type="button"
+              onClick=${() => void startProcessing(recipe.id)}
+              disabled=${() => !ready() || !recipe.enabled || card.locked}
+            >
+              Start
+            </button>
+          `
+        : null}
+    </div>
+  `
+}
+
+function machineStatusCopy(status: AddBaseManagementState["stationMachine"]["cards"][number]["status"]): string {
+  switch (status) {
+    case "locked":
+      return "Locked"
+    case "browned_out":
+      return "Browned out"
+    case "powered":
+      return "Powered"
+    case "off":
+      return "Off"
+    case "built":
+      return "Built"
+  }
+}
+
+function stateRecipeIsProcessing(recipeId: string): boolean {
+  return recipeId.startsWith("recipe.")
 }
 
 function baseStationRows(stations: readonly AddBaseManagementState["stations"][number][]): readonly unknown[] {
