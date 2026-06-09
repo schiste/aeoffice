@@ -10,6 +10,7 @@ import {
   type AddFirstPlayableAction,
   type AddMapMode,
   type AddMapScaleSummary,
+  type AddOfflineReturnSummary,
   type AddUiState,
   type AddWorldTimeSummary,
   type CatalogSnapshot,
@@ -100,6 +101,7 @@ export interface AddRuntimeTelemetryPresenterInput {
     readonly dialogKind: AddTelemetryTravelDialogKind | null
     readonly confirmationEligibility: AddTelemetryTravelDialogEligibility
   }
+  readonly offlineReturn: AddOfflineReturnSummary | null
   readonly persistence: {
     readonly autosaveEnabled: boolean
     readonly autosaveAvailable: boolean
@@ -300,6 +302,42 @@ export interface RuntimeTextState {
     }
   }
   readonly map: AddPhaserMapInfo
+  readonly offlineReturn: {
+    readonly source: "autosave" | "manual"
+    readonly elapsedSeconds: number
+    readonly elapsedLabel: string
+    readonly headline: string
+    readonly summary: string
+    readonly resourceDeltas: readonly {
+      readonly id: string
+      readonly label: string
+      readonly delta: number
+      readonly before: number
+      readonly after: number
+    }[]
+    readonly jobsCompleted: readonly {
+      readonly id: string
+      readonly label: string
+      readonly kind: "construction" | "processing"
+    }[]
+    readonly recruitsArrived: number
+    readonly bubble: {
+      readonly reachDelta: number
+      readonly fieldBudgetDelta: number
+      readonly stabilizedHexesDelta: number
+      readonly summary: string
+    }
+    readonly brownout: {
+      readonly occurred: boolean
+      readonly affectedStations: readonly string[]
+      readonly summary: string
+    }
+    readonly didNotProgress: readonly {
+      readonly id: string
+      readonly label: string
+      readonly detail: string
+    }[]
+  } | null
   readonly discovery: {
     readonly phase: string
     readonly headline: string
@@ -646,6 +684,7 @@ export function createAddRuntimeTextState(
     },
     travel: travelTelemetry(input),
     map: input.mapInfo,
+    offlineReturn: offlineReturnTelemetry(input.offlineReturn),
     discovery: input.discovery
       ? {
           phase: input.discovery.phase,
@@ -781,6 +820,48 @@ export function createAddRuntimeTextState(
           worldActionCount: input.catalog.worldActions.length,
         }
       : null,
+  }
+}
+
+function offlineReturnTelemetry(
+  summary: AddOfflineReturnSummary | null,
+): RuntimeTextState["offlineReturn"] {
+  if (!summary) return null
+  return {
+    source: summary.source,
+    elapsedSeconds: round2(summary.elapsedSeconds),
+    elapsedLabel: summary.elapsedLabel,
+    headline: summary.headline,
+    summary: summary.summary,
+    resourceDeltas: summary.resourcesGained.map((resource) => ({
+      id: resource.id,
+      label: resource.label,
+      delta: round2(resource.delta),
+      before: round2(resource.before),
+      after: round2(resource.after),
+    })),
+    jobsCompleted: summary.jobsCompleted.map((job) => ({
+      id: job.id,
+      label: job.label,
+      kind: job.kind,
+    })),
+    recruitsArrived: summary.recruitsArrived,
+    bubble: {
+      reachDelta: summary.bubble.reachDelta,
+      fieldBudgetDelta: round2(summary.bubble.fieldBudgetDelta),
+      stabilizedHexesDelta: summary.bubble.stabilizedHexesDelta,
+      summary: summary.bubble.summary,
+    },
+    brownout: {
+      occurred: summary.brownout.occurred,
+      affectedStations: summary.brownout.affectedStations,
+      summary: summary.brownout.summary,
+    },
+    didNotProgress: summary.didNotProgress.map((rule) => ({
+      id: rule.id,
+      label: rule.label,
+      detail: rule.detail,
+    })),
   }
 }
 

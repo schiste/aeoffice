@@ -113,6 +113,17 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
 - Verification passed again for `npm --workspace @aedventure/add-domain run
   build`, `npm --workspace @aedventure/add-rpg run build`, `npm run
   smoke:add-rpg`, and full `npm run check`.
+- Phase 6 offline return is now a player-facing feature. `add-domain` projects
+  before/after offline catch-up summaries with elapsed time, resources gained,
+  completed construction/processing jobs, recruits arrived, bubble deltas,
+  brownout state, and explicit "did not progress" rules for manual Hero/world
+  actions plus online-only Stone/Water collection. The ADD app captures the
+  pre-catch-up snapshot, renders a dismissible "While you were away" overlay,
+  and exposes the same summary through `render_game_to_text`.
+- ADD smoke now asserts the offline return telemetry contract, validates the
+  paused rule split, checks the visible return panel copy, dismisses it, and
+  captures `tmp/add-rpg-offline-return-smoke.png`; the screenshot was inspected
+  for readable categories and no blocking overlap.
 - ADD Phaser fog rendering now uses a visual-only graphics layer above terrain
   and below landmarks. Hidden cells draw as dark silhouettes, discovered/stale
   cells get a muted overlay, visible cells render normally, and hidden-to-known

@@ -847,12 +847,53 @@ async function exerciseSaveReloadOfflineAndReset(page, advanced, consoleErrors) 
     (state) =>
       state.persistence?.lastOfflineCatchupSeconds >= 3600 &&
       state.snapshot?.clockSeconds >= imported.snapshot.clockSeconds + 3500 &&
-      state.ui?.firstPlayable?.persistenceReady === true,
+      state.ui?.firstPlayable?.persistenceReady === true &&
+      state.offlineReturn?.elapsedSeconds >= 3600,
     consoleErrors,
   )
   assert.ok(offlineTicked.snapshot.clockSeconds > imported.snapshot.clockSeconds)
   assert.equal(offlineTicked.ui.firstPlayable.persistenceReady, true)
+  assert.equal(offlineTicked.offlineReturn.source, "manual")
+  assert.ok(
+    Array.isArray(offlineTicked.offlineReturn.resourceDeltas),
+    "Offline return should expose resource gains as an array.",
+  )
+  assert.ok(
+    offlineTicked.offlineReturn.summary.includes("manual") ||
+      offlineTicked.offlineReturn.summary.includes("online-only"),
+    "Offline return should explain what did not progress.",
+  )
+  assert.deepEqual(
+    new Set(offlineTicked.offlineReturn.didNotProgress.map((rule) => rule.id)),
+    new Set([
+      "manual_hero_world_actions",
+      "base_stone_collection",
+      "base_water_collection",
+    ]),
+    "Offline return should preserve the explicit online-only rule split.",
+  )
+  assert.equal(typeof offlineTicked.offlineReturn.bubble.summary, "string")
+  assert.equal(typeof offlineTicked.offlineReturn.brownout.summary, "string")
+  await closeAdmin(page, consoleErrors)
+  await page.locator("#offline-return-panel").waitFor({ state: "visible" })
+  await assertVisibleText(page, "#offline-return-panel", [
+    "While you were away",
+    "Gained",
+    "Completed",
+    "Recruits",
+    "Bubble",
+    "Brownouts",
+    "Paused by design",
+  ])
+  await assertNonBlankNamedAppScreenshot(
+    page,
+    "add-rpg-offline-return-smoke.png",
+    "ADD RPG offline return summary screenshot",
+  )
+  await page.locator("#dismiss-offline-return").click()
+  await page.locator("#offline-return-panel").waitFor({ state: "hidden" })
 
+  await openAdmin(page, consoleErrors)
   await page.locator("#reset-runtime").click()
   const reset = await waitForTextState(
     page,
@@ -907,11 +948,25 @@ async function closeAdmin(page, consoleErrors) {
   if (state.shell?.adminOpen !== true) return state
 
   await page.locator("#close-admin").click()
-  return waitForTextState(
+  const closed = await waitForTextState(
     page,
     (nextState) => nextState.shell?.adminOpen === false,
     consoleErrors,
   )
+  await page.waitForTimeout(240)
+  return closed
+}
+
+async function assertVisibleText(page, selector, fragments) {
+  const locator = page.locator(selector)
+  await locator.waitFor({ state: "visible" })
+  const text = await locator.textContent()
+  for (const fragment of fragments) {
+    assert.ok(
+      text?.includes(fragment),
+      `Expected ${selector} to include "${fragment}", got: ${text}`,
+    )
+  }
 }
 
 async function exerciseQuestHud(page, consoleErrors) {

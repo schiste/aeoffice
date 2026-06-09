@@ -23,6 +23,7 @@ import {
   selectAddDiscoverySummary,
   selectAddDungeonObjective,
   selectAddInventory,
+  selectAddOfflineReturnSummary,
   selectAddPerkSummaries,
   selectAddUiState,
   selectAddWorldTimeForClockSeconds,
@@ -46,6 +47,7 @@ import {
   type AddDiscoveryMovementEvent,
   type AddFirstPlayableAction,
   type AddMapMode,
+  type AddOfflineReturnSummary,
   type AddTileAction,
   type AddTileDetailSummary,
   type AddWorldTimeSummary,
@@ -126,6 +128,12 @@ interface ClockAnimationState {
   readonly reason: string
 }
 
+interface PendingOfflineReturnSummary {
+  readonly before: SimulationSnapshot
+  readonly elapsedSeconds: number
+  readonly source: AddOfflineReturnSummary["source"]
+}
+
 declare global {
   interface Window {
     render_game_to_text?: () => string
@@ -183,6 +191,8 @@ const [lastDiscoveryMovement, setLastDiscoveryMovement] =
 const [travelDialog, setTravelDialog] = createSignal<TravelDialogState | null>(null)
 const [displayClockSeconds, setDisplayClockSeconds] = createSignal<number | null>(null)
 const [clockAnimation, setClockAnimation] = createSignal<ClockAnimationState | null>(null)
+const [offlineReturnSummary, setOfflineReturnSummary] =
+  createSignal<AddOfflineReturnSummary | null>(null)
 const [lastEvent, setLastEvent] = createSignal("booting")
 const [lastCommand, setLastCommand] = createSignal<string | null>(null)
 const [lastDungeonEntryCommand, setLastDungeonEntryCommand] = createSignal<string | null>(null)
@@ -194,6 +204,7 @@ let travelClearTimer: number | undefined
 let clockAnimationFrameId: number | undefined
 let travelDramaState: TravelDramaState = "fresh"
 let lastTileActionAtMs = 0
+let pendingOfflineReturnSummary: PendingOfflineReturnSummary | null = null
 let questPanelDrag:
   | {
       readonly pointerId: number
@@ -234,6 +245,7 @@ const client = new SimulationClient({
     }
     setLastEvent("snapshot")
     setLastError(null)
+    maybeFinalizeOfflineReturnSummary(nextSnapshot)
     resolveSnapshotWaiters()
     const catchupStarted = maybeRunQueuedOfflineCatchup()
     if (!catchupStarted) maybeRequestAutosave()
@@ -630,6 +642,7 @@ function AddRpgApp() {
           </section>
           ${() => (mapMode() === "base_square" ? baseManagementPanel() : discoveryPanel())}
           ${() => travelDialogView()}
+          ${() => offlineReturnPanel()}
           <section
             id="first-playable-panel"
             class=${() =>
@@ -2713,6 +2726,125 @@ function travelDialogView(): unknown {
   `
 }
 
+function offlineReturnPanel(): unknown {
+  const summary = offlineReturnSummary()
+  if (!summary) return null
+
+  return html`
+    <section
+      id="offline-return-panel"
+      class="offline-return-panel"
+      data-source=${summary.source}
+      aria-label="Offline return summary"
+      aria-live="polite"
+    >
+      <div class="offline-return-heading">
+        <div>
+          <span>While you were away</span>
+          <h2>The base lived for ${summary.elapsedLabel}</h2>
+        </div>
+        <button
+          id="dismiss-offline-return"
+          type="button"
+          class="panel-icon-button"
+          onClick=${dismissOfflineReturnSummary}
+          aria-label="Dismiss offline return summary"
+        >
+          Dismiss
+        </button>
+      </div>
+      <p class="offline-return-headline">${summary.headline}</p>
+      <div class="offline-return-grid">
+        <article class="offline-return-card">
+          <span>Gained</span>
+          <ul>${offlineReturnResourceRows(summary)}</ul>
+        </article>
+        <article class="offline-return-card">
+          <span>Completed</span>
+          <ul>${offlineReturnJobRows(summary)}</ul>
+        </article>
+        <article class="offline-return-card">
+          <span>Recruits</span>
+          <strong>${summary.recruitsArrived}</strong>
+          <small>
+            ${summary.recruitsArrived > 0
+              ? "New survivors reached the base."
+              : "No new recruits arrived during this window."}
+          </small>
+        </article>
+        <article class="offline-return-card">
+          <span>Bubble</span>
+          <strong>${formatSignedNumber(summary.bubble.reachDelta)} reach</strong>
+          <small>${summary.bubble.summary}</small>
+        </article>
+        <article class="offline-return-card">
+          <span>Brownouts</span>
+          <strong>${summary.brownout.occurred ? "Pressure" : "Stable"}</strong>
+          <small>${summary.brownout.summary}</small>
+        </article>
+        <article class="offline-return-card offline-return-paused">
+          <span>Paused by design</span>
+          <ul>${offlineReturnPausedRows(summary)}</ul>
+        </article>
+      </div>
+      <p class="offline-return-summary">${summary.summary}</p>
+    </section>
+  `
+}
+
+function dismissOfflineReturnSummary(): void {
+  setOfflineReturnSummary(null)
+}
+
+function offlineReturnResourceRows(summary: AddOfflineReturnSummary): readonly unknown[] {
+  if (summary.resourcesGained.length === 0) {
+    return [
+      html`<li>
+        <strong>No stock gained</strong>
+        <small>Automated loops held steady or were capped.</small>
+      </li>`,
+    ]
+  }
+  return summary.resourcesGained.slice(0, 6).map(
+    (resource) => html`
+      <li>
+        <strong>${resource.label}</strong>
+        <small>${formatSignedResourceDelta(resource.delta)} to ${formatResource(resource.after)}</small>
+      </li>
+    `,
+  )
+}
+
+function offlineReturnJobRows(summary: AddOfflineReturnSummary): readonly unknown[] {
+  if (summary.jobsCompleted.length === 0) {
+    return [
+      html`<li>
+        <strong>No job completed</strong>
+        <small>Active jobs either kept running or none were queued.</small>
+      </li>`,
+    ]
+  }
+  return summary.jobsCompleted.slice(0, 4).map(
+    (job) => html`
+      <li>
+        <strong>${job.label}</strong>
+        <small>${job.kind === "construction" ? "Construction finished" : "Processing finished"}</small>
+      </li>
+    `,
+  )
+}
+
+function offlineReturnPausedRows(summary: AddOfflineReturnSummary): readonly unknown[] {
+  return summary.didNotProgress.map(
+    (rule) => html`
+      <li>
+        <strong>${rule.label}</strong>
+        <small>${rule.detail}</small>
+      </li>
+    `,
+  )
+}
+
 function travelDialogEyebrow(kind: TravelDialogKind): string {
   if (kind === "first_declined") return "Fair enough"
   if (kind === "dramatic_reprise") return "One more thing"
@@ -2980,11 +3112,45 @@ function maybeRunQueuedOfflineCatchup(): boolean {
 
   const seconds = queuedOfflineCatchupSeconds
   queuedOfflineCatchupSeconds = 0
+  prepareOfflineReturnSummary(seconds, "autosave")
   setLastOfflineCatchupSeconds(seconds)
   setLastCommand(`offline:${formatDuration(seconds)}`)
   setSaveStatus(`Catching up ${formatDuration(seconds)}`)
   client.runOfflineCatchup(seconds)
   return true
+}
+
+function prepareOfflineReturnSummary(
+  elapsedSeconds: number,
+  source: AddOfflineReturnSummary["source"],
+): void {
+  const before = snapshot()
+  if (!before || elapsedSeconds <= 0) {
+    pendingOfflineReturnSummary = null
+    setOfflineReturnSummary(null)
+    return
+  }
+  pendingOfflineReturnSummary = { before, elapsedSeconds, source }
+  setOfflineReturnSummary(null)
+}
+
+function maybeFinalizeOfflineReturnSummary(after: SimulationSnapshot): void {
+  const pending = pendingOfflineReturnSummary
+  if (!pending) return
+
+  const currentCatalog = catalog()
+  if (!currentCatalog) return
+
+  pendingOfflineReturnSummary = null
+  setOfflineReturnSummary(
+    selectAddOfflineReturnSummary(
+      pending.before,
+      after,
+      currentCatalog,
+      pending.elapsedSeconds,
+      pending.source,
+    ),
+  )
 }
 
 function maybeRequestAutosave(): void {
@@ -3007,6 +3173,8 @@ async function loadAutosave(): Promise<void> {
   }
 
   queuedOfflineCatchupSeconds = offlineCatchupSecondsFor(record)
+  pendingOfflineReturnSummary = null
+  setOfflineReturnSummary(null)
   setSavePayload(record.payload)
   setLastImportAtMs(Date.now())
   await sendAndWaitForSnapshot(() => {
@@ -3036,6 +3204,8 @@ async function importSaveText(): Promise<void> {
   }
 
   queuedOfflineCatchupSeconds = 0
+  pendingOfflineReturnSummary = null
+  setOfflineReturnSummary(null)
   await sendAndWaitForSnapshot(() => {
     setLastCommand("import_save")
     setStorageError(null)
@@ -3050,6 +3220,7 @@ async function importSaveText(): Promise<void> {
 
 async function runOfflineCatchup(seconds: number): Promise<void> {
   await sendAndWaitForSnapshot(() => {
+    prepareOfflineReturnSummary(seconds, "manual")
     setLastOfflineCatchupSeconds(seconds)
     setLastCommand(`offline:${formatDuration(seconds)}`)
     setSaveStatus(`Catching up ${formatDuration(seconds)}`)
@@ -3399,6 +3570,8 @@ async function resetRuntime(): Promise<void> {
     setResetCount((count) => count + 1)
     travelDramaState = "fresh"
     setTravelDialog(null)
+    pendingOfflineReturnSummary = null
+    setOfflineReturnSummary(null)
     setLastDiscoveryMovement(null)
     client.reset()
   })
@@ -3643,6 +3816,7 @@ function toTextState(): RuntimeTextState {
       dialogKind: travelDialog()?.kind ?? null,
       confirmationEligibility: openingTravelDialogEligibility(currentMapInfo),
     },
+    offlineReturn: offlineReturnSummary(),
     persistence: {
       autosaveEnabled: autosaveEnabled(),
       autosaveAvailable: autosaveRecord() !== null,
@@ -3722,6 +3896,15 @@ function formatResource(value: number): string {
 
 function formatSignedResource(value: number): string {
   return `${value >= 0 ? "+" : "-"}${formatResource(Math.abs(value))}`
+}
+
+function formatSignedResourceDelta(value: number): string {
+  return `${formatSignedResource(value)} gained`
+}
+
+function formatSignedNumber(value: number): string {
+  if (value === 0) return "0"
+  return value > 0 ? `+${value}` : `${value}`
 }
 
 function signedRateCopy(value: number): string {
