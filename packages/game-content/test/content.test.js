@@ -140,4 +140,24 @@ assert.deepEqual(
 )
 assert.equal(resolveEncounterSpawns(encTable, 1)[0].creatureId, "rat")
 
+// loot tables: weighted pick, qty range, hash stability
+const { rollLoot, lootDrop, hashUnit } = require("../dist/index.js")
+const lootTable = {
+  id: "l",
+  entries: [
+    { itemId: "scrap", weight: 3, min: 1, max: 3 },
+    { itemId: "ration", weight: 1, min: 1, max: 1 },
+  ],
+}
+assert.equal(rollLoot(lootTable, 0).itemId, "scrap")
+assert.equal(rollLoot(lootTable, 0.95).itemId, "ration")
+assert.equal(rollLoot({ id: "e", entries: [] }, 0.5), undefined)
+assert.equal(lootDrop(lootTable, 0, 0).qty, 1)
+assert.equal(lootDrop(lootTable, 0, 0.99).qty, 3)
+assert.equal(lootDrop(lootTable, 0, 0.5).itemId, "scrap")
+const h = hashUnit("dungeon.studio:12:6")
+assert.ok(h >= 0 && h < 1)
+assert.equal(h, hashUnit("dungeon.studio:12:6"))
+assert.notEqual(hashUnit("a"), hashUnit("b"))
+
 console.log("game-content: all assertions passed")

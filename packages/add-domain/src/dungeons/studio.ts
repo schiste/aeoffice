@@ -58,22 +58,22 @@ const RUBBLE_WALL: DungeonCellSpec = {
   feature: "rubble",
   tokenId: "add.fixture.dungeon.rubble",
 }
-// Creatures the Studio's encounter table can place (id -> presentation + loot
-// dropped when cleared).
+// Creatures the Studio's encounter table can place (id -> presentation + the
+// loot table rolled when cleared).
 const STUDIO_CREATURES: Record<
   string,
-  { readonly label: string; readonly size: number; readonly lootItem: string; readonly lootQty: number }
+  { readonly label: string; readonly size: number; readonly lootTable: string }
 > = {
-  rat: { label: "Rat", size: 0.35, lootItem: "item.scrap_metal", lootQty: 1 },
-  giant_rat: { label: "Giant Rat", size: 0.6, lootItem: "item.scrap_metal", lootQty: 2 },
+  rat: { label: "Rat", size: 0.35, lootTable: "loot.vermin" },
+  giant_rat: { label: "Giant Rat", size: 0.6, lootTable: "loot.giant_vermin" },
 }
 
 // A sub-tile creature cell for a given creature id. compileDungeon gives each
-// occurrence a unique id. `feature: "creature"` + loot metadata make it a
-// bump-to-clear target (see dungeon-locations.ts).
+// occurrence a unique id. `feature: "creature"` + a `lootTable` make it a
+// bump-to-clear target whose drop is resolved from data (see loot-selectors.ts).
 function creatureCell(creatureId: string): DungeonCellSpec {
   const creature =
-    STUDIO_CREATURES[creatureId] ?? { label: creatureId, size: 0.4, lootItem: "item.scrap_metal", lootQty: 1 }
+    STUDIO_CREATURES[creatureId] ?? { label: creatureId, size: 0.4, lootTable: "loot.vermin" }
   return {
     kind: "floor",
     feature: "creature",
@@ -84,18 +84,13 @@ function creatureCell(creatureId: string): DungeonCellSpec {
       visualFootprint: { unit: "cell", width: creature.size, height: creature.size },
       sourceId: creatureId,
     },
-    metadata: { lootItem: creature.lootItem, lootQty: creature.lootQty },
+    metadata: { lootTable: creature.lootTable },
   }
 }
 
-// A bump-to-loot container. Renders as a landmark; clearing it grants its loot
-// once and persists (cleared_locations).
-function containerCell(
-  idSuffix: string,
-  label: string,
-  lootItem: string,
-  lootQty: number,
-): DungeonCellSpec {
+// A bump-to-loot container. Renders as a landmark; clearing it rolls its loot
+// table once and persists (cleared_locations).
+function containerCell(idSuffix: string, label: string, lootTable: string): DungeonCellSpec {
   return {
     kind: "floor",
     feature: "container",
@@ -106,7 +101,7 @@ function containerCell(
       visualFootprint: { unit: "cell", width: 0.55, height: 0.55 },
       sourceId: "container",
     },
-    metadata: { lootItem, lootQty },
+    metadata: { lootTable },
   }
 }
 
@@ -205,8 +200,8 @@ const RUINED_LEGEND: Readonly<Record<string, DungeonCellSpec>> = {
   r: STUDIO_VERMIN[0],
   s: STUDIO_VERMIN[1],
   t: STUDIO_VERMIN[2],
-  c: containerCell("supply-crate", "Supply Crate", "item.scrap_metal", 3),
-  u: containerCell("larder-cupboard", "Larder Cupboard", "item.ration", 2),
+  c: containerCell("supply-crate", "Supply Crate", "loot.supply_crate"),
+  u: containerCell("larder-cupboard", "Larder Cupboard", "loot.larder"),
   "~": RUBBLE_WALL,
   "1": {
     kind: "floor",

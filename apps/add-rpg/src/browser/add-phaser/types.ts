@@ -48,12 +48,9 @@ export interface AddRpgPhaserMapHostOptions {
   readonly onCharacterTravel?: (event: AddCharacterTravelEvent) => void
   /** Bumping a closed door requests it be opened (authoritative toggle). */
   readonly onDoorToggle?: (coord: CellCoord) => void
-  /** Bumping an un-cleared creature/container resolves it (clear/loot, once). */
-  readonly onClearLocation?: (
-    coord: CellCoord,
-    lootItem: string | undefined,
-    lootQty: number,
-  ) => void
+  /** Bumping an un-cleared creature/container resolves it (clear/loot, once).
+   * `lootTable` is the table id to roll for the drop (resolved by the host). */
+  readonly onClearLocation?: (coord: CellCoord, lootTable: string | undefined) => void
   /** Bumping a dropped-item pile picks it up. */
   readonly onPickUp?: (coord: CellCoord) => void
 }

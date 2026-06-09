@@ -277,11 +277,9 @@ export class AddRpgHexScene extends Phaser.Scene {
     ) {
       this.characterFacing = direction
       this.characterMoveStatus = { direction, accepted: false, blockedReason: "clearing_location" }
-      const lootItem =
-        typeof nextCell.metadata?.lootItem === "string" ? nextCell.metadata.lootItem : undefined
-      const lootQty =
-        typeof nextCell.metadata?.lootQty === "number" ? nextCell.metadata.lootQty : 0
-      this.hostOptions.onClearLocation?.(nextCoord, lootItem, lootQty)
+      const lootTable =
+        typeof nextCell.metadata?.lootTable === "string" ? nextCell.metadata.lootTable : undefined
+      this.hostOptions.onClearLocation?.(nextCoord, lootTable)
       this.drawOverlay()
       this.refreshInfo()
       return false

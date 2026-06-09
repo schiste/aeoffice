@@ -34,4 +34,19 @@ for (const table of ENCOUNTER_TABLES) {
   }
 }
 
+// Loot tables: valid + drop only known items, with sane quantity ranges.
+const { LOOT_TABLES } = require(path.join(ROOT, "dist/content/loot-tables.js"))
+assert.ok(validateContentCatalog({ kind: "loot", entries: LOOT_TABLES }).valid, "loot ids must be unique")
+const itemIds = new Set(ITEMS.map((item) => item.id))
+for (const table of LOOT_TABLES) {
+  assert.ok(table.entries.length > 0, `loot ${table.id} has no entries`)
+  for (const entry of table.entries) {
+    assert.ok(itemIds.has(entry.itemId), `loot ${table.id} drops unknown item "${entry.itemId}"`)
+    assert.ok(entry.weight > 0, `loot ${table.id} entry ${entry.itemId} has non-positive weight`)
+    if (entry.min != null && entry.max != null) {
+      assert.ok(entry.max >= entry.min, `loot ${table.id} entry ${entry.itemId} has max < min`)
+    }
+  }
+}
+
 console.log("add-domain content: all assertions passed")

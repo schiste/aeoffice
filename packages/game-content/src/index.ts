@@ -143,6 +143,61 @@ export function resolveEncounterSpawns(
   return spawns
 }
 
+// --- Loot tables ------------------------------------------------------------
+// The item-side twin of encounter tables: a weighted set of possible item
+// drops, each with a quantity range.
+
+export interface LootChance {
+  readonly itemId: string
+  readonly weight: number
+  readonly min?: number
+  readonly max?: number
+}
+
+export interface LootTable extends ContentEntry {
+  readonly label?: string
+  readonly entries: readonly LootChance[]
+}
+
+/** Pick a weighted loot entry for a `roll` in [0,1). Deterministic. */
+export function rollLoot(table: LootTable, roll: number): LootChance | undefined {
+  const total = table.entries.reduce((sum, e) => sum + Math.max(0, e.weight), 0)
+  if (total <= 0) return undefined
+  let remaining = Math.min(1, Math.max(0, roll)) * total
+  for (const entry of table.entries) {
+    remaining -= Math.max(0, entry.weight)
+    if (remaining < 0) return entry
+  }
+  return table.entries[table.entries.length - 1]
+}
+
+/** Resolve a single drop: pick an entry with `rollPick`, then a quantity in the
+ * entry's `[min,max]` with `rollQty` (both in [0,1)). Deterministic. */
+export function lootDrop(
+  table: LootTable,
+  rollPick: number,
+  rollQty: number,
+): { itemId: string; qty: number } | undefined {
+  const chance = rollLoot(table, rollPick)
+  if (!chance) return undefined
+  const min = Math.max(1, Math.floor(chance.min ?? 1))
+  const max = Math.max(min, Math.floor(chance.max ?? min))
+  const span = max - min + 1
+  const qty = min + Math.min(span - 1, Math.floor(Math.min(1, Math.max(0, rollQty)) * span))
+  return { itemId: chance.itemId, qty }
+}
+
+/** Stable hash of a string to a value in [0,1). Lets callers derive a fixed
+ * "roll" from an identity (e.g. a location key) without any RNG. */
+export function hashUnit(value: string): number {
+  let hash = 2166136261
+  for (let i = 0; i < value.length; i += 1) {
+    hash ^= value.charCodeAt(i)
+    hash = Math.imul(hash, 16777619)
+  }
+  return (hash >>> 0) / 4294967296
+}
+
 // --- Rust-literal emitter ---------------------------------------------------
 // Emits a catalog as a generated Rust `const` array literal. Output is compact;
 // run rustfmt afterwards for canonical formatting. The build step that uses this

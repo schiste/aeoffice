@@ -17,6 +17,7 @@ import {
   applyDungeonDoorStates,
   dungeonDoorKey,
   dungeonLocationKey,
+  lootDropForLocation,
   emptyDungeonVisibility,
   addDungeonByMapId,
   ADD_MAP_MODE_OPTIONS,
@@ -436,8 +437,8 @@ function AddRpgApp() {
       onDoorToggle: (coord) => {
         void handleDoorToggle(coord)
       },
-      onClearLocation: (coord, lootItem, lootQty) => {
-        void handleClearLocation(coord, lootItem, lootQty)
+      onClearLocation: (coord, lootTable) => {
+        void handleClearLocation(coord, lootTable)
       },
       onPickUp: (coord) => {
         void handlePickUp(coord)
@@ -2381,15 +2382,16 @@ async function handleDoorToggle(coord: CellCoord): Promise<void> {
 
 async function handleClearLocation(
   coord: CellCoord,
-  lootItem: string | undefined,
-  lootQty: number,
+  lootTable: string | undefined,
 ): Promise<void> {
   // Per-location facts are Rust-authoritative: clearLocation loots once + records
-  // the cell, and the new snapshot drives the cleared-location overlay.
+  // the cell, and the new snapshot drives the cleared-location overlay. The loot
+  // is rolled from data here (deterministic per location) and sent resolved.
   const dungeonId = addDungeonByMapId(dungeonTarget())?.id ?? dungeonTarget()
   const key = dungeonLocationKey(dungeonId, coord)
+  const drop = lootTable ? lootDropForLocation(lootTable, key) : undefined
   await sendAndWaitForSnapshot(() => {
-    client.clearLocation(key, lootItem, lootQty)
+    client.clearLocation(key, drop?.itemId, drop?.qty ?? 0)
   })
 }
 
