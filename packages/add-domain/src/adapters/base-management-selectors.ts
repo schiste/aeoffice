@@ -3,6 +3,7 @@ import type {
   CostDef,
   ProcessingRecipeDef,
   RequirementDef,
+  RoleDef,
   SimulationSnapshot,
   StationDef,
 } from "../runtime/protocol"
@@ -61,7 +62,66 @@ export interface AddBaseResourceManagementSummary extends AddResourceSummary {
 }
 
 export interface AddBaseRoleManagementSummary extends AddRoleAssignmentSummary {
+  readonly slotPool: RoleDef["slotPool"]
+  readonly heroAllowed: boolean
+  readonly crewAllowed: boolean
+  readonly maxCrewSlots: number | null
+  readonly outputResourceId: string | null
+  readonly outputResourceLabel: string | null
+  readonly currentNetPerSecond: number
+  readonly nextWorkerDeltaPerSecond: number
+  readonly pressureCopy: string
   readonly slotPressure: "locked" | "empty" | "understaffed" | "staffed"
+}
+
+export type AddBaseStaffingPresetId =
+  | "balanced"
+  | "push_reach"
+  | "gather_stone"
+  | "recover_power"
+
+export interface AddBaseStaffingPreset {
+  readonly id: AddBaseStaffingPresetId
+  readonly label: string
+  readonly detail: string
+  readonly enabled: boolean
+  readonly disabledReason: string | null
+  readonly heroRoleId: string
+  readonly crewByRole: Record<string, number>
+  readonly expectedFocus: string
+}
+
+export interface AddBaseStaffingSlotPool {
+  readonly id: RoleDef["slotPool"]
+  readonly label: string
+  readonly occupied: number
+  readonly capacity: number
+  readonly free: number
+  readonly pressure: "locked" | "empty" | "room" | "full"
+  readonly detail: string
+}
+
+export interface AddBaseStaffingProjection {
+  readonly freeCrew: number
+  readonly assignedCrew: number
+  readonly totalCrew: number
+  readonly heroRoleId: string
+  readonly heroRoleLabel: string
+  readonly heroAssigned: boolean
+  readonly heroTaskOptions: readonly {
+    readonly roleId: string
+    readonly label: string
+    readonly available: boolean
+    readonly lockedReason: string | null
+  }[]
+  readonly slotPools: readonly AddBaseStaffingSlotPool[]
+  readonly presets: readonly AddBaseStaffingPreset[]
+  readonly currentPresetId: AddBaseStaffingPresetId | null
+  readonly visibleImpact: {
+    readonly rateSummary: string
+    readonly riskSummary: string
+    readonly bottleneckSummary: string
+  }
 }
 
 export interface AddBaseResourceAffordability {
@@ -159,6 +219,7 @@ export interface AddBaseManagementState {
   readonly subtitle: string
   readonly resources: readonly AddBaseResourceManagementSummary[]
   readonly roles: readonly AddBaseRoleManagementSummary[]
+  readonly staffing: AddBaseStaffingProjection
   readonly construction: readonly AddConstructionSummary[]
   readonly stations: readonly AddBaseStationManagementSummary[]
   readonly processing: readonly AddBaseProcessingManagementSummary[]
@@ -220,7 +281,10 @@ export function selectAddBaseManagementState(
   let resources = selectAddResourceSummaries(snapshot, catalog).map((resource) =>
     baseResourceSummary(snapshot, resource),
   )
-  const roles = selectAddRoleAssignmentSummaries(snapshot, catalog).map(baseRoleSummary)
+  const roleDefsById = new Map(catalog.roles.map((role) => [role.id, role]))
+  const roles = selectAddRoleAssignmentSummaries(snapshot, catalog).map((role) =>
+    baseRoleSummary(snapshot, resources, role, roleDefsById.get(role.id)),
+  )
   const construction = selectAddConstructionSummaries(snapshot, catalog)
   const stations = catalog.stations
     .slice()
@@ -259,6 +323,7 @@ export function selectAddBaseManagementState(
     stations,
     processing,
   )
+  const staffing = selectBaseStaffingProjection(snapshot, roles, resources, nextBottleneck)
 
   return {
     title: "The Studio",
@@ -267,6 +332,7 @@ export function selectAddBaseManagementState(
       : "A damaged base layer. Restore the Studio to unlock the main idle loop.",
     resources,
     roles,
+    staffing,
     construction,
     stations,
     processing,
@@ -349,16 +415,37 @@ function baseResourceSummary(
   }
 }
 
-function baseRoleSummary(role: AddRoleAssignmentSummary): AddBaseRoleManagementSummary {
+function baseRoleSummary(
+  snapshot: SimulationSnapshot,
+  resources: readonly AddBaseResourceManagementSummary[],
+  role: AddRoleAssignmentSummary,
+  roleDef: RoleDef | undefined,
+): AddBaseRoleManagementSummary {
+  const outputResourceId = resourceForRole(role.id)
+  const outputResource = outputResourceId ? resourceById(resources, outputResourceId) : null
+  const nextWorkerDeltaPerSecond = role.available
+    ? roleNextWorkerDeltaPerSecond(snapshot, role.id)
+    : 0
+  const currentNetPerSecond = outputResource?.netPerSecond ?? 0
+  const slotPressure = !role.available
+    ? "locked"
+    : role.crewAssigned <= 0 && !role.heroAssigned
+      ? "empty"
+      : role.crewAssigned < role.suggestedCrew
+        ? "understaffed"
+        : "staffed"
   return {
     ...role,
-    slotPressure: !role.available
-      ? "locked"
-      : role.crewAssigned <= 0 && !role.heroAssigned
-        ? "empty"
-        : role.crewAssigned < role.suggestedCrew
-          ? "understaffed"
-          : "staffed",
+    slotPool: roleDef?.slotPool ?? "base",
+    heroAllowed: roleDef?.heroAllowed ?? true,
+    crewAllowed: roleDef?.crewAllowed ?? true,
+    maxCrewSlots: roleDef?.maxCrewSlots ?? null,
+    outputResourceId,
+    outputResourceLabel: outputResource?.label ?? null,
+    currentNetPerSecond,
+    nextWorkerDeltaPerSecond,
+    pressureCopy: rolePressureCopy(role, slotPressure, outputResource?.label ?? null, nextWorkerDeltaPerSecond),
+    slotPressure,
   }
 }
 
@@ -692,6 +779,301 @@ function selectRecommendedBaseAction(
     targetId: null,
     enabled: false,
   }
+}
+
+function selectBaseStaffingProjection(
+  snapshot: SimulationSnapshot,
+  roles: readonly AddBaseRoleManagementSummary[],
+  resources: readonly AddBaseResourceManagementSummary[],
+  nextBottleneck: AddBaseManagementState["nextBottleneck"],
+): AddBaseStaffingProjection {
+  const assignedCrew = roles.reduce((total, role) => total + role.crewAssigned, 0)
+  const freeCrew = Math.max(0, snapshot.roster.totalCrew - assignedCrew)
+  const heroRole = roles.find((role) => role.id === snapshot.roster.heroRoleId) ?? roles[0]
+  const presets = staffingPresetSpecs().map((preset) =>
+    buildStaffingPreset(snapshot, roles, preset),
+  )
+  return {
+    freeCrew,
+    assignedCrew,
+    totalCrew: snapshot.roster.totalCrew,
+    heroRoleId: snapshot.roster.heroRoleId,
+    heroRoleLabel: heroRole?.label ?? "No task",
+    heroAssigned: snapshot.roster.heroAssigned,
+    heroTaskOptions: roles.map((role) => ({
+      roleId: role.id,
+      label: role.label,
+      available: role.available && role.heroAllowed,
+      lockedReason: role.heroAllowed ? role.lockedReason : "Hero cannot take this task.",
+    })),
+    slotPools: staffingSlotPools(snapshot, roles, freeCrew),
+    presets,
+    currentPresetId: presets.find((preset) => staffingPresetMatches(snapshot, preset))?.id ?? null,
+    visibleImpact: {
+      rateSummary: staffingRateSummary(resources),
+      riskSummary: staffingRiskSummary(snapshot),
+      bottleneckSummary: nextBottleneck.detail,
+    },
+  }
+}
+
+function staffingSlotPools(
+  snapshot: SimulationSnapshot,
+  roles: readonly AddBaseRoleManagementSummary[],
+  freeCrew: number,
+): readonly AddBaseStaffingSlotPool[] {
+  return [
+    slotPoolPressure("crystal_circle", "Crystal slots", crystalSlotCapacity(snapshot), roles, freeCrew),
+    slotPoolPressure("fire_pit", "Fire Pit seats", firePitSlotCapacity(snapshot), roles, freeCrew),
+    slotPoolPressure("base", "Base crew", snapshot.roster.totalCrew, roles, freeCrew),
+  ]
+}
+
+function slotPoolPressure(
+  id: RoleDef["slotPool"],
+  label: string,
+  capacity: number,
+  roles: readonly AddBaseRoleManagementSummary[],
+  freeCrew: number,
+): AddBaseStaffingSlotPool {
+  const occupied = roles
+    .filter((role) => role.slotPool === id)
+    .reduce((total, role) => total + role.crewAssigned, 0)
+  const free = id === "base"
+    ? freeCrew
+    : Math.max(0, Math.min(capacity - occupied, freeCrew))
+  const pressure =
+    capacity <= 0
+      ? "locked"
+      : occupied <= 0
+        ? "empty"
+        : free <= 0
+          ? "full"
+          : "room"
+  return {
+    id,
+    label,
+    occupied,
+    capacity,
+    free,
+    pressure,
+    detail:
+      pressure === "locked"
+        ? `${label} are not available yet.`
+        : pressure === "full"
+          ? `${label} are full; moving workers here requires freeing capacity.`
+          : `${free} ${free === 1 ? "worker" : "workers"} can still move into this pool.`,
+  }
+}
+
+function staffingPresetSpecs(): readonly {
+  readonly id: AddBaseStaffingPresetId
+  readonly label: string
+  readonly detail: string
+  readonly heroRoleId: string
+  readonly priority: readonly [string, number][]
+  readonly requiresRoleId: string | null
+  readonly expectedFocus: string
+}[] {
+  return [
+    {
+      id: "balanced",
+      label: "Balanced",
+      detail: "Keep reach, building, and survival lanes moving.",
+      heroRoleId: ROLE_CRYSTAL_BASSLINE,
+      priority: [
+        [ROLE_CRYSTAL_BASSLINE, 1],
+        [ROLE_SCAVENGE, 1],
+        [ROLE_CONSTRUCTION, 1],
+        [ROLE_FIRE_PIT, 1],
+        [ROLE_WATER, 1],
+        [ROLE_CRYSTAL_CHORUS, 1],
+      ],
+      requiresRoleId: null,
+      expectedFocus: "Broad progress with no single lane pushed too hard.",
+    },
+    {
+      id: "push_reach",
+      label: "Push reach",
+      detail: "Prioritize Bassline so the bubble can stretch farther.",
+      heroRoleId: ROLE_CRYSTAL_BASSLINE,
+      priority: [
+        [ROLE_CRYSTAL_BASSLINE, 4],
+        [ROLE_FIRE_PIT, 1],
+        [ROLE_SCAVENGE, 1],
+      ],
+      requiresRoleId: ROLE_CRYSTAL_BASSLINE,
+      expectedFocus: "More Bassline and bubble reach pressure relief.",
+    },
+    {
+      id: "gather_stone",
+      label: "Gather stone",
+      detail: "Push Scavenge and builders for Studio restoration and early projects.",
+      heroRoleId: ROLE_SCAVENGE,
+      priority: [
+        [ROLE_SCAVENGE, 3],
+        [ROLE_CONSTRUCTION, 1],
+        [ROLE_CRYSTAL_BASSLINE, 1],
+      ],
+      requiresRoleId: ROLE_SCAVENGE,
+      expectedFocus: "More Stone income, with some building throughput.",
+    },
+    {
+      id: "recover_power",
+      label: "Recover power",
+      detail: "Move effort into Chorus so powered stations stop browning out.",
+      heroRoleId: ROLE_CRYSTAL_CHORUS,
+      priority: [
+        [ROLE_CRYSTAL_CHORUS, 3],
+        [ROLE_CRYSTAL_BASSLINE, 1],
+        [ROLE_FIRE_PIT, 1],
+      ],
+      requiresRoleId: ROLE_CRYSTAL_CHORUS,
+      expectedFocus: "More Chorus generation and less brownout pressure.",
+    },
+  ]
+}
+
+function buildStaffingPreset(
+  snapshot: SimulationSnapshot,
+  roles: readonly AddBaseRoleManagementSummary[],
+  spec: ReturnType<typeof staffingPresetSpecs>[number],
+): AddBaseStaffingPreset {
+  const requiredRole = spec.requiresRoleId
+    ? roles.find((role) => role.id === spec.requiresRoleId)
+    : null
+  const heroRole = roles.find((role) => role.id === spec.heroRoleId)
+  const disabledReason =
+    requiredRole && !requiredRole.available
+      ? requiredRole.lockedReason ?? `${requiredRole.label} is locked.`
+      : heroRole && !heroRole.available
+        ? heroRole.lockedReason ?? `${heroRole.label} is locked.`
+        : null
+  return {
+    id: spec.id,
+    label: spec.label,
+    detail: spec.detail,
+    enabled: disabledReason === null,
+    disabledReason,
+    heroRoleId: disabledReason === null ? spec.heroRoleId : snapshot.roster.heroRoleId,
+    crewByRole: disabledReason === null ? presetCrewTargets(snapshot, roles, spec.priority) : emptyCrewTargets(roles),
+    expectedFocus: spec.expectedFocus,
+  }
+}
+
+function presetCrewTargets(
+  snapshot: SimulationSnapshot,
+  roles: readonly AddBaseRoleManagementSummary[],
+  priority: readonly [string, number][],
+): Record<string, number> {
+  const targets = emptyCrewTargets(roles)
+  let remainingCrew = snapshot.roster.totalCrew
+  let remainingCrystalSlots = crystalSlotCapacity(snapshot)
+  let remainingFirePitSlots = firePitSlotCapacity(snapshot)
+  priority.forEach(([roleId, desired]) => {
+    const role = roles.find((candidate) => candidate.id === roleId)
+    if (!role?.available || !role.crewAllowed || desired <= 0 || remainingCrew <= 0) return
+    const roleLimit = role.maxCrewSlots ?? remainingCrew
+    const poolLimit =
+      role.slotPool === "crystal_circle"
+        ? remainingCrystalSlots
+        : role.slotPool === "fire_pit"
+          ? remainingFirePitSlots
+          : remainingCrew
+    const assigned = Math.max(0, Math.min(desired, roleLimit, poolLimit, remainingCrew))
+    targets[role.id] = assigned
+    remainingCrew -= assigned
+    if (role.slotPool === "crystal_circle") remainingCrystalSlots -= assigned
+    if (role.slotPool === "fire_pit") remainingFirePitSlots -= assigned
+  })
+  return targets
+}
+
+function emptyCrewTargets(
+  roles: readonly AddBaseRoleManagementSummary[],
+): Record<string, number> {
+  return Object.fromEntries(roles.map((role) => [role.id, 0]))
+}
+
+function staffingPresetMatches(
+  snapshot: SimulationSnapshot,
+  preset: AddBaseStaffingPreset,
+): boolean {
+  if (!preset.enabled) return false
+  if (snapshot.roster.heroAssigned && snapshot.roster.heroRoleId !== preset.heroRoleId) return false
+  return Object.entries(preset.crewByRole).every(
+    ([roleId, crew]) => roleCrew(snapshot, roleId) === crew,
+  )
+}
+
+function crystalSlotCapacity(snapshot: SimulationSnapshot): number {
+  return snapshot.crystalCircle.baseSlots + snapshot.crystalCircle.slotCapacityLevel
+}
+
+function firePitSlotCapacity(snapshot: SimulationSnapshot): number {
+  return snapshot.base.firePitBuilt ? BALANCE.crystal.firePitCrewSlots : 0
+}
+
+function staffingRateSummary(
+  resources: readonly AddBaseResourceManagementSummary[],
+): string {
+  const strongest = resources
+    .filter((resource) => Math.abs(resource.netPerSecond) > 0.001)
+    .sort((left, right) => Math.abs(right.netPerSecond) - Math.abs(left.netPerSecond))[0]
+  if (!strongest) return "No resource rate is moving with the current staffing."
+  return `${strongest.label} is moving most: ${formatSignedRate(strongest.netPerSecond)}.`
+}
+
+function staffingRiskSummary(snapshot: SimulationSnapshot): string {
+  if (snapshot.power.brownoutActive) {
+    return `Brownout is active; recovery is slowed by ${formatAmount(snapshot.power.brownoutSeverity)} severity.`
+  }
+  if (snapshot.heroSurvival.viralLoadRatio >= 0.5) {
+    return `Hero work efficiency is reduced by viral load at ${formatAmount(snapshot.heroSurvival.viralLoadRatio * 100)}%.`
+  }
+  return "No immediate staffing risk is active."
+}
+
+function roleNextWorkerDeltaPerSecond(
+  snapshot: SimulationSnapshot,
+  roleId: string,
+): number {
+  const efficiency = snapshot.base.crewEfficiencyMultiplier
+  switch (roleId) {
+    case ROLE_CRYSTAL_BASSLINE:
+      return snapshot.power.basslineOutputMultiplier * BALANCE.crystal.outputPerWorkerBase * efficiency
+    case ROLE_CRYSTAL_CHORUS:
+      return snapshot.power.chorusOutputMultiplier * BALANCE.crystal.chorusPerWorkerBase * efficiency
+    case ROLE_CRYSTAL_HARMONICS:
+      return snapshot.power.harmonicsOutputMultiplier * BALANCE.crystal.harmonicsPerWorkerBase * efficiency
+    case ROLE_SCAVENGE:
+      return (snapshot.resources.baseStoneStock > 0
+        ? BALANCE.scavenge.stockRatePerSecond
+        : BALANCE.scavenge.ambientRatePerSecond) * efficiency
+    case ROLE_WATER:
+      return snapshot.base.waterCollectionUnlocked ? BALANCE.water.collectionRatePerSecond * efficiency : 0
+    case ROLE_FIRE_PIT:
+      return snapshot.base.firePitBuilt ? BALANCE.firePit.staffVibesPerSecond * efficiency : 0
+    case ROLE_CONSTRUCTION:
+      return snapshot.activeConstruction?.perWorkerCostPerSecond ?? 0
+    default:
+      return 0
+  }
+}
+
+function rolePressureCopy(
+  role: AddRoleAssignmentSummary,
+  pressure: AddBaseRoleManagementSummary["slotPressure"],
+  outputResourceLabel: string | null,
+  nextWorkerDeltaPerSecond: number,
+): string {
+  if (role.lockedReason) return role.lockedReason
+  if (pressure === "empty") return `${role.label} is idle.`
+  if (pressure === "understaffed") return `${role.label} can use more crew.`
+  if (outputResourceLabel && nextWorkerDeltaPerSecond > 0) {
+    return `Next worker changes ${outputResourceLabel} by ${formatSignedRate(nextWorkerDeltaPerSecond)}.`
+  }
+  return `${role.label} is covered.`
 }
 
 interface AddBaseAffordabilityTarget {

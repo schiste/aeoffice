@@ -441,8 +441,42 @@ export interface RuntimeTextState {
       readonly heroAssigned: boolean
       readonly crewAssigned: number
       readonly suggestedCrew: number
+      readonly slotPool: string
       readonly slotPressure: string
+      readonly outputResourceId: string | null
+      readonly currentNetPerSecond: number
+      readonly nextWorkerDeltaPerSecond: number
+      readonly pressureCopy: string
     }[]
+    readonly staffing: {
+      readonly freeCrew: number
+      readonly assignedCrew: number
+      readonly totalCrew: number
+      readonly heroRoleId: string
+      readonly heroRoleLabel: string
+      readonly heroAssigned: boolean
+      readonly currentPresetId: string | null
+      readonly slotPools: readonly {
+        readonly id: string
+        readonly occupied: number
+        readonly capacity: number
+        readonly free: number
+        readonly pressure: string
+      }[]
+      readonly presets: readonly {
+        readonly id: string
+        readonly label: string
+        readonly enabled: boolean
+        readonly disabledReason: string | null
+        readonly heroRoleId: string
+        readonly crewByRole: Record<string, number>
+      }[]
+      readonly visibleImpact: {
+        readonly rateSummary: string
+        readonly riskSummary: string
+        readonly bottleneckSummary: string
+      }
+    }
     readonly activeConstructionId: string | null
     readonly enabledConstructionIds: readonly string[]
     readonly poweredStationIds: readonly string[]
@@ -906,8 +940,42 @@ function baseManagementTelemetry(
       heroAssigned: role.heroAssigned,
       crewAssigned: role.crewAssigned,
       suggestedCrew: role.suggestedCrew,
+      slotPool: role.slotPool,
       slotPressure: role.slotPressure,
+      outputResourceId: role.outputResourceId,
+      currentNetPerSecond: round3(role.currentNetPerSecond),
+      nextWorkerDeltaPerSecond: round3(role.nextWorkerDeltaPerSecond),
+      pressureCopy: role.pressureCopy,
     })),
+    staffing: {
+      freeCrew: state.staffing.freeCrew,
+      assignedCrew: state.staffing.assignedCrew,
+      totalCrew: state.staffing.totalCrew,
+      heroRoleId: state.staffing.heroRoleId,
+      heroRoleLabel: state.staffing.heroRoleLabel,
+      heroAssigned: state.staffing.heroAssigned,
+      currentPresetId: state.staffing.currentPresetId,
+      slotPools: state.staffing.slotPools.map((pool) => ({
+        id: pool.id,
+        occupied: pool.occupied,
+        capacity: pool.capacity,
+        free: pool.free,
+        pressure: pool.pressure,
+      })),
+      presets: state.staffing.presets.map((preset) => ({
+        id: preset.id,
+        label: preset.label,
+        enabled: preset.enabled,
+        disabledReason: preset.disabledReason,
+        heroRoleId: preset.heroRoleId,
+        crewByRole: preset.crewByRole,
+      })),
+      visibleImpact: {
+        rateSummary: state.staffing.visibleImpact.rateSummary,
+        riskSummary: state.staffing.visibleImpact.riskSummary,
+        bottleneckSummary: state.staffing.visibleImpact.bottleneckSummary,
+      },
+    },
     activeConstructionId: state.activeConstruction?.id ?? null,
     enabledConstructionIds: state.construction
       .filter((option) => option.enabled)

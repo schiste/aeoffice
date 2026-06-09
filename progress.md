@@ -98,6 +98,21 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   full `npm run check`. The generated base-management smoke screenshot was
   visually inspected and showed readable limiter/forecast/stall copy without
   overlap.
+- Phase 3 staffing is now projected as the ADD base-management core loop:
+  `add-domain` exposes free/assigned crew, Hero task options, slot-pool
+  pressure, per-role next-worker rate deltas, visible staffing impact, and the
+  Balanced / Push reach / Gather stone / Recover power presets.
+- The Crew tab now prioritizes staffing above the economy forecast: free crew,
+  Hero task selector, risk/bottleneck impact, preset buttons, Crystal/Fire Pit
+  slot pressure, and plus/minus role allocation controls are player-facing.
+- `render_game_to_text` exposes the staffing projection, and ADD smoke verifies
+  that moving one Bassline worker changes crew count, free crew, and Bassline
+  gain before restoring the worker for later scenarios. The dedicated
+  `add-rpg-staffing-management-smoke.png` screenshot was inspected for readable
+  staffing layout.
+- Verification passed again for `npm --workspace @aedventure/add-domain run
+  build`, `npm --workspace @aedventure/add-rpg run build`, `npm run
+  smoke:add-rpg`, and full `npm run check`.
 - ADD Phaser fog rendering now uses a visual-only graphics layer above terrain
   and below landmarks. Hidden cells draw as dark silhouettes, discovered/stale
   cells get a muted overlay, visible cells render normally, and hidden-to-known

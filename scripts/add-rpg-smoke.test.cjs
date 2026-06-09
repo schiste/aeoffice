@@ -360,6 +360,12 @@ async function exerciseBaseManagementSurface(page, consoleErrors) {
       state.baseManagement?.economy?.waitForecasts?.some((forecast) => forecast.label === "1m") &&
       state.baseManagement?.economy?.waitForecasts?.some((forecast) => forecast.label === "5m") &&
       state.baseManagement?.economy?.waitForecasts?.some((forecast) => forecast.label === "30m") &&
+      state.baseManagement?.staffing?.presets?.some((preset) => preset.id === "balanced") &&
+      state.baseManagement?.staffing?.presets?.some((preset) => preset.id === "push_reach") &&
+      state.baseManagement?.staffing?.presets?.some((preset) => preset.id === "gather_stone") &&
+      state.baseManagement?.staffing?.presets?.some((preset) => preset.id === "recover_power") &&
+      state.baseManagement?.staffing?.slotPools?.some((pool) => pool.id === "crystal_circle") &&
+      state.baseManagement?.staffing?.slotPools?.some((pool) => pool.id === "fire_pit") &&
       typeof state.baseManagement?.recommendedAction?.label === "string" &&
       typeof state.baseManagement?.nextBottleneck?.label === "string",
     consoleErrors,
@@ -379,6 +385,16 @@ async function exerciseBaseManagementSurface(page, consoleErrors) {
     typeof base.baseManagement.economy.offlinePreview.summary === "string" &&
       base.baseManagement.economy.offlinePreview.summary.length > 0,
     "Base economy should expose an offline preview summary.",
+  )
+  assert.ok(
+    base.baseManagement.rolePressure.some(
+      (role) =>
+        role.id === "role.crystal_bassline" &&
+        role.slotPool === "crystal_circle" &&
+        role.nextWorkerDeltaPerSecond > 0 &&
+        typeof role.pressureCopy === "string",
+    ),
+    "Bassline staffing should expose slot pressure and next-worker impact.",
   )
 
   await page.locator("#base-management-panel").waitFor({ state: "visible" })
@@ -408,6 +424,70 @@ async function exerciseBaseManagementSurface(page, consoleErrors) {
     )
   })
   assert.doesNotMatch(panelText, /Runtime|Snapshot|Debug/i)
+
+  const beforeBassline = base.baseManagement.rolePressure.find((role) => role.id === "role.crystal_bassline")
+  const beforeBasslineResource = base.baseManagement.resourcePressure.find(
+    (resource) => resource.id === "resource.bassline",
+  )
+  assert.ok(beforeBassline)
+  assert.ok(beforeBasslineResource)
+  await page.locator("#base-role-bassline-plus").click()
+  const staffedBassline = await waitForTextState(
+    page,
+    (state) => {
+      const role = state.baseManagement?.rolePressure?.find((candidate) => candidate.id === "role.crystal_bassline")
+      const resource = state.baseManagement?.resourcePressure?.find((candidate) => candidate.id === "resource.bassline")
+      return (
+        state.baseManagement?.active === true &&
+        role?.crewAssigned === beforeBassline.crewAssigned + 1 &&
+        resource?.gainPerSecond > beforeBasslineResource.gainPerSecond &&
+        state.baseManagement?.staffing?.freeCrew === base.baseManagement.staffing.freeCrew - 1
+      )
+    },
+    consoleErrors,
+  )
+  assert.match(
+    staffedBassline.baseManagement.staffing.visibleImpact.rateSummary,
+    /Bassline|resource/i,
+    "Staffing impact should describe the changed economy.",
+  )
+  await page.locator("#base-role-bassline-minus").click()
+  await waitForTextState(
+    page,
+    (state) =>
+      state.baseManagement?.rolePressure?.find((role) => role.id === "role.crystal_bassline")
+        ?.crewAssigned === beforeBassline.crewAssigned,
+    consoleErrors,
+  )
+
+  await page.locator("#base-tab-crew").click()
+  await waitForTextState(
+    page,
+    (state) => state.baseManagement?.active === true && state.baseManagement?.selectedTab === "crew",
+    consoleErrors,
+  )
+  const crewPanelText = await page.locator("#base-management-panel").innerText()
+  ;[
+    "Staffing command",
+    "Hero task",
+    "Balanced",
+    "Push reach",
+    "Gather stone",
+    "Recover power",
+    "Crystal slots",
+    "Fire Pit seats",
+  ].forEach((expectedText) => {
+    assert.match(
+      crewPanelText,
+      new RegExp(expectedText, "i"),
+      `Crew panel should include ${expectedText}.`,
+    )
+  })
+  await assertNonBlankNamedAppScreenshot(
+    page,
+    "add-rpg-staffing-management-smoke.png",
+    "ADD RPG staffing management surface screenshot",
+  )
 
   for (const tab of ["build", "power", "crew", "social", "processing", "crystal"]) {
     await page.locator(`#base-tab-${tab}`).click()

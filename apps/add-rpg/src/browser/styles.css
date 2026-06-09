@@ -1098,6 +1098,134 @@ h1 {
   background: rgb(255 244 201 / 7%);
 }
 
+.base-staffing-command {
+  display: grid;
+  gap: 0.58rem;
+  border: 1px solid rgb(95 209 216 / 24%);
+  border-radius: 8px;
+  padding: 0.68rem;
+  background:
+    linear-gradient(180deg, rgb(95 209 216 / 12%), rgb(255 244 201 / 5%)),
+    rgb(11 17 16 / 48%);
+  box-shadow: inset 3px 0 0 #5fd1d8;
+}
+
+.base-staffing-command > div:first-child {
+  display: grid;
+  gap: 0.14rem;
+}
+
+.base-staffing-command span,
+.base-slot-pool > span {
+  color: rgb(247 238 210 / 58%);
+  font-size: 0.62rem;
+  font-weight: 920;
+  text-transform: uppercase;
+}
+
+.base-staffing-command strong,
+.base-slot-pool > strong {
+  color: #fff2bd;
+  font-size: 0.84rem;
+  font-weight: 930;
+  line-height: 1.15;
+}
+
+.base-staffing-command small,
+.base-slot-pool > small {
+  color: rgb(247 238 210 / 68%);
+  font-size: 0.64rem;
+  font-weight: 720;
+  line-height: 1.24;
+}
+
+.base-hero-task-selector {
+  display: grid;
+  gap: 0.28rem;
+}
+
+.base-hero-task-selector select {
+  width: 100%;
+  min-height: 2.25rem;
+  border: 1px solid rgb(95 209 216 / 28%);
+  border-radius: 7px;
+  padding: 0 0.58rem;
+  background: rgb(7 12 12 / 72%);
+  color: #fff2bd;
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 820;
+}
+
+.base-staffing-impact {
+  display: grid;
+  gap: 0.2rem;
+  border-radius: 7px;
+  padding: 0.5rem 0.54rem;
+  background: rgb(7 12 12 / 36%);
+}
+
+.base-staffing-impact span {
+  color: rgb(247 238 210 / 70%);
+  font-size: 0.64rem;
+  font-weight: 720;
+  text-transform: none;
+}
+
+.base-staffing-presets {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.base-staffing-presets button {
+  display: grid;
+  min-height: 3.15rem;
+  justify-items: start;
+  gap: 0.12rem;
+  padding: 0.5rem 0.56rem;
+  border-color: rgb(255 244 201 / 14%);
+  background: rgb(255 244 201 / 7%);
+  box-shadow: none;
+  text-align: left;
+}
+
+.base-staffing-presets button.active {
+  border-color: rgb(95 209 216 / 42%);
+  background: rgb(95 209 216 / 14%);
+  color: #c9fff9;
+}
+
+.base-staffing-presets button strong {
+  color: inherit;
+  font-size: 0.68rem;
+}
+
+.base-staffing-presets button small {
+  color: rgb(247 238 210 / 62%);
+  font-size: 0.58rem;
+}
+
+.base-slot-pool {
+  display: grid;
+  gap: 0.16rem;
+  border-radius: 8px;
+  padding: 0.56rem 0.62rem;
+  background: rgb(255 244 201 / 7%);
+}
+
+.base-slot-pool[data-pressure="room"] {
+  background: rgb(95 209 216 / 10%);
+}
+
+.base-slot-pool[data-pressure="full"] {
+  background: rgb(240 185 93 / 12%);
+}
+
+.base-slot-pool[data-pressure="locked"] {
+  opacity: 0.72;
+}
+
 .base-economy-line {
   display: flex;
   min-width: 0;
@@ -1148,7 +1276,7 @@ h1 {
 
 .base-card-actions {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 6px;
   margin-top: 0.3rem;
 }
@@ -2015,6 +2143,10 @@ h1 {
   }
 
   .base-economy-forecast-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .base-staffing-presets {
     grid-template-columns: 1fr;
   }
 

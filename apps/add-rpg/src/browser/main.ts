@@ -1087,7 +1087,7 @@ function baseManagementPanel(): unknown {
           <span>${section?.headline ?? state.subtitle}</span>
           <small>${section?.detail ?? state.nextBottleneck.detail}</small>
         </article>
-        ${() => baseEconomyOverview(state)}
+        ${() => baseManagementTab() === "crew" ? baseStaffingCommandPanel(state) : baseEconomyOverview(state)}
         <div class="base-metric-grid">
           ${() => baseManagementMetricRows(section)}
         </div>
@@ -1238,7 +1238,8 @@ function baseCrystalPanel(state: AddBaseManagementState): unknown {
   return html`
     <div class="base-card-list">
       ${() => baseResourceRows(crystalResources)}
-      ${() => baseRoleRows(crystalRoles)}
+      ${() => baseSlotPoolRows(state.staffing.slotPools.filter((pool) => pool.id === "crystal_circle"))}
+      ${() => baseRoleRows(crystalRoles, state)}
     </div>
   `
 }
@@ -1268,12 +1269,8 @@ function basePowerPanel(state: AddBaseManagementState): unknown {
 function baseCrewPanel(state: AddBaseManagementState): unknown {
   return html`
     <div class="base-card-list">
-      <article class="base-management-card">
-        <span>Crew pressure</span>
-        <strong>${state.roles.filter((role) => role.slotPressure === "staffed").length} lanes staffed</strong>
-        <small>${state.nextBottleneck.detail}</small>
-      </article>
-      ${() => baseRoleRows(state.roles)}
+      ${() => baseSlotPoolRows(state.staffing.slotPools)}
+      ${() => baseRoleRows(state.roles, state)}
     </div>
   `
 }
@@ -1348,34 +1345,115 @@ function baseResourceRows(resources: readonly AddBaseManagementState["resources"
   )
 }
 
-function baseRoleRows(roles: readonly AddBaseManagementState["roles"][number][]): readonly unknown[] {
+function baseStaffingCommandPanel(state: AddBaseManagementState): unknown {
+  return html`
+    <article class="base-staffing-command">
+      <div>
+        <span>Staffing command</span>
+        <strong>${state.staffing.freeCrew} free / ${state.staffing.totalCrew} crew</strong>
+        <small>${state.staffing.visibleImpact.rateSummary}</small>
+      </div>
+      <label class="base-hero-task-selector">
+        <span>Hero task</span>
+        <select
+          id="base-hero-task-selector"
+          value=${state.staffing.heroRoleId}
+          onChange=${(event: Event) => void setHeroRole((event.currentTarget as HTMLSelectElement).value)}
+          disabled=${() => !ready()}
+        >
+          ${() => state.staffing.heroTaskOptions.map((option) => html`
+            <option value=${option.roleId} disabled=${!option.available}>
+              ${option.label}
+            </option>
+          `)}
+        </select>
+      </label>
+      <div class="base-staffing-impact">
+        <span>${state.staffing.visibleImpact.riskSummary}</span>
+        <span>${state.staffing.visibleImpact.bottleneckSummary}</span>
+      </div>
+      <div class="base-staffing-presets" aria-label="Staffing presets">
+        ${() => state.staffing.presets.map((preset) => html`
+          <button
+            id=${`base-staffing-preset-${preset.id}`}
+            type="button"
+            class=${state.staffing.currentPresetId === preset.id ? "active" : ""}
+            title=${preset.disabledReason ?? preset.expectedFocus}
+            onClick=${() => void applyStaffingPreset(preset.id)}
+            disabled=${() => !ready() || !preset.enabled}
+          >
+            <strong>${preset.label}</strong>
+            <small>${preset.detail}</small>
+          </button>
+        `)}
+      </div>
+    </article>
+  `
+}
+
+function baseSlotPoolRows(pools: readonly AddBaseManagementState["staffing"]["slotPools"][number][]): readonly unknown[] {
+  return pools.map((pool) => html`
+    <article class="base-slot-pool" data-pressure=${pool.pressure}>
+      <span>${pool.label}</span>
+      <strong>${pool.occupied} / ${pool.capacity}</strong>
+      <small>${pool.detail}</small>
+    </article>
+  `)
+}
+
+function baseRoleRows(
+  roles: readonly AddBaseManagementState["roles"][number][],
+  state: AddBaseManagementState,
+): readonly unknown[] {
   return roles.map(
     (role) => html`
       <article class="base-management-card" data-pressure=${role.slotPressure}>
         <span>${role.label}</span>
-        <strong>${role.heroAssigned ? "Hero" : `${role.crewAssigned} crew`}</strong>
-        <small>${role.lockedReason ?? `${role.suggestedCrew} suggested`}</small>
+        <strong>${role.heroAssigned ? "Hero" : "Crew"} · ${role.crewAssigned}</strong>
+        <small>${role.pressureCopy}</small>
+        <div class="base-economy-line">
+          <span>${role.outputResourceLabel ?? "Throughput"} ${signedRateCopy(role.currentNetPerSecond)}</span>
+          <strong>Next worker ${signedRateCopy(role.nextWorkerDeltaPerSecond)}</strong>
+        </div>
         <div class="base-card-actions">
           <button
             type="button"
             class="ghost-button"
             onClick=${() => void setHeroRole(role.id)}
-            disabled=${() => !ready() || !role.available}
+            disabled=${() => !ready() || !role.available || !role.heroAllowed}
           >
             Hero
           </button>
           <button
-            id=${`base-crew-${slugForRole(role.id)}`}
+            id=${`base-role-${slugForRole(role.id)}-minus`}
             type="button"
-            onClick=${() => void setRoleCrew(role.id, Math.max(role.suggestedCrew, role.crewAssigned))}
-            disabled=${() => !ready() || !role.available || role.suggestedCrew <= 0}
+            onClick=${() => void setRoleCrew(role.id, Math.max(0, role.crewAssigned - 1))}
+            disabled=${() => !ready() || !role.available || role.crewAssigned <= 0}
           >
-            Staff
+            -1
+          </button>
+          <button
+            id=${`base-role-${slugForRole(role.id)}-plus`}
+            type="button"
+            onClick=${() => void setRoleCrew(role.id, role.crewAssigned + 1)}
+            disabled=${() => !ready() || !canAddCrewToRole(role, state)}
+          >
+            +1
           </button>
         </div>
       </article>
     `,
   )
+}
+
+function canAddCrewToRole(
+  role: AddBaseManagementState["roles"][number],
+  state: AddBaseManagementState,
+): boolean {
+  if (!role.available || !role.crewAllowed || state.staffing.freeCrew <= 0) return false
+  if (role.maxCrewSlots !== null && role.crewAssigned >= role.maxCrewSlots) return false
+  const slotPool = state.staffing.slotPools.find((pool) => pool.id === role.slotPool)
+  return role.slotPool === "base" ? true : (slotPool?.free ?? 0) > 0
 }
 
 function baseConstructionRows(options: readonly AddBaseManagementState["construction"][number][]): readonly unknown[] {
@@ -2996,6 +3074,23 @@ async function setRoleCrew(roleId: string, crew: number): Promise<void> {
     setLastCommand(`crew:${roleId}:${crew}`)
     client.setRoleCrew(roleId, crew)
   })
+}
+
+async function applyStaffingPreset(
+  presetId: AddBaseManagementState["staffing"]["presets"][number]["id"],
+): Promise<void> {
+  const state = baseManagementState()
+  const preset = state?.staffing.presets.find((candidate) => candidate.id === presetId)
+  if (!state || !preset?.enabled) return
+
+  await setHeroRole(preset.heroRoleId)
+  for (const role of state.roles) {
+    if (role.crewAssigned > 0) await setRoleCrew(role.id, 0)
+  }
+  for (const [roleId, crew] of Object.entries(preset.crewByRole)) {
+    if (crew > 0) await setRoleCrew(roleId, crew)
+  }
+  setLastCommand(`staffing_preset:${preset.id}`)
 }
 
 async function startConstruction(optionId: string): Promise<void> {
