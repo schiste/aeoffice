@@ -2,6 +2,18 @@ import { createEffect, createMemo, createSignal, onCleanup, onMount } from "soli
 import html from "solid-js/html"
 import { render } from "solid-js/web"
 import {
+  PROJECT_BUILD_FIRE_PIT,
+  PROJECT_RESTORE_STUDIO,
+  RESOURCE_BASSLINE,
+  RESOURCE_CHORUS,
+  RESOURCE_HARMONICS,
+  ROLE_CONSTRUCTION,
+  ROLE_CRYSTAL_BASSLINE,
+  ROLE_CRYSTAL_CHORUS,
+  ROLE_CRYSTAL_HARMONICS,
+  ROLE_FIRE_PIT,
+  ROLE_SCAVENGE,
+  ROLE_WATER,
   SimulationClient,
   addCommandForGameInteraction,
   selectAddBaseManagementState,
@@ -77,13 +89,6 @@ import {
 } from "./travel-presentation-timing"
 import "./styles.css"
 
-const ROLE_CRYSTAL_BASSLINE = "role.crystal_bassline"
-const ROLE_CONSTRUCTION = "role.construction"
-const ROLE_FIRE_PIT = "role.fire_pit"
-const ROLE_SCAVENGE = "role.scavenge"
-const ROLE_WATER = "role.water"
-const PROJECT_RESTORE_STUDIO = "project.restore_studio"
-const PROJECT_BUILD_FIRE_PIT = "project.build_fire_pit"
 const OPENING_TRAVEL_STEP_ID = "reach-base"
 
 const FIRST_PLAYABLE_ROLE_IDS = [
@@ -252,6 +257,13 @@ const uiState = createMemo<AddUiState | null>(() => {
   const currentCatalog = catalog()
   return currentSnapshot && currentCatalog
     ? selectAddUiState(currentSnapshot, currentCatalog)
+    : null
+})
+const baseManagementState = createMemo<AddBaseManagementState | null>(() => {
+  const currentSnapshot = snapshot()
+  const currentCatalog = catalog()
+  return currentSnapshot && currentCatalog
+    ? selectAddBaseManagementState(currentSnapshot, currentCatalog)
     : null
 })
 const perkProgress = createMemo(() => {
@@ -613,33 +625,7 @@ function AddRpgApp() {
             </div>
             <i style=${() => travelProgressStyle()} aria-hidden="true" />
           </section>
-          <section
-            id="discovery-panel"
-            class=${() =>
-              discoveryPanelCollapsed()
-                ? "panel discovery-panel collapsed"
-                : "panel discovery-panel"}
-            aria-label="Discovery loop"
-          >
-            <div class="panel-heading discovery-heading">
-              <span>Discovery</span>
-              <div>
-                <span class="small-chip">${() => discoveryPhaseLabel()}</span>
-                <button
-                  id="toggle-discovery-panel"
-                  type="button"
-                  class="ghost-button discovery-toggle"
-                  onClick=${() => setDiscoveryPanelCollapsed((collapsed) => !collapsed)}
-                  aria-expanded=${() => !discoveryPanelCollapsed()}
-                  aria-controls="discovery-panel-body"
-                >
-                  ${() => (discoveryPanelCollapsed() ? "Open" : "Hide")}
-                </button>
-              </div>
-            </div>
-            ${() => discoveryNextActionCard()}
-            ${() => discoveryPanelBody()}
-          </section>
+          ${() => (mapMode() === "base_square" ? baseManagementPanel() : discoveryPanel())}
           ${() => travelDialogView()}
           <section
             id="first-playable-panel"
@@ -1030,6 +1016,352 @@ function discoveryPhaseLabel(): string {
     default:
       return "Waiting"
   }
+}
+
+function discoveryPanel(): unknown {
+  return html`
+    <section
+      id="discovery-panel"
+      class=${() =>
+        discoveryPanelCollapsed()
+          ? "panel discovery-panel collapsed"
+          : "panel discovery-panel"}
+      aria-label="Discovery loop"
+    >
+      <div class="panel-heading discovery-heading">
+        <span>Discovery</span>
+        <div>
+          <span class="small-chip">${() => discoveryPhaseLabel()}</span>
+          <button
+            id="toggle-discovery-panel"
+            type="button"
+            class="ghost-button discovery-toggle"
+            onClick=${() => setDiscoveryPanelCollapsed((collapsed) => !collapsed)}
+            aria-expanded=${() => !discoveryPanelCollapsed()}
+            aria-controls="discovery-panel-body"
+          >
+            ${() => (discoveryPanelCollapsed() ? "Open" : "Hide")}
+          </button>
+        </div>
+      </div>
+      ${() => discoveryNextActionCard()}
+      ${() => discoveryPanelBody()}
+    </section>
+  `
+}
+
+function baseManagementPanel(): unknown {
+  const state = baseManagementState()
+  if (!state) return null
+  const section = activeBaseManagementSection(state)
+  return html`
+    <section
+      id="base-management-panel"
+      class="panel base-management-panel"
+      aria-label="Base management"
+      data-tab=${() => baseManagementTab()}
+    >
+      <div class="panel-heading base-management-heading">
+        <span>${state.title}</span>
+        <span class="small-chip">${() => titleCase(baseManagementTab())}</span>
+      </div>
+      <article
+        id="base-management-recommendation"
+        class="base-management-recommendation"
+        data-kind=${state.recommendedAction.kind}
+        data-enabled=${state.recommendedAction.enabled ? "true" : "false"}
+      >
+        <span>Recommended</span>
+        <strong>${state.recommendedAction.label}</strong>
+        <small>${state.recommendedAction.detail}</small>
+        ${() => baseRecommendedActionButton(state)}
+      </article>
+      <div class="base-management-tabs" role="tablist" aria-label="Base management sections">
+        ${() => baseManagementTabButtons(state)}
+      </div>
+      <div class="base-management-body">
+        <article class="base-section-summary" data-severity=${section?.blockedReason ? "warning" : "neutral"}>
+          <span>${section?.headline ?? state.subtitle}</span>
+          <small>${section?.detail ?? state.nextBottleneck.detail}</small>
+        </article>
+        <div class="base-metric-grid">
+          ${() => baseManagementMetricRows(section)}
+        </div>
+        ${() => baseManagementTabContent(state)}
+      </div>
+    </section>
+  `
+}
+
+function activeBaseManagementSection(state: AddBaseManagementState) {
+  return state.sections.find((section) => section.id === baseManagementTab()) ?? state.sections[0]
+}
+
+function baseManagementTabButtons(state: AddBaseManagementState): readonly unknown[] {
+  return state.sections.map(
+    (section) => html`
+      <button
+        id=${`base-tab-${section.id}`}
+        type="button"
+        role="tab"
+        class=${() => (baseManagementTab() === section.id ? "active" : "")}
+        aria-selected=${() => baseManagementTab() === section.id}
+        onClick=${() => setBaseManagementTab(section.id)}
+      >
+        ${section.label}
+      </button>
+    `,
+  )
+}
+
+function baseManagementMetricRows(section: AddBaseManagementState["sections"][number] | undefined): readonly unknown[] {
+  return (section?.metrics ?? []).map(
+    (metric) => html`
+      <span class="base-metric" data-severity=${metric.severity}>
+        ${metric.label}
+        <strong>${metric.value}</strong>
+        <small>${metric.detail}</small>
+      </span>
+    `,
+  )
+}
+
+function baseRecommendedActionButton(state: AddBaseManagementState): unknown {
+  const action = state.recommendedAction
+  if (!action.enabled || !action.targetId) return null
+  return html`
+    <button
+      id="base-recommended-action"
+      type="button"
+      class="primary-action"
+      onClick=${() => void runBaseRecommendedAction(state)}
+    >
+      ${action.label}
+    </button>
+  `
+}
+
+function baseManagementTabContent(state: AddBaseManagementState): unknown {
+  switch (baseManagementTab()) {
+    case "crystal":
+      return baseCrystalPanel(state)
+    case "build":
+      return baseBuildPanel(state)
+    case "power":
+      return basePowerPanel(state)
+    case "crew":
+      return baseCrewPanel(state)
+    case "social":
+      return baseSocialPanel(state)
+    case "processing":
+      return baseProcessingPanel(state)
+  }
+}
+
+function baseCrystalPanel(state: AddBaseManagementState): unknown {
+  const crystalResources = state.resources.filter((resource) =>
+    [RESOURCE_BASSLINE, RESOURCE_CHORUS, RESOURCE_HARMONICS].includes(resource.id),
+  )
+  const crystalRoles = state.roles.filter((role) =>
+    [ROLE_CRYSTAL_BASSLINE, ROLE_CRYSTAL_CHORUS, ROLE_CRYSTAL_HARMONICS].includes(role.id),
+  )
+  return html`
+    <div class="base-card-list">
+      ${() => baseResourceRows(crystalResources)}
+      ${() => baseRoleRows(crystalRoles)}
+    </div>
+  `
+}
+
+function baseBuildPanel(state: AddBaseManagementState): unknown {
+  return html`
+    <div class="base-card-list">
+      ${() => state.activeConstruction ? baseActiveConstructionCard(state.activeConstruction) : null}
+      ${() => baseConstructionRows(state.construction)}
+    </div>
+  `
+}
+
+function basePowerPanel(state: AddBaseManagementState): unknown {
+  return html`
+    <div class="base-card-list">
+      <article class="base-management-card">
+        <span>Power balance</span>
+        <strong>${formatResource(state.power.activeUpkeepPerSecond)} / ${formatResource(state.power.requestedUpkeepPerSecond)} Chorus/s</strong>
+        <small>${state.power.brownoutActive ? `Brownout severity ${formatResource(state.power.brownoutSeverity)}` : "Requested stations are covered."}</small>
+      </article>
+      ${() => baseStationRows(state.stations)}
+    </div>
+  `
+}
+
+function baseCrewPanel(state: AddBaseManagementState): unknown {
+  return html`
+    <div class="base-card-list">
+      <article class="base-management-card">
+        <span>Crew pressure</span>
+        <strong>${state.roles.filter((role) => role.slotPressure === "staffed").length} lanes staffed</strong>
+        <small>${state.nextBottleneck.detail}</small>
+      </article>
+      ${() => baseRoleRows(state.roles)}
+    </div>
+  `
+}
+
+function baseSocialPanel(state: AddBaseManagementState): unknown {
+  return html`
+    <div class="base-card-list">
+      <article class="base-management-card" data-severity=${state.bunks.pressure}>
+        <span>Bunks</span>
+        <strong>${state.bunks.occupied} / ${state.bunks.capacity}</strong>
+        <small>${state.bunks.missing > 0 ? `${state.bunks.missing} missing bunks` : `${state.bunks.free} free bunks`}</small>
+      </article>
+      <article class="base-management-card">
+        <span>Recruitment</span>
+        <strong>${state.recruitment.enabled ? "Open" : "Locked"}</strong>
+        <small>${state.recruitment.pressure}</small>
+        <button
+          id="base-recruit-survivor"
+          type="button"
+          onClick=${() => void recruitFromSurvivorCave()}
+          disabled=${() =>
+            !ready() ||
+            !state.recruitment.enabled ||
+            state.vibes.value < state.recruitment.nextCost ||
+            state.bunks.free <= 0}
+        >
+          Recruit
+        </button>
+      </article>
+      <article class="base-management-card">
+        <span>Vibes</span>
+        <strong>${formatResource(state.vibes.value)} / ${formatResource(state.vibes.cap)}</strong>
+        <small>Bad vibes multiplier ${formatResource(state.vibes.badVibesMultiplier)}</small>
+      </article>
+    </div>
+  `
+}
+
+function baseProcessingPanel(state: AddBaseManagementState): unknown {
+  return html`
+    <div class="base-card-list">
+      ${() => baseProcessingRows(state.processing)}
+    </div>
+  `
+}
+
+function baseResourceRows(resources: readonly AddBaseManagementState["resources"][number][]): readonly unknown[] {
+  return resources.map(
+    (resource) => html`
+      <article class="base-management-card" data-pressure=${resource.capPressure}>
+        <span>${resource.label}</span>
+        <strong>${formatResource(resource.value)} / ${formatResource(resource.cap)}</strong>
+        <small>${signedRateCopy(resource.ratePerSecond)} · ${resource.blocker ?? resource.sink}</small>
+      </article>
+    `,
+  )
+}
+
+function baseRoleRows(roles: readonly AddBaseManagementState["roles"][number][]): readonly unknown[] {
+  return roles.map(
+    (role) => html`
+      <article class="base-management-card" data-pressure=${role.slotPressure}>
+        <span>${role.label}</span>
+        <strong>${role.heroAssigned ? "Hero" : `${role.crewAssigned} crew`}</strong>
+        <small>${role.lockedReason ?? `${role.suggestedCrew} suggested`}</small>
+        <div class="base-card-actions">
+          <button
+            type="button"
+            class="ghost-button"
+            onClick=${() => void setHeroRole(role.id)}
+            disabled=${() => !ready() || !role.available}
+          >
+            Hero
+          </button>
+          <button
+            id=${`base-crew-${slugForRole(role.id)}`}
+            type="button"
+            onClick=${() => void setRoleCrew(role.id, Math.max(role.suggestedCrew, role.crewAssigned))}
+            disabled=${() => !ready() || !role.available || role.suggestedCrew <= 0}
+          >
+            Staff
+          </button>
+        </div>
+      </article>
+    `,
+  )
+}
+
+function baseConstructionRows(options: readonly AddBaseManagementState["construction"][number][]): readonly unknown[] {
+  return options.map(
+    (option) => html`
+      <article class="base-management-card" data-enabled=${option.enabled ? "true" : "false"}>
+        <span>${option.label}</span>
+        <strong>${option.complete ? "Complete" : option.inProgress ? `${option.remainingSeconds ?? 0}s` : option.costLabel}</strong>
+        <small>${option.complete ? "Built" : option.blockedReason ?? "Ready to start"}</small>
+        <button
+          id=${`base-${constructionButtonId(option.id)}`}
+          type="button"
+          onClick=${() => void startConstruction(option.id)}
+          disabled=${() => !ready() || !option.enabled}
+        >
+          Start
+        </button>
+      </article>
+    `,
+  )
+}
+
+function baseActiveConstructionCard(option: AddBaseManagementState["activeConstruction"]): unknown {
+  if (!option) return null
+  return html`
+    <article class="base-management-card active">
+      <span>Active construction</span>
+      <strong>${option.label}</strong>
+      <small>${option.remainingSeconds ?? 0}s remaining</small>
+    </article>
+  `
+}
+
+function baseStationRows(stations: readonly AddBaseManagementState["stations"][number][]): readonly unknown[] {
+  return stations.map(
+    (station) => html`
+      <article class="base-management-card" data-powered=${station.powered ? "true" : "false"}>
+        <span>${station.label}</span>
+        <strong>${station.powered ? "Powered" : station.requestedEnabled ? "Requested" : "Off"}</strong>
+        <small>${station.blockedReason ?? `${formatResource(station.upkeepPerSecond)} Chorus/s`}</small>
+        <button
+          id=${`base-station-${safeElementId(station.id)}`}
+          type="button"
+          class="ghost-button"
+          onClick=${() => void setStationEnabled(station.id, !station.requestedEnabled)}
+          disabled=${() => !ready() || !station.available || !station.manualPower}
+        >
+          ${station.requestedEnabled ? "Stop" : "Request"}
+        </button>
+      </article>
+    `,
+  )
+}
+
+function baseProcessingRows(recipes: readonly AddBaseManagementState["processing"][number][]): readonly unknown[] {
+  return recipes.map(
+    (recipe) => html`
+      <article class="base-management-card" data-enabled=${recipe.enabled ? "true" : "false"}>
+        <span>${recipe.label}</span>
+        <strong>${recipe.inProgress ? `${recipe.remainingSeconds ?? 0}s` : `Lv ${recipe.level}/${recipe.maxLevel}`}</strong>
+        <small>${recipe.blockedReason ?? `${recipe.stationLabel} · ${recipe.costLabel}`}</small>
+        <button
+          id=${`base-processing-${safeElementId(recipe.id)}`}
+          type="button"
+          onClick=${() => void startProcessing(recipe.id)}
+          disabled=${() => !ready() || !recipe.enabled}
+        >
+          Start
+        </button>
+      </article>
+    `,
+  )
 }
 
 function discoveryMovementMetricCopy(): string {
@@ -2587,6 +2919,61 @@ async function startConstruction(optionId: string): Promise<void> {
   })
 }
 
+async function setStationEnabled(stationId: string, enabled: boolean): Promise<void> {
+  await sendAndWaitForSnapshot(() => {
+    setLastCommand(`station:${stationId}:${enabled ? "on" : "off"}`)
+    client.setStationEnabled(stationId, enabled)
+  })
+}
+
+async function startProcessing(recipeId: string): Promise<void> {
+  await sendAndWaitForSnapshot(() => {
+    setLastCommand(`processing:${recipeId}`)
+    client.startProcessing(recipeId)
+  })
+}
+
+async function recruitFromSurvivorCave(): Promise<void> {
+  await sendAndWaitForSnapshot(() => {
+    setLastCommand("recruit_from_survivor_cave")
+    client.recruitFromSurvivorCave()
+  })
+}
+
+async function runBaseRecommendedAction(state: AddBaseManagementState): Promise<void> {
+  const action = state.recommendedAction
+  if (!action.enabled || !action.targetId) return
+  switch (action.kind) {
+    case "assign_role":
+      if (!snapshot()?.roster.heroAssigned) {
+        await sendAndWaitForSnapshot(() => {
+          setLastCommand("assign_hero")
+          client.assignHero(true)
+        })
+        return
+      }
+      await setRoleCrew(
+        action.targetId,
+        state.roles.find((role) => role.id === action.targetId)?.suggestedCrew ?? 1,
+      )
+      return
+    case "start_construction":
+      await startConstruction(action.targetId)
+      return
+    case "power_station":
+      await setStationEnabled(action.targetId, true)
+      return
+    case "start_processing":
+      await startProcessing(action.targetId)
+      return
+    case "recruit_survivor":
+      await recruitFromSurvivorCave()
+      return
+    case "wait":
+      return
+  }
+}
+
 async function acquirePerk(perkId: string): Promise<void> {
   await sendAndWaitForSnapshot(() => {
     setLastCommand(`perk:${perkId}`)
@@ -2818,6 +3205,8 @@ function toTextState(): RuntimeTextState {
     clockAnimation: clockAnimation(),
     mapInfo: currentMapInfo,
     discovery: currentDiscovery,
+    baseManagement: baseManagementState(),
+    baseManagementTab: baseManagementTab(),
     dungeonObjective: currentDungeonObjective,
     mapMode: mapMode(),
     dungeonTarget: mapMode() === "dungeon_square" ? dungeonTarget() : null,
@@ -2919,6 +3308,11 @@ function formatResource(value: number): string {
   return Number.isInteger(value) ? `${value}` : value.toFixed(1)
 }
 
+function signedRateCopy(value: number): string {
+  if (Math.abs(value) < 0.001) return "steady"
+  return `${value > 0 ? "+" : ""}${formatResource(value)}/s`
+}
+
 function formatSignedRatioPercent(value: number): string {
   const percent = Math.round(Math.abs(value) * 1000) / 10
   return `${value >= 0 ? "+" : "-"}${percent}%`
@@ -2953,6 +3347,10 @@ function roleShortLabel(roleId: string): string {
   switch (roleId) {
     case ROLE_CRYSTAL_BASSLINE:
       return "Bassline"
+    case ROLE_CRYSTAL_CHORUS:
+      return "Chorus"
+    case ROLE_CRYSTAL_HARMONICS:
+      return "Harmonics"
     case ROLE_CONSTRUCTION:
       return "Build"
     case ROLE_FIRE_PIT:

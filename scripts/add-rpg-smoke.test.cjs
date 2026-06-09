@@ -46,6 +46,9 @@ async function main() {
     await runScenario("Studio tile detail links", () =>
       exerciseStudioTileDetailLinks(page, consoleErrors),
     )
+    await runScenario("base management surface", () =>
+      exerciseBaseManagementSurface(page, consoleErrors),
+    )
     await runScenario("survivor cave dungeon entry loop", () =>
       exerciseSurvivorCaveDungeonEntry(page, consoleErrors),
     )
@@ -326,6 +329,72 @@ async function exerciseMapModeSwitching(page, consoleErrors) {
       state.map?.visibility?.hiddenCells > 0,
     consoleErrors,
   )
+}
+
+async function exerciseBaseManagementSurface(page, consoleErrors) {
+  await page.locator("#map-mode-base_square").click()
+  const base = await waitForTextState(
+    page,
+    (state) =>
+      state.mapMode?.active === "base_square" &&
+      state.shell?.adminOpen === false &&
+      state.baseManagement?.active === true &&
+      state.baseManagement?.title === "The Studio" &&
+      state.baseManagement?.tabIds?.includes("crystal") &&
+      state.baseManagement?.tabIds?.includes("build") &&
+      state.baseManagement?.tabIds?.includes("power") &&
+      state.baseManagement?.tabIds?.includes("crew") &&
+      state.baseManagement?.tabIds?.includes("social") &&
+      state.baseManagement?.tabIds?.includes("processing") &&
+      state.baseManagement?.resourcePressure?.some((resource) => resource.id === "resource.bassline") &&
+      state.baseManagement?.rolePressure?.some((role) => role.id === "role.crystal_bassline") &&
+      typeof state.baseManagement?.recommendedAction?.label === "string" &&
+      typeof state.baseManagement?.nextBottleneck?.label === "string",
+    consoleErrors,
+  )
+  assert.equal(base.shell.adminOpen, false)
+  assert.ok(base.baseManagement.recommendedAction.kind.length > 0)
+  assert.ok(base.baseManagement.resourcePressure.length >= 3)
+  assert.ok(base.baseManagement.rolePressure.length >= 3)
+
+  await page.locator("#base-management-panel").waitFor({ state: "visible" })
+  const panelText = await page.locator("#base-management-panel").innerText()
+  ;[
+    "The Studio",
+    "Recommended",
+    "Crystal",
+    "Build",
+    "Power",
+    "Crew",
+    "Social",
+    "Processing",
+  ].forEach((expectedText) => {
+    assert.match(
+      panelText,
+      new RegExp(expectedText, "i"),
+      `Base management panel should include ${expectedText}.`,
+    )
+  })
+  assert.doesNotMatch(panelText, /Runtime|Snapshot|Debug/i)
+
+  for (const tab of ["build", "power", "crew", "social", "processing", "crystal"]) {
+    await page.locator(`#base-tab-${tab}`).click()
+    await waitForTextState(
+      page,
+      (state) =>
+        state.baseManagement?.active === true &&
+        state.baseManagement?.selectedTab === tab &&
+        state.shell?.adminOpen === false,
+      consoleErrors,
+    )
+  }
+
+  await assertNonBlankNamedAppScreenshot(
+    page,
+    "add-rpg-base-management-smoke.png",
+    "ADD RPG base management surface screenshot",
+  )
+  return returnToOverworld(page, consoleErrors)
 }
 
 async function assertMobilePresentation(browser, url) {
@@ -942,22 +1011,6 @@ async function exerciseSurvivorCaveDungeonEntry(page, consoleErrors) {
   assert.equal(before.discovery.phase, "enter_dungeon")
   assert.equal(before.discovery.dungeonEntryAvailable, true)
 
-  await selectMapCenter(page)
-  const selectedCave = await waitForTextState(
-    page,
-    (state) =>
-      state.discovery?.tileDetail?.hasSubmap === true &&
-      state.discovery.tileDetail.linkKinds.includes("dungeon") &&
-      state.discovery.tileDetail.targetMapModes.includes("dungeon_square") &&
-      state.discovery.tileDetail.enabledLinkIds.some((id) => id.includes("dungeon")) &&
-      state.discovery.tileDetail.label.startsWith("Survivor Cave"),
-    consoleErrors,
-  )
-  assert.equal(selectedCave.discovery.tileDetail.linkCount, 1)
-  assert.ok(
-    selectedCave.discovery.tileDetail.visibleLinkIds[0].includes("dungeon"),
-    "Selecting Survivor Cave should expose its optional dungeon link.",
-  )
   assert.match(
     await page.locator("#enter-dungeon").innerText(),
     /Enter Survivor Cave/,

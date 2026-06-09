@@ -2559,3 +2559,14 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   `npm run smoke:engine-sandbox`, `git diff --check`, and `npm run check`.
   Visual artifacts: `tmp/add-rpg-studio-tile-detail-smoke.png` and
   `tmp/add-rpg-studio-subtile-dungeon-entrance-smoke.png`.
+- Phase 1 base management surface is implemented as a player-facing Studio
+  panel, not an Admin dependency. `add-domain` now exports
+  `selectAddBaseManagementState(snapshot, catalog)` for resources/caps/rates,
+  role slot pressure, active construction, projects, stations, processing,
+  Vibes/bunks/recruitment, bottlenecks, and recommended action. The ADD app
+  renders Base mode as Crystal, Build, Power, Crew, Social, and Processing tabs
+  with runtime-backed buttons for Hero/crew staffing, construction, station
+  power, processing, recruitment, and the recommended action. `render_game_to_text`
+  exposes the base-management contract for agent/smoke inspection. Verification
+  passed with `npm run smoke:add-rpg:built`, `npm run smoke:add-rpg`, visual
+  inspection of `tmp/add-rpg-base-management-smoke.png`, and `npm run check`.

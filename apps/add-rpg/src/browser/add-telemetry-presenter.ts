@@ -5,6 +5,8 @@ import {
   selectAddMapScaleForMode,
   type AddDungeonObjectiveSummary,
   type AddDiscoverySummary,
+  type AddBaseManagementState,
+  type AddBaseManagementTabId,
   type AddFirstPlayableAction,
   type AddMapMode,
   type AddMapScaleSummary,
@@ -69,6 +71,8 @@ export interface AddRuntimeTelemetryPresenterInput {
   readonly clockAnimation: AddTelemetryClockAnimationState | null
   readonly mapInfo: AddPhaserMapInfo
   readonly discovery: AddDiscoverySummary | null
+  readonly baseManagement: AddBaseManagementState | null
+  readonly baseManagementTab: AddBaseManagementTabId
   readonly dungeonObjective: AddDungeonObjectiveSummary | null
   readonly mapMode: AddMapMode
   readonly dungeonTarget: string | null
@@ -368,6 +372,60 @@ export interface RuntimeTextState {
     readonly enabledActionIds: readonly string[]
     readonly relevantResourceIds: readonly string[]
   } | null
+  readonly baseManagement: {
+    readonly active: boolean
+    readonly title: string
+    readonly selectedTab: AddBaseManagementTabId
+    readonly tabIds: readonly AddBaseManagementTabId[]
+    readonly nextBottleneck: {
+      readonly id: string
+      readonly label: string
+      readonly severity: string
+    }
+    readonly recommendedAction: {
+      readonly id: string
+      readonly label: string
+      readonly kind: string
+      readonly targetId: string | null
+      readonly enabled: boolean
+    }
+    readonly resourcePressure: readonly {
+      readonly id: string
+      readonly value: number
+      readonly cap: number
+      readonly capPressure: string
+      readonly blocker: string | null
+    }[]
+    readonly rolePressure: readonly {
+      readonly id: string
+      readonly heroAssigned: boolean
+      readonly crewAssigned: number
+      readonly suggestedCrew: number
+      readonly slotPressure: string
+    }[]
+    readonly activeConstructionId: string | null
+    readonly enabledConstructionIds: readonly string[]
+    readonly poweredStationIds: readonly string[]
+    readonly requestedStationIds: readonly string[]
+    readonly activeProcessingIds: readonly string[]
+    readonly enabledProcessingIds: readonly string[]
+    readonly bunks: {
+      readonly free: number
+      readonly missing: number
+      readonly pressure: string
+    }
+    readonly recruitment: {
+      readonly enabled: boolean
+      readonly pending: number
+      readonly nextCost: number
+      readonly pressure: string
+    }
+    readonly power: {
+      readonly activeUpkeepPerSecond: number
+      readonly requestedUpkeepPerSecond: number
+      readonly brownoutActive: boolean
+    }
+  } | null
   readonly dungeonObjective: {
     readonly active: boolean
     readonly dungeonId: string
@@ -549,6 +607,7 @@ export function createAddRuntimeTextState(
             .map((link) => link.id),
         }
       : null,
+    baseManagement: baseManagementTelemetry(input),
     dungeonObjective: input.dungeonObjective
       ? {
           active: input.dungeonObjective.active,
@@ -718,6 +777,77 @@ function uiTelemetry(
         actionLabel: step.actionLabel,
       })),
       persistenceReady: input.persistence.firstPlayablePersistenceReady,
+    },
+  }
+}
+
+function baseManagementTelemetry(
+  input: AddRuntimeTelemetryPresenterInput,
+): RuntimeTextState["baseManagement"] {
+  const state = input.baseManagement
+  if (!state) return null
+  return {
+    active: input.mapMode === "base_square",
+    title: state.title,
+    selectedTab: input.baseManagementTab,
+    tabIds: state.sections.map((section) => section.id),
+    nextBottleneck: {
+      id: state.nextBottleneck.id,
+      label: state.nextBottleneck.label,
+      severity: state.nextBottleneck.severity,
+    },
+    recommendedAction: {
+      id: state.recommendedAction.id,
+      label: state.recommendedAction.label,
+      kind: state.recommendedAction.kind,
+      targetId: state.recommendedAction.targetId,
+      enabled: state.recommendedAction.enabled,
+    },
+    resourcePressure: state.resources.map((resource) => ({
+      id: resource.id,
+      value: round2(resource.value),
+      cap: round2(resource.cap),
+      capPressure: resource.capPressure,
+      blocker: resource.blocker,
+    })),
+    rolePressure: state.roles.map((role) => ({
+      id: role.id,
+      heroAssigned: role.heroAssigned,
+      crewAssigned: role.crewAssigned,
+      suggestedCrew: role.suggestedCrew,
+      slotPressure: role.slotPressure,
+    })),
+    activeConstructionId: state.activeConstruction?.id ?? null,
+    enabledConstructionIds: state.construction
+      .filter((option) => option.enabled)
+      .map((option) => option.id),
+    poweredStationIds: state.stations
+      .filter((station) => station.powered)
+      .map((station) => station.id),
+    requestedStationIds: state.stations
+      .filter((station) => station.requestedEnabled)
+      .map((station) => station.id),
+    activeProcessingIds: state.processing
+      .filter((recipe) => recipe.inProgress)
+      .map((recipe) => recipe.id),
+    enabledProcessingIds: state.processing
+      .filter((recipe) => recipe.enabled)
+      .map((recipe) => recipe.id),
+    bunks: {
+      free: state.bunks.free,
+      missing: state.bunks.missing,
+      pressure: state.bunks.pressure,
+    },
+    recruitment: {
+      enabled: state.recruitment.enabled,
+      pending: state.recruitment.pending,
+      nextCost: state.recruitment.nextCost,
+      pressure: state.recruitment.pressure,
+    },
+    power: {
+      activeUpkeepPerSecond: round3(state.power.activeUpkeepPerSecond),
+      requestedUpkeepPerSecond: round3(state.power.requestedUpkeepPerSecond),
+      brownoutActive: state.power.brownoutActive,
     },
   }
 }
