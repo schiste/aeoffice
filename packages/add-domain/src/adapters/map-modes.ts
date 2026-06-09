@@ -175,6 +175,8 @@ function baseSquareMap(): GameMap {
     const feature =
       coord.x === 5 && coord.y === 4
         ? "base_core"
+        : coord.x === 5 && coord.y === 2
+          ? "dungeon_entrance"
         : coord.x === 8 && coord.y === 3
           ? "workbench"
           : "none"
@@ -191,13 +193,19 @@ function baseSquareMap(): GameMap {
 
   return squareMap({
     id: ADD_BASE_SQUARE_MAP_ID,
-    label: "Base Square Fixture",
+    label: "The Studio",
     mode: "base_square",
     width,
     height,
     cells,
     entities: [
       landmark("add.entity.base.core", "Base Core", createSquareCoord(5, 4), "base_core"),
+      landmark(
+        "add.entity.base.studio-dungeon-entrance",
+        "Studio Dungeon Entrance",
+        createSquareCoord(5, 2),
+        "studio_dungeon_entrance",
+      ),
       landmark("add.entity.base.workbench", "Workbench", createSquareCoord(8, 3), "workbench"),
       landmark("add.entity.base.exit", "Overworld Exit", createSquareCoord(5, 6), "base_exit"),
     ],
@@ -216,6 +224,30 @@ function baseSquareMap(): GameMap {
         createSquareCoord(8, 3),
         createSquareCoord(9, 3),
       ]),
+      zone("add.zone.base.studio-dungeon-entrance", "Studio Dungeon Entrance", [
+        createSquareCoord(4, 1),
+        createSquareCoord(5, 1),
+        createSquareCoord(6, 1),
+        createSquareCoord(4, 2),
+        createSquareCoord(5, 2),
+        createSquareCoord(6, 2),
+      ]),
+    ],
+    interactions: [
+      {
+        id: "add.interaction.base.enter-studio-dungeon",
+        kind: "map_transition",
+        action: "add.enter_dungeon",
+        target: { kind: "map", id: STUDIO_DUNGEON_MAP_ID },
+        label: "Enter The Studio Dungeon",
+        requiredZoneId: "add.zone.base.studio-dungeon-entrance",
+        enabled: true,
+        metadata: {
+          source: "add-square-fixture",
+          targetMapMode: "dungeon_square",
+          targetMapId: STUDIO_DUNGEON_MAP_ID,
+        },
+      },
     ],
   })
 }
@@ -229,6 +261,7 @@ function squareMap(input: {
   readonly cells: readonly GameCellPlacement[]
   readonly entities: readonly GameEntity[]
   readonly zones: readonly GameZone[]
+  readonly interactions?: readonly GameInteraction[]
   readonly gameplayReady?: boolean
 }): GameMap {
   const gameplayReady = input.gameplayReady ?? false
@@ -245,6 +278,7 @@ function squareMap(input: {
         gameplayReady,
       },
     },
+    ...(input.interactions ?? []),
   ]
 
   return {

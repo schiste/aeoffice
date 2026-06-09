@@ -95,6 +95,8 @@ interface QuestPanelPosition {
   readonly y: number
 }
 
+type DungeonReturnMapMode = Exclude<AddMapMode, "dungeon_square">
+
 interface TravelDialogState {
   readonly kind: TravelDialogKind
   readonly event: AddCharacterTravelEvent
@@ -136,6 +138,8 @@ const [catalog, setCatalog] = createSignal<CatalogSnapshot | null>(null)
 const [world, setWorld] = createSignal<GameWorld | null>(null)
 const [mapMode, setMapMode] = createSignal<AddMapMode>("overworld_hex")
 const [dungeonTarget, setDungeonTarget] = createSignal<string>(STUDIO_DUNGEON_MAP_ID)
+const [dungeonReturnMode, setDungeonReturnMode] =
+  createSignal<DungeonReturnMapMode>("overworld_hex")
 const [mapInfo, setMapInfo] = createSignal<AddPhaserMapInfo>(emptyMapInfo())
 const [autosaveRecord, setAutosaveRecord] = createSignal<AddBrowserSaveRecord | null>(readAutosave())
 const [autosaveEnabled, setAutosaveEnabled] = createSignal(true)
@@ -316,11 +320,18 @@ const primaryWorldActionInteraction = createMemo(() =>
 const recruitmentInteraction = createMemo(() =>
   gameInteractions().find((interaction) => interaction.action === "add.recruit_from_survivor_cave"),
 )
-// On the overworld, the enabled dungeon link under the Hero (e.g. the Studio on
-// the Base) — surfaces an "Enter" affordance that opens that dungeon map.
+// On the overworld, the enabled dungeon link under the Hero (for example,
+// Survivor Cave) surfaces an "Enter" affordance for that local entrance.
 const heroDungeonLink = createMemo(() =>
   mapMode() === "overworld_hex"
     ? (mapInfo().character.dungeonLinksAtCell.find((link) => link.enabled) ?? null)
+    : null,
+)
+const baseDungeonEntranceInteraction = createMemo(() =>
+  mapMode() === "base_square"
+    ? (gameInteractions().find(
+        (interaction) => interaction.action === "add.enter_dungeon" && interaction.enabled !== false,
+      ) ?? null)
     : null,
 )
 
@@ -525,8 +536,21 @@ function AddRpgApp() {
                     class="enter-dungeon-button return-overworld-button"
                     onClick=${() => returnToOverworldFromDungeon()}
                   >
-                    Return to Overworld
+                    ${() => dungeonReturnLabel()}
                   </button>`
+                }
+                if (mapMode() === "base_square") {
+                  const entrance = baseDungeonEntranceInteraction()
+                  return entrance
+                    ? html`<button
+                        id="enter-studio-dungeon"
+                        type="button"
+                        class="enter-dungeon-button"
+                        onClick=${() => enterDungeonInteraction(entrance)}
+                      >
+                        ${entrance.label ?? "Enter dungeon"}
+                      </button>`
+                    : null
                 }
                 const link = heroDungeonLink()
                 return link
@@ -2038,14 +2062,24 @@ function switchMapMode(nextMode: AddMapMode, options: { readonly dungeonTargetId
   if (nextMode === "dungeon_square" && options.dungeonTargetId) {
     setDungeonTarget(options.dungeonTargetId)
   }
+  if (nextMode === "dungeon_square") {
+    setDungeonReturnMode(mapMode() === "base_square" ? "base_square" : "overworld_hex")
+  }
   if (mapMode() === nextMode) return
   setTravelExperience(null)
   setMapMode(nextMode)
   setLastCommand(`map:${nextMode}`)
 }
 
-function enterDungeonTarget(targetMapId: string, command: string): void {
+function enterDungeonTarget(
+  targetMapId: string,
+  command: string,
+  options: { readonly returnMode?: DungeonReturnMapMode } = {},
+): void {
   setLastDungeonEntryCommand(command)
+  setDungeonReturnMode(
+    options.returnMode ?? (mapMode() === "base_square" ? "base_square" : "overworld_hex"),
+  )
   setDungeonTarget(targetMapId)
   setTravelExperience(null)
   setMapMode("dungeon_square")
@@ -2060,14 +2094,38 @@ function switchMapModeFromTab(nextMode: AddMapMode): void {
 
 function returnToOverworldFromDungeon(): void {
   if (mapMode() === "overworld_hex") return
+  const returnMode = mapMode() === "dungeon_square" ? dungeonReturnMode() : "overworld_hex"
   setTravelExperience(null)
-  setMapMode("overworld_hex")
-  setLastCommand("return:overworld")
+  setMapMode(returnMode)
+  setLastCommand(returnMode === "base_square" ? "return:studio" : "return:overworld")
+}
+
+function dungeonReturnLabel(): string {
+  return dungeonReturnMode() === "base_square" ? "Return to The Studio" : "Return to Overworld"
 }
 
 function enterDungeonLink(link: AddPhaserMapInfo["character"]["dungeonLinksAtCell"][number]): void {
   if (Date.now() - lastTileActionAtMs < 120) return
-  enterDungeonTarget(link.targetMapId, `hero-link-enter:${link.targetMapId}`)
+  enterDungeonTarget(link.targetMapId, `hero-link-enter:${link.targetMapId}`, {
+    returnMode: "overworld_hex",
+  })
+}
+
+function enterDungeonInteraction(interaction: GameInteraction): void {
+  const targetMapId = dungeonTargetMapIdForInteraction(interaction)
+  if (!targetMapId) return
+  setLastTileActionTarget(targetMapId)
+  enterDungeonTarget(targetMapId, `interaction-enter:${targetMapId}`, {
+    returnMode: mapMode() === "base_square" ? "base_square" : "overworld_hex",
+  })
+}
+
+function dungeonTargetMapIdForInteraction(interaction: GameInteraction): string | null {
+  const metadataTarget = interaction.metadata?.targetMapId
+  if (typeof metadataTarget === "string" && metadataTarget.length > 0) return metadataTarget
+  return interaction.target.kind === "map" && interaction.target.id.length > 0
+    ? interaction.target.id
+    : null
 }
 
 function runCurrentTileDetailAction(event: Event): void {
@@ -2540,7 +2598,9 @@ async function runDiscoveryAction(link: AddDiscoveryActionLink): Promise<void> {
 function enterDiscoveryDungeon(): void {
   const entry = discoveryState()?.dungeonEntry
   if (!entry?.enabled) return
-  enterDungeonTarget(entry.targetMapId, `discovery-enter:${entry.targetMapId}`)
+  enterDungeonTarget(entry.targetMapId, `discovery-enter:${entry.targetMapId}`, {
+    returnMode: "overworld_hex",
+  })
 }
 
 async function runAddAction(action: AddFirstPlayableAction): Promise<void> {

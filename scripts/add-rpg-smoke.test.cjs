@@ -812,38 +812,36 @@ async function exerciseStudioTileDetailLinks(page, consoleErrors) {
         state.discovery?.tileDetail?.cell === "hex:0,0" &&
         state.discovery.tileDetail.label === "The Studio" &&
         state.discovery.tileDetail.hasSubmap === true &&
-        state.discovery.tileDetail.linkCount === 2 &&
+        state.discovery.tileDetail.linkCount === 1 &&
         state.discovery.tileDetail.linkKinds.includes("base") &&
-        state.discovery.tileDetail.linkKinds.includes("dungeon") &&
-        state.discovery.tileDetail.linkLabels.includes("Studio Echo Base") &&
         state.discovery.tileDetail.linkLabels.includes("The Studio") &&
         state.discovery.tileDetail.targetMapModes.includes("base_square") &&
-        state.discovery.tileDetail.targetMapModes.includes("dungeon_square") &&
         state.discovery.tileDetail.targetMapIds.includes("add.rpg.square-base-fixture") &&
-        state.discovery.tileDetail.targetMapIds.includes("add.rpg.dungeon.studio") &&
         state.discovery.tileDetail.actionIds.includes(
-          "tile-action:dungeon:tile-link:dungeon:add.link.dungeon.studio.0.0",
+          "tile-action:base:tile-link:base:studio-echo",
         ) &&
         state.discovery.tileDetail.enabledLinkIds.some((id) => id.includes("base")) &&
-        state.discovery.tileDetail.enabledLinkIds.some((id) => id.includes("dungeon")) &&
         state.discovery.tileDetail.actionKinds.includes("manage_base") &&
-        state.discovery.tileDetail.actionKinds.includes("enter_submap"),
+        !state.discovery.tileDetail.actionKinds.includes("enter_submap") &&
+        !state.discovery.tileDetail.targetMapIds.includes("add.rpg.dungeon.studio"),
       consoleErrors,
     )
     assert.equal(selectedStudio.discovery.selectedTile.dungeonLinkCount, 1)
     const studioTileText = await page.locator("#selected-tile-decision").innerText()
     ;[
       "The Studio",
-      "Manage Studio Echo",
-      "Enter The Studio",
-      "Studio Echo Base",
-      "Dungeon",
+      "Open The Studio",
+      "Base",
     ].forEach((expectedText) => {
       assert.ok(
         studioTileText.includes(expectedText),
         `Studio tile detail should include ${expectedText}.`,
       )
     })
+    assert.ok(
+      !studioTileText.includes("Enter The Studio"),
+      "The overworld Studio tile should not expose direct dungeon entry.",
+    )
     await assertNonBlankNamedAppScreenshot(
       page,
       "add-rpg-studio-tile-detail-smoke.png",
@@ -855,60 +853,41 @@ async function exerciseStudioTileDetailLinks(page, consoleErrors) {
       page,
       (state) =>
         state.mapMode?.active === "base_square" &&
-        state.map?.mapId === "add.rpg.square-base-fixture",
+        state.map?.mapId === "add.rpg.square-base-fixture" &&
+        state.map?.landmarks?.renderedCount >= 3,
       consoleErrors,
     )
-
-    await returnToOverworld(page, consoleErrors)
-
-    const backOnOverworld = await renderGameToText(page)
-    await clickViewportPointUntilSelected(
-      page,
-      backOnOverworld.map.landmarks.baseCenterViewport,
-      (state) =>
-        state.discovery?.tileDetail?.cell === "hex:0,0" &&
-        state.discovery.tileDetail.label === "The Studio" &&
-        state.discovery.tileDetail.targetMapIds.includes("add.rpg.dungeon.studio"),
-      consoleErrors,
-    )
-    const studioDungeonButtonSelector =
-      "#tile-detail-action-tile-action-dungeon-tile-link-dungeon-add-link-dungeon-studio-0-0"
-    const studioDungeonButton = page.locator("#selected-tile-decision button", {
-      hasText: "Enter The Studio",
-    })
+    const studioDungeonEntrance = page.locator("#enter-studio-dungeon")
+    await studioDungeonEntrance.waitFor({ state: "visible" })
     assert.equal(
-      await studioDungeonButton.count(),
-      1,
-      "Studio tile detail should expose exactly one visible Enter The Studio action.",
+      await studioDungeonEntrance.innerText(),
+      "Enter The Studio Dungeon",
+      "The Studio subtile should expose the Studio dungeon entrance.",
     )
-    const studioDungeonButtonAttrs = await studioDungeonButton.evaluate((element) => ({
-      id: element.id,
-      text: element.textContent?.trim() ?? "",
-      actionId: element.getAttribute("data-action-id"),
-      targetMapMode: element.getAttribute("data-target-map-mode"),
-      targetMapId: element.getAttribute("data-target-map-id"),
-    }))
-    assert.deepEqual(
-      studioDungeonButtonAttrs,
-      {
-        id: "tile-detail-action-tile-action-dungeon-tile-link-dungeon-add-link-dungeon-studio-0-0",
-        text: "Enter The Studio",
-        actionId: "tile-action:dungeon:tile-link:dungeon:add.link.dungeon.studio.0.0",
-        targetMapMode: "dungeon_square",
-        targetMapId: "add.rpg.dungeon.studio",
-      },
-      "Enter The Studio button should carry the Studio dungeon target.",
+    await assertNonBlankNamedAppScreenshot(
+      page,
+      "add-rpg-studio-subtile-dungeon-entrance-smoke.png",
+      "ADD RPG Studio subtile dungeon entrance screenshot",
     )
-    const actionableStudioDungeonButton = page.locator(studioDungeonButtonSelector)
-    await actionableStudioDungeonButton.waitFor({ state: "visible" })
-    await actionableStudioDungeonButton.click({ trial: true })
-    await actionableStudioDungeonButton.click()
+    await studioDungeonEntrance.click({ trial: true })
+    await studioDungeonEntrance.click()
     await waitForTextState(
       page,
       (state) =>
         state.mapMode?.active === "dungeon_square" &&
         state.mapMode?.dungeonTarget === "add.rpg.dungeon.studio" &&
+        state.mapMode?.lastDungeonEntryCommand === "interaction-enter:add.rpg.dungeon.studio" &&
+        state.mapMode?.lastTileActionTarget === "add.rpg.dungeon.studio" &&
         state.map?.mapId === "add.rpg.dungeon.studio",
+      consoleErrors,
+    )
+
+    await page.locator("#return-overworld").click()
+    await waitForTextState(
+      page,
+      (state) =>
+        state.mapMode?.active === "base_square" &&
+        state.runtime?.lastCommand === "return:studio",
       consoleErrors,
     )
 

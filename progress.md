@@ -2546,3 +2546,16 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   `npm run smoke:add-rpg`, `npm run qa:renderer`,
   `npm run smoke:engine-sandbox`, `git diff --check`, and `npm run check`.
   Visual artifact: `tmp/add-rpg-studio-tile-detail-smoke.png`.
+- The Studio route now follows the desired two-step map structure. The overworld
+  Studio tile opens `The Studio` subtile/base square map first; direct overworld
+  entry into `add.rpg.dungeon.studio` is no longer exposed as a tile action.
+  The Studio square map includes a visible `Studio Dungeon Entrance` landmark
+  plus a `GameInteraction` targeting `add.rpg.dungeon.studio`; entering from
+  that subtile returns to the Studio map instead of jumping straight back to
+  the overworld. Verification passed with `node --check
+  scripts/add-rpg-smoke.test.cjs`, `npm --workspace @aedventure/add-domain run
+  build`, `npm --workspace @aedventure/add-rpg run build:types`,
+  `npm run smoke:add-rpg`, `npm run qa:renderer`,
+  `npm run smoke:engine-sandbox`, `git diff --check`, and `npm run check`.
+  Visual artifacts: `tmp/add-rpg-studio-tile-detail-smoke.png` and
+  `tmp/add-rpg-studio-subtile-dungeon-entrance-smoke.png`.
