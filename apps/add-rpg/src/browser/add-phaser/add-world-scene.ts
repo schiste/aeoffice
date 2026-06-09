@@ -18,6 +18,7 @@ import {
   createAddTopologyNavigationPolicy,
   createAddWorldInteractionPolicy,
   displayAddCell,
+  addCellVisualStyle,
   dungeonLinkInfo,
   mapMarkersForCell,
   presentationVisibilityStateForCell,
@@ -109,6 +110,7 @@ export class AddRpgHexScene extends Phaser.Scene {
   private hoveredCoord: CellCoord | null = null
   private selectedCoord: CellCoord | null = null
   private tooltipText?: Phaser.GameObjects.Text
+  private minimapGraphics?: Phaser.GameObjects.Graphics
   private lastRenderedMapId: string | null = null
   private dragging = false
   private dragMoved = false
@@ -168,6 +170,10 @@ export class AddRpgHexScene extends Phaser.Scene {
     this.tooltipText.setDepth(60)
     this.tooltipText.setVisible(false)
     setCrispText(this.tooltipText)
+    // Strategic minimap overlay (screen-space, overworld only).
+    this.minimapGraphics = this.add.graphics()
+    this.minimapGraphics.setScrollFactor(0)
+    this.minimapGraphics.setDepth(75)
     this.ready = true
     this.cameras.main.setRoundPixels(false)
     this.input.on("pointermove", this.onPointerMove, this)
@@ -970,6 +976,64 @@ export class AddRpgHexScene extends Phaser.Scene {
     })
     this.drawTransitionOverlay()
     this.drawTileTooltip()
+    this.drawMinimap()
+  }
+
+  /** Strategic overview in the top-right: discovered cells as dots + Base/Cave/
+   * Hero markers, projecting the same world coords into a small screen-space box.
+   * Overworld only (dungeons are small + fully framed). */
+  private drawMinimap(): void {
+    const g = this.minimapGraphics
+    const context = this.context
+    if (!g) return
+    g.clear()
+    if (!context || context.topologyKind !== "hex") return
+    const cells = context.terrainCells.filter((cell) =>
+      this.cellPresentationPolicy.cellVisible(cell),
+    )
+    if (cells.length === 0) return
+
+    const points = cells.map((cell) => ({ cell, world: centerFor(cell.coord, context) }))
+    const xs = points.map((entry) => entry.world.x)
+    const ys = points.map((entry) => entry.world.y)
+    const minX = Math.min(...xs)
+    const maxX = Math.max(...xs)
+    const minY = Math.min(...ys)
+    const maxY = Math.max(...ys)
+    const size = 156
+    const inset = 8
+    const pad = 12
+    const boxX = this.scale.width - size - pad
+    const boxY = pad
+    const worldW = Math.max(1, maxX - minX)
+    const worldH = Math.max(1, maxY - minY)
+    const scale = Math.min((size - inset * 2) / worldW, (size - inset * 2) / worldH)
+    const offX = boxX + inset + ((size - inset * 2) - worldW * scale) / 2
+    const offY = boxY + inset + ((size - inset * 2) - worldH * scale) / 2
+    const project = (world: Vector2) => ({
+      x: offX + (world.x - minX) * scale,
+      y: offY + (world.y - minY) * scale,
+    })
+
+    g.fillStyle(0x12211d, 0.74)
+    g.fillRoundedRect(boxX, boxY, size, size, 8)
+    g.lineStyle(1, 0x3a4b44, 0.85)
+    g.strokeRoundedRect(boxX, boxY, size, size, 8)
+
+    for (const entry of points) {
+      const point = project(entry.world)
+      g.fillStyle(addCellVisualStyle(entry.cell).fill, 0.9)
+      g.fillCircle(point.x, point.y, 1.7)
+    }
+    const marker = (coord: CellCoord | null | undefined, color: number, radius: number) => {
+      if (!coord) return
+      const point = project(centerFor(coord, context))
+      g.fillStyle(color, 1)
+      g.fillCircle(point.x, point.y, radius)
+    }
+    marker(context.baseCoord, 0x2f7d68, 3)
+    marker(context.survivorCaveCoord, 0x8a4c2f, 3)
+    marker(this.characterCoord, 0xffe066, 3.2)
   }
 
   /** On-map tooltip for the hovered/selected cell: its label (and an Entrance
