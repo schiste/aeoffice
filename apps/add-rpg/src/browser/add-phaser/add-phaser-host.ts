@@ -69,6 +69,11 @@ export class AddRpgPhaserMapHost {
     return this.scene.getRendererState()
   }
 
+  /** Ease the camera to frame the Hero, Base, or survivor Cave. */
+  focusOn(target: "hero" | "base" | "cave"): void {
+    this.scene.focusOn(target)
+  }
+
   destroy(): void {
     this.game.destroy(true)
   }

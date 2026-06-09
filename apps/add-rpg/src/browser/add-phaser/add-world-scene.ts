@@ -109,6 +109,9 @@ export class AddRpgHexScene extends Phaser.Scene {
   private lastRenderedMapId: string | null = null
   private dragging = false
   private dragMoved = false
+  // When true, the camera eases to keep the Hero in view as it travels. Turned
+  // off when the player pans manually; re-armed by "Center on Hero".
+  private followHero = true
   private dragStartScreen: Vector2 = { x: 0, y: 0 }
   private dragStartScroll: Vector2 = { x: 0, y: 0 }
   private transitionState: "idle" | "entering" = "idle"
@@ -360,6 +363,10 @@ export class AddRpgHexScene extends Phaser.Scene {
       durationMs: ADD_TILE_TRAVEL_PRESENTATION.durationMs,
       fromPosition,
       toPosition,
+    }
+    // Keep the Hero framed while travelling (unless the player is panning).
+    if (this.followHero) {
+      this.focusOnCoord(nextCoord, ADD_TILE_TRAVEL_PRESENTATION.durationMs)
     }
     this.selectedCoord = nextCoord
     this.characterFacing = direction
@@ -1043,9 +1050,38 @@ export class AddRpgHexScene extends Phaser.Scene {
     camera.centerOn(focus.x, focus.y)
   }
 
+  /** Ease the camera to center a coord (no-op if off-map). Cancelled by a
+   * manual pan/zoom. */
+  focusOnCoord(coord: CellCoord | null | undefined, durationMs = 600): void {
+    if (!coord || !this.context) return
+    const target = centerFor(coord, this.context)
+    this.cameras.main.pan(target.x, target.y, durationMs, "Sine.easeInOut")
+  }
+
+  /** Frame a named target. "hero" re-arms follow; "base"/"cave" are one-shot
+   * looks (so a later Hero step doesn't snap the view away). */
+  focusOn(target: "hero" | "base" | "cave", durationMs = 600): void {
+    const context = this.context
+    if (!context) return
+    this.followHero = target === "hero"
+    const coord =
+      target === "hero"
+        ? this.characterCoord
+        : target === "base"
+          ? context.baseCoord
+          : context.survivorCaveCoord
+    this.focusOnCoord(coord, durationMs)
+  }
+
+  private cancelCameraPan(): void {
+    const pan = this.cameras.main.panEffect
+    if (pan?.isRunning) pan.reset()
+  }
+
   private onPointerDown(pointer: Phaser.Input.Pointer): void {
     this.dragging = true
     this.dragMoved = false
+    this.cancelCameraPan()
     this.dragStartScreen = { x: pointer.x, y: pointer.y }
     this.dragStartScroll = {
       x: this.cameras.main.scrollX,
@@ -1057,7 +1093,10 @@ export class AddRpgHexScene extends Phaser.Scene {
     if (this.dragging) {
       const dx = pointer.x - this.dragStartScreen.x
       const dy = pointer.y - this.dragStartScreen.y
-      if (Math.abs(dx) + Math.abs(dy) > 3) this.dragMoved = true
+      if (Math.abs(dx) + Math.abs(dy) > 3) {
+        this.dragMoved = true
+        this.followHero = false // manual pan takes control
+      }
       this.cameras.main.scrollX = this.dragStartScroll.x - dx / this.cameras.main.zoom
       this.cameras.main.scrollY = this.dragStartScroll.y - dy / this.cameras.main.zoom
       this.refreshInfo()
@@ -1087,6 +1126,7 @@ export class AddRpgHexScene extends Phaser.Scene {
     deltaY: number,
   ): void {
     const camera = this.cameras.main
+    this.cancelCameraPan()
     const before = camera.getWorldPoint(pointer.x, pointer.y)
     camera.setZoom(clamp(camera.zoom * (deltaY > 0 ? 0.9 : 1.1), MIN_ZOOM, MAX_ZOOM))
     const after = camera.getWorldPoint(pointer.x, pointer.y)
