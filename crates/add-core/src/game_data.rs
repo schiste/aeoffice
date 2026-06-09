@@ -369,13 +369,28 @@ pub struct PerkDef {
     pub effects: &'static [PerkEffectDef],
 }
 
+// What consuming one item does. Each kind maps to one sim effect site.
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum ItemEffectKind {
+    RestoreSurvival,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ItemEffectDef {
+    pub kind: ItemEffectKind,
+    pub amount: f64,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct ItemDef {
     pub id: &'static str,
     pub label: &'static str,
     pub stackable: bool,
     pub max_stack: u32,
+    pub use_effect: Option<ItemEffectDef>,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]

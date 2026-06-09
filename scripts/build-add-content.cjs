@@ -671,6 +671,16 @@ const FILES = [
             { name: "label", kind: "string" },
             { name: "stackable", kind: "bool" },
             { name: "max_stack", kind: "u64" },
+            {
+              name: "use_effect",
+              kind: "option",
+              inner: "struct",
+              structType: "ItemEffectDef",
+              fields: [
+                { name: "kind", kind: "enum", rustEnum: "ItemEffectKind" },
+                { name: "amount", kind: "f64" },
+              ],
+            },
           ],
         },
       },

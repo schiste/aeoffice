@@ -750,6 +750,7 @@ export type WorkerRequest =
   | { type: 'clearLocation'; key: string; lootItem?: string; lootQty: number }
   | { type: 'dropItem'; key: string; itemId: string; qty: number }
   | { type: 'pickUpLocation'; key: string }
+  | { type: 'useItem'; itemId: string }
   | { type: 'acquirePerk'; perkId: string }
   | { type: 'spendBassline'; amount: number }
   | { type: 'importSave'; payload: string }

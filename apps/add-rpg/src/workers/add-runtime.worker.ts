@@ -91,6 +91,10 @@ async function handleMessage(message: WorkerRequest) {
         runtime?.pickUpLocation(message.key)
         postWorkerEvent({ type: 'snapshot', snapshot: snapshot() })
         break
+      case 'useItem':
+        runtime?.useItem(message.itemId)
+        postWorkerEvent({ type: 'snapshot', snapshot: snapshot() })
+        break
       case 'spendBassline':
         runtime?.spendBassline(message.amount)
         postWorkerEvent({ type: 'snapshot', snapshot: snapshot() })

@@ -95,6 +95,10 @@ export class SimulationClient {
     this.post({ type: 'pickUpLocation', key })
   }
 
+  useItem(itemId: string) {
+    this.post({ type: 'useItem', itemId })
+  }
+
   spendBassline(amount: number) {
     this.post({ type: 'spendBassline', amount })
   }

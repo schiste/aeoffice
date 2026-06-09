@@ -9,23 +9,33 @@ pub(in crate::game_data) const ITEMS: &[ItemDef] = &[
         label: "Scrap Metal",
         stackable: true,
         max_stack: 99,
+        use_effect: None,
     },
     ItemDef {
         id: "item.ration",
         label: "Ration",
         stackable: true,
         max_stack: 20,
+        use_effect: Some(ItemEffectDef {
+            kind: ItemEffectKind::RestoreSurvival,
+            amount: 0.3,
+        }),
     },
     ItemDef {
         id: "item.echo_shard",
         label: "Echo Shard",
         stackable: true,
         max_stack: 50,
+        use_effect: None,
     },
     ItemDef {
         id: "item.field_kit",
         label: "Field Kit",
         stackable: false,
         max_stack: 1,
+        use_effect: Some(ItemEffectDef {
+            kind: ItemEffectKind::RestoreSurvival,
+            amount: 0.6,
+        }),
     },
 ];

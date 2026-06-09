@@ -4,6 +4,7 @@ import { render } from "solid-js/web"
 import {
   SimulationClient,
   addCommandForGameInteraction,
+  selectAddBaseManagementState,
   selectAddDiscoverySummary,
   selectAddDungeonObjective,
   selectAddInventory,
@@ -33,6 +34,8 @@ import {
   type AddTileAction,
   type AddTileDetailSummary,
   type AddWorldTimeSummary,
+  type AddBaseManagementState,
+  type AddBaseManagementTabId,
   type CatalogSnapshot,
   type SimulationSnapshot,
   type WorkerRequest,
@@ -163,6 +166,8 @@ const [timeSpeed, setTimeSpeed] = createSignal(1)
 const [adminOpen, setAdminOpen] = createSignal(false)
 const [discoveryPanelCollapsed, setDiscoveryPanelCollapsed] = createSignal(false)
 const [firstPlayableCollapsed, setFirstPlayableCollapsed] = createSignal(false)
+const [baseManagementTab, setBaseManagementTab] =
+  createSignal<AddBaseManagementTabId>("crystal")
 const [questPanelPosition, setQuestPanelPosition] = createSignal(defaultQuestPanelPosition())
 const [travelExperience, setTravelExperience] = createSignal<TravelExperience | null>(null)
 const [lastDiscoveryMovement, setLastDiscoveryMovement] =
@@ -1584,15 +1589,27 @@ function inventoryRows(): readonly unknown[] {
           ${item.label}
           <small>${item.maxStack ? `${item.quantity}/${item.maxStack}` : `${item.quantity}`}</small>
         </span>
-        <button
-          id=${`drop-${safeElementId(item.id)}`}
-          type="button"
-          class="ghost-button"
-          onClick=${() => void handleDropItem(item.id)}
-          disabled=${() => !ready() || !canDrop || item.quantity <= 0}
-        >
-          Drop
-        </button>
+        <div>
+          ${item.usable
+            ? html`<button
+                id=${`use-${safeElementId(item.id)}`}
+                type="button"
+                onClick=${() => void handleUseItem(item.id)}
+                disabled=${() => !ready() || item.quantity <= 0}
+              >
+                Use
+              </button>`
+            : null}
+          <button
+            id=${`drop-${safeElementId(item.id)}`}
+            type="button"
+            class="ghost-button"
+            onClick=${() => void handleDropItem(item.id)}
+            disabled=${() => !ready() || !canDrop || item.quantity <= 0}
+          >
+            Drop
+          </button>
+        </div>
       </article>
     `,
   )
@@ -2400,6 +2417,13 @@ async function handlePickUp(coord: CellCoord): Promise<void> {
   const key = dungeonLocationKey(dungeonId, coord)
   await sendAndWaitForSnapshot(() => {
     client.pickUpLocation(key)
+  })
+}
+
+async function handleUseItem(itemId: string): Promise<void> {
+  await sendAndWaitForSnapshot(() => {
+    setLastCommand(`use:${itemId}`)
+    client.useItem(itemId)
   })
 }
 

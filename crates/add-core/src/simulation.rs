@@ -3,8 +3,8 @@ use crate::game_data::{
     balance_snapshot, construction_option_def, item_def, perk_def, processing_recipe_def,
     recruit_cost_for_index, role_def, station_def, stations, story_beat_def, tile_def,
     world_action_def, BalanceSnapshot,
-    ConstructionOptionDef, CostDef, CostItemDef, CrystalTrack, EffectDef, PerkStat, ProcessingTrack,
-    RequirementDef, RoleSlotPool, TileFeature, HeroExposureDef,
+    ConstructionOptionDef, CostDef, CostItemDef, CrystalTrack, EffectDef, ItemEffectKind, PerkStat,
+    ProcessingTrack, RequirementDef, RoleSlotPool, TileFeature, HeroExposureDef,
     COST_ITEM_SKIN,
     FLAG_BASE_FIRE_PIT_BUILT, FLAG_BASE_MIX_CONSOLE_BUILT,
     FLAG_BASE_RESEARCH_BOOTH_BUILT, FLAG_BASE_RESONANCE_CHAMBER_BUILT,
@@ -144,6 +144,7 @@ impl Simulation {
             } => self.clear_location(key, loot_item, loot_qty),
             GameCommand::DropItem { key, item_id, qty } => self.drop_item(key, item_id, qty),
             GameCommand::PickUpLocation { key } => self.pick_up_location(&key),
+            GameCommand::UseItem { item_id } => self.use_item(&item_id),
             GameCommand::AcquirePerk { perk_id } => self.acquire_perk(&perk_id),
             GameCommand::SpendBassline { amount } => self.spend_bassline(amount),
             GameCommand::Tick { seconds } => self.tick_internal(seconds, false),
@@ -1188,6 +1189,32 @@ impl Simulation {
         let pile = self.state.dropped_items.entry(key).or_default();
         let entry = pile.entry(item_id).or_insert(0);
         *entry = entry.saturating_add(qty);
+    }
+
+    /// Consume one of an item to apply its use effect. No-op if none is held or
+    /// the item has no use effect.
+    fn use_item(&mut self, item_id: &str) {
+        let held = self.state.inventory.get(item_id).copied().unwrap_or(0);
+        if held == 0 {
+            return;
+        }
+        let Some(effect) = item_def(item_id).and_then(|def| def.use_effect) else {
+            return;
+        };
+        match held - 1 {
+            0 => {
+                self.state.inventory.remove(item_id);
+            }
+            remaining => {
+                self.state.inventory.insert(item_id.to_string(), remaining);
+            }
+        }
+        match effect.kind {
+            ItemEffectKind::RestoreSurvival => {
+                self.state.hero_survival.viral_load_ratio =
+                    (self.state.hero_survival.viral_load_ratio - effect.amount).max(0.0);
+            }
+        }
     }
 
     /// Move every item dropped at `key` back into inventory (capped per

@@ -8,6 +8,7 @@ export interface AddInventoryEntry {
   readonly label: string
   readonly quantity: number
   readonly maxStack: number | null
+  readonly usable: boolean
 }
 
 export function selectAddInventory(snapshot: SimulationSnapshot): readonly AddInventoryEntry[] {
@@ -17,5 +18,6 @@ export function selectAddInventory(snapshot: SimulationSnapshot): readonly AddIn
     label: item.label,
     quantity: inventory[item.id] ?? 0,
     maxStack: item.maxStack ?? null,
+    usable: item.useEffect != null,
   })).filter((entry) => entry.quantity > 0)
 }

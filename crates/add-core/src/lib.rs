@@ -562,6 +562,34 @@ mod tests {
         assert!(!restored.state().dropped_items.contains_key(&key));
     }
 
+    #[test]
+    fn using_a_consumable_applies_its_effect_and_decrements() {
+        let mut state = crate::state::GameState::new();
+        state.hero_survival.viral_load_ratio = 0.8;
+        let mut simulation = Simulation::from_state(state);
+        simulation.grant_item("item.ration", 2);
+
+        // Using a ration restores survival (lowers viral load) and consumes one.
+        simulation.apply(GameCommand::UseItem {
+            item_id: "item.ration".to_string(),
+        });
+        assert!((simulation.state().hero_survival.viral_load_ratio - 0.5).abs() < 1e-9);
+        assert_eq!(simulation.state().inventory.get("item.ration"), Some(&1));
+
+        // A non-consumable (no use effect) is a no-op and is not consumed.
+        simulation.grant_item("item.scrap_metal", 3);
+        simulation.apply(GameCommand::UseItem {
+            item_id: "item.scrap_metal".to_string(),
+        });
+        assert_eq!(simulation.state().inventory.get("item.scrap_metal"), Some(&3));
+
+        // Using with none held is a no-op (and doesn't change survival).
+        simulation.apply(GameCommand::UseItem {
+            item_id: "item.field_kit".to_string(),
+        });
+        assert!((simulation.state().hero_survival.viral_load_ratio - 0.5).abs() < 1e-9);
+    }
+
     // Golden snapshot of the whole catalog. Catalogs are migrated to TS-authored
     // data + codegen one at a time; this proves each migration leaves the data the
     // sim and client see byte-identical, regardless of how the generated Rust is

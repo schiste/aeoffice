@@ -145,6 +145,13 @@ impl WebRuntime {
         });
     }
 
+    #[wasm_bindgen(js_name = useItem)]
+    pub fn use_item(&mut self, item_id: &str) {
+        self.simulation.apply(GameCommand::UseItem {
+            item_id: item_id.to_string(),
+        });
+    }
+
     #[wasm_bindgen(js_name = spendBassline)]
     pub fn spend_bassline(&mut self, amount: f64) {
         self.simulation.apply(GameCommand::SpendBassline { amount });

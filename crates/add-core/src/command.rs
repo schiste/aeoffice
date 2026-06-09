@@ -26,6 +26,9 @@ pub enum GameCommand {
     PickUpLocation {
         key: String,
     },
+    UseItem {
+        item_id: String,
+    },
     AcquirePerk { perk_id: String },
     SpendBassline { amount: f64 },
     Tick { seconds: f64 },

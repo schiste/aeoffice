@@ -55,10 +55,18 @@ export function validateContentCatalog<T extends ContentEntry>(
 // --- Neutral content vocabulary --------------------------------------------
 // Minimal schemas for the named content kinds; apps extend/profile as needed.
 
+/** What consuming one of an item does. `kind` is defined by the consuming sim
+ * (e.g. "restore_survival"); `amount` is its magnitude. */
+export interface ItemEffect {
+  readonly kind: string
+  readonly amount: number
+}
+
 export interface Item extends ContentEntry {
   readonly label: string
   readonly stackable?: boolean
   readonly maxStack?: number
+  readonly useEffect?: ItemEffect
   readonly tags?: readonly string[]
 }
 
