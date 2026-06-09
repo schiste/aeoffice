@@ -2620,3 +2620,18 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   build`, `node --check scripts/add-rpg-smoke.test.cjs`, `npm run
   smoke:add-rpg`, visual inspection of `tmp/add-rpg-station-machine-smoke.png`,
   and full `npm run check`.
+- Phase 5 better construction and upgrade loop is implemented. Construction now
+  has a `buildLoop` projection in `add-domain` with active-job progress,
+  assigned/required builders, estimated completion time, missing resources,
+  result preview, Bassline spending risk, future economy impact, and repair /
+  crystal / station / housing / support categories. The catalog now includes
+  executable long-term projects for bunk expansion, safer water systems,
+  expedition prep structures, and relay/loudspeaker preparation, all using
+  existing runtime effects so they change the economy without new save schema.
+  The ADD Build tab now leads with the construction loop and grouped project
+  cards, while `render_game_to_text` exposes the build-loop contract for agents
+  and smoke tests. Verification passed with `npm --workspace
+  @aedventure/add-domain run build`, `npm --workspace @aedventure/add-rpg run
+  build`, `node --check scripts/add-rpg-smoke.test.cjs`, `npm run
+  smoke:add-rpg`, visual inspection of `tmp/add-rpg-construction-loop-smoke.png`,
+  and full `npm run check`.

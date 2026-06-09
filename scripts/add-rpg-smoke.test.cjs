@@ -428,6 +428,30 @@ async function exerciseBaseManagementSurface(page, consoleErrors) {
     ),
     "Crystal Circle should expose crystal upgrade work as recipes.",
   )
+  assert.ok(base.baseManagement.buildLoop.projects.length >= 15)
+  assert.deepEqual(
+    [...base.baseManagement.buildLoop.groups.map((group) => group.id)].sort(),
+    ["crystal", "housing", "repair", "station", "support"].sort(),
+    "Construction loop should expose repair, crystal, station, housing, and support categories.",
+  )
+  ;[
+    "project.expand_bunks",
+    "project.safe_water_systems",
+    "project.expedition_staging",
+    "project.prepare_loudspeakers",
+  ].forEach((projectId) => {
+    assert.ok(
+      base.baseManagement.buildLoop.projects.some(
+        (project) =>
+          project.id === projectId &&
+          typeof project.resultPreview === "string" &&
+          project.resultPreview.length > 0 &&
+          typeof project.futureEconomyChange === "string" &&
+          project.futureEconomyChange.length > 0,
+      ),
+      `Construction loop should expose project ${projectId} with future economy copy.`,
+    )
+  })
 
   await page.locator("#base-management-panel").waitFor({ state: "visible" })
   const panelText = await page.locator("#base-management-panel").innerText()
@@ -456,6 +480,46 @@ async function exerciseBaseManagementSurface(page, consoleErrors) {
     )
   })
   assert.doesNotMatch(panelText, /Runtime|Snapshot|Debug/i)
+
+  await page.locator("#base-tab-build").click()
+  await waitForTextState(
+    page,
+    (state) => state.baseManagement?.active === true && state.baseManagement?.selectedTab === "build",
+    consoleErrors,
+  )
+  const buildPanelText = await page.locator("#base-management-panel").innerText()
+  ;[
+    "Construction loop",
+    "Repair",
+    "Crystal",
+    "Station",
+    "Housing",
+    "Support",
+    "Expand Bunks",
+    "Safer Water Systems",
+    "Expedition Prep Structures",
+    "Relay and Loudspeaker Prep",
+    "Workers",
+    "Missing resource",
+    "Future economy",
+  ].forEach((expectedText) => {
+    assert.match(
+      buildPanelText,
+      new RegExp(expectedText, "i"),
+      `Build panel should include ${expectedText}.`,
+    )
+  })
+  await assertNonBlankNamedAppScreenshot(
+    page,
+    "add-rpg-construction-loop-smoke.png",
+    "ADD RPG construction loop surface screenshot",
+  )
+  await page.locator("#base-tab-crystal").click()
+  await waitForTextState(
+    page,
+    (state) => state.baseManagement?.active === true && state.baseManagement?.selectedTab === "crystal",
+    consoleErrors,
+  )
 
   const beforeBassline = base.baseManagement.rolePressure.find((role) => role.id === "role.crystal_bassline")
   const beforeBasslineResource = base.baseManagement.resourcePressure.find(

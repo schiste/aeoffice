@@ -1394,6 +1394,10 @@ mod tests {
             PROJECT_BUILD_MIX_CONSOLE,
             PROJECT_BUILD_WORKSHOP,
             PROJECT_BUILD_RESEARCH_BOOTH,
+            PROJECT_EXPAND_BUNKS,
+            PROJECT_SAFE_WATER_SYSTEMS,
+            PROJECT_EXPEDITION_STAGING,
+            PROJECT_PREPARE_LOUDSPEAKERS,
         ]);
         assert_catalog_ids("processing recipes", catalog.processing_recipes.iter().map(|item| item.id), &[
             RECIPE_RESONANCE_FIELD_CALIBRATION,

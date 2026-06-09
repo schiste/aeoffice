@@ -479,6 +479,34 @@ export interface RuntimeTextState {
     }
     readonly activeConstructionId: string | null
     readonly enabledConstructionIds: readonly string[]
+    readonly buildLoop: {
+      readonly summary: string
+      readonly assignedWorkers: number
+      readonly workerThroughputPerSecond: number
+      readonly readyProjectCount: number
+      readonly blockedProjectCount: number
+      readonly activeJobId: string | null
+      readonly groups: readonly {
+        readonly id: string
+        readonly label: string
+        readonly projectIds: readonly string[]
+      }[]
+      readonly projects: readonly {
+        readonly id: string
+        readonly label: string
+        readonly category: string
+        readonly complete: boolean
+        readonly enabled: boolean
+        readonly inProgress: boolean
+        readonly progressPercent: number
+        readonly estimatedCompletionSeconds: number | null
+        readonly missingResource: string | null
+        readonly resultPreview: string
+        readonly futureEconomyChange: string
+        readonly basslineRiskSeverity: string
+        readonly basslineRiskCopy: string
+      }[]
+    }
     readonly stationMachine: {
       readonly summary: string
       readonly poweredCount: number
@@ -1013,6 +1041,37 @@ function baseManagementTelemetry(
     enabledConstructionIds: state.construction
       .filter((option) => option.enabled)
       .map((option) => option.id),
+    buildLoop: {
+      summary: state.buildLoop.summary,
+      assignedWorkers: state.buildLoop.assignedWorkers,
+      workerThroughputPerSecond: round3(state.buildLoop.workerThroughputPerSecond),
+      readyProjectCount: state.buildLoop.readyProjectCount,
+      blockedProjectCount: state.buildLoop.blockedProjectCount,
+      activeJobId: state.buildLoop.activeJob?.id ?? null,
+      groups: state.buildLoop.groups.map((group) => ({
+        id: group.id,
+        label: group.label,
+        projectIds: group.projects.map((project) => project.id),
+      })),
+      projects: state.buildLoop.projects.map((project) => ({
+        id: project.id,
+        label: project.label,
+        category: project.category,
+        complete: project.complete,
+        enabled: project.enabled,
+        inProgress: project.inProgress,
+        progressPercent: round2(project.progressPercent),
+        estimatedCompletionSeconds:
+          project.estimatedCompletionSeconds === null
+            ? null
+            : round2(project.estimatedCompletionSeconds),
+        missingResource: project.missingResource,
+        resultPreview: project.resultPreview,
+        futureEconomyChange: project.futureEconomyChange,
+        basslineRiskSeverity: project.basslineRisk.severity,
+        basslineRiskCopy: project.basslineRisk.copy,
+      })),
+    },
     stationMachine: {
       summary: state.stationMachine.summary,
       poweredCount: state.stationMachine.poweredCount,

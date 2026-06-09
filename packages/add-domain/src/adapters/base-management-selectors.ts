@@ -1,6 +1,9 @@
 import type {
   CatalogSnapshot,
+  ConstructionOptionDef,
   CostDef,
+  DurationDef,
+  EffectDef,
   ProcessingRecipeDef,
   RequirementDef,
   RoleDef,
@@ -177,6 +180,46 @@ export interface AddBaseEconomyProjection {
   readonly offlinePreview: AddBaseEconomyOfflinePreview
 }
 
+export type AddBaseConstructionCategory =
+  | "repair"
+  | "crystal"
+  | "station"
+  | "housing"
+  | "support"
+
+export interface AddBaseConstructionProjectCard extends AddConstructionSummary {
+  readonly category: AddBaseConstructionCategory
+  readonly categoryLabel: string
+  readonly assignedWorkers: number
+  readonly requiredWorkers: number
+  readonly progressPercent: number
+  readonly estimatedCompletionSeconds: number | null
+  readonly missingResource: string | null
+  readonly resultPreview: string
+  readonly futureEconomyChange: string
+  readonly basslineRisk: {
+    readonly severity: "none" | "watch" | "high"
+    readonly copy: string
+  }
+}
+
+export interface AddBaseConstructionCategoryGroup {
+  readonly id: AddBaseConstructionCategory
+  readonly label: string
+  readonly projects: readonly AddBaseConstructionProjectCard[]
+}
+
+export interface AddBaseConstructionProjection {
+  readonly summary: string
+  readonly activeJob: AddBaseConstructionProjectCard | null
+  readonly projects: readonly AddBaseConstructionProjectCard[]
+  readonly groups: readonly AddBaseConstructionCategoryGroup[]
+  readonly assignedWorkers: number
+  readonly workerThroughputPerSecond: number
+  readonly readyProjectCount: number
+  readonly blockedProjectCount: number
+}
+
 export interface AddBaseStationManagementSummary {
   readonly id: string
   readonly label: string
@@ -289,6 +332,7 @@ export interface AddBaseManagementState {
   readonly roles: readonly AddBaseRoleManagementSummary[]
   readonly staffing: AddBaseStaffingProjection
   readonly construction: readonly AddConstructionSummary[]
+  readonly buildLoop: AddBaseConstructionProjection
   readonly stations: readonly AddBaseStationManagementSummary[]
   readonly processing: readonly AddBaseProcessingManagementSummary[]
   readonly stationMachine: AddBaseStationMachineProjection
@@ -399,6 +443,11 @@ export function selectAddBaseManagementState(
     processing,
     construction,
   )
+  const buildLoop = selectBaseConstructionProjection(
+    snapshot,
+    catalog,
+    construction,
+  )
 
   return {
     title: "The Studio",
@@ -409,6 +458,7 @@ export function selectAddBaseManagementState(
     roles,
     staffing,
     construction,
+    buildLoop,
     stations,
     processing,
     stationMachine,
@@ -581,6 +631,362 @@ function baseProcessingSummary(
     costLabel: costLabel(recipe.cost),
     blockedReason,
   }
+}
+
+function selectBaseConstructionProjection(
+  snapshot: SimulationSnapshot,
+  catalog: CatalogSnapshot,
+  construction: readonly AddConstructionSummary[],
+): AddBaseConstructionProjection {
+  const assignedWorkers = constructionAssignedWorkers(snapshot)
+  const workerThroughputPerSecond = constructionWorkerThroughput(snapshot)
+  const projects = catalog.constructionOptions
+    .slice()
+    .sort((left, right) => left.uiOrder - right.uiOrder)
+    .map((option) =>
+      constructionProjectCard(snapshot, construction, option, assignedWorkers, workerThroughputPerSecond),
+    )
+  const groups = constructionCategoryOrder()
+    .map((category) => ({
+      id: category.id,
+      label: category.label,
+      projects: projects.filter((project) => project.category === category.id),
+    }))
+    .filter((group) => group.projects.length > 0)
+  const activeJob = projects.find((project) => project.inProgress) ?? null
+  const readyProjectCount = projects.filter((project) => project.enabled).length
+  const blockedProjectCount = projects.filter(
+    (project) => !project.complete && !project.inProgress && !project.enabled,
+  ).length
+  return {
+    summary: activeJob
+      ? `${activeJob.label} is ${Math.round(activeJob.progressPercent)}% complete; ${formatSeconds(activeJob.estimatedCompletionSeconds)} estimated.`
+      : readyProjectCount > 0
+        ? `${readyProjectCount} build ${readyProjectCount === 1 ? "choice is" : "choices are"} ready.`
+        : `${blockedProjectCount} build ${blockedProjectCount === 1 ? "choice is" : "choices are"} waiting on resources or unlocks.`,
+    activeJob,
+    projects,
+    groups,
+    assignedWorkers,
+    workerThroughputPerSecond,
+    readyProjectCount,
+    blockedProjectCount,
+  }
+}
+
+function constructionProjectCard(
+  snapshot: SimulationSnapshot,
+  construction: readonly AddConstructionSummary[],
+  option: ConstructionOptionDef,
+  assignedWorkers: number,
+  workerThroughputPerSecond: number,
+): AddBaseConstructionProjectCard {
+  const summary = construction.find((candidate) => candidate.id === option.id) ?? {
+    id: option.id,
+    label: option.label,
+    complete: false,
+    enabled: false,
+    inProgress: false,
+    remainingSeconds: null,
+    costLabel: costLabel(option.cost),
+    blockedReason: "Missing construction summary.",
+  }
+  const active = snapshot.activeConstruction?.optionId === option.id ? snapshot.activeConstruction : null
+  const totalWorkSeconds = active?.totalWorkSeconds ?? constructionDurationSeconds(snapshot, option.duration)
+  const remainingWorkSeconds = active?.remainingWorkSeconds ?? totalWorkSeconds
+  const category = constructionCategoryFor(option)
+  return {
+    ...summary,
+    category,
+    categoryLabel: constructionCategoryLabel(category),
+    assignedWorkers,
+    requiredWorkers: constructionRequiredWorkers(option),
+    progressPercent: summary.complete
+      ? 100
+      : summary.inProgress && totalWorkSeconds > 0
+        ? Math.max(0, Math.min(100, ((totalWorkSeconds - remainingWorkSeconds) / totalWorkSeconds) * 100))
+        : 0,
+    estimatedCompletionSeconds:
+      summary.complete
+        ? 0
+        : workerThroughputPerSecond > 0
+          ? remainingWorkSeconds / workerThroughputPerSecond
+          : null,
+    missingResource: constructionMissingResourceCopy(snapshot, option),
+    resultPreview: constructionResultPreview(snapshot, option),
+    futureEconomyChange: constructionFutureEconomyChange(snapshot, option),
+    basslineRisk: constructionBasslineRisk(snapshot, option, active),
+  }
+}
+
+function constructionAssignedWorkers(snapshot: SimulationSnapshot): number {
+  return roleCrew(snapshot, ROLE_CONSTRUCTION) +
+    (snapshot.roster.heroAssigned && snapshot.roster.heroRoleId === ROLE_CONSTRUCTION ? 1 : 0)
+}
+
+function constructionWorkerThroughput(snapshot: SimulationSnapshot): number {
+  const crewThroughput = roleCrew(snapshot, ROLE_CONSTRUCTION) * snapshot.base.crewEfficiencyMultiplier
+  const heroThroughput =
+    snapshot.roster.heroAssigned && snapshot.roster.heroRoleId === ROLE_CONSTRUCTION
+      ? snapshot.base.crewEfficiencyMultiplier * snapshot.heroSurvival.workEfficiencyMultiplier
+      : 0
+  return crewThroughput + heroThroughput
+}
+
+function constructionDurationSeconds(
+  snapshot: SimulationSnapshot,
+  duration: DurationDef,
+): number {
+  const baseDuration =
+    duration.kind === "fixed"
+      ? duration.seconds ?? 0
+      : (duration.base_seconds ?? 0) +
+        constructionCrystalTrackLevel(snapshot, duration.track) * (duration.per_level_seconds ?? 0)
+  const toolingMultiplier = Math.max(
+    0.2,
+    Math.min(1, 1 - snapshot.processing.workshopToolingLevel * BALANCE.build.workshopToolingSpeedBonusPerLevel),
+  )
+  return baseDuration * toolingMultiplier
+}
+
+function constructionCrystalTrackLevel(
+  snapshot: SimulationSnapshot,
+  track: DurationDef["track"] | undefined,
+): number {
+  switch (track) {
+    case "slot_capacity":
+      return snapshot.crystalCircle.slotCapacityLevel
+    case "output":
+      return snapshot.crystalCircle.outputLevel
+    case "storage":
+      return snapshot.crystalCircle.storageLevel
+    case "field_polish":
+      return snapshot.crystalCircle.fieldPolishLevel
+    default:
+      return 0
+  }
+}
+
+function constructionCategoryFor(option: ConstructionOptionDef): AddBaseConstructionCategory {
+  if ([PROJECT_RESTORE_STUDIO, "construction.removing_moss"].includes(option.id)) return "repair"
+  if (option.id === "project.expand_bunks") return "housing"
+  if (
+    [
+      PROJECT_BUILD_FIRE_PIT,
+      "project.build_resonance_chamber",
+      "project.build_mix_console",
+      "project.build_workshop",
+      "project.build_research_booth",
+    ].includes(option.id)
+  ) {
+    return "station"
+  }
+  if (option.group === "crystal_upgrade" && option.id !== "construction.storage") return "crystal"
+  return "support"
+}
+
+function constructionCategoryLabel(category: AddBaseConstructionCategory): string {
+  switch (category) {
+    case "repair":
+      return "Repair"
+    case "crystal":
+      return "Crystal"
+    case "station":
+      return "Station"
+    case "housing":
+      return "Housing"
+    case "support":
+      return "Support"
+  }
+}
+
+function constructionCategoryOrder(): readonly {
+  readonly id: AddBaseConstructionCategory
+  readonly label: string
+}[] {
+  return [
+    { id: "repair", label: "Repair" },
+    { id: "crystal", label: "Crystal" },
+    { id: "station", label: "Station" },
+    { id: "housing", label: "Housing" },
+    { id: "support", label: "Support" },
+  ]
+}
+
+function constructionRequiredWorkers(option: ConstructionOptionDef): number {
+  if (option.cost.kind === "drain_per_worker_second") return 1
+  if (option.group === "base_project") return 1
+  return 1
+}
+
+function constructionMissingResourceCopy(
+  snapshot: SimulationSnapshot,
+  option: ConstructionOptionDef,
+): string | null {
+  if (option.cost.kind === "drain_per_worker_second") {
+    return resourceValue(snapshot, option.cost.resource_id ?? "") <= 0
+      ? `${resourceName(option.cost.resource_id ?? "")} is empty; builders will pause.`
+      : null
+  }
+  const missing = missingCostItems(snapshot, option.cost)[0]
+  return missing
+    ? `Missing ${formatAmount(missing.missingAmount)} ${resourceName(missing.resourceId)}.`
+    : null
+}
+
+function constructionBasslineRisk(
+  snapshot: SimulationSnapshot,
+  option: ConstructionOptionDef,
+  active: SimulationSnapshot["activeConstruction"],
+): AddBaseConstructionProjectCard["basslineRisk"] {
+  const drainsBassline =
+    option.cost.kind === "drain_per_worker_second" && option.cost.resource_id === RESOURCE_BASSLINE
+  const upfrontBassline =
+    option.cost.kind === "upfront" && option.cost.resource_id === RESOURCE_BASSLINE
+  if (!drainsBassline && !upfrontBassline) {
+    return {
+      severity: "none",
+      copy: "Does not spend Bassline directly.",
+    }
+  }
+  const remainingCost = active
+    ? Math.max(0, active.totalCost - active.spentCost)
+    : constructionDurationSeconds(snapshot, option.duration) * (option.cost.amount ?? 0)
+  if (snapshot.resources.bassline <= 0) {
+    return {
+      severity: "high",
+      copy: "Bassline is empty; construction will pause and bubble pressure may rise.",
+    }
+  }
+  if (snapshot.resources.bassline < remainingCost) {
+    return {
+      severity: "watch",
+      copy: `May spend ${formatAmount(remainingCost)} Bassline before finishing.`,
+    }
+  }
+  return {
+    severity: "watch",
+    copy: `Spends stored Bassline while builders work; current stock can cover this estimate.`,
+  }
+}
+
+function constructionResultPreview(
+  snapshot: SimulationSnapshot,
+  option: ConstructionOptionDef,
+): string {
+  if (option.id === PROJECT_RESTORE_STUDIO) return "Unlocks Chorus, Studio recovery, and 15 bunks."
+  if (option.id === PROJECT_BUILD_FIRE_PIT) return "Unlocks Vibes, morale, and recruitment support."
+  if (option.id === "project.build_resonance_chamber") return "Unlocks Harmonics and field-efficiency processing."
+  if (option.id === "project.build_mix_console") return "Unlocks brownout tolerance and signal balancing."
+  if (option.id === "project.build_workshop") return "Unlocks builder tools and safer water improvements."
+  if (option.id === "project.build_research_booth") return "Unlocks Chorus routing and Harmonic study."
+  const effect = option.effects[0]
+  if (!effect) return "No visible economy effect is described yet."
+  return effectPreview(snapshot, effect)
+}
+
+function constructionFutureEconomyChange(
+  snapshot: SimulationSnapshot,
+  option: ConstructionOptionDef,
+): string {
+  const category = constructionCategoryFor(option)
+  switch (category) {
+    case "repair":
+      return "Repairs open new base systems and remove early blockers."
+    case "crystal":
+      return "Crystal work changes signal income, capacity, or bubble efficiency."
+    case "station":
+      return "Station builds unlock new powered modules and recipe lanes."
+    case "housing":
+      return `Housing raises crew capacity; current free bunks: ${snapshot.base.freeBunks}.`
+    case "support":
+      return "Support work improves storage, water, field reach, or future construction speed."
+  }
+}
+
+function effectPreview(snapshot: SimulationSnapshot, effect: EffectDef): string {
+  switch (effect.kind) {
+    case "add_bunks":
+      return `Adds ${effect.amount ?? 0} bunks for recruitment and overcrowding relief.`
+    case "add_skins":
+      return `Adds ${effect.amount ?? 0} Skin for cosmetic or repair-side costs.`
+    case "set_flag":
+      return flagEffectPreview(effect.flag_id ?? "")
+    case "increment_crystal_track":
+      return crystalTrackEffectPreview(snapshot, effect.track, effect.amount ?? 1)
+    case "increment_processing_track":
+      return processingTrackEffectPreview(snapshot, effect.track, effect.amount ?? 1)
+  }
+}
+
+function flagEffectPreview(flagId: string): string {
+  switch (flagId) {
+    case "base.studio_restored":
+      return "Restores the Studio and unlocks the Chorus/base layer."
+    case "base.fire_pit_built":
+      return "Builds the Fire Pit and unlocks Vibes production."
+    case "base.resonance_chamber_built":
+      return "Builds the Resonance Chamber and unlocks Harmonics work."
+    case "base.mix_console_built":
+      return "Builds the Mix Console and unlocks signal balancing."
+    case "base.workshop_built":
+      return "Builds the Workshop and unlocks construction/water upgrades."
+    case "base.research_booth_built":
+      return "Builds the Research Booth and unlocks advanced routing."
+    case "crystal.removing_moss_completed":
+      return "Clears the Crystal base and improves passive Bassline."
+    default:
+      return "Unlocks a future base condition."
+  }
+}
+
+function crystalTrackEffectPreview(
+  snapshot: SimulationSnapshot,
+  track: EffectDef["track"] | undefined,
+  amount: number,
+): string {
+  switch (track) {
+    case "slot_capacity":
+      return `Adds ${amount} Crystal slot; current level ${snapshot.crystalCircle.slotCapacityLevel}.`
+    case "output":
+      return `Raises band output; current output level ${snapshot.crystalCircle.outputLevel}.`
+    case "storage":
+      return `Raises band storage caps; current storage level ${snapshot.crystalCircle.storageLevel}.`
+    case "field_polish":
+      return `Improves Bassline-to-bubble efficiency; current polish level ${snapshot.crystalCircle.fieldPolishLevel}.`
+    default:
+      return "Improves the Crystal Circle."
+  }
+}
+
+function processingTrackEffectPreview(
+  snapshot: SimulationSnapshot,
+  track: EffectDef["track"] | undefined,
+  amount: number,
+): string {
+  switch (track) {
+    case "workshop_tooling":
+      return `Speeds future construction; current tooling level ${snapshot.processing.workshopToolingLevel}.`
+    case "workshop_water_condensers":
+      return `Improves Water cap and regeneration; current condenser level ${snapshot.processing.workshopWaterCondensersLevel}.`
+    case "research_chorus_routing":
+      return `Improves Chorus routing and life-support headroom; current routing level ${snapshot.processing.researchChorusRoutingLevel}.`
+    case "research_harmonic_study":
+      return `Improves Harmonics thresholds; current study level ${snapshot.processing.researchHarmonicStudyLevel}.`
+    case "resonance_calibration":
+      return `Improves field efficiency; current calibration level ${snapshot.processing.resonanceCalibrationLevel}.`
+    case "mix_calibration":
+      return `Improves signal balance and brownout tolerance; current mix level ${snapshot.processing.mixCalibrationLevel}.`
+    default:
+      return `Improves station processing by ${amount}.`
+  }
+}
+
+function formatSeconds(seconds: number | null): string {
+  if (seconds === null) return "stalled"
+  if (seconds <= 0) return "complete"
+  if (seconds < 60) return `${Math.ceil(seconds)}s`
+  return `${Math.ceil(seconds / 60)}m`
 }
 
 function selectBaseStationMachineProjection(
@@ -1513,11 +1919,11 @@ function missingCostItems(
     case "upfront_bundle":
       return (
         cost.costs
-          ?.filter((item) => item.item_id.startsWith("resource."))
+          ?.filter((item) => costItemResourceId(item).startsWith("resource."))
           .map((item) => ({
-            resourceId: item.item_id,
+            resourceId: costItemResourceId(item),
             requiredAmount: item.amount,
-            missingAmount: Math.max(0, item.amount - resourceValue(snapshot, item.item_id)),
+            missingAmount: Math.max(0, item.amount - resourceValue(snapshot, costItemResourceId(item))),
           }))
           .filter((item) => item.missingAmount > 0) ?? []
       )
@@ -1869,8 +2275,8 @@ function affordabilityBlockerForCost(snapshot: SimulationSnapshot, cost: CostDef
       return `Need ${formatAmount(amount)} ${resourceName(resourceId)}.`
     }
     case "upfront_bundle": {
-      const missing = cost.costs?.find((item) => resourceValue(snapshot, item.item_id) < item.amount)
-      return missing ? `Need ${formatAmount(missing.amount)} ${resourceName(missing.item_id)}.` : null
+      const missing = cost.costs?.find((item) => resourceValue(snapshot, costItemResourceId(item)) < item.amount)
+      return missing ? `Need ${formatAmount(missing.amount)} ${resourceName(costItemResourceId(missing))}.` : null
     }
     case "drain_per_worker_second":
     case "time_only":
@@ -2130,7 +2536,7 @@ function costLabel(cost: CostDef): string {
     case "upfront_bundle":
       return (
         cost.costs
-          ?.map((item) => `${formatAmount(item.amount)} ${resourceName(item.item_id)}`)
+          ?.map((item) => `${formatAmount(item.amount)} ${resourceName(costItemResourceId(item))}`)
           .join(", ") ?? "Bundled cost"
       )
     case "drain_per_worker_second":
@@ -2138,6 +2544,10 @@ function costLabel(cost: CostDef): string {
     case "time_only":
       return "Time only"
   }
+}
+
+function costItemResourceId(item: { readonly item_id?: string; readonly itemId?: string }): string {
+  return item.item_id ?? item.itemId ?? ""
 }
 
 function resourceName(resourceId: string): string {

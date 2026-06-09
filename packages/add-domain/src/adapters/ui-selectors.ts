@@ -287,6 +287,16 @@ function constructionComplete(snapshot: SimulationSnapshot, optionId: string): b
       return snapshot.base.studioRestored
     case PROJECT_BUILD_FIRE_PIT:
       return snapshot.base.firePitBuilt
+    case "project.build_resonance_chamber":
+      return snapshot.base.resonanceChamberBuilt
+    case "project.build_mix_console":
+      return snapshot.base.mixConsoleBuilt
+    case "project.build_workshop":
+      return snapshot.base.workshopBuilt
+    case "project.build_research_booth":
+      return snapshot.base.researchBoothBuilt
+    case "construction.removing_moss":
+      return snapshot.crystalCircle.removingMossCompleted
     default:
       return false
   }
@@ -314,10 +324,10 @@ function constructionAffordabilityBlocker(
     }
     case "upfront_bundle": {
       const missing = option.cost.costs?.find(
-        (cost) => resourceValue(snapshot, cost.item_id) < cost.amount,
+        (cost) => resourceValue(snapshot, costItemResourceId(cost)) < cost.amount,
       )
       return missing
-        ? `Need ${formatAmount(missing.amount)} ${resourceName(missing.item_id)}.`
+        ? `Need ${formatAmount(missing.amount)} ${resourceName(costItemResourceId(missing))}.`
         : null
     }
     default:
@@ -342,28 +352,40 @@ function requirementsMet(
 function flagValue(snapshot: SimulationSnapshot, flagId: string): boolean {
   switch (flagId) {
     case "flag.base.studio_restore_unlocked":
+    case "base.studio_restore_unlocked":
       return snapshot.base.studioRestoreUnlocked
     case "flag.base.studio_restored":
+    case "base.studio_restored":
       return snapshot.base.studioRestored
     case "flag.base.fire_pit_built":
+    case "base.fire_pit_built":
       return snapshot.base.firePitBuilt
     case "flag.base.resonance_chamber_built":
+    case "base.resonance_chamber_built":
       return snapshot.base.resonanceChamberBuilt
     case "flag.base.mix_console_built":
+    case "base.mix_console_built":
       return snapshot.base.mixConsoleBuilt
     case "flag.base.workshop_built":
+    case "base.workshop_built":
       return snapshot.base.workshopBuilt
     case "flag.base.research_booth_built":
+    case "base.research_booth_built":
       return snapshot.base.researchBoothBuilt
     case "flag.base.tutorial_investigated":
+    case "base.tutorial_investigated":
       return snapshot.base.tutorialInvestigated
     case "flag.base.tutorial_explored":
+    case "base.tutorial_explored":
       return snapshot.base.tutorialExplored
     case "flag.base.water_collection_unlocked":
+    case "base.water_collection_unlocked":
       return snapshot.base.waterCollectionUnlocked
     case "flag.crystal.removing_moss_unlocked":
+    case "crystal.removing_moss_unlocked":
       return snapshot.crystalCircle.removingMossUnlocked
     case "flag.crystal.removing_moss_completed":
+    case "crystal.removing_moss_completed":
       return snapshot.crystalCircle.removingMossCompleted
     default:
       return false
@@ -454,7 +476,7 @@ function costLabel(cost: CostDef): string {
     case "upfront_bundle":
       return (
         cost.costs
-          ?.map((item) => `${formatAmount(item.amount)} ${resourceName(item.item_id)}`)
+          ?.map((item) => `${formatAmount(item.amount)} ${resourceName(costItemResourceId(item))}`)
           .join(", ") ?? "Bundled cost"
       )
     case "drain_per_worker_second":
@@ -462,6 +484,10 @@ function costLabel(cost: CostDef): string {
     case "time_only":
       return "Time only"
   }
+}
+
+function costItemResourceId(item: { readonly item_id?: string; readonly itemId?: string }): string {
+  return item.item_id ?? item.itemId ?? ""
 }
 
 function resourceName(resourceId: string): string {

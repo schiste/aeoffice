@@ -1057,7 +1057,7 @@ function baseManagementPanel(): unknown {
   const state = baseManagementState()
   if (!state) return null
   const section = activeBaseManagementSection(state)
-  const machineTab = () => ["power", "processing"].includes(baseManagementTab())
+  const focusedSystemTab = () => ["build", "power", "processing"].includes(baseManagementTab())
   return html`
     <section
       id="base-management-panel"
@@ -1084,7 +1084,7 @@ function baseManagementPanel(): unknown {
         ${() => baseManagementTabButtons(state)}
       </div>
       <div class="base-management-body">
-        ${() => machineTab()
+        ${() => focusedSystemTab()
           ? null
           : html`
               <article class="base-section-summary" data-severity=${section?.blockedReason ? "warning" : "neutral"}>
@@ -1093,7 +1093,7 @@ function baseManagementPanel(): unknown {
               </article>
             `}
         ${() => baseManagementLeadPanel(state)}
-        ${() => machineTab()
+        ${() => focusedSystemTab()
           ? null
           : html`
               <div class="base-metric-grid">
@@ -1108,6 +1108,8 @@ function baseManagementPanel(): unknown {
 
 function baseManagementLeadPanel(state: AddBaseManagementState): unknown {
   switch (baseManagementTab()) {
+    case "build":
+      return baseConstructionLoopSummary(state)
     case "crew":
       return baseStaffingCommandPanel(state)
     case "power":
@@ -1268,8 +1270,8 @@ function baseCrystalPanel(state: AddBaseManagementState): unknown {
 function baseBuildPanel(state: AddBaseManagementState): unknown {
   return html`
     <div class="base-card-list">
-      ${() => state.activeConstruction ? baseActiveConstructionCard(state.activeConstruction) : null}
-      ${() => baseConstructionRows(state.construction)}
+      ${() => state.buildLoop.activeJob ? baseActiveConstructionCard(state.buildLoop.activeJob) : null}
+      ${() => baseConstructionCategoryGroups(state.buildLoop.groups)}
     </div>
   `
 }
@@ -1477,33 +1479,108 @@ function canAddCrewToRole(
   return role.slotPool === "base" ? true : (slotPool?.free ?? 0) > 0
 }
 
-function baseConstructionRows(options: readonly AddBaseManagementState["construction"][number][]): readonly unknown[] {
-  return options.map(
-    (option) => html`
-      <article class="base-management-card" data-enabled=${option.enabled ? "true" : "false"}>
-        <span>${option.label}</span>
-        <strong>${option.complete ? "Complete" : option.inProgress ? `${option.remainingSeconds ?? 0}s` : option.costLabel}</strong>
-        <small>${option.complete ? "Built" : option.blockedReason ?? "Ready to start"}</small>
-        <button
-          id=${`base-${constructionButtonId(option.id)}`}
-          type="button"
-          onClick=${() => void startConstruction(option.id)}
-          disabled=${() => !ready() || !option.enabled}
-        >
-          Start
-        </button>
-      </article>
-    `,
-  )
+function baseConstructionLoopSummary(state: AddBaseManagementState): unknown {
+  return html`
+    <article class="base-construction-summary">
+      <span>Construction loop</span>
+      <strong>
+        ${state.buildLoop.readyProjectCount} ready / ${state.buildLoop.assignedWorkers} builders
+      </strong>
+      <small>${state.buildLoop.summary}</small>
+      <div class="base-economy-line">
+        <span>Throughput ${signedRateCopy(state.buildLoop.workerThroughputPerSecond)}</span>
+        <span>${state.buildLoop.blockedProjectCount} waiting</span>
+      </div>
+    </article>
+  `
 }
 
-function baseActiveConstructionCard(option: AddBaseManagementState["activeConstruction"]): unknown {
+function baseConstructionCategoryGroups(
+  groups: readonly AddBaseManagementState["buildLoop"]["groups"][number][],
+): readonly unknown[] {
+  return groups.map((group) => html`
+    <section class="base-construction-group" aria-label=${group.label}>
+      <div class="base-construction-group-heading">
+        <span>${group.label}</span>
+      </div>
+      ${() => group.projects.map(baseConstructionProjectCard)}
+    </section>
+  `)
+}
+
+function baseConstructionProjectCard(
+  option: AddBaseManagementState["buildLoop"]["projects"][number],
+): unknown {
+  return html`
+    <article
+      class="base-construction-project"
+      data-category=${option.category}
+      data-enabled=${option.enabled ? "true" : "false"}
+      data-risk=${option.basslineRisk.severity}
+    >
+      <div class="base-construction-project-heading">
+        <span>${option.label}</span>
+        <strong>${option.complete ? "Complete" : option.inProgress ? "Building" : option.enabled ? "Ready" : "Waiting"}</strong>
+      </div>
+      <div class="base-machine-tags">
+        <span>${option.categoryLabel}</span>
+        <span>${option.costLabel}</span>
+        <span>${formatResourceTime(option.estimatedCompletionSeconds)}</span>
+      </div>
+      <div
+        class="base-construction-progress"
+        aria-label=${`${Math.round(option.progressPercent)}% complete`}
+      >
+        <span style=${`width: ${Math.max(0, Math.min(100, option.progressPercent))}%`}></span>
+      </div>
+      <div class="base-construction-detail-grid">
+        <span>
+          <strong>Workers</strong>
+          <small>${option.assignedWorkers} / ${option.requiredWorkers} required</small>
+        </span>
+        <span>
+          <strong>Missing resource</strong>
+          <small>${option.missingResource ?? "None"}</small>
+        </span>
+        <span>
+          <strong>Result</strong>
+          <small>${option.resultPreview}</small>
+        </span>
+        <span>
+          <strong>Future economy</strong>
+          <small>${option.futureEconomyChange}</small>
+        </span>
+      </div>
+      <small class="base-construction-risk">${option.basslineRisk.copy}</small>
+      ${option.blockedReason && !option.complete
+        ? html`<small class="base-machine-blocker">${option.blockedReason}</small>`
+        : null}
+      <button
+        id=${`base-${constructionButtonId(option.id)}`}
+        type="button"
+        onClick=${() => void startConstruction(option.id)}
+        disabled=${() => !ready() || !option.enabled}
+      >
+        Start
+      </button>
+    </article>
+  `
+}
+
+function baseActiveConstructionCard(option: AddBaseManagementState["buildLoop"]["activeJob"]): unknown {
   if (!option) return null
   return html`
-    <article class="base-management-card active">
+    <article class="base-construction-summary active">
       <span>Active construction</span>
       <strong>${option.label}</strong>
-      <small>${option.remainingSeconds ?? 0}s remaining</small>
+      <small>${Math.round(option.progressPercent)}% complete; ${formatResourceTime(option.estimatedCompletionSeconds)} remaining.</small>
+      <div class="base-construction-progress">
+        <span style=${`width: ${Math.max(0, Math.min(100, option.progressPercent))}%`}></span>
+      </div>
+      <div class="base-economy-line">
+        <span>${option.assignedWorkers} builders assigned</span>
+        <span>${option.missingResource ?? option.basslineRisk.copy}</span>
+      </div>
     </article>
   `
 }

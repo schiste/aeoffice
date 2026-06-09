@@ -231,6 +231,109 @@ pub(in crate::game_data) const CONSTRUCTION_OPTIONS: &[ConstructionOptionDef] = 
         }],
         ui_order: 100,
     },
+    ConstructionOptionDef {
+        id: PROJECT_EXPAND_BUNKS,
+        schema_id: PROJECT_EXPAND_BUNKS,
+        label: "Expand Bunks",
+        group: ConstructionGroup::BaseProject,
+        cost: CostDef::UpfrontBundle {
+            costs: &[
+                CostItemDef {
+                    item_id: "resource.stone",
+                    amount: 180.0,
+                },
+                CostItemDef {
+                    item_id: "resource.water",
+                    amount: 1.0,
+                },
+            ],
+        },
+        duration: DurationDef::Fixed { seconds: 8.0 },
+        requirements: &[RequirementDef::FlagSet(FLAG_BASE_STUDIO_RESTORED)],
+        effects: &[EffectDef::AddBunks { amount: 5 }],
+        ui_order: 110,
+    },
+    ConstructionOptionDef {
+        id: PROJECT_SAFE_WATER_SYSTEMS,
+        schema_id: PROJECT_SAFE_WATER_SYSTEMS,
+        label: "Safer Water Systems",
+        group: ConstructionGroup::BaseProject,
+        cost: CostDef::UpfrontBundle {
+            costs: &[
+                CostItemDef {
+                    item_id: "resource.stone",
+                    amount: 160.0,
+                },
+                CostItemDef {
+                    item_id: "resource.water",
+                    amount: 3.0,
+                },
+            ],
+        },
+        duration: DurationDef::Fixed { seconds: 10.0 },
+        requirements: &[
+            RequirementDef::FlagSet(FLAG_BASE_WATER_COLLECTION_UNLOCKED),
+            RequirementDef::FlagSet(FLAG_BASE_WORKSHOP_BUILT),
+        ],
+        effects: &[EffectDef::IncrementProcessingTrack {
+            track: ProcessingTrack::WorkshopWaterCondensers,
+            amount: 1,
+        }],
+        ui_order: 120,
+    },
+    ConstructionOptionDef {
+        id: PROJECT_EXPEDITION_STAGING,
+        schema_id: PROJECT_EXPEDITION_STAGING,
+        label: "Expedition Prep Structures",
+        group: ConstructionGroup::BaseProject,
+        cost: CostDef::UpfrontBundle {
+            costs: &[
+                CostItemDef {
+                    item_id: "resource.stone",
+                    amount: 220.0,
+                },
+                CostItemDef {
+                    item_id: "resource.water",
+                    amount: 2.0,
+                },
+            ],
+        },
+        duration: DurationDef::Fixed { seconds: 12.0 },
+        requirements: &[
+            RequirementDef::FlagSet(FLAG_BASE_RESONANCE_CHAMBER_BUILT),
+            RequirementDef::FlagSet(FLAG_BASE_WORKSHOP_BUILT),
+        ],
+        effects: &[EffectDef::IncrementCrystalTrack {
+            track: CrystalTrack::FieldPolish,
+            amount: 1,
+        }],
+        ui_order: 130,
+    },
+    ConstructionOptionDef {
+        id: PROJECT_PREPARE_LOUDSPEAKERS,
+        schema_id: PROJECT_PREPARE_LOUDSPEAKERS,
+        label: "Relay and Loudspeaker Prep",
+        group: ConstructionGroup::BaseProject,
+        cost: CostDef::UpfrontBundle {
+            costs: &[
+                CostItemDef {
+                    item_id: "resource.stone",
+                    amount: 240.0,
+                },
+                CostItemDef {
+                    item_id: "resource.water",
+                    amount: 1.0,
+                },
+            ],
+        },
+        duration: DurationDef::Fixed { seconds: 12.0 },
+        requirements: &[RequirementDef::FlagSet(FLAG_BASE_RESEARCH_BOOTH_BUILT)],
+        effects: &[EffectDef::IncrementProcessingTrack {
+            track: ProcessingTrack::ResearchChorusRouting,
+            amount: 1,
+        }],
+        ui_order: 140,
+    },
 ];
 
 pub(in crate::game_data) const WORLD_ACTIONS: &[WorldActionDef] = &[
