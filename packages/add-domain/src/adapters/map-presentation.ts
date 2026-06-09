@@ -115,6 +115,28 @@ export function progressForCell(cell: GameCellPlacement): number {
   return clamp(numberMetadata(cell, "progress") ?? 0, 0, 1)
 }
 
+export type AddMapMarkerKind = "harvestable" | "water" | "entrance"
+
+export interface AddMapMarker {
+  readonly kind: AddMapMarkerKind
+  readonly label: string
+}
+
+/** At-a-glance markers for a cell: surfaces tile facts that aren't already drawn
+ * as landmarks (base/cave render as blobs already). Reads projected `tags` +
+ * `dungeonCount`; empty for unknown/hidden cells (no tags projected). */
+export function mapMarkersForCell(cell: GameCellPlacement): readonly AddMapMarker[] {
+  const markers: AddMapMarker[] = []
+  const raw = stringMetadata(cell, "tags")
+  const tags = raw ? raw.split(",") : []
+  if (tags.includes("harvestable")) markers.push({ kind: "harvestable", label: "Harvestable" })
+  if (tags.includes("water_source")) markers.push({ kind: "water", label: "Water source" })
+  if ((numberMetadata(cell, "dungeonCount") ?? 0) > 0) {
+    markers.push({ kind: "entrance", label: "Entrance" })
+  }
+  return markers
+}
+
 export function exposureRiskForCell(cell: GameCellPlacement): AddTravelExposureRisk {
   const knownRisk = stringMetadata(cell, "travelRisk")
   if (

@@ -19,8 +19,10 @@ import {
   createAddWorldInteractionPolicy,
   displayAddCell,
   dungeonLinkInfo,
+  mapMarkersForCell,
   presentationVisibilityStateForCell,
   tileInteractionDetailForCoord,
+  type AddMapMarker,
 } from "@aedventure/add-domain"
 
 import { ADD_TILE_TRAVEL_PRESENTATION } from "../travel-presentation-timing"
@@ -512,6 +514,36 @@ export class AddRpgHexScene extends Phaser.Scene {
       }
       this.drawLandmark(center, entity)
     }
+
+    // At-a-glance tile markers (harvestable / water / entrance) for visible cells.
+    for (const cell of context.terrainCells) {
+      if (!this.cellPresentationPolicy.cellVisible(cell)) continue
+      const markers = mapMarkersForCell(cell)
+      if (markers.length > 0) this.drawCellMarkers(centerFor(cell.coord, context), markers)
+    }
+  }
+
+  private drawCellMarkers(center: Vector2, markers: readonly AddMapMarker[]): void {
+    const glyphs: Record<AddMapMarker["kind"], { glyph: string; color: string }> = {
+      harvestable: { glyph: "❀", color: "#2f8f4a" },
+      water: { glyph: "≈", color: "#3a78c0" },
+      entrance: { glyph: "▽", color: "#a05f2d" },
+    }
+    markers.forEach((marker, index) => {
+      const style = glyphs[marker.kind]
+      const text = this.add.text(center.x + 14, center.y - 16 + index * 13, style.glyph, {
+        color: style.color,
+        fontFamily: "Aptos, Segoe UI, sans-serif",
+        fontSize: "13px",
+        fontStyle: "800",
+        stroke: "rgba(255, 250, 226, 0.9)",
+        strokeThickness: 3,
+      })
+      text.setOrigin(0.5, 0.5)
+      text.setDepth(27)
+      setCrispText(text)
+      this.landmarkObjects.push(text)
+    })
   }
 
   private drawCreature(center: Vector2, entity: GameEntity, cellSize: number): void {
@@ -952,6 +984,10 @@ export class AddRpgHexScene extends Phaser.Scene {
       return
     }
     const detail = tileInteractionDetailForCoord(coord, context.terrainByCoord)
+    if (!detail) {
+      tip.setVisible(false)
+      return
+    }
     const text = detail.dungeonLinks.length > 0 ? `${detail.label}\nEntrance` : detail.label
     const center = centerFor(coord, context)
     tip.setText(text)
