@@ -106,6 +106,7 @@ export class AddRpgHexScene extends Phaser.Scene {
   private cameraInitialized = false
   private hoveredCoord: CellCoord | null = null
   private selectedCoord: CellCoord | null = null
+  private tooltipText?: Phaser.GameObjects.Text
   private lastRenderedMapId: string | null = null
   private dragging = false
   private dragMoved = false
@@ -149,6 +150,22 @@ export class AddRpgHexScene extends Phaser.Scene {
     this.ambienceGraphics.setDepth(10)
     this.transitionGraphics.setDepth(80)
     this.transitionGraphics.setScrollFactor(0)
+    // Reused on-map tile tooltip (world-space, follows the hovered/selected cell).
+    this.tooltipText = this.add.text(0, 0, "", {
+      color: "#1f2a25",
+      fontFamily: "Aptos, Segoe UI, sans-serif",
+      fontSize: "12px",
+      fontStyle: "700",
+      align: "center",
+      backgroundColor: "rgba(255, 250, 226, 0.92)",
+      stroke: "rgba(255, 255, 255, 0.42)",
+      strokeThickness: 2,
+      padding: { x: 7, y: 4 },
+    })
+    this.tooltipText.setOrigin(0.5, 1)
+    this.tooltipText.setDepth(60)
+    this.tooltipText.setVisible(false)
+    setCrispText(this.tooltipText)
     this.ready = true
     this.cameras.main.setRoundPixels(false)
     this.input.on("pointermove", this.onPointerMove, this)
@@ -920,6 +937,26 @@ export class AddRpgHexScene extends Phaser.Scene {
       selections: this.interactionSelectionRenderStates(),
     })
     this.drawTransitionOverlay()
+    this.drawTileTooltip()
+  }
+
+  /** On-map tooltip for the hovered/selected cell: its label (and an Entrance
+   * tag for dungeon tiles), floated above the tile. Reuses one text object. */
+  private drawTileTooltip(): void {
+    const tip = this.tooltipText
+    const context = this.context
+    if (!tip) return
+    const coord = this.selectedCoord ?? this.hoveredCoord
+    if (!coord || !context || !context.terrainByCoord.has(addMapCoordKey(coord))) {
+      tip.setVisible(false)
+      return
+    }
+    const detail = tileInteractionDetailForCoord(coord, context.terrainByCoord)
+    const text = detail.dungeonLinks.length > 0 ? `${detail.label}\nEntrance` : detail.label
+    const center = centerFor(coord, context)
+    tip.setText(text)
+    tip.setPosition(center.x, center.y - 34)
+    tip.setVisible(true)
   }
 
   private drawTransitionOverlay(): void {
