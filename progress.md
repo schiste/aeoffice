@@ -83,6 +83,21 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   cells expose current facts, and dungeon links/landmark entities stay hidden
   until visibility allows them. Phaser telemetry now reports `knownFacts` so QA
   can assert the fog-of-war contract instead of raw simulation-only state.
+- Phase 2 base-economy legibility is implemented in `add-domain`: resources now
+  project gain/s, spend/s, net/s, time-to-cap, time-to-afford, zero-production
+  reasons, current limiting resource, stalled systems, 1m/5m/30m wait forecasts,
+  and an offline-preview summary.
+- The ADD Base management surface now renders a compact economy overview plus
+  enriched resource cards so player-facing tabs explain both rates and blockers
+  without opening Admin.
+- `render_game_to_text` exposes the same base economy projection for automation.
+  The ADD smoke asserts forecast horizons, stalled-system reasons, and offline
+  preview copy.
+- Verification passed for `npm --workspace @aedventure/add-domain run build`,
+  `npm --workspace @aedventure/add-rpg run build`, `npm run smoke:add-rpg`, and
+  full `npm run check`. The generated base-management smoke screenshot was
+  visually inspected and showed readable limiter/forecast/stall copy without
+  overlap.
 - ADD Phaser fog rendering now uses a visual-only graphics layer above terrain
   and below landmarks. Hidden cells draw as dark silhouettes, discovered/stale
   cells get a muted overlay, visible cells render normally, and hidden-to-known

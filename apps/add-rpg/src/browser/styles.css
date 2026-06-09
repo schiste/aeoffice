@@ -943,6 +943,100 @@ h1 {
   line-height: 1.25;
 }
 
+.base-economy-overview {
+  display: grid;
+  gap: 7px;
+  border: 1px solid rgb(95 209 216 / 18%);
+  border-radius: 8px;
+  padding: 0.62rem;
+  background: rgb(11 17 16 / 34%);
+}
+
+.base-economy-limiter,
+.base-offline-preview {
+  display: grid;
+  gap: 0.18rem;
+  border-radius: 7px;
+  padding: 0.54rem 0.58rem;
+  background: rgb(255 244 201 / 6%);
+}
+
+.base-economy-limiter[data-active="true"] {
+  background: rgb(240 185 93 / 13%);
+  box-shadow: inset 3px 0 0 #f0b95d;
+}
+
+.base-economy-limiter > span,
+.base-economy-forecast > span,
+.base-offline-preview > span {
+  color: rgb(247 238 210 / 56%);
+  font-size: 0.6rem;
+  font-weight: 920;
+  text-transform: uppercase;
+}
+
+.base-economy-limiter > strong,
+.base-economy-forecast > strong {
+  color: #fff2bd;
+  font-size: 0.76rem;
+  font-weight: 920;
+  line-height: 1.16;
+}
+
+.base-economy-limiter > small,
+.base-economy-forecast > small,
+.base-offline-preview > small,
+.base-stalled-row > small,
+.base-affordability-note {
+  color: rgb(247 238 210 / 67%);
+  font-size: 0.63rem;
+  font-weight: 720;
+  line-height: 1.24;
+}
+
+.base-economy-forecast-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.base-economy-forecast {
+  display: grid;
+  min-width: 0;
+  gap: 0.16rem;
+  border-radius: 7px;
+  padding: 0.48rem 0.52rem;
+  background: rgb(95 209 216 / 8%);
+}
+
+.base-stalled-list {
+  display: grid;
+  gap: 5px;
+}
+
+.base-stalled-row {
+  display: grid;
+  gap: 0.12rem;
+  border-radius: 7px;
+  padding: 0.46rem 0.52rem;
+  background: rgb(255 244 201 / 6%);
+}
+
+.base-stalled-row[data-severity="warning"] {
+  background: rgb(240 185 93 / 12%);
+}
+
+.base-stalled-row[data-severity="danger"] {
+  background: rgb(200 101 75 / 15%);
+}
+
+.base-stalled-row > strong {
+  color: #fff2bd;
+  font-size: 0.68rem;
+  font-weight: 900;
+  line-height: 1.14;
+}
+
 .base-management-recommendation button {
   margin-top: 0.28rem;
   min-height: 2.2rem;
@@ -1002,6 +1096,23 @@ h1 {
   border-radius: 8px;
   padding: 0.62rem 0.68rem;
   background: rgb(255 244 201 / 7%);
+}
+
+.base-economy-line {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 0.24rem 0.42rem;
+  color: rgb(247 238 210 / 64%);
+  font-size: 0.62rem;
+  font-weight: 780;
+  line-height: 1.22;
+}
+
+.base-economy-line strong {
+  color: #c9fff9;
+  font-size: 0.62rem;
+  font-weight: 920;
 }
 
 .base-metric[data-severity="good"],
@@ -1901,6 +2012,10 @@ h1 {
 
   .base-management-tabs {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .base-economy-forecast-grid {
+    grid-template-columns: 1fr;
   }
 
   .base-metric-grid {

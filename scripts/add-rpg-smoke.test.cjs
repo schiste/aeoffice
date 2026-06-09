@@ -347,7 +347,19 @@ async function exerciseBaseManagementSurface(page, consoleErrors) {
       state.baseManagement?.tabIds?.includes("social") &&
       state.baseManagement?.tabIds?.includes("processing") &&
       state.baseManagement?.resourcePressure?.some((resource) => resource.id === "resource.bassline") &&
+      state.baseManagement?.resourcePressure?.every(
+        (resource) =>
+          typeof resource.gainPerSecond === "number" &&
+          typeof resource.spendPerSecond === "number" &&
+          typeof resource.netPerSecond === "number" &&
+          (resource.productionZeroReason === null ||
+            typeof resource.productionZeroReason === "string"),
+      ) &&
       state.baseManagement?.rolePressure?.some((role) => role.id === "role.crystal_bassline") &&
+      state.baseManagement?.economy?.waitForecasts?.length === 3 &&
+      state.baseManagement?.economy?.waitForecasts?.some((forecast) => forecast.label === "1m") &&
+      state.baseManagement?.economy?.waitForecasts?.some((forecast) => forecast.label === "5m") &&
+      state.baseManagement?.economy?.waitForecasts?.some((forecast) => forecast.label === "30m") &&
       typeof state.baseManagement?.recommendedAction?.label === "string" &&
       typeof state.baseManagement?.nextBottleneck?.label === "string",
     consoleErrors,
@@ -356,12 +368,32 @@ async function exerciseBaseManagementSurface(page, consoleErrors) {
   assert.ok(base.baseManagement.recommendedAction.kind.length > 0)
   assert.ok(base.baseManagement.resourcePressure.length >= 3)
   assert.ok(base.baseManagement.rolePressure.length >= 3)
+  assert.ok(base.baseManagement.economy.waitForecasts.length, "Base economy should forecast wait outcomes.")
+  assert.ok(
+    base.baseManagement.economy.stalledSystems.every(
+      (system) => typeof system.reason === "string" && system.reason.length > 0,
+    ),
+    "Every stalled base system should have a human-readable reason.",
+  )
+  assert.ok(
+    typeof base.baseManagement.economy.offlinePreview.summary === "string" &&
+      base.baseManagement.economy.offlinePreview.summary.length > 0,
+    "Base economy should expose an offline preview summary.",
+  )
 
   await page.locator("#base-management-panel").waitFor({ state: "visible" })
   const panelText = await page.locator("#base-management-panel").innerText()
   ;[
     "The Studio",
     "Recommended",
+    "Current limiter",
+    "Gain",
+    "Spend",
+    "Net",
+    "1m",
+    "5m",
+    "30m",
+    "Offline preview",
     "Crystal",
     "Build",
     "Power",
@@ -917,7 +949,10 @@ async function exerciseStudioTileDetailLinks(page, consoleErrors) {
       "ADD RPG Studio tile detail screenshot",
     )
 
-    await page.locator("#tile-detail-action-tile-action-base-tile-link-base-studio-echo").click()
+    await clickVisibleElementByDomId(
+      page,
+      "tile-detail-action-tile-action-base-tile-link-base-studio-echo",
+    )
     await waitForTextState(
       page,
       (state) =>
@@ -938,8 +973,7 @@ async function exerciseStudioTileDetailLinks(page, consoleErrors) {
       "add-rpg-studio-subtile-dungeon-entrance-smoke.png",
       "ADD RPG Studio subtile dungeon entrance screenshot",
     )
-    await studioDungeonEntrance.click({ trial: true })
-    await studioDungeonEntrance.click()
+    await clickVisibleElementByDomId(page, "enter-studio-dungeon")
     await waitForTextState(
       page,
       (state) =>
@@ -1017,7 +1051,7 @@ async function exerciseSurvivorCaveDungeonEntry(page, consoleErrors) {
     "The overworld action should invite the player into the Survivor Cave.",
   )
 
-  await page.locator("#enter-dungeon").click()
+  await clickVisibleElementByDomId(page, "enter-dungeon")
   const dungeon = await waitForTextState(
     page,
     (state) =>
@@ -1649,6 +1683,18 @@ async function clickUntilTextState(
         2,
       )}`,
   )
+}
+
+async function clickVisibleElementByDomId(page, id) {
+  const selector = `[id="${id}"]`
+  await page.locator(selector).waitFor({ state: "visible" })
+  await page.evaluate((targetId) => {
+    const element = document.getElementById(targetId)
+    if (!(element instanceof HTMLElement)) {
+      throw new Error(`Expected #${targetId} to be a visible HTMLElement.`)
+    }
+    element.click()
+  }, id)
 }
 
 async function renderGameToText(page) {

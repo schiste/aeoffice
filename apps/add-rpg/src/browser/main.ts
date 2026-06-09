@@ -7,6 +7,9 @@ import {
   RESOURCE_BASSLINE,
   RESOURCE_CHORUS,
   RESOURCE_HARMONICS,
+  RESOURCE_STONE,
+  RESOURCE_VIBES,
+  RESOURCE_WATER,
   ROLE_CONSTRUCTION,
   ROLE_CRYSTAL_BASSLINE,
   ROLE_CRYSTAL_CHORUS,
@@ -1084,6 +1087,7 @@ function baseManagementPanel(): unknown {
           <span>${section?.headline ?? state.subtitle}</span>
           <small>${section?.detail ?? state.nextBottleneck.detail}</small>
         </article>
+        ${() => baseEconomyOverview(state)}
         <div class="base-metric-grid">
           ${() => baseManagementMetricRows(section)}
         </div>
@@ -1124,6 +1128,72 @@ function baseManagementMetricRows(section: AddBaseManagementState["sections"][nu
       </span>
     `,
   )
+}
+
+function baseEconomyOverview(state: AddBaseManagementState): unknown {
+  const limiting = state.economy.limitingResource
+  const stalled = state.economy.stalledSystems.slice(0, 3)
+  return html`
+    <section class="base-economy-overview" aria-label="Economy forecast">
+      <article
+        id="base-economy-limiter"
+        class="base-economy-limiter"
+        data-active=${limiting ? "true" : "false"}
+      >
+        <span>Current limiter</span>
+        <strong>${limiting?.copy ?? "No hard resource blocker"}</strong>
+        <small>
+          ${limiting
+            ? limiting.timeToAffordSeconds === null
+              ? "Waiting will not solve this without changing assignments."
+              : `${formatEconomyDuration(limiting.timeToAffordSeconds)} at current net flow.`
+            : state.nextBottleneck.detail}
+        </small>
+      </article>
+      <div class="base-economy-forecast-grid" aria-label="Wait forecast">
+        ${() => state.economy.waitForecasts.map(baseEconomyForecastCard)}
+      </div>
+      ${stalled.length > 0
+        ? html`
+            <div class="base-stalled-list" aria-label="Stalled systems">
+              ${() => stalled.map(baseStalledSystemRow)}
+            </div>
+          `
+        : null}
+      <article class="base-offline-preview" data-enabled=${state.economy.offlinePreview.enabled ? "true" : "false"}>
+        <span>Offline preview</span>
+        <small>${state.economy.offlinePreview.summary}</small>
+      </article>
+    </section>
+  `
+}
+
+function baseEconomyForecastCard(forecast: AddBaseManagementState["economy"]["waitForecasts"][number]): unknown {
+  const shownDeltas = forecast.resourceDeltas
+    .filter((delta) => Math.abs(delta.delta) >= 0.001 || delta.capReached)
+    .slice(0, 3)
+  return html`
+    <article class="base-economy-forecast">
+      <span>${forecast.label}</span>
+      <strong>${forecast.summary}</strong>
+      <small>
+        ${shownDeltas.length > 0
+          ? shownDeltas
+              .map((delta) => `${delta.label} ${formatSignedResource(delta.delta)}`)
+              .join(" · ")
+          : "No material resource change."}
+      </small>
+    </article>
+  `
+}
+
+function baseStalledSystemRow(stalled: AddBaseManagementState["economy"]["stalledSystems"][number]): unknown {
+  return html`
+    <span class="base-stalled-row" data-severity=${stalled.severity}>
+      <strong>${stalled.label}</strong>
+      <small>${stalled.reason}</small>
+    </span>
+  `
 }
 
 function baseRecommendedActionButton(state: AddBaseManagementState): unknown {
@@ -1256,7 +1326,23 @@ function baseResourceRows(resources: readonly AddBaseManagementState["resources"
       <article class="base-management-card" data-pressure=${resource.capPressure}>
         <span>${resource.label}</span>
         <strong>${formatResource(resource.value)} / ${formatResource(resource.cap)}</strong>
-        <small>${signedRateCopy(resource.ratePerSecond)} · ${resource.blocker ?? resource.sink}</small>
+        <small>${resource.productionZeroReason ?? resource.blocker ?? resource.sink}</small>
+        <div class="base-economy-line">
+          <span>Gain ${formatResource(resource.gainPerSecond)}/s</span>
+          <span>Spend ${formatResource(resource.spendPerSecond)}/s</span>
+          <strong>Net ${signedRateCopy(resource.netPerSecond)}</strong>
+        </div>
+        <div class="base-economy-line">
+          <span>Cap ${formatResourceTime(resource.timeToCapSeconds)}</span>
+          <span>Afford ${formatAffordabilityTime(resource.nextAffordability)}</span>
+        </div>
+        ${resource.nextAffordability
+          ? html`
+              <small class="base-affordability-note">
+                ${resource.nextAffordability.reason}
+              </small>
+            `
+          : null}
       </article>
     `,
   )
@@ -3308,9 +3394,37 @@ function formatResource(value: number): string {
   return Number.isInteger(value) ? `${value}` : value.toFixed(1)
 }
 
+function formatSignedResource(value: number): string {
+  return `${value >= 0 ? "+" : "-"}${formatResource(Math.abs(value))}`
+}
+
 function signedRateCopy(value: number): string {
   if (Math.abs(value) < 0.001) return "steady"
   return `${value > 0 ? "+" : ""}${formatResource(value)}/s`
+}
+
+function formatResourceTime(seconds: number | null): string {
+  return seconds === null ? "stable" : formatEconomyDuration(seconds)
+}
+
+function formatAffordabilityTime(
+  affordability: AddBaseManagementState["resources"][number]["nextAffordability"],
+): string {
+  if (!affordability) return "ready"
+  return affordability.timeToAffordSeconds === null
+    ? "blocked"
+    : formatEconomyDuration(affordability.timeToAffordSeconds)
+}
+
+function formatEconomyDuration(seconds: number): string {
+  if (!Number.isFinite(seconds)) return "blocked"
+  if (seconds <= 0) return "now"
+  if (seconds < 60) return `${Math.ceil(seconds)}s`
+  const minutes = Math.ceil(seconds / 60)
+  if (minutes < 60) return `${minutes}m`
+  const hours = Math.floor(minutes / 60)
+  const remainder = minutes % 60
+  return remainder === 0 ? `${hours}h` : `${hours}h ${remainder}m`
 }
 
 function formatSignedRatioPercent(value: number): string {

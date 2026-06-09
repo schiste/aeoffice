@@ -393,9 +393,49 @@ export interface RuntimeTextState {
       readonly id: string
       readonly value: number
       readonly cap: number
+      readonly gainPerSecond: number
+      readonly spendPerSecond: number
+      readonly netPerSecond: number
       readonly capPressure: string
+      readonly timeToCapSeconds: number | null
+      readonly timeToAffordSeconds: number | null
+      readonly affordabilityTargetLabel: string | null
+      readonly productionZeroReason: string | null
       readonly blocker: string | null
     }[]
+    readonly economy: {
+      readonly limitingResource: {
+        readonly resourceId: string
+        readonly resourceLabel: string
+        readonly targetId: string
+        readonly targetLabel: string
+        readonly timeToAffordSeconds: number | null
+        readonly copy: string
+      } | null
+      readonly stalledSystems: readonly {
+        readonly id: string
+        readonly label: string
+        readonly reason: string
+        readonly severity: string
+        readonly relatedResourceId: string | null
+      }[]
+      readonly waitForecasts: readonly {
+        readonly label: string
+        readonly horizonSeconds: number
+        readonly summary: string
+        readonly resourceDeltas: readonly {
+          readonly id: string
+          readonly delta: number
+          readonly valueAfter: number
+          readonly capReached: boolean
+        }[]
+      }[]
+      readonly offlinePreview: {
+        readonly enabled: boolean
+        readonly summary: string
+        readonly caveat: string
+      }
+    }
     readonly rolePressure: readonly {
       readonly id: string
       readonly heroAssigned: boolean
@@ -807,9 +847,60 @@ function baseManagementTelemetry(
       id: resource.id,
       value: round2(resource.value),
       cap: round2(resource.cap),
+      gainPerSecond: round3(resource.gainPerSecond),
+      spendPerSecond: round3(resource.spendPerSecond),
+      netPerSecond: round3(resource.netPerSecond),
       capPressure: resource.capPressure,
+      timeToCapSeconds:
+        resource.timeToCapSeconds === null ? null : round2(resource.timeToCapSeconds),
+      timeToAffordSeconds:
+        resource.nextAffordability?.timeToAffordSeconds === undefined
+          ? null
+          : resource.nextAffordability.timeToAffordSeconds === null
+            ? null
+            : round2(resource.nextAffordability.timeToAffordSeconds),
+      affordabilityTargetLabel: resource.nextAffordability?.targetLabel ?? null,
+      productionZeroReason: resource.productionZeroReason,
       blocker: resource.blocker,
     })),
+    economy: {
+      limitingResource: state.economy.limitingResource
+        ? {
+            resourceId: state.economy.limitingResource.resourceId,
+            resourceLabel: state.economy.limitingResource.resourceLabel,
+            targetId: state.economy.limitingResource.targetId,
+            targetLabel: state.economy.limitingResource.targetLabel,
+            timeToAffordSeconds:
+              state.economy.limitingResource.timeToAffordSeconds === null
+                ? null
+                : round2(state.economy.limitingResource.timeToAffordSeconds),
+            copy: state.economy.limitingResource.copy,
+          }
+        : null,
+      stalledSystems: state.economy.stalledSystems.map((stalled) => ({
+        id: stalled.id,
+        label: stalled.label,
+        reason: stalled.reason,
+        severity: stalled.severity,
+        relatedResourceId: stalled.relatedResourceId,
+      })),
+      waitForecasts: state.economy.waitForecasts.map((forecast) => ({
+        label: forecast.label,
+        horizonSeconds: forecast.horizonSeconds,
+        summary: forecast.summary,
+        resourceDeltas: forecast.resourceDeltas.map((delta) => ({
+          id: delta.id,
+          delta: round2(delta.delta),
+          valueAfter: round2(delta.valueAfter),
+          capReached: delta.capReached,
+        })),
+      })),
+      offlinePreview: {
+        enabled: state.economy.offlinePreview.enabled,
+        summary: state.economy.offlinePreview.summary,
+        caveat: state.economy.offlinePreview.caveat,
+      },
+    },
     rolePressure: state.roles.map((role) => ({
       id: role.id,
       heroAssigned: role.heroAssigned,

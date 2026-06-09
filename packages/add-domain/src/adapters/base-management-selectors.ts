@@ -23,6 +23,7 @@ import {
   ROLE_SCAVENGE,
   ROLE_WATER,
 } from "./add-ids"
+import { BALANCE } from "../content/balance"
 import {
   selectAddConstructionSummaries,
   selectAddResourceSummaries,
@@ -50,11 +51,70 @@ export interface AddBaseManagementMetric {
 
 export interface AddBaseResourceManagementSummary extends AddResourceSummary {
   readonly ratePerSecond: number
+  readonly gainPerSecond: number
+  readonly spendPerSecond: number
+  readonly netPerSecond: number
   readonly capPressure: "empty" | "room" | "near_cap" | "full"
+  readonly timeToCapSeconds: number | null
+  readonly productionZeroReason: string | null
+  readonly nextAffordability: AddBaseResourceAffordability | null
 }
 
 export interface AddBaseRoleManagementSummary extends AddRoleAssignmentSummary {
   readonly slotPressure: "locked" | "empty" | "understaffed" | "staffed"
+}
+
+export interface AddBaseResourceAffordability {
+  readonly targetId: string
+  readonly targetLabel: string
+  readonly requiredAmount: number
+  readonly missingAmount: number
+  readonly timeToAffordSeconds: number | null
+  readonly reason: string
+}
+
+export interface AddBaseEconomyStalledSystem {
+  readonly id: string
+  readonly label: string
+  readonly reason: string
+  readonly severity: "info" | "warning" | "danger"
+  readonly relatedResourceId: string | null
+}
+
+export interface AddBaseEconomyLimitingResource {
+  readonly resourceId: string
+  readonly resourceLabel: string
+  readonly targetId: string
+  readonly targetLabel: string
+  readonly missingAmount: number
+  readonly timeToAffordSeconds: number | null
+  readonly copy: string
+}
+
+export interface AddBaseEconomyWaitForecast {
+  readonly horizonSeconds: number
+  readonly label: "1m" | "5m" | "30m"
+  readonly summary: string
+  readonly resourceDeltas: readonly {
+    readonly id: string
+    readonly label: string
+    readonly delta: number
+    readonly valueAfter: number
+    readonly capReached: boolean
+  }[]
+}
+
+export interface AddBaseEconomyOfflinePreview {
+  readonly enabled: boolean
+  readonly summary: string
+  readonly caveat: string
+}
+
+export interface AddBaseEconomyProjection {
+  readonly limitingResource: AddBaseEconomyLimitingResource | null
+  readonly stalledSystems: readonly AddBaseEconomyStalledSystem[]
+  readonly waitForecasts: readonly AddBaseEconomyWaitForecast[]
+  readonly offlinePreview: AddBaseEconomyOfflinePreview
 }
 
 export interface AddBaseStationManagementSummary {
@@ -102,6 +162,7 @@ export interface AddBaseManagementState {
   readonly construction: readonly AddConstructionSummary[]
   readonly stations: readonly AddBaseStationManagementSummary[]
   readonly processing: readonly AddBaseProcessingManagementSummary[]
+  readonly economy: AddBaseEconomyProjection
   readonly sections: readonly AddBaseManagementSection[]
   readonly activeConstruction: AddConstructionSummary | null
   readonly vibes: {
@@ -156,7 +217,7 @@ export function selectAddBaseManagementState(
   snapshot: SimulationSnapshot,
   catalog: CatalogSnapshot,
 ): AddBaseManagementState {
-  const resources = selectAddResourceSummaries(snapshot, catalog).map((resource) =>
+  let resources = selectAddResourceSummaries(snapshot, catalog).map((resource) =>
     baseResourceSummary(snapshot, resource),
   )
   const roles = selectAddRoleAssignmentSummaries(snapshot, catalog).map(baseRoleSummary)
@@ -169,11 +230,30 @@ export function selectAddBaseManagementState(
     .slice()
     .sort((left, right) => left.uiOrder - right.uiOrder)
     .map((recipe) => baseProcessingSummary(snapshot, catalog, recipe))
+  const affordabilityByResourceId = selectAffordabilityByResourceId(
+    snapshot,
+    catalog,
+    resources,
+    construction,
+    processing,
+  )
+  resources = resources.map((resource) => ({
+    ...resource,
+    nextAffordability: affordabilityByResourceId.get(resource.id) ?? null,
+  }))
   const activeConstruction =
     construction.find((option) => option.inProgress) ?? null
   const nextBottleneck = selectNextBottleneck(snapshot, resources, roles, construction, stations)
   const recommendedAction = selectRecommendedBaseAction(
     snapshot,
+    roles,
+    construction,
+    stations,
+    processing,
+  )
+  const economy = selectBaseEconomyProjection(
+    snapshot,
+    resources,
     roles,
     construction,
     stations,
@@ -190,6 +270,7 @@ export function selectAddBaseManagementState(
     construction,
     stations,
     processing,
+    economy,
     sections: baseSections({
       snapshot,
       resources,
@@ -243,9 +324,14 @@ function baseResourceSummary(
   resource: AddResourceSummary,
 ): AddBaseResourceManagementSummary {
   const ratio = resource.cap <= 0 ? 0 : resource.value / resource.cap
+  const flow = resourceFlow(snapshot, resource.id)
+  const netPerSecond = flow.gainPerSecond - flow.spendPerSecond
   return {
     ...resource,
-    ratePerSecond: resourceRatePerSecond(snapshot, resource.id),
+    ratePerSecond: netPerSecond,
+    gainPerSecond: flow.gainPerSecond,
+    spendPerSecond: flow.spendPerSecond,
+    netPerSecond,
     capPressure:
       ratio >= 1
         ? "full"
@@ -254,6 +340,12 @@ function baseResourceSummary(
           : ratio <= 0.05
             ? "empty"
             : "room",
+    timeToCapSeconds:
+      netPerSecond > 0 && resource.cap > resource.value
+        ? (resource.cap - resource.value) / netPerSecond
+        : null,
+    productionZeroReason: productionZeroReason(snapshot, resource, flow.gainPerSecond),
+    nextAffordability: null,
   }
 }
 
@@ -602,6 +694,394 @@ function selectRecommendedBaseAction(
   }
 }
 
+interface AddBaseAffordabilityTarget {
+  readonly id: string
+  readonly label: string
+  readonly cost: CostDef
+  readonly blockedReason: string | null
+}
+
+function selectAffordabilityByResourceId(
+  snapshot: SimulationSnapshot,
+  catalog: CatalogSnapshot,
+  resources: readonly AddBaseResourceManagementSummary[],
+  construction: readonly AddConstructionSummary[],
+  processing: readonly AddBaseProcessingManagementSummary[],
+): Map<string, AddBaseResourceAffordability> {
+  const resourceByIdMap = new Map(resources.map((resource) => [resource.id, resource]))
+  const result = new Map<string, AddBaseResourceAffordability>()
+  affordabilityTargets(snapshot, catalog, construction, processing).forEach((target) => {
+    missingCostItems(snapshot, target.cost).forEach((item) => {
+      if (result.has(item.resourceId)) return
+      const resource = resourceByIdMap.get(item.resourceId)
+      if (!resource) return
+      const timeToAffordSeconds =
+        resource.netPerSecond > 0 ? item.missingAmount / resource.netPerSecond : null
+      result.set(item.resourceId, {
+        targetId: target.id,
+        targetLabel: target.label,
+        requiredAmount: item.requiredAmount,
+        missingAmount: item.missingAmount,
+        timeToAffordSeconds,
+        reason:
+          target.blockedReason ??
+          `${resource.label} is blocking ${target.label}.`,
+      })
+    })
+  })
+  return result
+}
+
+function affordabilityTargets(
+  snapshot: SimulationSnapshot,
+  catalog: CatalogSnapshot,
+  construction: readonly AddConstructionSummary[],
+  processing: readonly AddBaseProcessingManagementSummary[],
+): readonly AddBaseAffordabilityTarget[] {
+  const constructionTargets = catalog.constructionOptions
+    .slice()
+    .sort((left, right) => left.uiOrder - right.uiOrder)
+    .flatMap((option) => {
+      const summary = construction.find((candidate) => candidate.id === option.id)
+      if (!summary || summary.complete || summary.inProgress) return []
+      if (!requirementsMet(snapshot, option.requirements)) return []
+      return [{ id: option.id, label: option.label, cost: option.cost, blockedReason: summary.blockedReason }]
+    })
+  const processingTargets = catalog.processingRecipes
+    .slice()
+    .sort((left, right) => left.uiOrder - right.uiOrder)
+    .flatMap((recipe) => {
+      const summary = processing.find((candidate) => candidate.id === recipe.id)
+      if (!summary || summary.inProgress || summary.level >= summary.maxLevel) return []
+      if (!requirementsMet(snapshot, recipe.requirements)) return []
+      return [{ id: recipe.id, label: recipe.label, cost: recipe.cost, blockedReason: summary.blockedReason }]
+    })
+  const recruitmentTargets =
+    snapshot.objectives.recruitmentEnabled && snapshot.base.freeBunks > 0
+      ? [
+          {
+            id: "recruit:survivor_cave",
+            label: "Recruit Survivor",
+            cost: {
+              kind: "upfront" as const,
+              resource_id: RESOURCE_VIBES,
+              amount: snapshot.recruitment.nextRecruitCost,
+            },
+            blockedReason:
+              snapshot.resources.vibes >= snapshot.recruitment.nextRecruitCost
+                ? null
+                : "Vibes are blocking recruitment.",
+          },
+        ]
+      : []
+  return [...constructionTargets, ...processingTargets, ...recruitmentTargets]
+}
+
+function missingCostItems(
+  snapshot: SimulationSnapshot,
+  cost: CostDef,
+): readonly { readonly resourceId: string; readonly requiredAmount: number; readonly missingAmount: number }[] {
+  switch (cost.kind) {
+    case "upfront": {
+      const resourceId = cost.resource_id
+      const requiredAmount = cost.amount ?? 0
+      if (!resourceId || !resourceId.startsWith("resource.")) return []
+      const missingAmount = Math.max(0, requiredAmount - resourceValue(snapshot, resourceId))
+      return missingAmount > 0 ? [{ resourceId, requiredAmount, missingAmount }] : []
+    }
+    case "upfront_bundle":
+      return (
+        cost.costs
+          ?.filter((item) => item.item_id.startsWith("resource."))
+          .map((item) => ({
+            resourceId: item.item_id,
+            requiredAmount: item.amount,
+            missingAmount: Math.max(0, item.amount - resourceValue(snapshot, item.item_id)),
+          }))
+          .filter((item) => item.missingAmount > 0) ?? []
+      )
+    case "drain_per_worker_second":
+    case "time_only":
+      return []
+  }
+}
+
+function selectBaseEconomyProjection(
+  snapshot: SimulationSnapshot,
+  resources: readonly AddBaseResourceManagementSummary[],
+  roles: readonly AddBaseRoleManagementSummary[],
+  construction: readonly AddConstructionSummary[],
+  stations: readonly AddBaseStationManagementSummary[],
+  processing: readonly AddBaseProcessingManagementSummary[],
+): AddBaseEconomyProjection {
+  const limitingResource = selectLimitingResource(resources)
+  return {
+    limitingResource,
+    stalledSystems: selectStalledSystems(snapshot, resources, roles, construction, stations, processing),
+    waitForecasts: [60, 300, 1800].map((seconds) =>
+      waitForecast(resources, limitingResource, seconds),
+    ),
+    offlinePreview: {
+      enabled: true,
+      summary: limitingResource
+        ? `Offline preview will track whether ${limitingResource.resourceLabel} catches up for ${limitingResource.targetLabel}.`
+        : "Offline preview will use current resource flow to estimate what changes while away.",
+      caveat: "Preview uses current rates; the Rust/WASM runtime remains authoritative on reload.",
+    },
+  }
+}
+
+function selectLimitingResource(
+  resources: readonly AddBaseResourceManagementSummary[],
+): AddBaseEconomyLimitingResource | null {
+  const resource = resources.find((candidate) => candidate.nextAffordability)
+  const affordability = resource?.nextAffordability
+  if (!resource || !affordability) return null
+  return {
+    resourceId: resource.id,
+    resourceLabel: resource.label,
+    targetId: affordability.targetId,
+    targetLabel: affordability.targetLabel,
+    missingAmount: affordability.missingAmount,
+    timeToAffordSeconds: affordability.timeToAffordSeconds,
+    copy:
+      affordability.timeToAffordSeconds === null
+        ? `${resource.label} is blocking ${affordability.targetLabel}. ${resource.productionZeroReason ?? "Production is stalled."}`
+        : `${resource.label} is blocking ${affordability.targetLabel}; ${formatDuration(affordability.timeToAffordSeconds)} at current flow.`,
+  }
+}
+
+function selectStalledSystems(
+  snapshot: SimulationSnapshot,
+  resources: readonly AddBaseResourceManagementSummary[],
+  roles: readonly AddBaseRoleManagementSummary[],
+  construction: readonly AddConstructionSummary[],
+  stations: readonly AddBaseStationManagementSummary[],
+  processing: readonly AddBaseProcessingManagementSummary[],
+): readonly AddBaseEconomyStalledSystem[] {
+  const stalledResources: AddBaseEconomyStalledSystem[] = resources.flatMap<AddBaseEconomyStalledSystem>((resource) =>
+    resource.productionZeroReason
+      ? [
+          {
+            id: `resource:${resource.id}`,
+            label: resource.label,
+            reason: resource.productionZeroReason,
+            severity: resource.capPressure === "full" ? "warning" as const : "info" as const,
+            relatedResourceId: resource.id,
+          },
+        ]
+      : [],
+  )
+  const stalledRoles: AddBaseEconomyStalledSystem[] = roles.flatMap<AddBaseEconomyStalledSystem>((role) =>
+    role.available && role.slotPressure === "empty"
+      ? [
+          {
+            id: `role:${role.id}`,
+            label: role.label,
+            reason: `${role.label} has no crew assigned.`,
+            severity: "info" as const,
+            relatedResourceId: resourceForRole(role.id),
+          },
+        ]
+      : role.lockedReason
+        ? [
+            {
+              id: `role:${role.id}`,
+              label: role.label,
+              reason: role.lockedReason,
+              severity: "warning" as const,
+              relatedResourceId: resourceForRole(role.id),
+            },
+          ]
+        : [],
+  )
+  const stalledConstruction: AddBaseEconomyStalledSystem[] = construction.flatMap<AddBaseEconomyStalledSystem>((option) =>
+    !option.complete && !option.inProgress && option.blockedReason
+      ? [
+          {
+            id: `construction:${option.id}`,
+            label: option.label,
+            reason: option.blockedReason,
+            severity: "warning" as const,
+            relatedResourceId: resourceIdFromCopy(option.blockedReason),
+          },
+        ]
+      : [],
+  )
+  const stalledStations: AddBaseEconomyStalledSystem[] = stations.flatMap<AddBaseEconomyStalledSystem>((station) =>
+    station.requestedEnabled && !station.powered
+      ? [
+          {
+            id: `station:${station.id}`,
+            label: station.label,
+            reason: station.blockedReason ?? `${station.label} is requested but not powered.`,
+            severity: "danger" as const,
+            relatedResourceId: RESOURCE_CHORUS,
+          },
+        ]
+      : station.blockedReason
+        ? [
+            {
+              id: `station:${station.id}`,
+              label: station.label,
+              reason: station.blockedReason,
+              severity: "warning" as const,
+              relatedResourceId: RESOURCE_CHORUS,
+            },
+          ]
+        : [],
+  )
+  const stalledProcessing: AddBaseEconomyStalledSystem[] = processing.flatMap<AddBaseEconomyStalledSystem>((recipe) =>
+    !recipe.inProgress && !recipe.enabled && recipe.blockedReason && recipe.blockedReason !== "Complete."
+      ? [
+          {
+            id: `processing:${recipe.id}`,
+            label: recipe.label,
+            reason: recipe.blockedReason,
+            severity: "warning" as const,
+            relatedResourceId: resourceIdFromCopy(recipe.blockedReason),
+          },
+        ]
+      : [],
+  )
+  const recruitmentStall = recruitmentStallReason(snapshot)
+  return [
+    ...stalledResources,
+    ...stalledRoles,
+    ...stalledConstruction,
+    ...stalledStations,
+    ...stalledProcessing,
+    ...(recruitmentStall
+      ? [
+          {
+            id: "recruitment",
+            label: "Recruitment",
+            reason: recruitmentStall.reason,
+            severity: recruitmentStall.severity,
+            relatedResourceId: recruitmentStall.relatedResourceId,
+          },
+        ]
+      : []),
+  ]
+}
+
+function waitForecast(
+  resources: readonly AddBaseResourceManagementSummary[],
+  limitingResource: AddBaseEconomyLimitingResource | null,
+  horizonSeconds: number,
+): AddBaseEconomyWaitForecast {
+  const resourceDeltas = resources.map((resource) => {
+    const rawValueAfter = resource.value + resource.netPerSecond * horizonSeconds
+    const valueAfter = Math.max(0, resource.cap > 0 ? Math.min(resource.cap, rawValueAfter) : rawValueAfter)
+    return {
+      id: resource.id,
+      label: resource.label,
+      delta: valueAfter - resource.value,
+      valueAfter,
+      capReached: resource.cap > 0 && valueAfter >= resource.cap,
+    }
+  })
+  const limitingDelta = limitingResource
+    ? resourceDeltas.find((delta) => delta.id === limitingResource.resourceId)
+    : null
+  return {
+    horizonSeconds,
+    label: horizonSeconds === 60 ? "1m" : horizonSeconds === 300 ? "5m" : "30m",
+    summary:
+      limitingResource && limitingDelta
+        ? waitForecastLimitingCopy(limitingResource, limitingDelta, horizonSeconds)
+        : waitForecastGeneralCopy(resourceDeltas),
+    resourceDeltas,
+  }
+}
+
+function waitForecastLimitingCopy(
+  limitingResource: AddBaseEconomyLimitingResource,
+  delta: AddBaseEconomyWaitForecast["resourceDeltas"][number],
+  horizonSeconds: number,
+): string {
+  if (delta.delta >= limitingResource.missingAmount) {
+    return `${limitingResource.targetLabel} becomes affordable within ${formatDuration(horizonSeconds)}.`
+  }
+  const stillMissing = limitingResource.missingAmount - Math.max(0, delta.delta)
+  return `${formatAmount(stillMissing)} ${limitingResource.resourceLabel} still missing after ${formatDuration(horizonSeconds)}.`
+}
+
+function waitForecastGeneralCopy(
+  deltas: readonly AddBaseEconomyWaitForecast["resourceDeltas"][number][],
+): string {
+  const best = deltas
+    .filter((delta) => delta.delta > 0)
+    .sort((left, right) => right.delta - left.delta)[0]
+  if (!best) return "No resource stock improves at current assignments."
+  return `${best.label} changes most: ${formatSignedAmount(best.delta)}.`
+}
+
+function recruitmentStallReason(snapshot: SimulationSnapshot): {
+  readonly reason: string
+  readonly severity: "info" | "warning" | "danger"
+  readonly relatedResourceId: string | null
+} | null {
+  if (!snapshot.objectives.recruitmentEnabled) {
+    return {
+      reason: "Recruitment is locked until the Survivor Cave is inside the bubble.",
+      severity: "warning",
+      relatedResourceId: RESOURCE_BASSLINE,
+    }
+  }
+  if (snapshot.base.missingBunks > 0 || snapshot.base.freeBunks <= 0) {
+    return {
+      reason: "Recruitment is blocked by bunks.",
+      severity: "danger",
+      relatedResourceId: null,
+    }
+  }
+  if (snapshot.recruitment.pendingRecruits.length > 0) {
+    return {
+      reason: "A recruit is already traveling to the Base.",
+      severity: "info",
+      relatedResourceId: null,
+    }
+  }
+  if (snapshot.resources.vibes < snapshot.recruitment.nextRecruitCost) {
+    return {
+      reason: `Need ${formatAmount(snapshot.recruitment.nextRecruitCost)} Vibes to recruit.`,
+      severity: "warning",
+      relatedResourceId: RESOURCE_VIBES,
+    }
+  }
+  return null
+}
+
+function resourceForRole(roleId: string): string | null {
+  switch (roleId) {
+    case ROLE_CRYSTAL_BASSLINE:
+      return RESOURCE_BASSLINE
+    case ROLE_CRYSTAL_CHORUS:
+      return RESOURCE_CHORUS
+    case ROLE_CRYSTAL_HARMONICS:
+      return RESOURCE_HARMONICS
+    case ROLE_SCAVENGE:
+      return RESOURCE_STONE
+    case ROLE_WATER:
+      return RESOURCE_WATER
+    case ROLE_FIRE_PIT:
+      return RESOURCE_VIBES
+    default:
+      return null
+  }
+}
+
+function resourceIdFromCopy(copy: string): string | null {
+  if (copy.includes("Bassline")) return RESOURCE_BASSLINE
+  if (copy.includes("Chorus")) return RESOURCE_CHORUS
+  if (copy.includes("Harmonics")) return RESOURCE_HARMONICS
+  if (copy.includes("Stone")) return RESOURCE_STONE
+  if (copy.includes("Water")) return RESOURCE_WATER
+  if (copy.includes("Vibes")) return RESOURCE_VIBES
+  return null
+}
+
 function requirementsMet(
   snapshot: SimulationSnapshot,
   requirements: readonly RequirementDef[],
@@ -677,22 +1157,148 @@ function affordabilityBlockerForCost(snapshot: SimulationSnapshot, cost: CostDef
   }
 }
 
-function resourceRatePerSecond(snapshot: SimulationSnapshot, resourceId: string): number {
+function resourceFlow(
+  snapshot: SimulationSnapshot,
+  resourceId: string,
+): { readonly gainPerSecond: number; readonly spendPerSecond: number } {
+  const constructionSpend = constructionSpendPerSecond(snapshot, resourceId)
   switch (resourceId) {
     case RESOURCE_BASSLINE:
-      return snapshot.power.basslineGenerationPerSecond
+      return {
+        gainPerSecond: cappedGain(
+          snapshot.power.basslineGenerationPerSecond,
+          snapshot.resources.bassline,
+          snapshot.resources.basslineCap,
+        ),
+        spendPerSecond: constructionSpend,
+      }
     case RESOURCE_CHORUS:
-      return snapshot.power.chorusGenerationPerSecond - snapshot.power.activeUpkeepPerSecond
+      return {
+        gainPerSecond: cappedGain(
+          snapshot.power.chorusGenerationPerSecond,
+          snapshot.resources.chorus,
+          snapshot.resources.chorusCap,
+        ),
+        spendPerSecond: snapshot.power.activeUpkeepPerSecond + constructionSpend,
+      }
     case RESOURCE_HARMONICS:
-      return snapshot.power.harmonicsGenerationPerSecond
+      return {
+        gainPerSecond: cappedGain(
+          snapshot.power.harmonicsGenerationPerSecond,
+          snapshot.resources.harmonics,
+          snapshot.resources.harmonicsCap,
+        ),
+        spendPerSecond: constructionSpend,
+      }
     case RESOURCE_STONE:
-      return roleCrew(snapshot, ROLE_SCAVENGE) > 0 ? snapshot.resources.baseStoneStock : 0
+      return {
+        gainPerSecond: cappedGain(
+          stoneGainPerSecond(snapshot),
+          snapshot.resources.stone,
+          snapshot.resources.stoneCap,
+        ),
+        spendPerSecond: constructionSpend,
+      }
     case RESOURCE_WATER:
-      return roleCrew(snapshot, ROLE_WATER) > 0 ? snapshot.resources.baseWaterStock : 0
+      return {
+        gainPerSecond: cappedGain(
+          waterGainPerSecond(snapshot),
+          snapshot.resources.water,
+          snapshot.resources.waterCap,
+        ),
+        spendPerSecond: constructionSpend,
+      }
     case RESOURCE_VIBES:
-      return snapshot.base.firePitBuilt ? Math.max(0, roleCrew(snapshot, ROLE_FIRE_PIT)) : 0
+      return {
+        gainPerSecond: cappedGain(
+          vibesGainPerSecond(snapshot),
+          snapshot.resources.vibes,
+          snapshot.resources.vibesCap,
+        ),
+        spendPerSecond: snapshot.base.effectiveBadVibesRate + constructionSpend,
+      }
     default:
-      return 0
+      return { gainPerSecond: 0, spendPerSecond: 0 }
+  }
+}
+
+function constructionSpendPerSecond(snapshot: SimulationSnapshot, resourceId: string): number {
+  const job = snapshot.activeConstruction
+  if (!job || job.resourceId !== resourceId) return 0
+  return effectiveRoleWorkers(snapshot, ROLE_CONSTRUCTION) * job.perWorkerCostPerSecond
+}
+
+function cappedGain(gainPerSecond: number, value: number, cap: number): number {
+  return cap > 0 && value >= cap ? 0 : Math.max(0, gainPerSecond)
+}
+
+function stoneGainPerSecond(snapshot: SimulationSnapshot): number {
+  const workers = effectiveRoleWorkers(snapshot, ROLE_SCAVENGE)
+  if (workers <= 0) return 0
+  return snapshot.resources.baseStoneStock > 0
+    ? BALANCE.scavenge.stockRatePerSecond * workers
+    : BALANCE.scavenge.ambientRatePerSecond * workers
+}
+
+function waterGainPerSecond(snapshot: SimulationSnapshot): number {
+  if (!snapshot.base.waterCollectionUnlocked) return 0
+  const workers = effectiveRoleWorkers(snapshot, ROLE_WATER)
+  if (workers <= 0 || snapshot.resources.baseWaterStock <= 0) return 0
+  return BALANCE.water.collectionRatePerSecond * workers
+}
+
+function vibesGainPerSecond(snapshot: SimulationSnapshot): number {
+  if (!snapshot.base.firePitBuilt) return 0
+  return (
+    BALANCE.firePit.baseVibesPerSecond +
+    effectiveRoleWorkers(snapshot, ROLE_FIRE_PIT) * BALANCE.firePit.staffVibesPerSecond
+  )
+}
+
+function effectiveRoleWorkers(snapshot: SimulationSnapshot, roleId: string): number {
+  const crewWorkers = roleCrew(snapshot, roleId) * snapshot.base.crewEfficiencyMultiplier
+  const heroWorker =
+    snapshot.roster.heroAssigned && snapshot.roster.heroRoleId === roleId
+      ? snapshot.base.crewEfficiencyMultiplier * snapshot.heroSurvival.workEfficiencyMultiplier
+      : 0
+  return crewWorkers + heroWorker
+}
+
+function productionZeroReason(
+  snapshot: SimulationSnapshot,
+  resource: AddResourceSummary,
+  gainPerSecond: number,
+): string | null {
+  if (gainPerSecond > 0) return null
+  if (resource.value >= resource.cap && resource.cap > 0) {
+    return `${resource.label} is full. More production is currently wasted.`
+  }
+  if (resource.blocker) return resource.blocker
+  switch (resource.id) {
+    case RESOURCE_BASSLINE:
+      return "Assign Hero or crew to Crystal Bassline to generate Bassline."
+    case RESOURCE_CHORUS:
+      return snapshot.base.studioRestored
+        ? "Assign Hero or crew to Crystal Chorus to generate Chorus."
+        : "Restore the Studio to unlock Chorus."
+    case RESOURCE_HARMONICS:
+      return snapshot.base.resonanceChamberBuilt
+        ? "Assign Hero or crew to Crystal Harmonics to generate Harmonics."
+        : "Build the Resonance Chamber to unlock Harmonics."
+    case RESOURCE_STONE:
+      return roleCrew(snapshot, ROLE_SCAVENGE) > 0 || snapshot.roster.heroRoleId === ROLE_SCAVENGE
+        ? "Stone storage or local stock is blocking Scavenge output."
+        : "Assign Scavenge crew or Hero to gather Stone."
+    case RESOURCE_WATER:
+      if (!snapshot.base.waterCollectionUnlocked) return "Explore the Base to unlock water collection."
+      if (snapshot.resources.baseWaterStock <= 0) return "Base water stock is empty and must regenerate."
+      return "Assign Water crew or Hero to collect Water."
+    case RESOURCE_VIBES:
+      return snapshot.base.firePitBuilt
+        ? "Fire Pit is active, but Bad Vibes are canceling current Vibes gain."
+        : "Build the Fire Pit to generate Vibes."
+    default:
+      return "No current production source is active."
   }
 }
 
@@ -840,6 +1446,20 @@ function formatSignedRate(value: number): string {
   return `${value >= 0 ? "+" : ""}${formatRate(value)}`
 }
 
+function formatSignedAmount(value: number): string {
+  return `${value >= 0 ? "+" : ""}${formatAmount(value)}`
+}
+
 function formatAmount(value: number): string {
   return Number.isInteger(value) ? `${value}` : value.toFixed(1)
+}
+
+function formatDuration(seconds: number): string {
+  if (!Number.isFinite(seconds)) return "unknown time"
+  if (seconds < 60) return `${Math.ceil(seconds)}s`
+  const minutes = Math.ceil(seconds / 60)
+  if (minutes < 60) return `${minutes}m`
+  const hours = Math.floor(minutes / 60)
+  const remainderMinutes = minutes % 60
+  return remainderMinutes > 0 ? `${hours}h ${remainderMinutes}m` : `${hours}h`
 }
