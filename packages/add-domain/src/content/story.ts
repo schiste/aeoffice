@@ -111,4 +111,19 @@ export const STORY_BEATS: readonly StoryBeatDef[] = [
     relatedIds: ["resource.chorus", "resource.harmonics", "ui.panel.power", "ui.panel.base"],
     preconditions: [beatDone("story.beat.await_survivor_arrival")], autoCompleteWhen: NONE, priority: 0, repeatable: false,
   },
+  // A reactive, OPTIONAL side-storylet: not on the spine at all. Its high priority
+  // means it interrupts whatever beat is active the moment the Hero is caught
+  // outside the bubble (after onboarding). Pure emergence — the engine surfaces it
+  // from game state, not a scripted sequence; it resolves once the player steadies.
+  {
+    id: "story.beat.hero_exposed", schemaId: "story.beat.hero_exposed", label: "Exposed",
+    body: "Outside the bubble the static leans in. Every second out here is borrowed — the road back is the only safe direction.",
+    arc: "ambient", sequence: 1000, worldActionId: null,
+    choices: [
+      { id: "story.choice.exposed.steady", label: "Steady yourself and press on", response: "You fix your eyes on the field's edge and keep moving. Fear, at least, is a kind of focus.", effects: [{ kind: "add_quality", key: "resolve", amount: 1 }] },
+    ],
+    relatedIds: ["story.beat.explore_base"],
+    preconditions: [{ kind: "hero_outside_bubble" }, beatDone("story.beat.explore_base")],
+    autoCompleteWhen: NONE, priority: 100, repeatable: false,
+  },
 ]

@@ -2652,6 +2652,24 @@ export const ENTITY_SCHEMAS: readonly Omit<EntitySchemaDef, "presentation" | "vi
     ]
   },
   {
+    "id": "story.beat.hero_exposed",
+    "entityKind": "story_beat",
+    "persistence": {
+      "scope": "content",
+      "tuningAffinity": "untuned",
+      "resetsOnTuning": false
+    },
+    "unlocks": [],
+    "blockers": [],
+    "accessRules": [],
+    "power": null,
+    "flows": [],
+    "modelRefs": [],
+    "notes": [
+      "Reactive ambient storylet: interrupts the active beat when the Hero is caught outside the bubble after onboarding."
+    ]
+  },
+  {
     "id": "story.beat.first_glimpse",
     "entityKind": "story_beat",
     "persistence": {

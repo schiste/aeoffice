@@ -64,7 +64,8 @@ mod tests {
             STATION_CRYSTAL_CIRCLE, STATION_FIRE_PIT, STATION_MIX_CONSOLE, STATION_RESEARCH_BOOTH,
             STATION_RESONANCE_CHAMBER, STATION_WORKSHOP, STORY_BEAT_AWAIT_SURVIVOR_ARRIVAL,
             STORY_BEAT_BUILD_FIRE_PIT, STORY_BEAT_ENTER_THE_BUBBLE, STORY_BEAT_EXPLORE_BASE,
-            STORY_BEAT_FIRST_GLIMPSE, STORY_BEAT_FIRST_RECRUIT, STORY_BEAT_INVESTIGATE_BASE,
+            STORY_BEAT_FIRST_GLIMPSE, STORY_BEAT_FIRST_RECRUIT, STORY_BEAT_HERO_EXPOSED,
+            STORY_BEAT_INVESTIGATE_BASE,
             STORY_BEAT_REACH_SURVIVOR_CAVE, STORY_BEAT_RESTORE_STUDIO, STORY_BEAT_ROAD_TO_BASE,
             STORY_BEAT_STABILIZE_BASE, STRUCTURE_BASE, STRUCTURE_CAVE, STRUCTURE_CRYSTAL_CIRCLE,
             TILE_BASE_CORE, TILE_MOUNTAIN_WALL, TILE_SURVIVOR_CAVE, WORLD_ACTION_EXPLORE_BASE,
@@ -1926,5 +1927,38 @@ mod tests {
         ]);
         sim.refresh_narrative_state();
         assert_eq!(sim.quality("hope"), 1);
+    }
+
+    #[test]
+    fn reactive_storylet_interrupts_when_hero_exposed() {
+        let mut state = GameState::new();
+        // Past onboarding, and the Hero is caught outside the bubble.
+        state.hero_survival.location = HeroLocationState::OutsideBubble;
+        state.narrative.completed_beat_ids = vec![
+            STORY_BEAT_ROAD_TO_BASE.to_string(),
+            STORY_BEAT_FIRST_GLIMPSE.to_string(),
+            STORY_BEAT_ENTER_THE_BUBBLE.to_string(),
+            STORY_BEAT_INVESTIGATE_BASE.to_string(),
+            STORY_BEAT_EXPLORE_BASE.to_string(),
+        ];
+        let mut sim = Simulation::from_state(state);
+        sim.refresh_narrative_state();
+        // The off-spine, high-priority reactive storylet interrupts whatever beat
+        // would otherwise be active — pure emergence from game state.
+        assert_eq!(
+            sim.state().narrative.active_beat_id.as_deref(),
+            Some(STORY_BEAT_HERO_EXPOSED)
+        );
+
+        // Resolving it applies the choice effect and hands the spine back.
+        sim.apply(GameCommand::ChooseStoryOption {
+            beat_id: STORY_BEAT_HERO_EXPOSED.to_string(),
+            option_id: "story.choice.exposed.steady".to_string(),
+        });
+        assert_eq!(sim.quality("resolve"), 1);
+        assert_ne!(
+            sim.state().narrative.active_beat_id.as_deref(),
+            Some(STORY_BEAT_HERO_EXPOSED)
+        );
     }
 }

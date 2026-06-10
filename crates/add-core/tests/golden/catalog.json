@@ -1400,6 +1400,25 @@
         "ui.panel.power",
         "ui.panel.base"
       ]
+    },
+    {
+      "id": "story.beat.hero_exposed",
+      "schemaId": "story.beat.hero_exposed",
+      "label": "Exposed",
+      "body": "Outside the bubble the static leans in. Every second out here is borrowed — the road back is the only safe direction.",
+      "arc": "ambient",
+      "sequence": 1000,
+      "worldActionId": null,
+      "choices": [
+        {
+          "id": "story.choice.exposed.steady",
+          "label": "Steady yourself and press on",
+          "response": "You fix your eyes on the field's edge and keep moving. Fear, at least, is a kind of focus."
+        }
+      ],
+      "relatedIds": [
+        "story.beat.explore_base"
+      ]
     }
   ],
   "flags": [
@@ -5256,6 +5275,40 @@
         "anyOf": [
           {
             "kind": "always"
+          }
+        ]
+      }
+    },
+    {
+      "id": "story.beat.hero_exposed",
+      "entityKind": "story_beat",
+      "persistence": {
+        "scope": "content",
+        "tuningAffinity": "untuned",
+        "resetsOnTuning": false
+      },
+      "unlocks": [],
+      "blockers": [],
+      "accessRules": [],
+      "power": null,
+      "flows": [],
+      "modelRefs": [],
+      "notes": [
+        "Reactive ambient storylet: interrupts the active beat when the Hero is caught outside the bubble after onboarding."
+      ],
+      "presentation": {
+        "shortLabel": "Exposed",
+        "playerHint": "A reactive moment that interrupts when the Hero is caught outside the bubble.",
+        "ctaCopy": null,
+        "primaryRiskCopy": null,
+        "displayPriority": 555,
+        "reveal": "default"
+      },
+      "visibility": {
+        "allOf": [],
+        "anyOf": [
+          {
+            "kind": "hero_outside_bubble"
           }
         ]
       }

@@ -85,6 +85,7 @@ pub const STORY_BEAT_REACH_SURVIVOR_CAVE: &str = "story.beat.reach_survivor_cave
 pub const STORY_BEAT_FIRST_RECRUIT: &str = "story.beat.first_recruit";
 pub const STORY_BEAT_AWAIT_SURVIVOR_ARRIVAL: &str = "story.beat.await_survivor_arrival";
 pub const STORY_BEAT_STABILIZE_BASE: &str = "story.beat.stabilize_base";
+pub const STORY_BEAT_HERO_EXPOSED: &str = "story.beat.hero_exposed";
 
 pub const INTRO_STORY_BEAT_IDS: &[&str] = &[
     STORY_BEAT_ROAD_TO_BASE,
@@ -1596,6 +1597,11 @@ const ENTITY_VISIBILITY: &[EntityVisibilityDef] = &[
         any_of: &[VisibilityConditionDef::Always],
     },
     EntityVisibilityDef {
+        id: STORY_BEAT_HERO_EXPOSED,
+        all_of: &[],
+        any_of: &[VisibilityConditionDef::HeroOutsideBubble],
+    },
+    EntityVisibilityDef {
         id: STORY_BEAT_FIRST_GLIMPSE,
         all_of: &[],
         any_of: &[VisibilityConditionDef::Always],
@@ -2100,6 +2106,15 @@ const ENTITY_PRESENTATIONS: &[EntityPresentationDef] = &[
         id: STORY_BEAT_ROAD_TO_BASE,
         short_label: "Road to Base",
         player_hint: "Sets up the arrival path before the player reaches the sanctuary.",
+        cta_copy: None,
+        primary_risk_copy: None,
+        display_priority: 555,
+        reveal: PresentationReveal::Default,
+    },
+    EntityPresentationDef {
+        id: STORY_BEAT_HERO_EXPOSED,
+        short_label: "Exposed",
+        player_hint: "A reactive moment that interrupts when the Hero is caught outside the bubble.",
         cta_copy: None,
         primary_risk_copy: None,
         display_priority: 555,
