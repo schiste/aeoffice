@@ -611,6 +611,36 @@ pub enum RequirementDef {
     FlagUnset(&'static str),
 }
 
+/// A condition over game state — the unified gating vocabulary, evaluated by
+/// `Simulation::evaluate_condition`. Supersets `RequirementDef` (flags) and the
+/// UI-only `VisibilityConditionDef`, and adds numeric comparisons + boolean
+/// combinators so storylet preconditions can react to arbitrary state.
+// P1 substrate: most variants are constructed by codegen'd storylet content in
+// P2; until then they are only matched in the evaluator.
+#[allow(dead_code)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Condition {
+    Always,
+    FlagSet(&'static str),
+    FlagUnset(&'static str),
+    /// True when the named resource pool currently holds at least `amount`.
+    ResourceAtLeast { resource_id: &'static str, amount: f64 },
+    BubbleReachAtLeast(u8),
+    ClockSecondsAtLeast(f64),
+    /// True when the narrative quality `key` is at least `value` (default 0).
+    QualityAtLeast { key: &'static str, value: i64 },
+    BeatCompleted(&'static str),
+    ChoiceMade { beat_id: &'static str, option_id: &'static str },
+    RoleAvailable(&'static str),
+    RecruitmentEnabled,
+    HeroOutsideBubble,
+    HeroForcedReturn,
+    HeroRecovering,
+    All(&'static [Condition]),
+    Any(&'static [Condition]),
+    Not(&'static Condition),
+}
+
 #[derive(Debug, Clone, Copy, Serialize, PartialEq)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum EffectDef {
@@ -619,6 +649,16 @@ pub enum EffectDef {
     AddSkins { amount: u16 },
     IncrementCrystalTrack { track: CrystalTrack, amount: u8 },
     IncrementProcessingTrack { track: ProcessingTrack, amount: u8 },
+    /// Add `amount` of a resource (capped). Narrative/storylet effects.
+    GrantResource { resource_id: &'static str, amount: f64 },
+    SpendResource { resource_id: &'static str, amount: f64 },
+    /// Set / add to a narrative quality (arbitrary author-defined story state).
+    SetQuality { key: &'static str, value: i64 },
+    AddQuality { key: &'static str, amount: i64 },
+    /// Mark a story beat complete directly (used by storylet onComplete).
+    CompleteBeat { beat_id: &'static str },
+    /// Push a line into the run log.
+    Note { text: &'static str },
 }
 
 #[derive(Debug, Clone, Copy, Serialize, PartialEq)]

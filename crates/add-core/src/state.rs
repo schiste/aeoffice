@@ -381,6 +381,11 @@ pub struct NarrativeState {
     pub active_beat_id: Option<String>,
     pub completed_beat_ids: Vec<String>,
     pub choice_by_beat: BTreeMap<String, String>,
+    /// Arbitrary author-defined story variables (trust, suspicion, "met X" …).
+    /// The quality-based-narrative lever: storylet conditions read these and
+    /// effects write them, so new story state needs no Rust struct fields.
+    #[serde(default)]
+    pub qualities: BTreeMap<String, i64>,
 }
 
 impl NarrativeState {
@@ -389,6 +394,7 @@ impl NarrativeState {
             active_beat_id: None,
             completed_beat_ids: Vec::new(),
             choice_by_beat: BTreeMap::new(),
+            qualities: BTreeMap::new(),
         }
     }
 }

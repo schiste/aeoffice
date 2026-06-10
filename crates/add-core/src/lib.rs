@@ -49,6 +49,7 @@ mod tests {
         HeroLocationState, HexCoordState, RecruitTravel, Simulation,
         StationSpecializationPathState, StationState, export_save,
         game_data::{
+            Condition, EffectDef, FLAG_BASE_STUDIO_RESTORED,
             CONSTRUCTION_OUTPUT, CONSTRUCTION_REMOVING_MOSS, CONSTRUCTION_STORAGE,
             EXPEDITION_LOCAL_SCAVENGE_SWEEP, PROJECT_BUILD_FIRE_PIT, PROJECT_BUILD_MIX_CONSOLE,
             PROJECT_BUILD_RESEARCH_BOOTH, PROJECT_BUILD_RESONANCE_CHAMBER, PROJECT_BUILD_WORKSHOP,
@@ -1791,5 +1792,72 @@ mod tests {
                 "missing {label} catalog id {expected_id}"
             );
         }
+    }
+
+    #[test]
+    fn condition_evaluator_handles_flags_and_combinators() {
+        let mut sim = Simulation::new();
+        assert!(sim.evaluate_condition(&Condition::Always));
+        assert!(sim.evaluate_condition(&Condition::FlagUnset(FLAG_BASE_STUDIO_RESTORED)));
+        assert!(!sim.evaluate_condition(&Condition::FlagSet(FLAG_BASE_STUDIO_RESTORED)));
+
+        sim.apply_effects(&[EffectDef::SetFlag {
+            flag_id: FLAG_BASE_STUDIO_RESTORED,
+            value: true,
+        }]);
+        assert!(sim.evaluate_condition(&Condition::FlagSet(FLAG_BASE_STUDIO_RESTORED)));
+
+        assert!(sim.evaluate_condition(&Condition::Not(&Condition::FlagUnset(
+            FLAG_BASE_STUDIO_RESTORED
+        ))));
+        assert!(sim.evaluate_condition(&Condition::All(&[
+            Condition::Always,
+            Condition::FlagSet(FLAG_BASE_STUDIO_RESTORED),
+        ])));
+        assert!(!sim.evaluate_condition(&Condition::All(&[
+            Condition::FlagUnset(FLAG_BASE_STUDIO_RESTORED),
+            Condition::Always,
+        ])));
+        assert!(sim.evaluate_condition(&Condition::Any(&[
+            Condition::FlagUnset(FLAG_BASE_STUDIO_RESTORED),
+            Condition::Always,
+        ])));
+    }
+
+    #[test]
+    fn effects_mutate_resources_qualities_and_beats() {
+        let mut sim = Simulation::new();
+
+        // Resource grant feeds the ResourceAtLeast condition.
+        assert!(!sim.evaluate_condition(&Condition::ResourceAtLeast {
+            resource_id: RESOURCE_STONE,
+            amount: 100.0,
+        }));
+        sim.apply_effects(&[EffectDef::GrantResource {
+            resource_id: RESOURCE_STONE,
+            amount: 150.0,
+        }]);
+        assert!(sim.evaluate_condition(&Condition::ResourceAtLeast {
+            resource_id: RESOURCE_STONE,
+            amount: 100.0,
+        }));
+
+        // Qualities — the quality-based-narrative lever.
+        assert_eq!(sim.quality("trust"), 0);
+        assert!(!sim.evaluate_condition(&Condition::QualityAtLeast { key: "trust", value: 1 }));
+        sim.apply_effects(&[EffectDef::AddQuality { key: "trust", amount: 2 }]);
+        assert_eq!(sim.quality("trust"), 2);
+        assert!(sim.evaluate_condition(&Condition::QualityAtLeast { key: "trust", value: 2 }));
+        sim.apply_effects(&[EffectDef::SetQuality { key: "trust", value: 0 }]);
+        assert!(!sim.evaluate_condition(&Condition::QualityAtLeast { key: "trust", value: 1 }));
+
+        // Beat completion + numeric reach comparison.
+        assert!(!sim.evaluate_condition(&Condition::BeatCompleted(STORY_BEAT_ROAD_TO_BASE)));
+        sim.apply_effects(&[EffectDef::CompleteBeat {
+            beat_id: STORY_BEAT_ROAD_TO_BASE,
+        }]);
+        assert!(sim.evaluate_condition(&Condition::BeatCompleted(STORY_BEAT_ROAD_TO_BASE)));
+        assert!(sim.evaluate_condition(&Condition::BubbleReachAtLeast(0)));
+        assert!(!sim.evaluate_condition(&Condition::BubbleReachAtLeast(1)));
     }
 }

@@ -1,7 +1,7 @@
 use crate::command::GameCommand;
 use crate::game_data::{
-    BalanceSnapshot, COST_ITEM_SKIN, ConstructionOptionDef, CostDef, CostItemDef, CrystalTrack,
-    EffectDef, ExpeditionRiskDef, ExpeditionTargetDef, FLAG_BASE_FIRE_PIT_BUILT,
+    BalanceSnapshot, COST_ITEM_SKIN, Condition, ConstructionOptionDef, CostDef, CostItemDef,
+    CrystalTrack, EffectDef, ExpeditionRiskDef, ExpeditionTargetDef, FLAG_BASE_FIRE_PIT_BUILT,
     FLAG_BASE_MIX_CONSOLE_BUILT, FLAG_BASE_RESEARCH_BOOTH_BUILT, FLAG_BASE_RESONANCE_CHAMBER_BUILT,
     FLAG_BASE_STUDIO_RESTORE_UNLOCKED, FLAG_BASE_STUDIO_RESTORED, FLAG_BASE_TUTORIAL_EXPLORED,
     FLAG_BASE_TUTORIAL_INVESTIGATED, FLAG_BASE_WATER_COLLECTION_UNLOCKED, FLAG_BASE_WORKSHOP_BUILT,
@@ -3238,10 +3238,80 @@ impl Simulation {
     }
 
     fn requirements_met(&self, requirements: &[RequirementDef]) -> bool {
-        requirements.iter().all(|requirement| match *requirement {
-            RequirementDef::FlagSet(flag_id) => self.flag_value(flag_id),
-            RequirementDef::FlagUnset(flag_id) => !self.flag_value(flag_id),
+        requirements.iter().all(|requirement| {
+            let condition = match *requirement {
+                RequirementDef::FlagSet(flag_id) => Condition::FlagSet(flag_id),
+                RequirementDef::FlagUnset(flag_id) => Condition::FlagUnset(flag_id),
+            };
+            self.evaluate_condition(&condition)
         })
+    }
+
+    /// Whether every condition holds (the gating + storylet-precondition check).
+    pub(crate) fn evaluate_conditions(&self, conditions: &[Condition]) -> bool {
+        conditions
+            .iter()
+            .all(|condition| self.evaluate_condition(condition))
+    }
+
+    /// The single source of truth for "does this condition hold against current
+    /// state". Reads typed state + the narrative qualities bag; combinators
+    /// recurse. (See `Condition` in game_data.rs.)
+    pub(crate) fn evaluate_condition(&self, condition: &Condition) -> bool {
+        match *condition {
+            Condition::Always => true,
+            Condition::FlagSet(flag_id) => self.flag_value(flag_id),
+            Condition::FlagUnset(flag_id) => !self.flag_value(flag_id),
+            Condition::ResourceAtLeast {
+                resource_id,
+                amount,
+            } => self.can_afford(resource_id, amount),
+            Condition::BubbleReachAtLeast(n) => self.state.bubble.reach_from_base >= n,
+            Condition::ClockSecondsAtLeast(seconds) => self.state.clock_seconds >= seconds,
+            Condition::QualityAtLeast { key, value } => self.quality(key) >= value,
+            Condition::BeatCompleted(beat_id) => self.story_beat_completed(beat_id),
+            Condition::ChoiceMade {
+                beat_id,
+                option_id,
+            } => self
+                .state
+                .narrative
+                .choice_by_beat
+                .get(beat_id)
+                .is_some_and(|chosen| chosen == option_id),
+            Condition::RoleAvailable(role_id) => self.role_available(role_id),
+            Condition::RecruitmentEnabled => self.state.objectives.recruitment_enabled,
+            Condition::HeroOutsideBubble => self.flag_value(FLAG_HERO_OUTSIDE_BUBBLE),
+            Condition::HeroForcedReturn => self.flag_value(FLAG_HERO_FORCED_RETURN_ACTIVE),
+            Condition::HeroRecovering => self.flag_value(FLAG_HERO_RECOVERING_AT_STUDIO),
+            Condition::All(conditions) => self.evaluate_conditions(conditions),
+            Condition::Any(conditions) => {
+                conditions.iter().any(|c| self.evaluate_condition(c))
+            }
+            Condition::Not(inner) => !self.evaluate_condition(inner),
+        }
+    }
+
+    /// Read a narrative quality (absent = 0).
+    pub(crate) fn quality(&self, key: &str) -> i64 {
+        self.state
+            .narrative
+            .qualities
+            .get(key)
+            .copied()
+            .unwrap_or(0)
+    }
+
+    fn set_quality(&mut self, key: &str, value: i64) {
+        self.state
+            .narrative
+            .qualities
+            .insert(key.to_string(), value);
+    }
+
+    fn add_quality(&mut self, key: &str, amount: i64) {
+        let next = self.quality(key).saturating_add(amount);
+        self.set_quality(key, next);
     }
 
     fn flag_value(&self, flag_id: &str) -> bool {
@@ -3320,7 +3390,7 @@ impl Simulation {
         }
     }
 
-    fn apply_effects(&mut self, effects: &[EffectDef]) {
+    pub(crate) fn apply_effects(&mut self, effects: &[EffectDef]) {
         for effect in effects {
             match *effect {
                 EffectDef::SetFlag { flag_id, value } => self.set_flag(flag_id, value),
@@ -3406,6 +3476,20 @@ impl Simulation {
                             .saturating_add(amount);
                     }
                 },
+                EffectDef::GrantResource {
+                    resource_id,
+                    amount,
+                } => {
+                    self.add_capped_resource(resource_id, amount);
+                }
+                EffectDef::SpendResource {
+                    resource_id,
+                    amount,
+                } => self.spend_resource(resource_id, amount),
+                EffectDef::SetQuality { key, value } => self.set_quality(key, value),
+                EffectDef::AddQuality { key, amount } => self.add_quality(key, amount),
+                EffectDef::CompleteBeat { beat_id } => self.mark_story_beat_complete(beat_id),
+                EffectDef::Note { text } => self.push_note(text.to_string()),
             }
         }
     }
