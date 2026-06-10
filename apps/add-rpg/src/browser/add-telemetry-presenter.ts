@@ -105,6 +105,8 @@ export interface AddInterfaceHierarchyState {
     readonly label: "Admin"
     readonly hiddenByDefault: true
     readonly open: boolean
+    readonly developerToolsOpen: boolean
+    readonly runtimeInternalsHiddenByDefault: true
   }
   readonly questions: {
     readonly whereAmI: string
@@ -146,6 +148,7 @@ export interface AddRuntimeTelemetryPresenterInput {
   readonly interfaceHierarchy: AddInterfaceHierarchyState
   readonly shellMenuOpen: boolean
   readonly adminOpen: boolean
+  readonly devToolsOpen: boolean
   readonly discoveryPanelCollapsed: boolean
   readonly firstPlayableCollapsed: boolean
   readonly questPanelPosition: {
@@ -196,6 +199,7 @@ export interface RuntimeTextState {
     readonly currentAction: AddCurrentActionState
     readonly shellMenuOpen: boolean
     readonly adminOpen: boolean
+    readonly devToolsOpen: boolean
     readonly questPanel: {
       readonly collapsed: boolean
       readonly x: number
@@ -941,6 +945,7 @@ export function createAddRuntimeTextState(
       currentAction: input.currentAction,
       shellMenuOpen: input.shellMenuOpen,
       adminOpen: input.adminOpen,
+      devToolsOpen: input.devToolsOpen,
       questPanel: {
         collapsed: input.firstPlayableCollapsed,
         x: input.questPanelPosition.x,

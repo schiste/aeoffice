@@ -209,6 +209,7 @@ const [ready, setReady] = createSignal(false)
 const [autoTick, setAutoTick] = createSignal(true)
 const [timeSpeed, setTimeSpeed] = createSignal(1)
 const [adminOpen, setAdminOpen] = createSignal(false)
+const [devToolsOpen, setDevToolsOpen] = createSignal(false)
 const [shellMenuOpen, setShellMenuOpen] = createSignal(false)
 const [discoveryPanelCollapsed, setDiscoveryPanelCollapsed] = createSignal(false)
 const [firstPlayableCollapsed, setFirstPlayableCollapsed] =
@@ -649,6 +650,7 @@ function AddRpgApp() {
                     class="ghost-button admin-menu-action"
                     onClick=${() => {
                       setShellMenuOpen(false)
+                      setDevToolsOpen(false)
                       setAdminOpen(true)
                     }}
                     aria-controls="admin-view"
@@ -779,7 +781,7 @@ function AddRpgApp() {
 
       <div
         class=${() => (adminOpen() ? "admin-backdrop visible" : "admin-backdrop")}
-        onClick=${() => setAdminOpen(false)}
+        onClick=${closeAdminView}
         aria-hidden="true"
       />
 
@@ -793,13 +795,13 @@ function AddRpgApp() {
         <div class="admin-header">
           <div>
             <span class="admin-title">Admin</span>
-            <small>Runtime, saves, resources, and manual controls</small>
+            <small>Run recovery, resources, and optional developer tools</small>
           </div>
           <button
             id="close-admin"
             type="button"
             class="ghost-button"
-            onClick=${() => setAdminOpen(false)}
+            onClick=${closeAdminView}
             aria-label="Close admin"
           >
             Close
@@ -808,32 +810,28 @@ function AddRpgApp() {
 
         <section class="panel runtime-panel">
           <div class="panel-heading">
-            <span>System</span>
+            <span>Run status</span>
             <button
               type="button"
               class="ghost-button"
               onClick=${() => setAutoTick(!autoTick())}
               aria-pressed=${() => autoTick()}
             >
-              ${() => (autoTick() ? "Auto tick" : "Paused")}
+              ${() => (autoTick() ? "Live time" : "Paused")}
             </button>
           </div>
           <dl class="runtime-list">
-            <div>
-              <dt>Boundary</dt>
-              <dd>UI -> Worker -> Rust/WASM -> Snapshot</dd>
-            </div>
             <div>
               <dt>Map</dt>
               <dd>${() => mapInfo().mapId ?? "Waiting"}</dd>
             </div>
             <div>
-              <dt>Renderer</dt>
-              <dd>${() => `${mapInfo().rendererType} / ${mapInfo().cells.total} cells`}</dd>
-            </div>
-            <div>
               <dt>Save</dt>
               <dd>${() => saveStatus()}</dd>
+            </div>
+            <div>
+              <dt>Offline</dt>
+              <dd>${() => lastOfflineCopy()}</dd>
             </div>
           </dl>
         </section>
@@ -861,114 +859,195 @@ function AddRpgApp() {
           </p>
         </section>
 
-        <section class="panel command-panel">
+        <section class="panel admin-recovery-panel">
           <div class="panel-heading">
-            <span>Commands</span>
-            <span class="small-chip">${() => lastCommand() ?? "Idle"}</span>
+            <span>Run recovery</span>
+            <span class="small-chip">${() => (autosaveEnabled() ? "Autosave on" : "Manual save")}</span>
           </div>
-          <div class="command-grid">
-            <button id="tick-runtime" type="button" onClick=${() => void tickRuntime(5)} disabled=${() => !ready()}>
-              Advance 5s
-            </button>
-            <button id="tick-runtime-fast" type="button" onClick=${() => void tickRuntime(120)} disabled=${() => !ready()}>
-              Advance 2m
-            </button>
-            <button id="assign-hero" type="button" onClick=${() => void toggleHero()} disabled=${() => !ready()}>
-              ${() => (snapshot()?.roster.heroAssigned ? "Unassign hero" : "Assign hero")}
-            </button>
+          <p class="admin-panel-copy">
+            Keep or restore this run without exposing the raw save file.
+          </p>
+          <div class="admin-action-grid">
             <button
+              id="player-save-now"
               type="button"
-              onClick=${() => void runInteraction(primaryWorldActionInteraction())}
-              disabled=${() => !Boolean(primaryWorldActionInteraction())}
+              onClick=${() => void exportSaveNow()}
+              disabled=${() => !ready()}
             >
-              ${() => primaryWorldActionInteraction()?.label ?? "World action"}
-            </button>
-            <button
-              type="button"
-              id="recruit-survivor"
-              onClick=${() => void runInteraction(recruitmentInteraction())}
-              disabled=${() => !Boolean(recruitmentInteraction()?.enabled)}
-            >
-              Recruit
-            </button>
-            <button id="reset-runtime" type="button" class="ghost-button" onClick=${() => void resetRuntime()} disabled=${() => !ready()}>
-              Reset
-            </button>
-          </div>
-          <div class="quick-control-group" aria-label="First playable role controls">
-            ${() => roleQuickControls()}
-          </div>
-          <div class="quick-control-group" aria-label="First playable construction controls">
-            ${() => constructionQuickControls()}
-          </div>
-          <div class="quick-control-group" aria-label="Hero perk controls">
-            <p class="quick-control-heading">
-              Perks
-              <span class="small-chip">${() => `${perkProgress()?.pointsAvailable ?? 0} pts`}</span>
-            </p>
-            ${() => perkQuickControls()}
-          </div>
-          <div class="quick-control-group" aria-label="Hero inventory">
-            <p class="quick-control-heading">Inventory</p>
-            ${() => inventoryRows()}
-          </div>
-          ${() => (lastError() ? html`<p class="error-line">${lastError()}</p>` : null)}
-        </section>
-
-        <section class="panel run-panel">
-          <div class="panel-heading">
-            <span>Run</span>
-            <button
-              id="toggle-autosave"
-              type="button"
-              class="ghost-button"
-              onClick=${() => setAutosaveEnabled(!autosaveEnabled())}
-              aria-pressed=${() => autosaveEnabled()}
-            >
-              ${() => (autosaveEnabled() ? "Autosave" : "Manual")}
-            </button>
-          </div>
-          <dl class="runtime-list">
-            <div>
-              <dt>Autosave</dt>
-              <dd>${() => formatSaveTimestamp(autosaveRecord())}</dd>
-            </div>
-            <div>
-              <dt>Offline</dt>
-              <dd>${() => lastOfflineCopy()}</dd>
-            </div>
-          </dl>
-          <textarea
-            id="save-payload"
-            class="save-payload"
-            spellcheck="false"
-            value=${() => savePayload()}
-            onInput=${(event: InputEvent) => setSavePayload((event.currentTarget as HTMLTextAreaElement).value)}
-            aria-label="ADD save payload"
-          />
-          <div class="run-grid">
-            <button id="export-save" type="button" onClick=${() => void exportSaveNow()} disabled=${() => !ready()}>
               Save now
             </button>
             <button
-              id="load-autosave"
+              id="player-load-autosave"
               type="button"
               onClick=${() => void loadAutosave()}
               disabled=${() => !ready() || !autosaveRecord()}
             >
               Load autosave
             </button>
-            <button id="import-save" type="button" onClick=${() => void importSaveText()} disabled=${() => !ready()}>
-              Import text
-            </button>
-            <button id="offline-catchup" type="button" onClick=${() => void runOfflineCatchup(3600)} disabled=${() => !ready()}>
-              Offline 1h
-            </button>
-            <button id="clear-autosave" type="button" class="ghost-button" onClick=${clearBrowserAutosave}>
+            <button
+              id="player-clear-autosave"
+              type="button"
+              class="ghost-button"
+              onClick=${clearBrowserAutosave}
+            >
               Clear save
             </button>
           </div>
-          ${() => (storageError() ? html`<p class="error-line">${storageError()}</p>` : null)}
+        </section>
+
+        <section class="panel developer-tools-panel">
+          <div class="panel-heading">
+            <span>Developer tools</span>
+            <button
+              id="toggle-developer-tools"
+              type="button"
+              class="ghost-button"
+              onClick=${() => setDevToolsOpen(!devToolsOpen())}
+              aria-expanded=${() => devToolsOpen()}
+              aria-controls="developer-tools-body"
+            >
+              ${() => (devToolsOpen() ? "Hide" : "Show")}
+            </button>
+          </div>
+          <p class="admin-panel-copy">
+            Agent and developer controls for testing saves, time, and simulation recovery.
+          </p>
+          <div
+            id="developer-tools-body"
+            class="developer-tools-body"
+            hidden=${() => !devToolsOpen()}
+          >
+            <section class="panel runtime-internals-panel">
+              <div class="panel-heading">
+                <span>Runtime internals</span>
+                <span class="small-chip">${() => (ready() ? "Ready" : "Starting")}</span>
+              </div>
+              <dl class="runtime-list">
+                <div>
+                  <dt>Boundary</dt>
+                  <dd>UI -> Worker -> Rust/WASM -> Snapshot</dd>
+                </div>
+                <div>
+                  <dt>Renderer</dt>
+                  <dd>${() => `${mapInfo().rendererType} / ${mapInfo().cells.total} cells`}</dd>
+                </div>
+                <div>
+                  <dt>Event</dt>
+                  <dd>${() => lastEvent()}</dd>
+                </div>
+              </dl>
+            </section>
+
+            <section class="panel command-panel">
+              <div class="panel-heading">
+                <span>Commands</span>
+                <span class="small-chip">${() => lastCommand() ?? "Idle"}</span>
+              </div>
+              <div class="command-grid">
+                <button id="tick-runtime" type="button" onClick=${() => void tickRuntime(5)} disabled=${() => !ready()}>
+                  Advance 5s
+                </button>
+                <button id="tick-runtime-fast" type="button" onClick=${() => void tickRuntime(120)} disabled=${() => !ready()}>
+                  Advance 2m
+                </button>
+                <button id="assign-hero" type="button" onClick=${() => void toggleHero()} disabled=${() => !ready()}>
+                  ${() => (snapshot()?.roster.heroAssigned ? "Unassign hero" : "Assign hero")}
+                </button>
+                <button
+                  type="button"
+                  onClick=${() => void runInteraction(primaryWorldActionInteraction())}
+                  disabled=${() => !Boolean(primaryWorldActionInteraction())}
+                >
+                  ${() => primaryWorldActionInteraction()?.label ?? "World action"}
+                </button>
+                <button
+                  type="button"
+                  id="recruit-survivor"
+                  onClick=${() => void runInteraction(recruitmentInteraction())}
+                  disabled=${() => !Boolean(recruitmentInteraction()?.enabled)}
+                >
+                  Recruit
+                </button>
+                <button id="reset-runtime" type="button" class="ghost-button" onClick=${() => void resetRuntime()} disabled=${() => !ready()}>
+                  Reset
+                </button>
+              </div>
+              <div class="quick-control-group" aria-label="First playable role controls">
+                ${() => roleQuickControls()}
+              </div>
+              <div class="quick-control-group" aria-label="First playable construction controls">
+                ${() => constructionQuickControls()}
+              </div>
+              <div class="quick-control-group" aria-label="Hero perk controls">
+                <p class="quick-control-heading">
+                  Perks
+                  <span class="small-chip">${() => `${perkProgress()?.pointsAvailable ?? 0} pts`}</span>
+                </p>
+                ${() => perkQuickControls()}
+              </div>
+              <div class="quick-control-group" aria-label="Hero inventory">
+                <p class="quick-control-heading">Inventory</p>
+                ${() => inventoryRows()}
+              </div>
+              ${() => (lastError() ? html`<p class="error-line">${lastError()}</p>` : null)}
+            </section>
+
+            <section class="panel run-panel">
+              <div class="panel-heading">
+                <span>Run</span>
+                <button
+                  id="toggle-autosave"
+                  type="button"
+                  class="ghost-button"
+                  onClick=${() => setAutosaveEnabled(!autosaveEnabled())}
+                  aria-pressed=${() => autosaveEnabled()}
+                >
+                  ${() => (autosaveEnabled() ? "Autosave" : "Manual")}
+                </button>
+              </div>
+              <dl class="runtime-list">
+                <div>
+                  <dt>Autosave</dt>
+                  <dd>${() => formatSaveTimestamp(autosaveRecord())}</dd>
+                </div>
+                <div>
+                  <dt>Offline</dt>
+                  <dd>${() => lastOfflineCopy()}</dd>
+                </div>
+              </dl>
+              <textarea
+                id="save-payload"
+                class="save-payload"
+                spellcheck="false"
+                value=${() => savePayload()}
+                onInput=${(event: InputEvent) => setSavePayload((event.currentTarget as HTMLTextAreaElement).value)}
+                aria-label="ADD save payload"
+              />
+              <div class="run-grid">
+                <button id="export-save" type="button" onClick=${() => void exportSaveNow()} disabled=${() => !ready()}>
+                  Save now
+                </button>
+                <button
+                  id="load-autosave"
+                  type="button"
+                  onClick=${() => void loadAutosave()}
+                  disabled=${() => !ready() || !autosaveRecord()}
+                >
+                  Load autosave
+                </button>
+                <button id="import-save" type="button" onClick=${() => void importSaveText()} disabled=${() => !ready()}>
+                  Import text
+                </button>
+                <button id="offline-catchup" type="button" onClick=${() => void runOfflineCatchup(3600)} disabled=${() => !ready()}>
+                  Offline 1h
+                </button>
+                <button id="clear-autosave" type="button" class="ghost-button" onClick=${clearBrowserAutosave}>
+                  Clear save
+                </button>
+              </div>
+              ${() => (storageError() ? html`<p class="error-line">${storageError()}</p>` : null)}
+            </section>
+          </div>
         </section>
 
         <section class="panel compact-panel">
@@ -983,6 +1062,11 @@ function AddRpgApp() {
       </aside>
     </main>
   `
+}
+
+function closeAdminView(): void {
+  setAdminOpen(false)
+  setDevToolsOpen(false)
 }
 
 function defaultQuestPanelPosition(): QuestPanelPosition {
@@ -1587,6 +1671,8 @@ function interfaceHierarchyState(): AddInterfaceHierarchyState {
       label: "Admin",
       hiddenByDefault: true,
       open: adminOpen(),
+      developerToolsOpen: devToolsOpen(),
+      runtimeInternalsHiddenByDefault: true,
     },
     questions,
   }
@@ -5296,6 +5382,7 @@ function toTextState(): RuntimeTextState {
     interfaceHierarchy: interfaceHierarchyState(),
     shellMenuOpen: shellMenuOpen(),
     adminOpen: adminOpen(),
+    devToolsOpen: devToolsOpen(),
     discoveryPanelCollapsed: discoveryPanelCollapsed(),
     firstPlayableCollapsed: firstPlayableCollapsed(),
     questPanelPosition: questPanelPosition(),

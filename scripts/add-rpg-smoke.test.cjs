@@ -42,6 +42,9 @@ async function main() {
     const initial = await runScenario("boot and render text contract", () =>
       assertBootAndRenderTextContract(page, consoleErrors),
     )
+    await runScenario("admin and developer tools separation", () =>
+      assertAdminDeveloperSeparation(page, consoleErrors),
+    )
     await runScenario("initial visibility and known facts", () =>
       assertInitialVisibilityContract(initial),
     )
@@ -138,6 +141,8 @@ async function assertBootAndRenderTextContract(page, consoleErrors) {
       state.shell?.interfaceHierarchy?.tertiary?.label === "Status" &&
       state.shell?.interfaceHierarchy?.advanced?.label === "Admin" &&
       state.shell?.interfaceHierarchy?.advanced?.hiddenByDefault === true &&
+      state.shell?.interfaceHierarchy?.advanced?.developerToolsOpen === false &&
+      state.shell?.interfaceHierarchy?.advanced?.runtimeInternalsHiddenByDefault === true &&
       state.shell?.interfaceHierarchy?.questions?.whereAmI?.length > 0 &&
       state.shell?.interfaceHierarchy?.questions?.whatChanged?.length > 0 &&
       state.shell?.interfaceHierarchy?.questions?.whatShouldIDoNow?.length > 0 &&
@@ -149,6 +154,7 @@ async function assertBootAndRenderTextContract(page, consoleErrors) {
       typeof state.shell.currentAction.source === "string" &&
       state.shell?.shellMenuOpen === false &&
       state.shell?.adminOpen === false &&
+      state.shell?.devToolsOpen === false &&
       state.shell?.discoveryPanel?.collapsed === false &&
       state.shell?.questPanel?.collapsed === false &&
       Number.isFinite(state.shell?.questPanel?.x) &&
@@ -240,6 +246,53 @@ async function assertBootAndRenderTextContract(page, consoleErrors) {
   assert.ok(initial.ui.resourceCount > 0)
   assert.ok(initial.catalog.worldActionCount > 0)
   return initial
+}
+
+async function assertAdminDeveloperSeparation(page, consoleErrors) {
+  const opened = await openAdmin(page, consoleErrors)
+  assert.equal(opened.shell.adminOpen, true)
+  assert.equal(opened.shell.devToolsOpen, false)
+  assert.equal(opened.shell.interfaceHierarchy.advanced.developerToolsOpen, false)
+  assert.equal(opened.shell.interfaceHierarchy.advanced.runtimeInternalsHiddenByDefault, true)
+
+  const adminText = await page.locator("#admin-view").innerText()
+  ;[
+    "Run status",
+    "Run recovery",
+    "Developer tools",
+    "World actions",
+  ].forEach((expectedText) => {
+    assert.match(
+      adminText,
+      new RegExp(expectedText, "i"),
+      `Clean Admin view should include ${expectedText}.`,
+    )
+  })
+  assert.doesNotMatch(
+    adminText,
+    /UI -> Worker|Snapshot|Save payload|Runtime internals|Advance 5s|Import text/i,
+    "Clean Admin view should not expose runtime internals or raw save payload tools.",
+  )
+  assert.equal(await page.locator("#save-payload").isVisible(), false)
+  await assertNonBlankNamedAppScreenshot(
+    page,
+    "add-rpg-admin-clean-smoke.png",
+    "ADD RPG clean admin screenshot",
+  )
+
+  const revealed = await openDeveloperTools(page, consoleErrors)
+  assert.equal(revealed.shell.devToolsOpen, true)
+  assert.equal(revealed.shell.interfaceHierarchy.advanced.developerToolsOpen, true)
+  await page.locator("#save-payload").waitFor({ state: "visible" })
+  const devText = await page.locator("#developer-tools-body").innerText()
+  assert.match(devText, /Runtime internals/i)
+  assert.match(devText, /UI -> Worker -> Rust\/WASM -> Snapshot/i)
+  assert.match(devText, /Import text/i)
+
+  await closeAdmin(page, consoleErrors)
+  const closed = await renderGameToText(page)
+  assert.equal(closed.shell.adminOpen, false)
+  assert.equal(closed.shell.devToolsOpen, false)
 }
 
 function assertInitialVisibilityContract(initial) {
@@ -1144,7 +1197,7 @@ function firstPlayableDigest(state) {
 }
 
 async function exerciseSaveReloadOfflineAndReset(page, advanced, consoleErrors) {
-  await openAdmin(page, consoleErrors)
+  await openDeveloperTools(page, consoleErrors)
   const saved = await clickUntilTextState(
     page,
     "#export-save",
@@ -1210,7 +1263,7 @@ async function exerciseSaveReloadOfflineAndReset(page, advanced, consoleErrors) 
     "Autosave reload should preserve the same discovered cells after offline catch-up.",
   )
 
-  await openAdmin(page, consoleErrors)
+  await openDeveloperTools(page, consoleErrors)
   await page.locator("#save-payload").fill(payload)
   await page.locator("#import-save").click()
   const imported = await waitForTextState(
@@ -1302,7 +1355,7 @@ async function exerciseSaveReloadOfflineAndReset(page, advanced, consoleErrors) 
     consoleErrors,
   )
 
-  await openAdmin(page, consoleErrors)
+  await openDeveloperTools(page, consoleErrors)
   await page.locator("#reset-runtime").click()
   const reset = await waitForTextState(
     page,
@@ -1351,11 +1404,29 @@ async function openAdmin(page, consoleErrors) {
   )
   await page.locator("#open-admin").click()
   await page.locator("#admin-view.open").waitFor({ state: "visible" })
+  return waitForTextState(
+    page,
+    (nextState) =>
+      nextState.shell?.adminOpen === true &&
+      nextState.shell?.shellMenuOpen === false &&
+      nextState.shell?.devToolsOpen === false,
+    consoleErrors,
+  )
+}
+
+async function openDeveloperTools(page, consoleErrors) {
+  const state = await openAdmin(page, consoleErrors)
+  if (state.shell?.devToolsOpen === true) return state
+
+  await page.locator("#toggle-developer-tools").click()
+  await page.locator("#developer-tools-body").waitFor({ state: "visible" })
   await page.locator("#save-payload").waitFor({ state: "visible" })
   return waitForTextState(
     page,
     (nextState) =>
-      nextState.shell?.adminOpen === true && nextState.shell?.shellMenuOpen === false,
+      nextState.shell?.adminOpen === true &&
+      nextState.shell?.devToolsOpen === true &&
+      nextState.shell?.interfaceHierarchy?.advanced?.developerToolsOpen === true,
     consoleErrors,
   )
 }
@@ -1367,7 +1438,7 @@ async function closeAdmin(page, consoleErrors) {
   await page.locator("#close-admin").click()
   const closed = await waitForTextState(
     page,
-    (nextState) => nextState.shell?.adminOpen === false,
+    (nextState) => nextState.shell?.adminOpen === false && nextState.shell?.devToolsOpen === false,
     consoleErrors,
   )
   await page.waitForTimeout(240)

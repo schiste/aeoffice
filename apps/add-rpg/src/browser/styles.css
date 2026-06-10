@@ -2943,7 +2943,7 @@ h1 {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  width: min(430px, calc(100vw - 24px));
+  width: min(390px, calc(100vw - 18px));
   padding: 12px;
   overflow: auto;
   background:
@@ -2984,6 +2984,44 @@ h1 {
   color: rgb(247 238 210 / 60%);
   font-size: 0.72rem;
   font-weight: 750;
+}
+
+.admin-panel-copy {
+  margin: -4px 0 10px;
+  color: rgb(247 238 210 / 68%);
+  font-size: 0.76rem;
+  font-weight: 720;
+  line-height: 1.35;
+}
+
+.admin-action-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.admin-action-grid button:first-child {
+  grid-column: 1 / -1;
+}
+
+.developer-tools-panel {
+  border-color: rgb(95 209 216 / 18%);
+  background:
+    linear-gradient(180deg, rgb(95 209 216 / 7%), rgb(255 244 201 / 5%)),
+    rgb(255 244 201 / 6%);
+}
+
+.developer-tools-body {
+  display: grid;
+  gap: 10px;
+}
+
+.developer-tools-body[hidden] {
+  display: none;
+}
+
+.developer-tools-body > .panel {
+  background: rgb(7 13 12 / 28%);
 }
 
 .panel {
@@ -3564,6 +3602,12 @@ h1 {
   }
 
   .offline-return-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-action-grid,
+  .run-grid,
+  .command-grid {
     grid-template-columns: 1fr;
   }
 

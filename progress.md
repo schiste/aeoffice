@@ -2807,3 +2807,14 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   Vite browser build for ADD, `npm run agent:verify:add-ui`, and
   `npm run smoke:add-rpg:built`; visually inspected
   `tmp/add-rpg-offline-return-smoke.png`.
+- Interface Phase 10 admin/dev separation is implemented. Admin still opens
+  from the top-right Menu, but the default drawer now shows player-safe run
+  status, resources, objective, recovery, and world-action surfaces. Runtime
+  internals, manual time stepping, reset/import controls, and the raw save
+  payload live behind an explicit Developer tools reveal that collapses whenever
+  Admin closes. `render_game_to_text` exposes `shell.devToolsOpen` and the
+  advanced hierarchy now reports that runtime internals are hidden by default.
+  Verification passed with `npm --workspace @aedventure/add-rpg run
+  build:types`, direct Vite browser build for ADD, and
+  `npm run smoke:add-rpg:built`; visually inspected
+  `tmp/add-rpg-admin-clean-smoke.png`.
