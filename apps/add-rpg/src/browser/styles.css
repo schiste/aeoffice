@@ -690,9 +690,9 @@ h1 {
   line-height: 1.35;
 }
 
-.discovery-next-action {
+.current-action-surface {
   display: grid;
-  gap: 0.24rem;
+  gap: 0.28rem;
   border: 1px solid rgb(95 209 216 / 28%);
   border-radius: 8px;
   padding: 0.72rem;
@@ -702,35 +702,56 @@ h1 {
   box-shadow: inset 3px 0 0 #5fd1d8;
 }
 
-.discovery-next-action[data-kind="enter_dungeon"],
-.discovery-next-action[data-kind="domain_action"] {
+.current-action-surface[data-source="first_playable"],
+.current-action-surface[data-source="base_loop"],
+.current-action-surface[data-source="dungeon_objective"],
+.current-action-surface[data-source="offline_return"],
+.current-action-surface[data-kind="enter_dungeon"],
+.current-action-surface[data-kind="domain_action"] {
   border-color: rgb(240 185 93 / 42%);
   box-shadow: inset 3px 0 0 #f0b95d;
 }
 
-.discovery-next-action[data-kind="blocked"],
-.discovery-next-action[data-kind="wait"] {
+.current-action-surface[data-kind="blocked"],
+.current-action-surface[data-kind="wait"],
+.current-action-surface[data-source="runtime"] {
   border-color: rgb(255 244 201 / 16%);
   background: rgb(11 17 16 / 54%);
   box-shadow: inset 3px 0 0 rgb(247 238 210 / 34%);
 }
 
-.discovery-next-action > span {
+.current-action-kicker {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+}
+
+.current-action-kicker span,
+.current-action-kicker small {
   color: rgb(247 238 210 / 58%);
   font-size: 0.64rem;
   font-weight: 900;
   text-transform: uppercase;
 }
 
-.discovery-next-action > strong {
+.current-action-kicker small {
+  overflow: hidden;
+  max-width: 48%;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.current-action-surface > strong {
   color: #fff2bd;
-  font-size: 0.94rem;
+  font-size: 1rem;
   font-weight: 950;
   line-height: 1.12;
 }
 
-.discovery-next-action > small,
-.discovery-next-action > em {
+.current-action-surface > small,
+.current-action-surface > em {
   color: rgb(247 238 210 / 70%);
   font-size: 0.7rem;
   font-style: normal;
@@ -738,11 +759,11 @@ h1 {
   line-height: 1.25;
 }
 
-.discovery-next-action > em {
+.current-action-surface > em {
   color: #c9fff9;
 }
 
-.discovery-next-action button {
+.current-action-surface button {
   margin-top: 0.26rem;
   min-height: 2.15rem;
   font-size: 0.72rem;
@@ -965,7 +986,6 @@ h1 {
   margin-bottom: 0;
 }
 
-.base-management-recommendation,
 .base-section-summary {
   display: grid;
   gap: 0.24rem;
@@ -978,7 +998,6 @@ h1 {
   box-shadow: inset 3px 0 0 #f0b95d;
 }
 
-.base-management-recommendation[data-enabled="false"],
 .base-section-summary[data-severity="neutral"] {
   border-color: rgb(255 244 201 / 14%);
   background: rgb(11 17 16 / 48%);
@@ -1124,7 +1143,6 @@ h1 {
   text-overflow: ellipsis;
 }
 
-.base-management-recommendation > span,
 .base-section-summary > span,
 .base-management-card > span,
 .base-metric {
@@ -1134,7 +1152,6 @@ h1 {
   text-transform: uppercase;
 }
 
-.base-management-recommendation > strong,
 .base-section-summary > strong,
 .base-management-card > strong,
 .base-metric > strong {
@@ -1144,7 +1161,6 @@ h1 {
   line-height: 1.12;
 }
 
-.base-management-recommendation > small,
 .base-section-summary > small,
 .base-management-card > small,
 .base-metric > small {
@@ -1246,12 +1262,6 @@ h1 {
   font-size: 0.68rem;
   font-weight: 900;
   line-height: 1.14;
-}
-
-.base-management-recommendation button {
-  margin-top: 0.28rem;
-  min-height: 2.2rem;
-  font-size: 0.74rem;
 }
 
 .base-management-tabs {
@@ -2626,17 +2636,6 @@ h1 {
 
 .primary-action:hover:not(:disabled) {
   background: linear-gradient(180deg, #ffd37f, #d8913f);
-}
-
-.story-choice-grid {
-  display: grid;
-  gap: 7px;
-}
-
-.story-choice-button {
-  min-height: 2.25rem;
-  background: rgb(95 209 216 / 18%);
-  color: #c9fff9;
 }
 
 .first-playable-list {

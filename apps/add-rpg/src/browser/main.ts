@@ -39,6 +39,7 @@ import {
   addDungeonByMapId,
   ADD_MAP_MODE_OPTIONS,
   STUDIO_DUNGEON_MAP_ID,
+  STUDIO_GROUNDS_AREA_MAP_ID,
   addMapModeLabel,
   createAddWorldForMapMode,
   type AddUiState,
@@ -75,6 +76,7 @@ import {
   type AddTelemetryTravelDialogKind as TravelDialogKind,
   type AddTelemetryTravelDramaState as TravelDramaState,
   type AddTelemetryTravelExperience as TravelExperience,
+  type AddCurrentActionState,
   type AddInterfaceHierarchyState,
 } from "./add-telemetry-presenter"
 import {
@@ -160,6 +162,7 @@ const [catalog, setCatalog] = createSignal<CatalogSnapshot | null>(null)
 const [world, setWorld] = createSignal<GameWorld | null>(null)
 const [mapMode, setMapMode] = createSignal<AddMapMode>("overworld_hex")
 const [dungeonTarget, setDungeonTarget] = createSignal<string>(STUDIO_DUNGEON_MAP_ID)
+const [areaTarget, setAreaTarget] = createSignal<string>(STUDIO_GROUNDS_AREA_MAP_ID)
 const [dungeonReturnMode, setDungeonReturnMode] =
   createSignal<DungeonReturnMapMode>("overworld_hex")
 const [mapInfo, setMapInfo] = createSignal<AddPhaserMapInfo>(emptyMapInfo())
@@ -390,6 +393,7 @@ createEffect(() => {
   const target = dungeonTarget()
   let nextWorld = createAddWorldForMapMode(mode, currentSnapshot, currentCatalog, {
     dungeonMapId: target,
+    areaMapId: areaTarget(),
   })
 
   if (mode === "dungeon_square") {
@@ -1117,7 +1121,7 @@ function discoveryPanel(): unknown {
         </div>
       </div>
       ${() => interfaceHierarchyBrief()}
-      ${() => discoveryNextActionCard()}
+      ${() => currentActionSurface()}
       ${() => discoveryPanelBody()}
     </section>
   `
@@ -1142,18 +1146,8 @@ function baseManagementPanel(): unknown {
         <span class="small-chip">${() => titleCase(baseManagementTab())}</span>
       </div>
       ${() => interfaceHierarchyBrief()}
+      ${() => currentActionSurface()}
       ${() => basePlayerLoopPanel(state)}
-      <article
-        id="base-management-recommendation"
-        class="base-management-recommendation"
-        data-kind=${state.recommendedAction.kind}
-        data-enabled=${state.recommendedAction.enabled ? "true" : "false"}
-      >
-        <span>Recommended</span>
-        <strong>${state.recommendedAction.label}</strong>
-        <small>${state.recommendedAction.detail}</small>
-        ${() => baseRecommendedActionButton(state)}
-      </article>
       <div class="base-management-tabs" role="tablist" aria-label="Base management sections">
         ${() => baseManagementTabButtons(state)}
       </div>
@@ -1209,6 +1203,44 @@ function resourceStatusStrip(): unknown {
   `
 }
 
+function currentActionSurface(): unknown {
+  return html`
+    <article
+      id="current-action-surface"
+      class="current-action-surface"
+      data-source=${() => currentActionState().source}
+      data-kind=${() => currentActionState().kind}
+      data-enabled=${() => (currentActionState().enabled ? "true" : "false")}
+      aria-label="Current action"
+    >
+      <div class="current-action-kicker">
+        <span>${() => currentActionState().sourceLabel}</span>
+        <small>${() => currentActionState().metaLabel}</small>
+      </div>
+      <strong>${() => currentActionState().label}</strong>
+      <small>${() => currentActionState().detail}</small>
+      ${() =>
+        currentActionState().progressLabel
+          ? html`<em>${() => currentActionState().progressLabel}</em>`
+          : null}
+      ${() =>
+        currentActionState().primaryLabel
+          ? html`
+              <button
+                id="current-action-primary"
+                type="button"
+                class="primary-action"
+                onClick=${() => void runCurrentAction()}
+                disabled=${() => !currentActionState().primaryEnabled}
+              >
+                ${() => currentActionState().primaryLabel}
+              </button>
+            `
+          : null}
+    </article>
+  `
+}
+
 function interfaceHierarchyBrief(): unknown {
   return html`
     <section
@@ -1238,13 +1270,13 @@ function interfaceHierarchyBrief(): unknown {
 }
 
 function interfaceHierarchyState(): AddInterfaceHierarchyState {
+  const action = currentActionState()
   const questions = {
     whereAmI: interfaceWhereCopy(),
     whatChanged: interfaceChangedCopy(),
-    whatShouldIDoNow: interfaceActionCopy(),
+    whatShouldIDoNow: action.label,
     whatHappensIfIWait: interfaceWaitCopy(),
   }
-  const action = interfaceActionState()
   return {
     primary: {
       label: "Map",
@@ -1268,6 +1300,116 @@ function interfaceHierarchyState(): AddInterfaceHierarchyState {
     },
     questions,
   }
+}
+
+function currentActionState(): AddCurrentActionState {
+  const offline = offlineReturnSummary()
+  if (offline) {
+    return {
+      source: "offline_return",
+      sourceLabel: "Return review",
+      label: "Review what changed",
+      detail: offline.summary,
+      kind: offline.source,
+      enabled: true,
+      primaryLabel: "Dismiss review",
+      primaryEnabled: true,
+      metaLabel: offline.elapsedLabel,
+      progressLabel: offline.headline,
+      actionId: "dismiss_offline_return",
+    }
+  }
+
+  const dungeon = dungeonObjectiveState()
+  if (mapMode() === "dungeon_square" && dungeon) {
+    return {
+      source: "dungeon_objective",
+      sourceLabel: "Dungeon objective",
+      label: dungeon.headline,
+      detail: dungeon.detail,
+      kind: dungeon.active ? "active" : "complete",
+      enabled: dungeon.active,
+      primaryLabel: dungeon.returnLabel,
+      primaryEnabled: true,
+      metaLabel: dungeon.label,
+      progressLabel: objectivePanelChip(),
+      actionId: "return_overworld",
+    }
+  }
+
+  const base = baseManagementState()
+  if (mapMode() === "base_square" && base) {
+    const action = base.recommendedAction
+    return {
+      source: "base_loop",
+      sourceLabel: "Base loop",
+      label: action.label,
+      detail: action.detail,
+      kind: action.kind,
+      enabled: action.enabled,
+      primaryLabel: action.enabled && action.targetId ? action.label : null,
+      primaryEnabled: action.enabled && Boolean(action.targetId),
+      metaLabel: base.playerLoop.currentStepId.replaceAll("_", " "),
+      progressLabel: base.playerLoop.decisionHint,
+      actionId: action.targetId,
+    }
+  }
+
+  const firstPlayable = uiState()?.firstPlayable
+  const firstStep = currentFirstPlayableStep()
+  if (firstPlayable && !firstPlayable.complete && firstStep) {
+    return {
+      source: "first_playable",
+      sourceLabel: "First playable",
+      label: firstStep.actionLabel ?? firstStep.label,
+      detail: firstStep.detail,
+      kind: firstStep.id,
+      enabled: Boolean(firstStep.action),
+      primaryLabel: firstStep.actionLabel,
+      primaryEnabled: Boolean(firstStep.action),
+      metaLabel: `${firstPlayable.completedCount}/${firstPlayable.totalCount}`,
+      progressLabel: firstStep.label,
+      actionId: firstStep.action ? `first-playable:${firstStep.id}` : null,
+    }
+  }
+
+  const discovery = discoveryState()
+  if (discovery) {
+    const action = discovery.nextAction
+    const link = discoveryActionLinkFor(action.actionId)
+    return {
+      source: "discovery",
+      sourceLabel: "Discovery",
+      label: action.label,
+      detail: action.detail,
+      kind: action.kind,
+      enabled: action.enabled,
+      primaryLabel: link ? action.label : null,
+      primaryEnabled: Boolean(link?.enabled),
+      metaLabel: discoveryPhaseLabel(),
+      progressLabel: action.inputHint,
+      actionId: action.actionId,
+    }
+  }
+
+  return {
+    source: "runtime",
+    sourceLabel: "Runtime",
+    label: "Wait for runtime",
+    detail: "The ADD runtime has not produced a decision snapshot yet.",
+    kind: "boot",
+    enabled: false,
+    primaryLabel: null,
+    primaryEnabled: false,
+    metaLabel: ready() ? "Ready" : "Booting",
+    progressLabel: null,
+    actionId: null,
+  }
+}
+
+function discoveryActionLinkFor(actionId: string | null): AddDiscoveryActionLink | null {
+  if (!actionId) return null
+  return discoveryState()?.actionLinks.find((candidate) => candidate.id === actionId) ?? null
 }
 
 function interfaceWhereCopy(): string {
@@ -1311,30 +1453,6 @@ function interfaceChangedCopy(): string {
   if (base) return base.nextBottleneck.label
 
   return "Opening state is stable"
-}
-
-function interfaceActionCopy(): string {
-  return interfaceActionState().label
-}
-
-function interfaceActionState(): { readonly label: string; readonly enabled: boolean } {
-  if (mapMode() === "base_square") {
-    const action = baseManagementState()?.recommendedAction
-    if (action) return { label: action.label, enabled: action.enabled }
-  }
-
-  if (mapMode() === "dungeon_square") {
-    const objective = selectAddDungeonObjective({
-      mapMode: mapMode(),
-      dungeonMapId: dungeonTarget(),
-      heroCell: mapInfo().character.cell,
-    })
-    if (objective) return { label: objective.headline, enabled: objective.active }
-  }
-
-  const action = discoveryState()?.nextAction
-  if (action) return { label: action.label, enabled: action.enabled }
-  return { label: "Wait for runtime", enabled: false }
 }
 
 function interfaceWaitCopy(): string {
@@ -1539,21 +1657,6 @@ function baseStalledSystemRow(stalled: AddBaseManagementState["economy"]["stalle
       <strong>${stalled.label}</strong>
       <small>${stalled.reason}</small>
     </span>
-  `
-}
-
-function baseRecommendedActionButton(state: AddBaseManagementState): unknown {
-  const action = state.recommendedAction
-  if (!action.enabled || !action.targetId) return null
-  return html`
-    <button
-      id="base-recommended-action"
-      type="button"
-      class="primary-action"
-      onClick=${() => void runBaseRecommendedAction(state)}
-    >
-      ${action.label}
-    </button>
   `
 }
 
@@ -2394,49 +2497,6 @@ function discoveryMovementMetricCopy(): string {
   return parts.length > 0 ? parts.join(" · ") : "Choose an adjacent tile"
 }
 
-function discoveryNextActionCard(): unknown {
-  const nextAction = discoveryState()?.nextAction
-  if (!nextAction) {
-    return html`
-      <article id="discovery-next-action" class="discovery-next-action" data-kind="wait">
-        <span>Next step</span>
-        <strong>Waiting for runtime</strong>
-        <small>Discovery decisions will appear once the map snapshot is ready.</small>
-      </article>
-    `
-  }
-  const link = nextAction.actionId
-    ? discoveryState()?.actionLinks.find((candidate) => candidate.id === nextAction.actionId)
-    : null
-  return html`
-    <article
-      id="discovery-next-action"
-      class="discovery-next-action"
-      data-kind=${nextAction.kind}
-      data-enabled=${nextAction.enabled ? "true" : "false"}
-    >
-      <span>Next step</span>
-      <strong>${nextAction.label}</strong>
-      <small>${nextAction.detail}</small>
-      ${nextAction.inputHint ? html`<em>${nextAction.inputHint}</em>` : null}
-      ${link
-        ? html`
-            <button
-              id="discovery-primary-action"
-              type="button"
-              class="primary-action"
-              onClick=${() => void runDiscoveryAction(link)}
-              disabled=${() => !link.enabled}
-              title=${link.reason ?? nextAction.detail}
-            >
-              ${nextAction.label}
-            </button>
-          `
-        : null}
-    </article>
-  `
-}
-
 function discoveryPanelBody(): unknown {
   if (discoveryPanelCollapsed()) return null
   return html`
@@ -2726,14 +2786,6 @@ function objectivePanelBody(): unknown {
         <strong>${dungeon.headline}</strong>
         <span>${dungeon.detail}</span>
       </p>
-      <button
-        id="return-overworld-objective"
-        type="button"
-        class="primary-action"
-        onClick=${() => returnToOverworldFromDungeon()}
-      >
-        ${dungeon.returnLabel}
-      </button>
       <ol class="first-playable-list dungeon-objective-list">
         ${() => dungeonObjectiveStepRows()}
       </ol>
@@ -2747,18 +2799,6 @@ function objectivePanelBody(): unknown {
     <p class="objective-copy">
       ${() => firstPlayableCopy()}
     </p>
-    <button
-      id="first-playable-action"
-      type="button"
-      class="primary-action"
-      onClick=${() => void runFirstPlayableAction()}
-      disabled=${() => !Boolean(currentFirstPlayableStep()?.action)}
-    >
-      ${() => currentFirstPlayableStep()?.actionLabel ?? "First arc complete"}
-    </button>
-    <div class="story-choice-grid">
-      ${() => storyChoiceButtons()}
-    </div>
     <ol class="first-playable-list">
       ${() => firstPlayableStepRows()}
     </ol>
@@ -2807,7 +2847,10 @@ function firstPlayableCopy(): string {
       : "The first ADD arc is complete. Save now or run offline catch-up to verify the idle layer."
   }
   const current = currentFirstPlayableStep()
-  return current?.detail ?? "Follow the next action to complete the first ADD arc."
+  if (current) {
+    return `${current.label}. Use Current Action to advance; this panel tracks the first ADD arc.`
+  }
+  return "Follow the current action to complete the first ADD arc."
 }
 
 function firstPlayableStepRows(): readonly unknown[] {
@@ -2817,27 +2860,6 @@ function firstPlayableStepRows(): readonly unknown[] {
         <span>${step.label}</span>
         <small>${step.complete ? "Done" : step.active ? "Now" : "Next"}</small>
       </li>
-    `,
-  )
-}
-
-function storyChoiceButtons(): readonly unknown[] {
-  const beat = uiState()?.activeStoryBeat
-  const currentSnapshot = snapshot()
-  if (!beat || !currentSnapshot || beat.choices.length === 0 || storyChoiceSelected(currentSnapshot, beat.id)) {
-    return []
-  }
-  return beat.choices.map(
-    (choice) => html`
-      <button
-        id=${`story-choice-${slugForId(choice.id)}`}
-        type="button"
-        class="story-choice-button"
-        onClick=${() => void chooseStoryOption(beat.id, choice.id)}
-        disabled=${() => !ready()}
-      >
-        ${choice.label}
-      </button>
     `,
   )
 }
@@ -3587,6 +3609,13 @@ function enterDungeonTarget(
   setLastCommand(command)
 }
 
+function enterAreaTarget(areaMapId: string, command: string): void {
+  setAreaTarget(areaMapId)
+  setTravelExperience(null)
+  setMapMode("area_hex")
+  setLastCommand(command)
+}
+
 function switchMapModeFromTab(nextMode: AddMapMode): void {
   switchMapMode(nextMode, {
     dungeonTargetId: nextMode === "dungeon_square" ? STUDIO_DUNGEON_MAP_ID : undefined,
@@ -3670,6 +3699,11 @@ function runCurrentTileDetailAction(event: Event): void {
     switchMapMode("base_square")
     return
   }
+  if (targetMapMode === "area_hex" && targetMapId) {
+    setLastTileActionTarget(targetMapId)
+    enterAreaTarget(targetMapId, `tile-enter-area:${targetMapId}`)
+    return
+  }
   if (!actionId) return
   const detail = discoveryState()?.tileDetail
   const action = detail?.actions.find((candidate) => candidate.id === actionId)
@@ -3690,6 +3724,11 @@ function runTileDetailAction(detail: AddTileDetailSummary, action: AddTileAction
   if (link.targetMapMode === "base_square") {
     setLastCommand("tile-open:base")
     switchMapMode("base_square")
+    return
+  }
+
+  if (link.targetMapMode === "area_hex" && link.targetMapId) {
+    enterAreaTarget(link.targetMapId, `tile-enter-area:${link.targetMapId}`)
   }
 }
 
@@ -4240,6 +4279,35 @@ async function runBaseRecommendedAction(state: AddBaseManagementState): Promise<
   }
 }
 
+async function runCurrentAction(): Promise<void> {
+  const action = currentActionState()
+  if (!action.primaryEnabled) return
+
+  switch (action.source) {
+    case "offline_return":
+      dismissOfflineReturnSummary()
+      return
+    case "dungeon_objective":
+      returnToOverworldFromDungeon()
+      return
+    case "base_loop": {
+      const state = baseManagementState()
+      if (state) await runBaseRecommendedAction(state)
+      return
+    }
+    case "discovery": {
+      const link = discoveryActionLinkFor(action.actionId)
+      if (link) await runDiscoveryAction(link)
+      return
+    }
+    case "first_playable":
+      await runFirstPlayableAction()
+      return
+    case "runtime":
+      return
+  }
+}
+
 async function acquirePerk(perkId: string): Promise<void> {
   await sendAndWaitForSnapshot(() => {
     setLastCommand(`perk:${perkId}`)
@@ -4480,6 +4548,7 @@ function toTextState(): RuntimeTextState {
     dungeonTarget: mapMode() === "dungeon_square" ? dungeonTarget() : null,
     lastDungeonEntryCommand: lastDungeonEntryCommand(),
     lastTileActionTarget: lastTileActionTarget(),
+    currentAction: currentActionState(),
     interfaceHierarchy: interfaceHierarchyState(),
     adminOpen: adminOpen(),
     discoveryPanelCollapsed: discoveryPanelCollapsed(),
@@ -4684,18 +4753,6 @@ function constructionButtonId(optionId: string): string {
 
 function slugForId(id: string): string {
   return id.replace(/[^a-z0-9_-]+/gi, "-").replace(/^-|-$/g, "").toLowerCase()
-}
-
-function storyChoiceSelected(currentSnapshot: SimulationSnapshot, beatId: string): boolean {
-  const choiceByBeat = currentSnapshot.narrative.choiceByBeat as
-    | Record<string, string>
-    | Map<string, string>
-    | undefined
-  if (!choiceByBeat) return false
-  if (typeof (choiceByBeat as Map<string, string>).has === "function") {
-    return (choiceByBeat as Map<string, string>).has(beatId)
-  }
-  return Boolean((choiceByBeat as Record<string, string>)[beatId])
 }
 
 function requiredElement(id: string): HTMLElement {

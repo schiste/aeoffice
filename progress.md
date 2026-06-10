@@ -2723,3 +2723,16 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   `npm --workspace @aedventure/add-rpg run build`, `npm run smoke:add-rpg`,
   `npm run qa:renderer`, visual inspection of `tmp/add-rpg-smoke.png`, and full
   `npm run check`.
+- Interface Phase 2 current action unification is implemented. The ADD shell
+  now has a typed `shell.currentAction` projection and one shared
+  `#current-action-surface` that can represent offline return review, dungeon
+  objectives, base-loop recommendations, discovery actions, first-playable
+  steps, or runtime boot state. Discovery/Base panels now reuse that surface
+  instead of separate "next step" / "recommended" cards, and the first-playable
+  objective panel is progress/context only so the active CTA is not duplicated.
+  Smoke coverage now asserts the unified action contract, updates the Studio
+  tile detail contract for Base + Studio Grounds links, and uses hardened
+  dynamic-control clicks for the live base panel. Verification passed with
+  `npm --workspace @aedventure/add-rpg run build`, `npm run smoke:add-rpg`,
+  `npm run qa:renderer`, visual inspection of `tmp/add-rpg-smoke.png` and
+  `tmp/add-rpg-base-management-smoke.png`, and full `npm run check`.

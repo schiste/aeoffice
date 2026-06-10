@@ -138,6 +138,11 @@ async function assertBootAndRenderTextContract(page, consoleErrors) {
       state.shell?.interfaceHierarchy?.questions?.whatChanged?.length > 0 &&
       state.shell?.interfaceHierarchy?.questions?.whatShouldIDoNow?.length > 0 &&
       state.shell?.interfaceHierarchy?.questions?.whatHappensIfIWait?.length > 0 &&
+      typeof state.shell?.currentAction?.label === "string" &&
+      state.shell.currentAction.label.length > 0 &&
+      typeof state.shell.currentAction.detail === "string" &&
+      state.shell.currentAction.detail.length > 0 &&
+      typeof state.shell.currentAction.source === "string" &&
       state.shell?.adminOpen === false &&
       state.shell?.discoveryPanel?.collapsed === false &&
       state.shell?.questPanel?.collapsed === false &&
@@ -197,9 +202,18 @@ async function assertBootAndRenderTextContract(page, consoleErrors) {
   assert.equal(initial.boundary.firstTargetApp, "apps/add-rpg")
   assert.equal(initial.runtime.error, null)
   assert.match(initial.shell.interfaceHierarchy.questions.whereAmI, /Overworld/)
-  assert.equal(initial.shell.interfaceHierarchy.secondary.actionLabel, "Enter Survivor Cave")
-  assert.equal(initial.shell.interfaceHierarchy.secondary.actionEnabled, true)
+  assert.equal(initial.shell.interfaceHierarchy.secondary.actionLabel, initial.shell.currentAction.label)
+  assert.equal(initial.shell.interfaceHierarchy.secondary.actionEnabled, initial.shell.currentAction.enabled)
+  assert.ok(
+    ["first_playable", "discovery"].includes(initial.shell.currentAction.source),
+    "Initial current action should be owned by the tutorial or discovery loop.",
+  )
+  assert.equal(initial.shell.currentAction.primaryEnabled, true)
   assert.match(initial.shell.interfaceHierarchy.tertiary.waitForecast, /60m|Clock/)
+  assert.equal(await page.locator("#current-action-surface").count(), 1)
+  assert.equal(await page.locator("#discovery-next-action").count(), 0)
+  assert.equal(await page.locator("#base-management-recommendation").count(), 0)
+  assert.equal(await page.locator("#first-playable-action").count(), 0)
   assert.equal(initial.snapshot.heroMap, initial.map.landmarks.survivorCave)
   assert.equal(initial.mapMode.scale.topology, "hex")
   assert.equal(initial.mapMode.scale.travelScale, "strategic")
@@ -409,6 +423,8 @@ async function exerciseBaseManagementSurface(page, consoleErrors) {
     consoleErrors,
   )
   assert.equal(base.shell.adminOpen, false)
+  assert.equal(base.shell.currentAction.source, "base_loop")
+  assert.equal(base.shell.currentAction.label, base.baseManagement.recommendedAction.label)
   assert.ok(base.baseManagement.recommendedAction.kind.length > 0)
   assert.deepEqual(
     base.baseManagement.playerLoop.steps.map((step) => step.id),
@@ -541,7 +557,7 @@ async function exerciseBaseManagementSurface(page, consoleErrors) {
     "Rates",
     "Check base health",
     "Make a better decision",
-    "Recommended",
+    "Base loop",
     "Current limiter",
     "Gain",
     "Spend",
@@ -567,7 +583,7 @@ async function exerciseBaseManagementSurface(page, consoleErrors) {
   })
   assert.doesNotMatch(panelText, /Runtime|Snapshot|Debug/i)
 
-  await page.locator("#base-tab-build").click()
+  await clickVisibleElementByDomId(page, "base-tab-build")
   await waitForTextState(
     page,
     (state) => state.baseManagement?.active === true && state.baseManagement?.selectedTab === "build",
@@ -600,7 +616,7 @@ async function exerciseBaseManagementSurface(page, consoleErrors) {
     "add-rpg-construction-loop-smoke.png",
     "ADD RPG construction loop surface screenshot",
   )
-  await page.locator("#base-tab-crystal").click()
+  await clickVisibleElementByDomId(page, "base-tab-crystal")
   await waitForTextState(
     page,
     (state) => state.baseManagement?.active === true && state.baseManagement?.selectedTab === "crystal",
@@ -613,7 +629,7 @@ async function exerciseBaseManagementSurface(page, consoleErrors) {
   )
   assert.ok(beforeBassline)
   assert.ok(beforeBasslineResource)
-  await page.locator("#base-role-bassline-plus").click()
+  await clickVisibleElementByDomId(page, "base-role-bassline-plus")
   const staffedBassline = await waitForTextState(
     page,
     (state) => {
@@ -633,7 +649,7 @@ async function exerciseBaseManagementSurface(page, consoleErrors) {
     /Bassline|resource/i,
     "Staffing impact should describe the changed economy.",
   )
-  await page.locator("#base-role-bassline-minus").click()
+  await clickVisibleElementByDomId(page, "base-role-bassline-minus")
   await waitForTextState(
     page,
     (state) =>
@@ -642,7 +658,7 @@ async function exerciseBaseManagementSurface(page, consoleErrors) {
     consoleErrors,
   )
 
-  await page.locator("#base-tab-crew").click()
+  await clickVisibleElementByDomId(page, "base-tab-crew")
   await waitForTextState(
     page,
     (state) => state.baseManagement?.active === true && state.baseManagement?.selectedTab === "crew",
@@ -671,7 +687,7 @@ async function exerciseBaseManagementSurface(page, consoleErrors) {
     "ADD RPG staffing management surface screenshot",
   )
 
-  await page.locator("#base-tab-power").click()
+  await clickVisibleElementByDomId(page, "base-tab-power")
   await waitForTextState(
     page,
     (state) => state.baseManagement?.active === true && state.baseManagement?.selectedTab === "power",
@@ -704,7 +720,7 @@ async function exerciseBaseManagementSurface(page, consoleErrors) {
     "ADD RPG station machine surface screenshot",
   )
 
-  await page.locator("#base-tab-social").click()
+  await clickVisibleElementByDomId(page, "base-tab-social")
   await waitForTextState(
     page,
     (state) => state.baseManagement?.active === true && state.baseManagement?.selectedTab === "social",
@@ -734,7 +750,7 @@ async function exerciseBaseManagementSurface(page, consoleErrors) {
     "ADD RPG social pressure surface screenshot",
   )
 
-  await page.locator("#base-tab-expeditions").click()
+  await clickVisibleElementByDomId(page, "base-tab-expeditions")
   const expeditions = await waitForTextState(
     page,
     (state) =>
@@ -807,7 +823,7 @@ async function exerciseBaseManagementSurface(page, consoleErrors) {
     "ADD RPG expeditions surface screenshot",
   )
 
-  await page.locator("#base-tab-resonance").click()
+  await clickVisibleElementByDomId(page, "base-tab-resonance")
   const resonanceReady = await waitForTextState(
     page,
     (state) =>
@@ -860,7 +876,7 @@ async function exerciseBaseManagementSurface(page, consoleErrors) {
   )
 
   for (const tab of ["build", "power", "crew", "social", "expeditions", "resonance", "processing", "crystal"]) {
-    await page.locator(`#base-tab-${tab}`).click()
+    await clickVisibleElementByDomId(page, `base-tab-${tab}`)
     await waitForTextState(
       page,
       (state) =>
@@ -950,7 +966,14 @@ async function completeFirstPlayableArc(page, consoleErrors) {
       )}`,
     )
     const beforeDigest = firstPlayableDigest(state)
-    const actionButton = page.locator("#first-playable-action")
+    assert.equal(
+      state.shell?.currentAction?.source,
+      "first_playable",
+      `The shared current action should own first-playable progression: ${JSON.stringify(
+        state.shell?.currentAction,
+      )}`,
+    )
+    const actionButton = page.locator("#current-action-primary")
     if (await actionButton.isDisabled()) {
       const completedState = await renderGameToText(page)
       if (
@@ -1237,7 +1260,7 @@ async function exerciseQuestHud(page, consoleErrors) {
   )
 
   await page.locator("#toggle-first-playable-panel").click()
-  await page.locator("#first-playable-action").waitFor({ state: "hidden" })
+  await page.locator("#first-playable-body").waitFor({ state: "hidden" })
   const collapsed = await waitForTextState(
     page,
     (state) => state.shell?.questPanel?.collapsed === true,
@@ -1247,7 +1270,7 @@ async function exerciseQuestHud(page, consoleErrors) {
   assert.equal(collapsed.shell.questPanel.y, dragged.shell.questPanel.y)
 
   await page.locator("#toggle-first-playable-panel").click()
-  await page.locator("#first-playable-action").waitFor({ state: "visible" })
+  await page.locator("#first-playable-body").waitFor({ state: "visible" })
   return waitForTextState(
     page,
     (state) =>
@@ -1419,24 +1442,29 @@ async function exerciseStudioTileDetailLinks(page, consoleErrors) {
         state.discovery?.tileDetail?.cell === "hex:0,0" &&
         state.discovery.tileDetail.label === "The Studio" &&
         state.discovery.tileDetail.hasSubmap === true &&
-        state.discovery.tileDetail.linkCount === 1 &&
+        state.discovery.tileDetail.linkCount >= 2 &&
         state.discovery.tileDetail.linkKinds.includes("base") &&
+        state.discovery.tileDetail.linkKinds.includes("area") &&
         state.discovery.tileDetail.linkLabels.includes("The Studio") &&
+        state.discovery.tileDetail.linkLabels.includes("Studio Grounds") &&
         state.discovery.tileDetail.targetMapModes.includes("base_square") &&
+        state.discovery.tileDetail.targetMapModes.includes("area_hex") &&
         state.discovery.tileDetail.targetMapIds.includes("add.rpg.base.studio") &&
+        state.discovery.tileDetail.targetMapIds.includes("add.rpg.area.studio-grounds") &&
         state.discovery.tileDetail.actionIds.includes(
           "tile-action:base:tile-link:base:studio-echo",
         ) &&
         state.discovery.tileDetail.enabledLinkIds.some((id) => id.includes("base")) &&
         state.discovery.tileDetail.actionKinds.includes("manage_base") &&
-        !state.discovery.tileDetail.actionKinds.includes("enter_submap") &&
+        state.discovery.tileDetail.actionKinds.includes("enter_submap") &&
         !state.discovery.tileDetail.targetMapIds.includes("add.rpg.dungeon.studio"),
       consoleErrors,
     )
-    assert.equal(selectedStudio.discovery.selectedTile.dungeonLinkCount, 1)
+    assert.ok(selectedStudio.discovery.tileDetail.linkCount >= 2)
     const studioTileText = await page.locator("#selected-tile-decision").innerText()
     ;[
       "The Studio",
+      "Studio Grounds",
       "Open The Studio",
       "Base",
     ].forEach((expectedText) => {
@@ -1765,9 +1793,9 @@ async function exerciseMainCharacterMovement(page, consoleErrors) {
     "ADD RPG movement consequences screenshot",
   )
   assert.match(
-    await page.locator("#discovery-next-action").innerText(),
-    /Next step/i,
-    "Discovery panel should foreground the recommended next step.",
+    await page.locator("#current-action-surface").innerText(),
+    /First playable|Discovery|Base loop|Dungeon objective|Return review/i,
+    "The shared Current Action surface should remain the foreground decision.",
   )
   await page.locator("#toggle-discovery-panel").click()
   const collapsedDiscovery = await waitForTextState(
@@ -1785,9 +1813,9 @@ async function exerciseMainCharacterMovement(page, consoleErrors) {
     "Collapsed Discovery panel should hide supporting detail.",
   )
   assert.match(
-    await page.locator("#discovery-next-action").innerText(),
-    /Next step/i,
-    "Collapsed Discovery panel should still show the recommended next step.",
+    await page.locator("#current-action-surface").innerText(),
+    /First playable|Discovery|Base loop|Dungeon objective|Return review/i,
+    "Collapsed Discovery panel should still show the shared Current Action surface.",
   )
   await assertNonBlankNamedAppScreenshot(
     page,

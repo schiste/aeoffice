@@ -63,6 +63,28 @@ export interface AddTelemetryClockAnimationState {
   readonly remainingMinutes: number
 }
 
+export type AddCurrentActionSource =
+  | "offline_return"
+  | "dungeon_objective"
+  | "base_loop"
+  | "discovery"
+  | "first_playable"
+  | "runtime"
+
+export interface AddCurrentActionState {
+  readonly source: AddCurrentActionSource
+  readonly sourceLabel: string
+  readonly label: string
+  readonly detail: string
+  readonly kind: string
+  readonly enabled: boolean
+  readonly primaryLabel: string | null
+  readonly primaryEnabled: boolean
+  readonly metaLabel: string
+  readonly progressLabel: string | null
+  readonly actionId: string | null
+}
+
 export interface AddInterfaceHierarchyState {
   readonly primary: {
     readonly label: "Map"
@@ -108,6 +130,7 @@ export interface AddRuntimeTelemetryPresenterInput {
   readonly dungeonTarget: string | null
   readonly lastDungeonEntryCommand: string | null
   readonly lastTileActionTarget: string | null
+  readonly currentAction: AddCurrentActionState
   readonly interfaceHierarchy: AddInterfaceHierarchyState
   readonly adminOpen: boolean
   readonly discoveryPanelCollapsed: boolean
@@ -157,6 +180,7 @@ export interface RuntimeTextState {
     readonly surface: "fullscreen_map_shell"
     readonly hostsPhaserMap: boolean
     readonly interfaceHierarchy: AddInterfaceHierarchyState
+    readonly currentAction: AddCurrentActionState
     readonly adminOpen: boolean
     readonly questPanel: {
       readonly collapsed: boolean
@@ -832,6 +856,7 @@ export function createAddRuntimeTextState(
       surface: "fullscreen_map_shell",
       hostsPhaserMap: true,
       interfaceHierarchy: input.interfaceHierarchy,
+      currentAction: input.currentAction,
       adminOpen: input.adminOpen,
       questPanel: {
         collapsed: input.firstPlayableCollapsed,
