@@ -185,6 +185,7 @@ const [ready, setReady] = createSignal(false)
 const [autoTick, setAutoTick] = createSignal(true)
 const [timeSpeed, setTimeSpeed] = createSignal(1)
 const [adminOpen, setAdminOpen] = createSignal(false)
+const [shellMenuOpen, setShellMenuOpen] = createSignal(false)
 const [discoveryPanelCollapsed, setDiscoveryPanelCollapsed] = createSignal(false)
 const [firstPlayableCollapsed, setFirstPlayableCollapsed] = createSignal(false)
 const [baseManagementTab, setBaseManagementTab] =
@@ -450,7 +451,8 @@ createEffect(() => {
 
 window.render_game_to_text = () => JSON.stringify(toTextState())
 window.advanceTime = async (milliseconds = 1000) => {
-  await tickRuntime(milliseconds / 1000)
+  const seconds = milliseconds / 1000
+  await tickRuntime(seconds, { queue: true, commandLabel: `advance:${seconds.toFixed(1)}s` })
   mapHost?.advanceTime(milliseconds)
   refreshMapInfo()
   return JSON.stringify(toTextState())
@@ -530,7 +532,12 @@ function AddRpgApp() {
 
   return html`
     <main
-      class=${() => (adminOpen() ? "add-app-shell admin-open" : "add-app-shell")}
+      class=${() =>
+        adminOpen()
+          ? "add-app-shell admin-open"
+          : shellMenuOpen()
+            ? "add-app-shell menu-open"
+            : "add-app-shell"}
       data-interface-hierarchy="map-decision-status-admin"
     >
       <section class="world-pane" data-interface-tier="primary" aria-label="Primary game world">
@@ -580,42 +587,6 @@ function AddRpgApp() {
                 <small>${() => worldTimeSecondaryCopy()}</small>
                 <i style=${() => daylightMeterStyle()} aria-hidden="true" />
               </div>
-              ${() => {
-                if (mapMode() === "dungeon_square") {
-                  return html`<button
-                    id="return-overworld"
-                    type="button"
-                    class="enter-dungeon-button return-overworld-button"
-                    onClick=${() => returnToOverworldFromDungeon()}
-                  >
-                    ${() => dungeonReturnLabel()}
-                  </button>`
-                }
-                if (mapMode() === "base_square") {
-                  const entrance = baseDungeonEntranceInteraction()
-                  return entrance
-                    ? html`<button
-                        id="enter-studio-dungeon"
-                        type="button"
-                        class="enter-dungeon-button"
-                        onClick=${() => enterDungeonInteraction(entrance)}
-                      >
-                        ${entrance.label ?? "Enter dungeon"}
-                      </button>`
-                    : null
-                }
-                const link = heroDungeonLink()
-                return link
-                  ? html`<button
-                      id="enter-dungeon"
-                      type="button"
-                      class="enter-dungeon-button"
-                      onClick=${() => enterDungeonLink(link)}
-                    >
-                      Enter ${link.label}
-                    </button>`
-                  : null
-              }}
               <button
                 id="time-speed-control"
                 type="button"
@@ -629,41 +600,42 @@ function AddRpgApp() {
               >
                 ${() => timeSpeedLabel()}
               </button>
-              <button
-                id="open-admin"
-                type="button"
-                class="admin-toggle"
-                onClick=${() => setAdminOpen(true)}
-                aria-controls="admin-view"
-                aria-expanded=${() => adminOpen()}
-              >
-                Admin
-              </button>
+              <div class="shell-menu">
+                <button
+                  id="open-shell-menu"
+                  type="button"
+                  class="shell-menu-toggle"
+                  onClick=${() => setShellMenuOpen((open) => !open)}
+                  aria-controls="shell-menu-panel"
+                  aria-expanded=${() => shellMenuOpen()}
+                  aria-label="Open secondary menu"
+                >
+                  Menu
+                </button>
+                <div
+                  id="shell-menu-panel"
+                  class=${() => (shellMenuOpen() ? "shell-menu-panel open" : "shell-menu-panel")}
+                  aria-hidden=${() => !shellMenuOpen()}
+                >
+                  <button
+                    id="open-admin"
+                    type="button"
+                    class="ghost-button admin-menu-action"
+                    onClick=${() => {
+                      setShellMenuOpen(false)
+                      setAdminOpen(true)
+                    }}
+                    aria-controls="admin-view"
+                    aria-expanded=${() => adminOpen()}
+                  >
+                    Admin
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
-          <section
-            class=${() => travelPanelClass()}
-            data-interface-tier="secondary"
-            data-interface-answer="what-changed"
-            aria-live="polite"
-            aria-label="Travel time and exposure"
-          >
-            <div>
-              <span>${() => travelPanelTitle()}</span>
-              <strong>${() => travelPanelClockCopy()}</strong>
-            </div>
-            <p>${() => travelPanelDetailCopy()}</p>
-            <div class="travel-risk-row">
-              <span class=${() => `travel-risk-pill ${travelRiskState()}`}>
-                ${() => travelRiskCopy()}
-              </span>
-              <span>${ADD_TILE_TRAVEL_PRESENTATION.visibleGameMinutes}m daylight step</span>
-            </div>
-            <i style=${() => travelProgressStyle()} aria-hidden="true" />
-          </section>
-          ${() => (mapMode() === "base_square" ? baseManagementPanel() : discoveryPanel())}
+          ${() => contextualPanel()}
           ${() => travelDialogView()}
-          ${() => offlineReturnPanel()}
           <section
             id="first-playable-panel"
             data-interface-tier="secondary"
@@ -774,9 +746,6 @@ function AddRpgApp() {
                         Cave
                       </button>`
                   : null}
-            </div>
-            <div class="map-selection-readout">
-              <span>${() => mapFocusCopy()}</span>
             </div>
           </div>
         </div>
@@ -994,7 +963,7 @@ function defaultQuestPanelPosition(): QuestPanelPosition {
   if (typeof window !== "undefined" && window.innerWidth <= 520) {
     return { x: 10, y: 104 }
   }
-  return { x: 14, y: 64 }
+  return { x: 12, y: 54 }
 }
 
 function questPanelStyle(): Record<string, string> {
@@ -1092,7 +1061,40 @@ function discoveryPhaseLabel(): string {
   }
 }
 
+function contextualPanel(): unknown {
+  if (offlineReturnSummary()) return offlineReturnPanel()
+  if (mapMode() === "base_square") return baseManagementPanel()
+  if (mapMode() === "dungeon_square") return dungeonContextPanel()
+  return discoveryPanel()
+}
+
+function travelStatusPanel(): unknown {
+  return html`
+    <section
+      class=${() => travelPanelClass()}
+      data-interface-tier="secondary"
+      data-interface-answer="what-changed"
+      aria-live="polite"
+      aria-label="Travel time and exposure"
+    >
+      <div>
+        <span>${() => travelPanelTitle()}</span>
+        <strong>${() => travelPanelClockCopy()}</strong>
+      </div>
+      <p>${() => travelPanelDetailCopy()}</p>
+      <div class="travel-risk-row">
+        <span class=${() => `travel-risk-pill ${travelRiskState()}`}>
+          ${() => travelRiskCopy()}
+        </span>
+        <span>${ADD_TILE_TRAVEL_PRESENTATION.visibleGameMinutes}m daylight step</span>
+      </div>
+      <i style=${() => travelProgressStyle()} aria-hidden="true" />
+    </section>
+  `
+}
+
 function discoveryPanel(): unknown {
+  const link = () => heroDungeonLink()
   return html`
     <section
       id="discovery-panel"
@@ -1107,6 +1109,20 @@ function discoveryPanel(): unknown {
       <div class="panel-heading discovery-heading">
         <span>Discovery</span>
         <div>
+          ${() =>
+            link()
+            ? html`<button
+                id="enter-dungeon"
+                type="button"
+                class="enter-dungeon-button contextual-action-button"
+                onClick=${() => {
+                  const currentLink = link()
+                  if (currentLink) enterDungeonLink(currentLink)
+                }}
+              >
+                Enter ${link()?.label}
+              </button>`
+            : null}
           <span class="small-chip">${() => discoveryPhaseLabel()}</span>
           <button
             id="toggle-discovery-panel"
@@ -1120,6 +1136,7 @@ function discoveryPanel(): unknown {
           </button>
         </div>
       </div>
+      ${() => travelStatusPanel()}
       ${() => interfaceHierarchyBrief()}
       ${() => currentActionSurface()}
       ${() => discoveryPanelBody()}
@@ -1130,6 +1147,7 @@ function discoveryPanel(): unknown {
 function baseManagementPanel(): unknown {
   const state = baseManagementState()
   if (!state) return null
+  const entrance = () => baseDungeonEntranceInteraction()
   const section = activeBaseManagementSection(state)
   const focusedSystemTab = () => ["build", "power", "social", "expeditions", "resonance", "processing"].includes(baseManagementTab())
   return html`
@@ -1143,8 +1161,25 @@ function baseManagementPanel(): unknown {
     >
       <div class="panel-heading base-management-heading">
         <span>${state.title}</span>
-        <span class="small-chip">${() => titleCase(baseManagementTab())}</span>
+        <div>
+          ${() =>
+            entrance()
+            ? html`<button
+                id="enter-studio-dungeon"
+                type="button"
+                class="enter-dungeon-button contextual-action-button"
+                onClick=${() => {
+                  const currentEntrance = entrance()
+                  if (currentEntrance) enterDungeonInteraction(currentEntrance)
+                }}
+              >
+                ${entrance()?.label ?? "Enter dungeon"}
+              </button>`
+            : null}
+          <span class="small-chip">${() => titleCase(baseManagementTab())}</span>
+        </div>
       </div>
+      ${() => travelStatusPanel()}
       ${() => interfaceHierarchyBrief()}
       ${() => currentActionSurface()}
       ${() => basePlayerLoopPanel(state)}
@@ -1174,6 +1209,37 @@ function baseManagementPanel(): unknown {
   `
 }
 
+function dungeonContextPanel(): unknown {
+  const dungeon = dungeonObjectiveState()
+  return html`
+    <section
+      id="dungeon-context-panel"
+      data-interface-tier="secondary"
+      data-interface-answer="current-decision-action"
+      class="panel dungeon-context-panel"
+      aria-label="Dungeon objective"
+    >
+      <div class="panel-heading dungeon-context-heading">
+        <span>${dungeon?.label ?? "Dungeon"}</span>
+        <button
+          id="return-overworld"
+          type="button"
+          class="enter-dungeon-button return-overworld-button contextual-action-button"
+          onClick=${() => returnToOverworldFromDungeon()}
+        >
+          ${() => dungeonReturnLabel()}
+        </button>
+      </div>
+      ${() => travelStatusPanel()}
+      ${() => interfaceHierarchyBrief()}
+      ${() => currentActionSurface()}
+      <p class="objective-copy">
+        ${dungeon?.detail ?? "Explore the interior and return when ready."}
+      </p>
+    </section>
+  `
+}
+
 function resourceStatusStrip(): unknown {
   const resources = uiState()?.resources ?? []
   const priorityIds = [RESOURCE_BASSLINE, RESOURCE_CHORUS, RESOURCE_STONE, RESOURCE_WATER]
@@ -1194,13 +1260,28 @@ function resourceStatusStrip(): unknown {
         prioritized.map(
           (resource) => html`
             <span data-resource=${resource.id}>
-              <small>${resource.label}</small>
+              <small title=${resource.label}>${resourceCompactLabel(resource.id, resource.label)}</small>
               <strong>${formatResource(resource.value)}</strong>
             </span>
           `,
         )}
     </div>
   `
+}
+
+function resourceCompactLabel(id: string, label: string): string {
+  switch (id) {
+    case RESOURCE_BASSLINE:
+      return "B"
+    case RESOURCE_CHORUS:
+      return "C"
+    case RESOURCE_STONE:
+      return "S"
+    case RESOURCE_WATER:
+      return "W"
+    default:
+      return label.slice(0, 1).toUpperCase()
+  }
 }
 
 function currentActionSurface(): unknown {
@@ -3386,6 +3467,7 @@ function offlineReturnPanel(): unknown {
           Dismiss
         </button>
       </div>
+      ${() => currentActionSurface()}
       <p class="offline-return-headline">${summary.headline}</p>
       <div class="offline-return-grid">
         <article class="offline-return-card">
@@ -3750,14 +3832,6 @@ function resetMapCamera(): void {
 function focusMap(target: "hero" | "base" | "cave"): void {
   mapHost?.focusOn(target)
   refreshMapInfo()
-}
-
-function mapFocusCopy(): string {
-  const info = mapInfo()
-  if (info.interaction.selectedLabel) return info.interaction.selectedLabel
-  if (info.interaction.hoveredHex) return `Hex ${info.interaction.hoveredHex}`
-  if (info.cells.total > 0) return `${info.cells.bubbleEdge} bubble edge cells`
-  return "Waiting for map"
 }
 
 function handleOnline(): void {
@@ -4550,6 +4624,7 @@ function toTextState(): RuntimeTextState {
     lastTileActionTarget: lastTileActionTarget(),
     currentAction: currentActionState(),
     interfaceHierarchy: interfaceHierarchyState(),
+    shellMenuOpen: shellMenuOpen(),
     adminOpen: adminOpen(),
     discoveryPanelCollapsed: discoveryPanelCollapsed(),
     firstPlayableCollapsed: firstPlayableCollapsed(),

@@ -143,6 +143,7 @@ async function assertBootAndRenderTextContract(page, consoleErrors) {
       typeof state.shell.currentAction.detail === "string" &&
       state.shell.currentAction.detail.length > 0 &&
       typeof state.shell.currentAction.source === "string" &&
+      state.shell?.shellMenuOpen === false &&
       state.shell?.adminOpen === false &&
       state.shell?.discoveryPanel?.collapsed === false &&
       state.shell?.questPanel?.collapsed === false &&
@@ -778,7 +779,7 @@ async function exerciseBaseManagementSurface(page, consoleErrors) {
       `Expeditions panel should include ${expectedText}.`,
     )
   })
-  await page.locator("#base-start-expedition-expedition-local_scavenge_sweep").click()
+  await clickVisibleElementByDomId(page, "base-start-expedition-expedition-local_scavenge_sweep")
   const activeExpedition = await waitForTextState(
     page,
     (state) =>
@@ -845,7 +846,10 @@ async function exerciseBaseManagementSurface(page, consoleErrors) {
     "Bassline Overtone",
     "Start resonance",
   ])
-  await page.locator("#base-start-resonance-resonance-recipe-bassline_overtone").click()
+  await clickVisibleElementByDomId(
+    page,
+    "base-start-resonance-resonance-recipe-bassline_overtone",
+  )
   await waitForTextState(
     page,
     (state) =>
@@ -856,7 +860,7 @@ async function exerciseBaseManagementSurface(page, consoleErrors) {
       ),
     consoleErrors,
   )
-  await page.evaluate(() => window.advanceTime?.(45000))
+  await page.evaluate(() => window.advanceTime?.(300000))
   const tunedResonance = await waitForTextState(
     page,
     (state) =>
@@ -1198,12 +1202,19 @@ async function openAdmin(page, consoleErrors) {
   const state = await renderGameToText(page)
   if (state.shell?.adminOpen === true) return state
 
+  await page.locator("#open-shell-menu").click()
+  await waitForTextState(
+    page,
+    (nextState) => nextState.shell?.shellMenuOpen === true,
+    consoleErrors,
+  )
   await page.locator("#open-admin").click()
   await page.locator("#admin-view.open").waitFor({ state: "visible" })
   await page.locator("#save-payload").waitFor({ state: "visible" })
   return waitForTextState(
     page,
-    (nextState) => nextState.shell?.adminOpen === true,
+    (nextState) =>
+      nextState.shell?.adminOpen === true && nextState.shell?.shellMenuOpen === false,
     consoleErrors,
   )
 }
@@ -1519,7 +1530,7 @@ async function exerciseStudioTileDetailLinks(page, consoleErrors) {
       consoleErrors,
     )
 
-    await page.locator("#return-overworld").click()
+    await clickVisibleElementByDomId(page, "return-overworld")
     await waitForTextState(
       page,
       (state) =>
@@ -1530,7 +1541,7 @@ async function exerciseStudioTileDetailLinks(page, consoleErrors) {
       consoleErrors,
     )
 
-    return returnToOverworld(page, consoleErrors)
+    return await returnToOverworld(page, consoleErrors)
   } finally {
     const afterReturn = await returnToOverworld(page, consoleErrors)
     if (restoreQuestPanel && afterReturn.shell?.questPanel?.collapsed === true) {
@@ -1624,7 +1635,7 @@ async function exerciseSurvivorCaveDungeonEntry(page, consoleErrors) {
     "ADD RPG Survivor Cave entry screenshot",
   )
 
-  await page.locator("#return-overworld").click()
+  await clickVisibleElementByDomId(page, "return-overworld")
   const returned = await waitForTextState(
     page,
     (state) =>
@@ -2187,8 +2198,20 @@ async function waitForTextState(page, predicate, consoleErrors = [], timeoutMs =
 
 async function repeatHeldKey(page, key, count, intervalMs) {
   for (let index = 0; index < count; index += 1) {
-    await page.waitForTimeout(intervalMs)
-    await page.keyboard.down(key)
+    if (page.isClosed()) return
+    try {
+      await page.waitForTimeout(intervalMs)
+      if (page.isClosed()) return
+      await page.keyboard.down(key)
+    } catch (error) {
+      if (
+        page.isClosed() ||
+        /Target page, context or browser has been closed/.test(String(error?.message ?? error))
+      ) {
+        return
+      }
+      throw error
+    }
   }
 }
 

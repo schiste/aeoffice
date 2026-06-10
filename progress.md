@@ -2736,3 +2736,16 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   `npm --workspace @aedventure/add-rpg run build`, `npm run smoke:add-rpg`,
   `npm run qa:renderer`, visual inspection of `tmp/add-rpg-smoke.png` and
   `tmp/add-rpg-base-management-smoke.png`, and full `npm run check`.
+- Interface Phase 3 desktop layout pass is implemented. The ADD map remains
+  the full-screen primary surface, the topbar is thinner and less text-heavy,
+  resources are compacted, Admin moved behind a secondary Menu, and the bottom
+  HUD is camera controls only. Discovery, Base, Dungeon, and Return now render
+  as a single right-side contextual rail while the left objective tracker stays
+  compact and progress-oriented. `render_game_to_text` now exposes
+  `shell.shellMenuOpen`, and the ADD smoke was hardened for live-panel
+  re-renders by using deterministic queued `window.advanceTime()` and DOM-level
+  clicks for dynamic controls. Verification passed with `npm --workspace
+  @aedventure/add-rpg run build:types`, `npm run smoke:add-rpg`, `npm run
+  qa:renderer`, visual inspection of `tmp/add-rpg-smoke.png`,
+  `tmp/add-rpg-base-management-smoke.png`, `tmp/add-rpg-dungeon-map-smoke.png`,
+  and `tmp/add-rpg-offline-return-smoke.png`, plus full `npm run check`.

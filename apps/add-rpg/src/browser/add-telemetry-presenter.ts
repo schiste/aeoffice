@@ -132,6 +132,7 @@ export interface AddRuntimeTelemetryPresenterInput {
   readonly lastTileActionTarget: string | null
   readonly currentAction: AddCurrentActionState
   readonly interfaceHierarchy: AddInterfaceHierarchyState
+  readonly shellMenuOpen: boolean
   readonly adminOpen: boolean
   readonly discoveryPanelCollapsed: boolean
   readonly firstPlayableCollapsed: boolean
@@ -181,6 +182,7 @@ export interface RuntimeTextState {
     readonly hostsPhaserMap: boolean
     readonly interfaceHierarchy: AddInterfaceHierarchyState
     readonly currentAction: AddCurrentActionState
+    readonly shellMenuOpen: boolean
     readonly adminOpen: boolean
     readonly questPanel: {
       readonly collapsed: boolean
@@ -857,6 +859,7 @@ export function createAddRuntimeTextState(
       hostsPhaserMap: true,
       interfaceHierarchy: input.interfaceHierarchy,
       currentAction: input.currentAction,
+      shellMenuOpen: input.shellMenuOpen,
       adminOpen: input.adminOpen,
       questPanel: {
         collapsed: input.firstPlayableCollapsed,
