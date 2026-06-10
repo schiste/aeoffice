@@ -7,8 +7,15 @@ import type {
   AddVisibilityRenderState,
 } from "./map-presentation"
 import { ADD_BASE_SQUARE_MAP_ID } from "./map-modes"
+import { addAreaById } from "../areas/registry"
 
-export type AddTileLinkKind = "base" | "dungeon" | "building" | "resource_node" | "encounter"
+export type AddTileLinkKind =
+  | "base"
+  | "dungeon"
+  | "area"
+  | "building"
+  | "resource_node"
+  | "encounter"
 export type AddTileActionKind = "travel" | "enter_submap" | "manage_base" | "inspect"
 
 export interface AddTileTravelSummary {
@@ -169,6 +176,23 @@ function tileLinks(
       blockedReason: null,
     })
   }
+
+  // Area links (the optional middle tier). Emitted for any tile with areaIds —
+  // including the base tile — so they sit alongside, not replace, dungeon links.
+  tile.areaIds.forEach((areaId) => {
+    const area = addAreaById(areaId)
+    if (!area) return
+    links.push({
+      id: `tile-link:area:${areaId}`,
+      kind: "area",
+      label: area.label,
+      targetMapMode: "area_hex",
+      targetMapId: area.mapId,
+      visible: true,
+      enabled: true,
+      blockedReason: null,
+    })
+  })
 
   if (isBaseFeature(tile.feature)) return links
 

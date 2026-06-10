@@ -366,6 +366,7 @@ export interface TileDef {
   floraIds: string[]
   structureIds: string[]
   dungeonIds: string[]
+  areaIds: string[]
   buildingCapacity: number
 }
 

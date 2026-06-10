@@ -474,6 +474,7 @@ function tileMetadata(
     travelRisk: knownFacts.travelRisk,
     dungeonCount: knownFacts.dungeonCount,
     tags: knownFacts.tags.join(","),
+    areaIds: knownFacts.areaIds.join(","),
     vagueTravelLabel: knownFacts.vagueTravelLabel,
     visibilityState: visibility.state,
     visibilityRevealSource: visibility.revealSource ?? "",

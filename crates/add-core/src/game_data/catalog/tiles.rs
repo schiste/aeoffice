@@ -68,7 +68,8 @@ pub(in crate::game_data) const TILES: &[TileDef] = &[
         ],
         flora_ids: &[],
         structure_ids: &[STRUCTURE_CRYSTAL_CIRCLE, STRUCTURE_BASE],
-        dungeon_ids: &[DUNGEON_STUDIO],
+        dungeon_ids: &[],
+        area_ids: &[AREA_STUDIO_GROUNDS],
         building_capacity: 3,
     },
     TileDef {
@@ -83,6 +84,7 @@ pub(in crate::game_data) const TILES: &[TileDef] = &[
         flora_ids: &[],
         structure_ids: &[],
         dungeon_ids: &[],
+        area_ids: &[],
         building_capacity: 1,
     },
     TileDef {
@@ -97,6 +99,7 @@ pub(in crate::game_data) const TILES: &[TileDef] = &[
         flora_ids: &[FLORA_REEDS],
         structure_ids: &[],
         dungeon_ids: &[],
+        area_ids: &[],
         building_capacity: 0,
     },
     TileDef {
@@ -111,6 +114,7 @@ pub(in crate::game_data) const TILES: &[TileDef] = &[
         flora_ids: &[FLORA_SCRUB],
         structure_ids: &[],
         dungeon_ids: &[],
+        area_ids: &[],
         building_capacity: 1,
     },
     TileDef {
@@ -125,6 +129,7 @@ pub(in crate::game_data) const TILES: &[TileDef] = &[
         flora_ids: &[],
         structure_ids: &[],
         dungeon_ids: &[],
+        area_ids: &[],
         building_capacity: 0,
     },
     TileDef {
@@ -139,6 +144,7 @@ pub(in crate::game_data) const TILES: &[TileDef] = &[
         flora_ids: &[],
         structure_ids: &[],
         dungeon_ids: &[],
+        area_ids: &[],
         building_capacity: 0,
     },
     TileDef {
@@ -153,6 +159,7 @@ pub(in crate::game_data) const TILES: &[TileDef] = &[
         flora_ids: &[],
         structure_ids: &[STRUCTURE_CAVE],
         dungeon_ids: &[DUNGEON_SURVIVOR_CAVE],
+        area_ids: &[],
         building_capacity: 0,
     },
 ];

@@ -1651,8 +1651,9 @@
         "structure.crystal_circle",
         "structure.base"
       ],
-      "dungeonIds": [
-        "dungeon.studio"
+      "dungeonIds": [],
+      "areaIds": [
+        "area.studio_grounds"
       ],
       "buildingCapacity": 3
     },
@@ -1670,6 +1671,7 @@
       "floraIds": [],
       "structureIds": [],
       "dungeonIds": [],
+      "areaIds": [],
       "buildingCapacity": 1
     },
     {
@@ -1689,6 +1691,7 @@
       ],
       "structureIds": [],
       "dungeonIds": [],
+      "areaIds": [],
       "buildingCapacity": 0
     },
     {
@@ -1708,6 +1711,7 @@
       ],
       "structureIds": [],
       "dungeonIds": [],
+      "areaIds": [],
       "buildingCapacity": 1
     },
     {
@@ -1725,6 +1729,7 @@
       "floraIds": [],
       "structureIds": [],
       "dungeonIds": [],
+      "areaIds": [],
       "buildingCapacity": 0
     },
     {
@@ -1742,6 +1747,7 @@
       "floraIds": [],
       "structureIds": [],
       "dungeonIds": [],
+      "areaIds": [],
       "buildingCapacity": 0
     },
     {
@@ -1763,6 +1769,7 @@
       "dungeonIds": [
         "dungeon.survivor_cave"
       ],
+      "areaIds": [],
       "buildingCapacity": 0
     }
   ],

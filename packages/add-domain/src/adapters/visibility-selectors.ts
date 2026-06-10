@@ -74,6 +74,7 @@ export interface AddKnownTileFacts {
   readonly travelRisk: AddKnownTravelRisk
   readonly dungeonCount: number
   readonly tags: readonly string[]
+  readonly areaIds: readonly string[]
   readonly vagueTravelLabel: string
 }
 
@@ -244,6 +245,7 @@ export function selectAddKnownTileFacts(
       travelRisk: "unknown",
       dungeonCount: 0,
       tags: [],
+      areaIds: [],
       vagueTravelLabel: vagueHint ? "Unscouted region nearby" : "Unknown region",
     }
   }
@@ -268,6 +270,7 @@ export function selectAddKnownTileFacts(
     travelRisk: dynamicDetailsVisible ? travelRiskForCurrentFacts(feature, hex.state) : "unknown",
     dungeonCount: addVisibilityAllowsDungeonLinks(visibility) ? tile?.dungeonIds.length ?? 0 : 0,
     tags: tile?.tags ?? [],
+    areaIds: addVisibilityAllowsDungeonLinks(visibility) ? tile?.areaIds ?? [] : [],
     vagueTravelLabel: dynamicDetailsVisible
       ? knownStaticLabel(tile)
       : `${knownStaticLabel(tile)}. Conditions may have changed`,

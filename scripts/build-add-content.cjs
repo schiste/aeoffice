@@ -306,6 +306,7 @@ const FILES = [
             { name: "flora_ids", kind: "idConstArray" },
             { name: "structure_ids", kind: "idConstArray" },
             { name: "dungeon_ids", kind: "idConstArray" },
+            { name: "area_ids", kind: "idConstArray" },
             { name: "building_capacity", kind: "i64" },
           ],
         },

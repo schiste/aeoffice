@@ -39,6 +39,7 @@ export interface AddTileInteractionDetail {
   readonly exposureRisk: AddTravelExposureRisk
   readonly dungeonActionsVisible: boolean
   readonly dungeonLinks: readonly AddDungeonLinkInfo[]
+  readonly areaIds: readonly string[]
   readonly travelCopy: string
 }
 
@@ -176,6 +177,7 @@ export function tileInteractionDetailForCoord(
       exposureRisk: "unknown",
       dungeonActionsVisible: false,
       dungeonLinks: [],
+      areaIds: [],
       travelCopy: "Unknown region. Adjacent travel is possible, but terrain and entrances are unknown.",
     }
   }
@@ -208,6 +210,10 @@ export function tileInteractionDetailForCoord(
     exposureRisk,
     dungeonActionsVisible: dungeonLinks.length > 0,
     dungeonLinks,
+    areaIds: (() => {
+      const raw = cell.metadata?.areaIds
+      return typeof raw === "string" && raw.length > 0 ? raw.split(",") : []
+    })(),
     travelCopy:
       visibility === "visible"
         ? `${currentLabel}. Current conditions are known.`

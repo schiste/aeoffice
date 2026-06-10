@@ -105,6 +105,8 @@ pub const TILE_SURVIVOR_CAVE: &str = "tile.survivor_cave";
 pub const DUNGEON_SURVIVOR_CAVE: &str = "dungeon.survivor_cave";
 pub const DUNGEON_STUDIO: &str = "dungeon.studio";
 
+pub const AREA_STUDIO_GROUNDS: &str = "area.studio_grounds";
+
 pub const FLORA_REEDS: &str = "flora.reeds";
 pub const FLORA_SCRUB: &str = "flora.scrub";
 
@@ -1122,6 +1124,7 @@ pub struct TileDef {
     pub flora_ids: &'static [&'static str],
     pub structure_ids: &'static [&'static str],
     pub dungeon_ids: &'static [&'static str],
+    pub area_ids: &'static [&'static str],
     pub building_capacity: u8,
 }
 
