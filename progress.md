@@ -2697,3 +2697,17 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   build`, `node --check scripts/add-rpg-smoke.test.cjs`, `npm run
   smoke:add-rpg`, visual inspection of `tmp/add-rpg-construction-loop-smoke.png`,
   and full `npm run check`.
+- Phase 0 interface/data cleanup is complete for the current ADD surface. The
+  live local ADD app was reset to a fresh opening state, repo-local temporary
+  screenshots plus `.chau7/` local artifacts were removed, and production ADD
+  base/dungeon maps no longer publish fixture IDs, fixture metadata, fixture
+  token names, or fixture interaction/zone kinds. Developer/QA renderer
+  fixtures remain intentionally named as fixtures. Verification passed with
+  `npm --workspace @aedventure/add-domain run build`, `npm --workspace
+  @aedventure/add-rpg run build`, `npm --workspace @aedventure/add-domain test`,
+  `npm run smoke:add-rpg`, `npm run qa:renderer`, and full `npm run check`.
+  Screenshots inspected: `tmp/add-rpg-smoke.png`,
+  `tmp/add-rpg-fog-map-smoke.png`, and
+  `tmp/add-rpg-studio-subtile-dungeon-entrance-smoke.png`. Remaining UI note:
+  Studio/base interior labels can still overlap in the square subtile view and
+  should be handled in the next interface polish pass.

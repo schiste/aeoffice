@@ -25,7 +25,7 @@ export interface AddDungeonDefinition {
 }
 
 export const SURVIVOR_CAVE_DUNGEON_ID = "dungeon.survivor_cave"
-export const SURVIVOR_CAVE_DUNGEON_MAP_ID = "add.rpg.square-dungeon-fixture"
+export const SURVIVOR_CAVE_DUNGEON_MAP_ID = "add.rpg.dungeon.survivor-cave"
 
 export const ADD_DUNGEON_REGISTRY: readonly AddDungeonDefinition[] = [
   {

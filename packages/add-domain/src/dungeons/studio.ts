@@ -46,17 +46,17 @@ const DOOR: DungeonCellSpec = { kind: "floor", feature: "door", metadata: { door
 const STAIRS_UP: DungeonCellSpec = {
   kind: "floor",
   feature: "stairs",
-  entity: { idSuffix: "stairs-up", label: "Up to the Loft", kind: "stairs", sourceId: "stairs_up", tags: ["fixture"] },
+  entity: { idSuffix: "stairs-up", label: "Up to the Loft", kind: "stairs", sourceId: "stairs_up", tags: ["interior"] },
 }
 const STAIRS_DOWN: DungeonCellSpec = {
   kind: "floor",
   feature: "stairs",
-  entity: { idSuffix: "stairs-down", label: "Down to the Cellars", kind: "stairs", sourceId: "stairs_down", tags: ["fixture"] },
+  entity: { idSuffix: "stairs-down", label: "Down to the Cellars", kind: "stairs", sourceId: "stairs_down", tags: ["interior"] },
 }
 const RUBBLE_WALL: DungeonCellSpec = {
   kind: "wall",
   feature: "rubble",
-  tokenId: "add.fixture.dungeon.rubble",
+  tokenId: "add.dungeon.rubble",
 }
 // Creatures the Studio's encounter table can place (id -> presentation + the
 // loot table rolled when cleared).

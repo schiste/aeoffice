@@ -1079,7 +1079,7 @@ async function verifyAddRendererTopologyFixtures(browser, report) {
         state.map?.ready === true &&
         state.map?.validationValid === true &&
         state.map?.topology?.kind === "square" &&
-        state.map?.topology?.fixture === true &&
+        state.map?.topology?.fixture === false &&
         state.map?.mapId === "add.rpg.dungeon.studio" &&
         state.map?.cells?.total > 100 &&
         state.map?.cells?.blocked > 0 &&

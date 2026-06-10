@@ -170,8 +170,8 @@ async function assertBootAndRenderTextContract(page, consoleErrors) {
       state.discovery.nextAction.kind === "enter_dungeon" &&
       state.discovery.nextAction.enabled === true &&
       state.discovery?.dungeonEntryAvailable === true &&
-      state.discovery?.dungeonEntryTarget === "add.rpg.square-dungeon-fixture" &&
-      state.discovery?.enabledActionIds?.includes("dungeon:add.rpg.square-dungeon-fixture") &&
+      state.discovery?.dungeonEntryTarget === "add.rpg.dungeon.survivor-cave" &&
+      state.discovery?.enabledActionIds?.includes("dungeon:add.rpg.dungeon.survivor-cave") &&
       state.discovery?.enabledActionIds?.includes("first-playable:reach-base") &&
       state.dungeonObjective === null &&
       state.ui?.worldTime?.day >= 1 &&
@@ -272,9 +272,9 @@ async function exerciseMapModeSwitching(page, consoleErrors) {
     (state) =>
       state.mapMode?.active === "dungeon_square" &&
       state.mapMode?.topology === "square" &&
-      state.mapMode?.fixture === true &&
+      state.mapMode?.fixture === false &&
       state.map?.topology?.kind === "square" &&
-      state.map?.topology?.fixture === true &&
+      state.map?.topology?.fixture === false &&
       state.map?.mapId === "add.rpg.dungeon.studio" &&
       state.map?.cells?.total > 100 &&
       state.map?.cells?.blocked > 0 &&
@@ -312,7 +312,7 @@ async function exerciseMapModeSwitching(page, consoleErrors) {
       state.mapMode?.scale?.travelScale === "interior" &&
       state.mapMode?.scale?.timePerCellSeconds === null &&
       state.map?.topology?.kind === "square" &&
-      state.map?.mapId === "add.rpg.square-base-fixture" &&
+      state.map?.mapId === "add.rpg.base.studio" &&
       state.map?.cells?.blocked > 0 &&
       state.map?.landmarks?.renderedCount > 0,
     consoleErrors,
@@ -1410,7 +1410,7 @@ async function exerciseStudioTileDetailLinks(page, consoleErrors) {
         state.discovery.tileDetail.linkKinds.includes("base") &&
         state.discovery.tileDetail.linkLabels.includes("The Studio") &&
         state.discovery.tileDetail.targetMapModes.includes("base_square") &&
-        state.discovery.tileDetail.targetMapIds.includes("add.rpg.square-base-fixture") &&
+        state.discovery.tileDetail.targetMapIds.includes("add.rpg.base.studio") &&
         state.discovery.tileDetail.actionIds.includes(
           "tile-action:base:tile-link:base:studio-echo",
         ) &&
@@ -1450,7 +1450,7 @@ async function exerciseStudioTileDetailLinks(page, consoleErrors) {
       page,
       (state) =>
         state.mapMode?.active === "base_square" &&
-        state.map?.mapId === "add.rpg.square-base-fixture" &&
+        state.map?.mapId === "add.rpg.base.studio" &&
         state.map?.landmarks?.renderedCount >= 3,
       consoleErrors,
     )
@@ -1531,7 +1531,7 @@ async function exerciseSurvivorCaveDungeonEntry(page, consoleErrors) {
       (link) =>
         link.enabled === true &&
         link.label === "Survivor Cave" &&
-        link.targetMapId === "add.rpg.square-dungeon-fixture",
+        link.targetMapId === "add.rpg.dungeon.survivor-cave",
     ),
     "The Hero should stand on an enabled Survivor Cave dungeon link.",
   )
@@ -1552,13 +1552,13 @@ async function exerciseSurvivorCaveDungeonEntry(page, consoleErrors) {
       state.mapMode?.topology === "square" &&
       state.mapMode?.scale?.travelScale === "local" &&
       state.mapMode?.scale?.timePerCellSeconds === null &&
-      state.map?.mapId === "add.rpg.square-dungeon-fixture" &&
+      state.map?.mapId === "add.rpg.dungeon.survivor-cave" &&
       state.map?.topology?.kind === "square" &&
       state.map?.validationValid === true &&
       state.map?.character?.cell === "square:2,4" &&
       state.dungeonObjective?.active === true &&
       state.dungeonObjective?.label === "Survivor Cave" &&
-      state.dungeonObjective?.mapId === "add.rpg.square-dungeon-fixture" &&
+      state.dungeonObjective?.mapId === "add.rpg.dungeon.survivor-cave" &&
       state.dungeonObjective?.currentStepId === "survey-cave-mouth" &&
       state.dungeonObjective?.returnAvailable === true,
     consoleErrors,

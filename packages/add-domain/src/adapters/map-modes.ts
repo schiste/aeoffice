@@ -24,7 +24,7 @@ import {
 
 export type AddMapMode = "overworld_hex" | "dungeon_square" | "base_square"
 
-export const ADD_BASE_SQUARE_MAP_ID = "add.rpg.square-base-fixture"
+export const ADD_BASE_SQUARE_MAP_ID = "add.rpg.base.studio"
 
 export interface AddMapModeOption {
   readonly id: AddMapMode
@@ -35,8 +35,8 @@ export interface AddMapModeOption {
 
 export const ADD_MAP_MODE_OPTIONS: readonly AddMapModeOption[] = [
   { id: "overworld_hex", label: "Overworld", topology: "hex", fixture: false },
-  { id: "dungeon_square", label: "Dungeon", topology: "square", fixture: true },
-  { id: "base_square", label: "Base", topology: "square", fixture: true },
+  { id: "dungeon_square", label: "Dungeon", topology: "square", fixture: false },
+  { id: "base_square", label: "Base", topology: "square", fixture: false },
 ]
 
 export interface CreateAddWorldOptions {
@@ -67,11 +67,11 @@ export function createAddWorldForMapMode(
     activeMapId: map.id,
     maps: [map],
     metadata: {
-      source: "add-square-fixture",
+      source: "add-runtime-square-map",
       mapMode: mode,
       runtimeAuthority: "rust-wasm",
       projectionOnly: true,
-      fixture: true,
+      fixture: false,
     },
   }
 }
@@ -95,7 +95,7 @@ function dungeonMapForId(mapId: string, snapshot: SimulationSnapshot): GameMap {
     metadata: {
       ...studio.metadata,
       mapMode: "dungeon_square",
-      fixture: true,
+      fixture: false,
       gameplayReady: false,
     },
   }
@@ -115,7 +115,7 @@ function survivorCaveDungeonMap(): GameMap {
     const doorway = (coord.x === 6 && coord.y === 4) || (coord.x === 9 && coord.y === 5)
     const blocked = wall && !doorway
     return {
-      tokenId: blocked ? "add.fixture.dungeon.wall" : "add.fixture.dungeon.floor",
+      tokenId: blocked ? "add.dungeon.wall" : "add.dungeon.floor",
       blocked,
       metadata: {
         terrain: blocked ? "dungeon_wall" : "dungeon_floor",
@@ -181,7 +181,7 @@ function baseSquareMap(): GameMap {
           ? "workbench"
           : "none"
     return {
-      tokenId: blocked ? "add.fixture.base.wall" : "add.fixture.base.floor",
+      tokenId: blocked ? "add.base.wall" : "add.base.floor",
       blocked,
       metadata: {
         terrain: blocked ? "base_wall" : "base_floor",
@@ -243,7 +243,7 @@ function baseSquareMap(): GameMap {
         requiredZoneId: "add.zone.base.studio-dungeon-entrance",
         enabled: true,
         metadata: {
-          source: "add-square-fixture",
+          source: "add-runtime-square-map",
           targetMapMode: "dungeon_square",
           targetMapId: STUDIO_DUNGEON_MAP_ID,
         },
@@ -267,14 +267,14 @@ function squareMap(input: {
   const gameplayReady = input.gameplayReady ?? false
   const interactions: readonly GameInteraction[] = [
     {
-      id: `add.interaction.${input.mode}.fixture-preview`,
-      kind: "fixture_action",
-      action: `add.fixture.${input.mode}.preview`,
+      id: `add.interaction.${input.mode}.map-objective`,
+      kind: "map_objective",
+      action: `add.map.${input.mode}.objective`,
       target: { kind: "map", id: input.id },
       label: gameplayReady ? "Dungeon objective" : "Preview only",
       enabled: gameplayReady,
       metadata: {
-        source: "add-square-fixture",
+        source: "add-runtime-square-map",
         gameplayReady,
       },
     },
@@ -295,13 +295,13 @@ function squareMap(input: {
       {
         id: `${input.id}.terrain`,
         kind: "terrain",
-        label: "Square fixture terrain",
+        label: "Square map terrain",
         cells: input.cells,
       },
       {
         id: `${input.id}.collision`,
         kind: "collision",
-        label: "Square fixture blockers",
+        label: "Square map blockers",
         visible: false,
         cells: input.cells.filter((cell) => cell.blocked),
       },
@@ -310,9 +310,9 @@ function squareMap(input: {
     zones: input.zones,
     interactions,
     metadata: {
-      source: "add-square-fixture",
+      source: "add-runtime-square-map",
       mapMode: input.mode,
-      fixture: true,
+      fixture: false,
       gameplayReady,
     },
   }
@@ -344,7 +344,7 @@ function landmark(
     kind: "landmark",
     label,
     coord,
-    tags: ["add", "fixture", "square"],
+    tags: ["add", "landmark", "square"],
     metadata: { sourceId },
   }
 }
@@ -363,11 +363,11 @@ function hero(id: string, label: string, coord: SquareCoord): GameEntity {
 function zone(id: string, label: string, cells: readonly SquareCoord[]): GameZone {
   return {
     id,
-    kind: "fixture_zone",
+    kind: "map_zone",
     label,
     cells,
     metadata: {
-      source: "add-square-fixture",
+      source: "add-runtime-square-map",
       gameplayReady: false,
     },
   }

@@ -788,10 +788,11 @@ export class AddRpgHexScene extends Phaser.Scene {
   private drawLandmark(center: Vector2, entity: GameEntity): void {
     const sourceId = String(entity.metadata?.sourceId ?? "")
     const isCave = sourceId.includes("cave")
-    const isFixture = (entity.tags ?? []).includes("fixture")
-    const isBase = !isFixture && (sourceId.includes("base") || sourceId.includes("crystal_circle"))
+    const isInteriorFeature = (entity.tags ?? []).includes("interior")
+    const isBase = sourceId.includes("base") || sourceId.includes("crystal_circle")
     const isCrystal = sourceId.includes("crystal")
     const isDoor = sourceId.includes("door") || sourceId.includes("gate") || sourceId.includes("exit")
+    const shouldLabel = isCave || isBase || isInteriorFeature
     const radius = isCave ? 13 : isBase ? 15 : 11
     const fill = isCave ? 0x8a4c2f : isBase ? 0x2f7d68 : 0xa05f2d
     const stroke = isCave ? 0x432315 : isBase ? 0x114538 : 0x5f371d
@@ -822,14 +823,14 @@ export class AddRpgHexScene extends Phaser.Scene {
       this.landmarkObjects.push(seam)
     }
 
-    if (!isCave && !isBase && !isFixture) return
+    if (!shouldLabel) return
     const labelText = isCave
       ? "Survivor Cave"
-      : isFixture
-        ? entity.label ?? "Fixture"
+      : isInteriorFeature
+        ? entity.label ?? "Interior"
         : isBase
           ? "Studio"
-          : entity.label ?? "Fixture"
+          : entity.label ?? "Landmark"
     const label = this.add.text(center.x, center.y + 28, labelText, {
       color: "#1f2a25",
       fontFamily: "Aptos, Segoe UI, sans-serif",

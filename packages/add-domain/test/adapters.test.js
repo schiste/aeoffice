@@ -64,7 +64,7 @@ assert.equal(survivorCaveCell.metadata.travelRisk, "safe_field")
 assert.equal(survivorCaveCell.metadata.label, "Survivor Cave")
 assert.equal(survivorCaveCell.links.length, 1)
 assert.equal(survivorCaveCell.links[0].kind, "dungeon")
-assert.equal(survivorCaveCell.links[0].targetMapId, "add.rpg.square-dungeon-fixture")
+assert.equal(survivorCaveCell.links[0].targetMapId, "add.rpg.dungeon.survivor-cave")
 assert.deepEqual(survivorCaveCell.links[0].targetCoord, {
   kind: "square",
   x: 2,
