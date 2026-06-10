@@ -10,6 +10,10 @@ const DIST_DIR = path.join(ROOT_DIR, "apps/add-rpg/dist-app")
 const SCREENSHOT_PATH = path.join(ROOT_DIR, "tmp/add-rpg-smoke.png")
 const ADD_AUTOSAVE_STORAGE_KEY = "aedventure.add-rpg.autosave.v1"
 const RESET_CLOCK_TOLERANCE_SECONDS = 60
+const MOBILE_PRESENTATION_VIEWPORTS = [
+  { name: "mobile", width: 390, height: 760 },
+  { name: "mobile-narrow", width: 360, height: 740 },
+]
 
 async function main() {
   const { server, url } = await startStaticAppServer({
@@ -900,34 +904,117 @@ async function exerciseBaseManagementSurface(page, consoleErrors) {
 }
 
 async function assertMobilePresentation(browser, url) {
-  const page = await browser.newPage({ viewport: { width: 390, height: 760 } })
-  const consoleErrors = []
-  page.on("console", (message) => {
-    if (message.type() === "error") consoleErrors.push(message.text())
-  })
-  page.on("pageerror", (error) => {
-    consoleErrors.push(error.stack || error.message)
-  })
-  await page.addInitScript((storageKey) => {
-    window.localStorage.removeItem(storageKey)
-  }, ADD_AUTOSAVE_STORAGE_KEY)
+  for (const viewport of MOBILE_PRESENTATION_VIEWPORTS) {
+    const page = await browser.newPage({
+      viewport: { width: viewport.width, height: viewport.height },
+    })
+    const consoleErrors = []
+    page.on("console", (message) => {
+      if (message.type() === "error") consoleErrors.push(message.text())
+    })
+    page.on("pageerror", (error) => {
+      consoleErrors.push(error.stack || error.message)
+    })
+    await page.addInitScript((storageKey) => {
+      window.localStorage.removeItem(storageKey)
+    }, ADD_AUTOSAVE_STORAGE_KEY)
 
-  try {
-    await page.goto(`${url}/app`, { waitUntil: "domcontentloaded" })
-    await waitForTextState(
-      page,
-      (state) =>
-        state.app === "add-rpg" &&
-        state.runtime?.ready === true &&
-        state.map?.ready === true &&
-        state.map?.presentation?.responsiveLayout === "mobile" &&
-        state.map?.presentation?.terrainArt === "procedural_painterly_topology",
-      consoleErrors,
-    )
-    assert.deepEqual(consoleErrors, [])
-  } finally {
-    await page.close()
+    try {
+      await page.goto(`${url}/app`, { waitUntil: "domcontentloaded" })
+      await waitForTextState(
+        page,
+        (state) =>
+          state.app === "add-rpg" &&
+          state.runtime?.ready === true &&
+          state.map?.ready === true &&
+          state.map?.presentation?.responsiveLayout === "mobile" &&
+          state.map?.presentation?.terrainArt === "procedural_painterly_topology" &&
+          state.shell?.questPanel?.collapsed === true,
+        consoleErrors,
+      )
+      await assertMobileLayoutComposition(page, viewport)
+      await assertNonBlankNamedAppScreenshot(
+        page,
+        `add-rpg-${viewport.name}-smoke.png`,
+        `ADD RPG ${viewport.name} app screenshot`,
+      )
+      assert.deepEqual(consoleErrors, [])
+    } finally {
+      await page.close()
+    }
   }
+}
+
+async function assertMobileLayoutComposition(page, viewport) {
+  const metrics = await page.evaluate(() => {
+    function rectFor(selector) {
+      const element = document.querySelector(selector)
+      if (!(element instanceof HTMLElement)) return null
+      const rect = element.getBoundingClientRect()
+      return {
+        top: rect.top,
+        right: rect.right,
+        bottom: rect.bottom,
+        left: rect.left,
+        width: rect.width,
+        height: rect.height,
+      }
+    }
+
+    const contextPanel = document.querySelector(
+      "#discovery-panel, #base-management-panel, #dungeon-context-panel, #offline-return-panel",
+    )
+    let context = null
+    if (contextPanel instanceof HTMLElement) {
+      const rect = contextPanel.getBoundingClientRect()
+      context = {
+        top: rect.top,
+        right: rect.right,
+        bottom: rect.bottom,
+        left: rect.left,
+        width: rect.width,
+        height: rect.height,
+      }
+    }
+
+    return {
+      width: window.innerWidth,
+      height: window.innerHeight,
+      topbar: rectFor(".map-topbar"),
+      questPanel: rectFor("#first-playable-panel"),
+      cameraControls: rectFor(".map-camera-controls"),
+      context,
+    }
+  })
+
+  assert.ok(metrics.topbar, `${viewport.name}: expected compact topbar`)
+  assert.ok(metrics.context, `${viewport.name}: expected contextual bottom sheet`)
+  assert.ok(metrics.questPanel, `${viewport.name}: expected objective tracker`)
+  assert.ok(metrics.cameraControls, `${viewport.name}: expected camera controls`)
+  assert.equal(metrics.width, viewport.width)
+  assert.equal(metrics.height, viewport.height)
+  assert.ok(metrics.topbar.height <= 46, `${viewport.name}: topbar is too tall`)
+  assert.ok(metrics.questPanel.height <= 64, `${viewport.name}: objective tracker should start collapsed`)
+  assert.ok(
+    metrics.questPanel.top >= metrics.topbar.bottom + 2,
+    `${viewport.name}: objective tracker overlaps the topbar`,
+  )
+  assert.ok(
+    metrics.context.top >= viewport.height * 0.55,
+    `${viewport.name}: contextual panel should behave like a bottom sheet`,
+  )
+  assert.ok(
+    metrics.context.bottom <= viewport.height + 1,
+    `${viewport.name}: contextual panel overflows the viewport`,
+  )
+  assert.ok(
+    metrics.cameraControls.bottom <= metrics.context.top - 4,
+    `${viewport.name}: camera controls overlap the bottom sheet`,
+  )
+  assert.ok(
+    metrics.cameraControls.left >= 0 && metrics.cameraControls.right <= viewport.width,
+    `${viewport.name}: camera controls should remain reachable`,
+  )
 }
 
 function assertInitialDiscoveryAnchors(state) {

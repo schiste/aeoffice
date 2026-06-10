@@ -187,7 +187,8 @@ const [timeSpeed, setTimeSpeed] = createSignal(1)
 const [adminOpen, setAdminOpen] = createSignal(false)
 const [shellMenuOpen, setShellMenuOpen] = createSignal(false)
 const [discoveryPanelCollapsed, setDiscoveryPanelCollapsed] = createSignal(false)
-const [firstPlayableCollapsed, setFirstPlayableCollapsed] = createSignal(false)
+const [firstPlayableCollapsed, setFirstPlayableCollapsed] =
+  createSignal(shouldCollapseQuestPanelByDefault())
 const [baseManagementTab, setBaseManagementTab] =
   createSignal<AddBaseManagementTabId>("crystal")
 const [questPanelPosition, setQuestPanelPosition] = createSignal(defaultQuestPanelPosition())
@@ -961,9 +962,13 @@ function AddRpgApp() {
 
 function defaultQuestPanelPosition(): QuestPanelPosition {
   if (typeof window !== "undefined" && window.innerWidth <= 520) {
-    return { x: 10, y: 104 }
+    return { x: 8, y: 46 }
   }
   return { x: 12, y: 54 }
+}
+
+function shouldCollapseQuestPanelByDefault(): boolean {
+  return typeof window !== "undefined" && window.innerWidth <= 520
 }
 
 function questPanelStyle(): Record<string, string> {
@@ -3091,12 +3096,27 @@ function mapModeButtons(): readonly unknown[] {
         class=${() => (mapMode() === option.id ? "map-mode-button active" : "map-mode-button")}
         role="tab"
         aria-selected=${() => mapMode() === option.id}
+        aria-label=${option.label}
         onClick=${() => switchMapModeFromTab(option.id)}
       >
-        ${option.label}
+        <span class="map-mode-label-full">${option.label}</span>
+        <span class="map-mode-label-short" aria-hidden="true">${shortMapModeLabel(option.id)}</span>
       </button>
     `,
   )
+}
+
+function shortMapModeLabel(mode: AddMapMode): string {
+  switch (mode) {
+    case "overworld_hex":
+      return "World"
+    case "area_hex":
+      return "Area"
+    case "dungeon_square":
+      return "Dgn"
+    case "base_square":
+      return "Base"
+  }
 }
 
 // Smoothly animates the *presentation* clock toward a target. Only the explicit

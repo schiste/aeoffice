@@ -9,6 +9,7 @@
   --aqua: #5fd1d8;
   --danger: #c8654b;
   --map-side-rail-space: 0px;
+  --mobile-context-sheet-height: 0px;
   color: var(--paper);
   background: var(--ink);
   font-family:
@@ -169,6 +170,10 @@ button:disabled {
 .map-mode-button.active {
   background: linear-gradient(180deg, #f0b95d, #c58135);
   color: #1a1812;
+}
+
+.map-mode-label-short {
+  display: none;
 }
 
 .eyebrow {
@@ -2833,6 +2838,10 @@ h1 {
 }
 
 @media (max-width: 980px) {
+  :root {
+    --mobile-context-sheet-height: min(32svh, 260px);
+  }
+
   body {
     overflow: hidden;
   }
@@ -2846,8 +2855,9 @@ h1 {
   }
 
   .map-hud {
-    align-items: stretch;
-    flex-direction: column-reverse;
+    bottom: calc(var(--mobile-context-sheet-height) + 22px);
+    align-items: flex-start;
+    flex-direction: row;
   }
 
   .resource-status-strip {
@@ -2873,53 +2883,104 @@ h1 {
   .offline-return-panel {
     top: auto;
     right: 12px;
-    bottom: 202px;
+    bottom: 12px;
     left: 12px;
     width: auto;
     min-width: 0;
-    max-height: 30vh;
+    max-height: var(--mobile-context-sheet-height);
+    border-radius: 12px 12px 8px 8px;
   }
 
   .offline-return-panel {
-    width: min(480px, calc(100vw - 24px));
-    max-height: 58vh;
+    width: auto;
+    max-height: min(44svh, 340px);
   }
 }
 
 @media (max-width: 520px) {
+  :root {
+    --mobile-context-sheet-height: min(36svh, 264px);
+  }
+
   .add-app-shell {
     height: 100vh;
   }
 
   .map-topbar {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 8px;
-    padding: 8px 10px;
+    align-items: center;
+    flex-direction: row;
+    gap: 5px;
+    min-height: 36px;
+    padding: 4px 6px;
   }
 
   .map-mode-switcher {
-    width: 100%;
-    justify-content: stretch;
+    flex: 0 1 42vw;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    overflow-x: auto;
+    max-width: 42vw;
+    padding: 2px;
+    scrollbar-width: none;
+  }
+
+  .map-mode-switcher::-webkit-scrollbar {
+    display: none;
   }
 
   .map-mode-button {
-    flex: 1 1 auto;
+    flex: 0 0 auto;
+    min-height: 1.42rem;
+    padding: 0 0.46rem;
+    font-size: 0.62rem;
+  }
+
+  .map-mode-label-full {
+    display: none;
+  }
+
+  .map-mode-label-short {
+    display: inline;
   }
 
   .status-stack {
-    width: 100%;
-    justify-content: space-between;
+    flex: 1 1 auto;
+    width: auto;
+    gap: 4px;
+    justify-content: flex-end;
+    overflow: hidden;
+  }
+
+  .status-pill {
+    display: none;
   }
 
   .world-time-chip {
-    flex: 1 1 11rem;
+    flex: 0 1 7.8rem;
     min-width: 0;
+    min-height: 1.44rem;
+    padding: 0.16rem 0.42rem 0.24rem;
+  }
+
+  .world-time-chip span {
+    font-size: 0.62rem;
+  }
+
+  .world-time-chip i {
+    right: 0.34rem;
+    bottom: 0.12rem;
+    left: 0.34rem;
+  }
+
+  .time-speed-button,
+  .shell-menu-toggle {
+    min-height: 1.44rem;
+    padding: 0 0.42rem;
+    font-size: 0.61rem;
   }
 
   .resource-status-strip {
-    order: 3;
-    width: 100%;
+    display: none;
   }
 
   .resource-status-strip span {
@@ -2970,8 +3031,40 @@ h1 {
   .base-management-panel,
   .dungeon-context-panel,
   .offline-return-panel {
-    bottom: 194px;
+    right: 8px;
+    bottom: 8px;
+    left: 8px;
+    max-height: var(--mobile-context-sheet-height);
     padding: 10px;
+    border-radius: 13px 13px 8px 8px;
+  }
+
+  .discovery-heading {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+
+  .discovery-heading > div {
+    flex: 1 1 100%;
+    flex-wrap: wrap;
+    min-width: 0;
+  }
+
+  .discovery-heading .enter-dungeon-button {
+    overflow: hidden;
+    max-width: min(11rem, calc(100vw - 190px));
+    text-overflow: ellipsis;
+  }
+
+  .discovery-heading .discovery-toggle {
+    margin-left: auto;
+  }
+
+  .discovery-panel.collapsed {
+    max-height: 3.35rem;
+    overflow: hidden;
   }
 
   .base-management-tabs {
@@ -3015,16 +3108,48 @@ h1 {
   }
 
   .first-playable-overlay {
-    width: min(360px, calc(100vw - 20px));
-    max-height: 42vh;
+    width: min(300px, calc(100vw - 16px));
+    max-height: 28vh;
+  }
+
+  .first-playable-overlay.collapsed {
+    width: min(230px, calc(100vw - 16px));
+    max-height: 3.2rem;
+    overflow: hidden;
+  }
+
+  .map-hud {
+    bottom: calc(var(--mobile-context-sheet-height) + 16px);
+    left: 8px;
+    max-width: calc(100vw - 16px);
   }
 
   .map-camera-controls {
-    width: 100%;
+    width: auto;
+    max-width: 100%;
+    gap: 2px;
+    padding: 3px;
   }
 
   .map-camera-controls {
-    justify-content: space-between;
+    justify-content: flex-start;
+  }
+
+  .map-button {
+    min-width: 1.7rem;
+    min-height: 1.7rem;
+    padding: 0 0.42rem;
+    font-size: 0.82rem;
+  }
+
+  .map-button.text {
+    min-width: 3.2rem;
+    font-size: 0.66rem;
+  }
+
+  .zoom-readout {
+    min-width: 2.7rem;
+    font-size: 0.66rem;
   }
 
   .command-grid {
