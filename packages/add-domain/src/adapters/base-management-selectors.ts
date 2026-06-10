@@ -7,9 +7,11 @@ import type {
   ExpeditionRisk,
   ExpeditionTargetDef,
   ProcessingRecipeDef,
+  ResonanceRecipeDef,
   RequirementDef,
   RoleDef,
   SimulationSnapshot,
+  StationSpecializationPath,
   StationDef,
 } from "../runtime/protocol"
 import {
@@ -18,6 +20,9 @@ import {
   RESOURCE_BASSLINE,
   RESOURCE_CHORUS,
   RESOURCE_HARMONICS,
+  RESONANCE_MATERIAL_ECHO_SHARDS,
+  RESONANCE_MATERIAL_HARMONIC_RESIDUE,
+  RESONANCE_MATERIAL_SIGNAL_SCRAP,
   RESOURCE_STONE,
   RESOURCE_VIBES,
   RESOURCE_WATER,
@@ -39,6 +44,10 @@ import {
   type AddRoleAssignmentSummary,
 } from "./ui-selectors"
 
+const RESONANCE_SUPPORT_DURATION_REDUCTION_PER_LEVEL = 0.04
+const RESONANCE_SUPPORT_DURATION_REDUCTION_CAP = 0.35
+const STATION_SPECIALIZATION_FIELD_DURATION_BONUS = 0.12
+
 export type AddBaseManagementTabId =
   | "crystal"
   | "build"
@@ -46,6 +55,7 @@ export type AddBaseManagementTabId =
   | "crew"
   | "social"
   | "expeditions"
+  | "resonance"
   | "processing"
 
 export interface AddBaseManagementMetric {
@@ -281,6 +291,7 @@ export interface AddBaseExpeditionReport {
   readonly durationSeconds: number
   readonly risk: ExpeditionRisk
   readonly rewardCopy: string
+  readonly resonanceCopy: string
   readonly woundCopy: string
   readonly clueCopy: string
 }
@@ -298,6 +309,60 @@ export interface AddBaseExpeditionProjection {
   readonly activeJobs: readonly AddBaseExpeditionJob[]
   readonly reports: readonly AddBaseExpeditionReport[]
   readonly recommendedTargetId: string | null
+}
+
+export interface AddBaseResonanceMaterialSummary {
+  readonly id: string
+  readonly label: string
+  readonly value: number
+  readonly detail: string
+}
+
+export interface AddBaseResonanceRecipeSummary {
+  readonly id: string
+  readonly label: string
+  readonly stationId: string
+  readonly stationLabel: string
+  readonly durationSeconds: number
+  readonly remainingSeconds: number | null
+  readonly progressPercent: number
+  readonly costLabel: string
+  readonly effectLabel: string
+  readonly playerHint: string
+  readonly enabled: boolean
+  readonly inProgress: boolean
+  readonly blockedReason: string | null
+}
+
+export interface AddBaseStationSpecializationSummary {
+  readonly stationId: string
+  readonly stationLabel: string
+  readonly currentPath: StationSpecializationPath
+  readonly options: readonly {
+    readonly path: StationSpecializationPath
+    readonly label: string
+    readonly detail: string
+    readonly active: boolean
+  }[]
+}
+
+export interface AddBaseResonanceProjection {
+  readonly summary: string
+  readonly materials: readonly AddBaseResonanceMaterialSummary[]
+  readonly tuning: {
+    readonly basslineLevel: number
+    readonly chorusLevel: number
+    readonly harmonicsLevel: number
+    readonly basslineBonusPercent: number
+    readonly chorusBonusPercent: number
+    readonly harmonicsBonusPercent: number
+  }
+  readonly expeditionSupportLevel: number
+  readonly activeJobCount: number
+  readonly completedReportCount: number
+  readonly recipes: readonly AddBaseResonanceRecipeSummary[]
+  readonly stationSpecializations: readonly AddBaseStationSpecializationSummary[]
+  readonly recommendedRecipeId: string | null
 }
 
 export type AddBaseConstructionCategory =
@@ -459,6 +524,7 @@ export interface AddBaseManagementState {
   readonly economy: AddBaseEconomyProjection
   readonly socialPressure: AddBaseSocialPressureProjection
   readonly expeditions: AddBaseExpeditionProjection
+  readonly resonance: AddBaseResonanceProjection
   readonly sections: readonly AddBaseManagementSection[]
   readonly activeConstruction: AddConstructionSummary | null
   readonly vibes: {
@@ -504,6 +570,7 @@ export interface AddBaseManagementState {
       | "start_processing"
       | "recruit_survivor"
       | "start_expedition"
+      | "start_resonance_recipe"
       | "wait"
     readonly targetId: string | null
     readonly enabled: boolean
@@ -566,6 +633,7 @@ export function selectAddBaseManagementState(
   )
   const socialPressure = selectBaseSocialPressureProjection(snapshot)
   const expeditions = selectBaseExpeditionProjection(snapshot, catalog)
+  const resonance = selectBaseResonanceProjection(snapshot, catalog)
   const recommendedAction = selectRecommendedBaseAction(
     snapshot,
     roles,
@@ -573,6 +641,7 @@ export function selectAddBaseManagementState(
     stations,
     processing,
     expeditions,
+    resonance,
   )
 
   return {
@@ -591,6 +660,7 @@ export function selectAddBaseManagementState(
     economy,
     socialPressure,
     expeditions,
+    resonance,
     sections: baseSections({
       snapshot,
       resources,
@@ -602,6 +672,7 @@ export function selectAddBaseManagementState(
       nextBottleneck,
       recommendedAction,
       expeditions,
+      resonance,
     }),
     activeConstruction,
     vibes: {
@@ -1386,6 +1457,7 @@ function baseSections(input: {
   readonly nextBottleneck: AddBaseManagementState["nextBottleneck"]
   readonly recommendedAction: AddBaseManagementState["recommendedAction"]
   readonly expeditions: AddBaseExpeditionProjection
+  readonly resonance: AddBaseResonanceProjection
 }): readonly AddBaseManagementSection[] {
   const bassline = resourceById(input.resources, RESOURCE_BASSLINE)
   const chorus = resourceById(input.resources, RESOURCE_CHORUS)
@@ -1517,6 +1589,37 @@ function baseSections(input: {
       ],
     },
     {
+      id: "resonance",
+      label: "Resonance",
+      headline: input.resonance.summary,
+      detail:
+        input.resonance.recommendedRecipeId !== null
+          ? "Convert expedition finds into crystal tuning and field support."
+          : "Bring back strange materials from expeditions to start conversion recipes.",
+      primaryActionId: input.resonance.recommendedRecipeId,
+      blockedReason:
+        input.resonance.recommendedRecipeId === null
+          ? input.resonance.recipes.find((recipe) => recipe.blockedReason)?.blockedReason ?? null
+          : null,
+      metrics: [
+        {
+          id: "resonance-materials",
+          label: "Materials",
+          value: `${input.resonance.materials.reduce((total, material) => total + material.value, 0)}`,
+          detail: "Strange expedition finds",
+          severity:
+            input.resonance.materials.some((material) => material.value > 0) ? "good" : "warning",
+        },
+        {
+          id: "resonance-tuning",
+          label: "Tuning",
+          value: `${input.resonance.tuning.basslineLevel}/${input.resonance.tuning.chorusLevel}/${input.resonance.tuning.harmonicsLevel}`,
+          detail: `Support ${input.resonance.expeditionSupportLevel}`,
+          severity: input.resonance.activeJobCount > 0 ? "good" : "neutral",
+        },
+      ],
+    },
+    {
       id: "processing",
       label: "Processing",
       headline: enabledProcessing ? enabledProcessing.label : "No recipe ready",
@@ -1603,6 +1706,7 @@ function selectRecommendedBaseAction(
   stations: readonly AddBaseStationManagementSummary[],
   processing: readonly AddBaseProcessingManagementSummary[],
   expeditions: AddBaseExpeditionProjection,
+  resonance: AddBaseResonanceProjection,
 ): AddBaseManagementState["recommendedAction"] {
   if (!snapshot.roster.heroAssigned) {
     return {
@@ -1680,6 +1784,17 @@ function selectRecommendedBaseAction(
       detail: `${expedition.durationLabel}, ${expedition.requiredCrew} crew, ${expedition.riskLabel}`,
       kind: "start_expedition",
       targetId: expedition.id,
+      enabled: true,
+    }
+  }
+  const resonanceRecipe = resonance.recipes.find((recipe) => recipe.id === resonance.recommendedRecipeId)
+  if (resonanceRecipe) {
+    return {
+      id: `resonance:${resonanceRecipe.id}`,
+      label: `Tune ${resonanceRecipe.label}`,
+      detail: `${resonanceRecipe.stationLabel} · ${resonanceRecipe.costLabel}`,
+      kind: "start_resonance_recipe",
+      targetId: resonanceRecipe.id,
       enabled: true,
     }
   }
@@ -2178,10 +2293,14 @@ function selectBaseExpeditionProjection(
           stone: report.stoneGained,
           water: report.waterGained,
           vibes: report.vibesGained,
+          echoShards: report.echoShardsGained,
+          signalScrap: report.signalScrapGained,
+          harmonicResidue: report.harmonicResidueGained,
           wounds: report.wounds,
           clues: report.clues,
           dungeonLeads: report.dungeonLeads,
         }),
+        resonanceCopy: expeditionResonanceRewardCopy(report),
         woundCopy:
           report.wounds > 0
             ? `${report.wounds} wound ${report.wounds === 1 ? "reported" : "reported"}`
@@ -2214,17 +2333,226 @@ function selectBaseExpeditionProjection(
   }
 }
 
+function selectBaseResonanceProjection(
+  snapshot: SimulationSnapshot,
+  catalog: CatalogSnapshot,
+): AddBaseResonanceProjection {
+  const stationById = new Map(catalog.stations.map((station) => [station.id, station]))
+  const materials = resonanceMaterials(snapshot)
+  const recipes = catalog.resonanceRecipes
+    .slice()
+    .sort((left, right) => left.uiOrder - right.uiOrder)
+    .map((recipe) =>
+      resonanceRecipeSummary(snapshot, recipe, stationById.get(recipe.stationId)),
+    )
+  const recommendedRecipeId = recipes.find((recipe) => recipe.enabled)?.id ?? null
+  const activeJobCount = recordValues(snapshot.resonance.activeJobs).length
+  const tuning = {
+    basslineLevel: snapshot.resonance.tuning.basslineLevel,
+    chorusLevel: snapshot.resonance.tuning.chorusLevel,
+    harmonicsLevel: snapshot.resonance.tuning.harmonicsLevel,
+    basslineBonusPercent: snapshot.resonance.tuning.basslineLevel * 6,
+    chorusBonusPercent: snapshot.resonance.tuning.chorusLevel * 6,
+    harmonicsBonusPercent: snapshot.resonance.tuning.harmonicsLevel * 6,
+  }
+  return {
+    summary:
+      activeJobCount > 0
+        ? `${activeJobCount} resonance ${activeJobCount === 1 ? "recipe is" : "recipes are"} converting.`
+        : recommendedRecipeId
+          ? "Strange materials can be converted into base tuning."
+          : materials.some((material) => material.value > 0)
+            ? "Materials are present, but a station, power, or recipe cost is blocking conversion."
+            : "Expeditions need to bring back strange materials before resonance can start.",
+    materials,
+    tuning,
+    expeditionSupportLevel: snapshot.resonance.expeditionSupportLevel,
+    activeJobCount,
+    completedReportCount: snapshot.resonance.completedReports.length,
+    recipes,
+    stationSpecializations: resonanceStationSpecializations(snapshot, catalog),
+    recommendedRecipeId,
+  }
+}
+
+function resonanceMaterials(snapshot: SimulationSnapshot): readonly AddBaseResonanceMaterialSummary[] {
+  return [
+    {
+      id: RESONANCE_MATERIAL_ECHO_SHARDS,
+      label: "Echo Shards",
+      value: snapshot.resonance.materials.echoShards,
+      detail: "Crystalline fragments that tune Bassline and Harmonics.",
+    },
+    {
+      id: RESONANCE_MATERIAL_SIGNAL_SCRAP,
+      label: "Signal Scrap",
+      value: snapshot.resonance.materials.signalScrap,
+      detail: "Broken carrier pieces for Bassline, Chorus, and field support.",
+    },
+    {
+      id: RESONANCE_MATERIAL_HARMONIC_RESIDUE,
+      label: "Harmonic Residue",
+      value: snapshot.resonance.materials.harmonicResidue,
+      detail: "Rare field residue for Chorus and Harmonics tuning.",
+    },
+  ]
+}
+
+function resonanceRecipeSummary(
+  snapshot: SimulationSnapshot,
+  recipe: ResonanceRecipeDef,
+  station: StationDef | undefined,
+): AddBaseResonanceRecipeSummary {
+  const job = recordValue(snapshot.resonance.activeJobs, recipe.stationId) ?? null
+  const stationRuntime = recordValue(snapshot.stations, recipe.stationId)
+  const inProgress = job?.recipeId === recipe.id
+  const stationPowered =
+    stationRuntime?.isPowered ??
+    Boolean(station && !station.manualPower && requirementsMet(snapshot, station.requirements))
+  const blockedReason = inProgress
+    ? null
+    : job && job.recipeId !== recipe.id
+      ? `${station?.label ?? "Station"} is already converting another resonance recipe.`
+      : !stationPowered
+        ? `${station?.label ?? "Station"} needs power.`
+        : resonanceCostBlocker(snapshot, recipe)
+  const totalSeconds = Math.max(1, job?.totalWorkSeconds ?? recipe.durationSeconds)
+  const remainingSeconds = inProgress ? Math.max(0, job?.remainingWorkSeconds ?? 0) : null
+  return {
+    id: recipe.id,
+    label: recipe.label,
+    stationId: recipe.stationId,
+    stationLabel: station?.label ?? recipe.stationId,
+    durationSeconds: totalSeconds,
+    remainingSeconds,
+    progressPercent:
+      remainingSeconds === null
+        ? 0
+        : Math.max(0, Math.min(100, ((totalSeconds - remainingSeconds) / totalSeconds) * 100)),
+    costLabel: resonanceCostLabel(recipe),
+    effectLabel: resonanceEffectLabel(recipe),
+    playerHint: recipe.playerHint,
+    enabled: !job && blockedReason === null,
+    inProgress,
+    blockedReason,
+  }
+}
+
+function resonanceStationSpecializations(
+  snapshot: SimulationSnapshot,
+  catalog: CatalogSnapshot,
+): readonly AddBaseStationSpecializationSummary[] {
+  return ["station.resonance_chamber", "station.mix_console", "station.workshop", "station.research_booth"]
+    .map((stationId) => catalog.stations.find((station) => station.id === stationId))
+    .filter((station): station is StationDef => station !== undefined)
+    .filter((station) => requirementsMet(snapshot, station.requirements))
+    .map((station) => {
+      const currentPath =
+        recordValue(snapshot.resonance.stationSpecializations, station.id) ?? "balanced"
+      return {
+        stationId: station.id,
+        stationLabel: station.label,
+        currentPath,
+        options: (["balanced", "conversion", "field", "extraction"] as const).map((path) => ({
+          path,
+          label: stationSpecializationLabel(path),
+          detail: stationSpecializationDetail(station.id, path),
+          active: currentPath === path,
+        })),
+      }
+    })
+}
+
+function resonanceCostBlocker(
+  snapshot: SimulationSnapshot,
+  recipe: ResonanceRecipeDef,
+): string | null {
+  const missing = recipe.costs.find((cost) => resonanceMaterialValue(snapshot, cost.materialId) < cost.amount)
+  return missing
+    ? `Need ${missing.amount} ${resonanceMaterialLabel(missing.materialId)}.`
+    : null
+}
+
+function resonanceCostLabel(recipe: ResonanceRecipeDef): string {
+  return recipe.costs
+    .map((cost) => `${cost.amount} ${resonanceMaterialLabel(cost.materialId)}`)
+    .join(", ")
+}
+
+function resonanceEffectLabel(recipe: ResonanceRecipeDef): string {
+  switch (recipe.effect.kind) {
+    case "increment_tuning":
+      return `+${recipe.effect.amount} ${titleCase(recipe.effect.track)} tuning`
+    case "increment_expedition_support":
+      return `+${recipe.effect.amount} expedition support`
+  }
+}
+
+function resonanceMaterialValue(snapshot: SimulationSnapshot, materialId: string): number {
+  switch (materialId) {
+    case RESONANCE_MATERIAL_ECHO_SHARDS:
+      return snapshot.resonance.materials.echoShards
+    case RESONANCE_MATERIAL_SIGNAL_SCRAP:
+      return snapshot.resonance.materials.signalScrap
+    case RESONANCE_MATERIAL_HARMONIC_RESIDUE:
+      return snapshot.resonance.materials.harmonicResidue
+    default:
+      return 0
+  }
+}
+
+function resonanceMaterialLabel(materialId: string): string {
+  switch (materialId) {
+    case RESONANCE_MATERIAL_ECHO_SHARDS:
+      return "Echo Shards"
+    case RESONANCE_MATERIAL_SIGNAL_SCRAP:
+      return "Signal Scrap"
+    case RESONANCE_MATERIAL_HARMONIC_RESIDUE:
+      return "Harmonic Residue"
+    default:
+      return materialId
+  }
+}
+
+function stationSpecializationLabel(path: StationSpecializationPath): string {
+  switch (path) {
+    case "balanced":
+      return "Balanced"
+    case "conversion":
+      return "Conversion"
+    case "field":
+      return "Field"
+    case "extraction":
+      return "Extraction"
+  }
+}
+
+function stationSpecializationDetail(
+  stationId: string,
+  path: StationSpecializationPath,
+): string {
+  if (path === "balanced") return "No bias; steady station behavior."
+  if (path === "conversion") return "Resonance recipes complete faster at this station."
+  if (path === "field") {
+    return stationId === "station.resonance_chamber"
+      ? "Expeditions return faster while this station anchors field prep."
+      : "Field-facing priority for future exploration modifiers."
+  }
+  return "Expeditions return extra strange materials when extraction support is active."
+}
+
 function expeditionTargetProjection(
   snapshot: SimulationSnapshot,
   target: ExpeditionTargetDef,
   availableCrew: number,
 ): AddBaseExpeditionTarget {
   const disabledReason = expeditionTargetBlocker(snapshot, target, availableCrew)
+  const durationSeconds = effectiveExpeditionDurationSeconds(snapshot, target.durationSeconds)
   return {
     id: target.id,
     label: target.label,
-    durationSeconds: target.durationSeconds,
-    durationLabel: formatDuration(target.durationSeconds),
+    durationSeconds,
+    durationLabel: formatDuration(durationSeconds),
     requiredCrew: target.requiredCrew,
     requiredBubbleReach: target.requiredBubbleReach,
     risk: target.risk,
@@ -2235,6 +2563,21 @@ function expeditionTargetProjection(
     enabled: disabledReason === null,
     disabledReason,
   }
+}
+
+function effectiveExpeditionDurationSeconds(
+  snapshot: SimulationSnapshot,
+  baseDurationSeconds: number,
+): number {
+  const supportBonus = Math.min(
+    RESONANCE_SUPPORT_DURATION_REDUCTION_CAP,
+    snapshot.resonance.expeditionSupportLevel * RESONANCE_SUPPORT_DURATION_REDUCTION_PER_LEVEL,
+  )
+  const fieldBonus =
+    recordValue(snapshot.resonance.stationSpecializations, "station.resonance_chamber") === "field"
+      ? STATION_SPECIALIZATION_FIELD_DURATION_BONUS
+      : 0
+  return baseDurationSeconds * Math.max(0.4, Math.min(1, 1 - supportBonus - fieldBonus))
 }
 
 function expeditionTargetBlocker(
@@ -2282,6 +2625,9 @@ function expeditionRewardCopy(reward: {
   readonly stone: number
   readonly water: number
   readonly vibes: number
+  readonly echoShards: number
+  readonly signalScrap: number
+  readonly harmonicResidue: number
   readonly wounds: number
   readonly clues: number
   readonly dungeonLeads: number
@@ -2290,11 +2636,25 @@ function expeditionRewardCopy(reward: {
     reward.stone > 0 ? `${formatAmount(reward.stone)} Stone` : null,
     reward.water > 0 ? `${formatAmount(reward.water)} Water` : null,
     reward.vibes > 0 ? `${formatAmount(reward.vibes)} Vibes` : null,
+    reward.echoShards > 0 ? `${reward.echoShards} Echo Shard(s)` : null,
+    reward.signalScrap > 0 ? `${reward.signalScrap} Signal Scrap` : null,
+    reward.harmonicResidue > 0 ? `${reward.harmonicResidue} Harmonic Residue` : null,
     reward.clues > 0 ? `${reward.clues} clue(s)` : null,
     reward.dungeonLeads > 0 ? `${reward.dungeonLeads} dungeon lead(s)` : null,
     reward.wounds > 0 ? `${reward.wounds} wound risk` : null,
   ].filter((item): item is string => item !== null)
   return parts.length > 0 ? parts.join(" · ") : "Scout report only"
+}
+
+function expeditionResonanceRewardCopy(
+  report: SimulationSnapshot["expeditions"]["completedReports"][number],
+): string {
+  const parts = [
+    report.echoShardsGained > 0 ? `${report.echoShardsGained} Echo Shard(s)` : null,
+    report.signalScrapGained > 0 ? `${report.signalScrapGained} Signal Scrap` : null,
+    report.harmonicResidueGained > 0 ? `${report.harmonicResidueGained} Harmonic Residue` : null,
+  ].filter((item): item is string => item !== null)
+  return parts.length > 0 ? parts.join(" · ") : "No strange material recovered"
 }
 
 function riskLabel(risk: ExpeditionRisk): string {
@@ -3146,6 +3506,18 @@ function costItemResourceId(item: { readonly item_id?: string; readonly itemId?:
   return item.item_id ?? item.itemId ?? ""
 }
 
+function recordValue<T>(record: Record<string, T> | ReadonlyMap<string, T>, key: string): T | undefined {
+  const maybeMap = record as unknown as { get?: (key: string) => T | undefined }
+  if (typeof maybeMap.get === "function") return maybeMap.get(key)
+  return (record as Record<string, T> | undefined)?.[key]
+}
+
+function recordValues<T>(record: Record<string, T> | ReadonlyMap<string, T>): T[] {
+  const maybeMap = record as unknown as { values?: () => Iterable<T> }
+  if (typeof maybeMap.values === "function") return Array.from(maybeMap.values())
+  return Object.values(record as Record<string, T>)
+}
+
 function resourceName(resourceId: string): string {
   switch (resourceId) {
     case RESOURCE_BASSLINE:
@@ -3179,6 +3551,14 @@ function formatSignedAmount(value: number): string {
 
 function formatAmount(value: number): string {
   return Number.isInteger(value) ? `${value}` : value.toFixed(1)
+}
+
+function titleCase(value: string): string {
+  return value
+    .split(/[_\s]+/g)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ")
 }
 
 function formatDuration(seconds: number): string {

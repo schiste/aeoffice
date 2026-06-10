@@ -55,6 +55,7 @@ import {
   type AddBaseManagementTabId,
   type CatalogSnapshot,
   type SimulationSnapshot,
+  type StationSpecializationPath,
   type WorkerRequest,
 } from "@aedventure/add-domain"
 import type { CellCoord } from "@aedventure/game-topology"
@@ -1070,7 +1071,7 @@ function baseManagementPanel(): unknown {
   const state = baseManagementState()
   if (!state) return null
   const section = activeBaseManagementSection(state)
-  const focusedSystemTab = () => ["build", "power", "social", "expeditions", "processing"].includes(baseManagementTab())
+  const focusedSystemTab = () => ["build", "power", "social", "expeditions", "resonance", "processing"].includes(baseManagementTab())
   return html`
     <section
       id="base-management-panel"
@@ -1130,6 +1131,7 @@ function baseManagementLeadPanel(state: AddBaseManagementState): unknown {
       return baseStationMachineSummary(state)
     case "social":
     case "expeditions":
+    case "resonance":
       return null
     default:
       return baseEconomyOverview(state)
@@ -1264,6 +1266,8 @@ function baseManagementTabContent(state: AddBaseManagementState): unknown {
       return baseSocialPanel(state)
     case "expeditions":
       return baseExpeditionsPanel(state)
+    case "resonance":
+      return baseResonancePanel(state)
     case "processing":
       return baseProcessingPanel(state)
   }
@@ -1530,6 +1534,116 @@ function expeditionReportRows(state: AddBaseManagementState): readonly unknown[]
       </article>
     `,
   ]
+}
+
+function baseResonancePanel(state: AddBaseManagementState): unknown {
+  const resonance = state.resonance
+  return html`
+    <div class="base-card-list resonance-list">
+      <article class="base-social-overview" data-status=${resonance.recommendedRecipeId ? "ready" : "waiting_vibes"}>
+        <span>Resonance loop</span>
+        <strong>${resonance.summary}</strong>
+        <small>
+          ${resonance.activeJobCount} active · ${resonance.completedReportCount} completed ·
+          Expedition support ${resonance.expeditionSupportLevel}
+        </small>
+      </article>
+      <article class="base-management-card" data-pressure="room">
+        <span>Crystal tuning</span>
+        <strong>
+          Bassline +${resonance.tuning.basslineBonusPercent}% ·
+          Chorus +${resonance.tuning.chorusBonusPercent}% ·
+          Harmonics +${resonance.tuning.harmonicsBonusPercent}%
+        </strong>
+        <small>Resonance recipes permanently improve the base sound economy.</small>
+        <div class="base-economy-line">
+          <span>Bassline Lv ${resonance.tuning.basslineLevel}</span>
+          <span>Chorus Lv ${resonance.tuning.chorusLevel}</span>
+          <strong>Harmonics Lv ${resonance.tuning.harmonicsLevel}</strong>
+        </div>
+      </article>
+      ${() => resonance.materials.map(resonanceMaterialCard)}
+      ${() => resonance.recipes.map(resonanceRecipeCard)}
+      ${() => resonance.stationSpecializations.map(resonanceSpecializationCard)}
+    </div>
+  `
+}
+
+function resonanceMaterialCard(
+  material: AddBaseManagementState["resonance"]["materials"][number],
+): unknown {
+  return html`
+    <article class="base-management-card" data-pressure=${material.value > 0 ? "room" : "empty"}>
+      <span>Strange material</span>
+      <strong>${material.value} ${material.label}</strong>
+      <small>${material.detail}</small>
+    </article>
+  `
+}
+
+function resonanceRecipeCard(
+  recipe: AddBaseManagementState["resonance"]["recipes"][number],
+): unknown {
+  return html`
+    <article class="base-management-card" data-pressure=${recipe.enabled || recipe.inProgress ? "room" : "locked"}>
+      <span>Resonance recipe</span>
+      <strong>${recipe.label}</strong>
+      <small>${recipe.playerHint}</small>
+      <div class="base-economy-line">
+        <span>${recipe.stationLabel}</span>
+        <span>${formatEconomyDuration(recipe.durationSeconds)}</span>
+        <strong>${recipe.effectLabel}</strong>
+      </div>
+      ${recipe.inProgress
+        ? html`
+            <div class="base-progress-track" aria-label=${`${recipe.label} resonance progress`}>
+              <i style=${{ width: `${Math.round(recipe.progressPercent)}%` }} aria-hidden="true" />
+            </div>
+            <small class="base-card-note">
+              ${formatEconomyDuration(recipe.remainingSeconds ?? 0)} remaining.
+            </small>
+          `
+        : null}
+      <small class="base-card-note">${recipe.costLabel}</small>
+      ${recipe.blockedReason
+        ? html`<small class="base-card-note warning">${recipe.blockedReason}</small>`
+        : null}
+      <button
+        id=${`base-start-resonance-${safeElementId(recipe.id)}`}
+        type="button"
+        onClick=${() => void startResonanceRecipe(recipe.id)}
+        disabled=${() => !ready() || !recipe.enabled}
+      >
+        Start resonance
+      </button>
+    </article>
+  `
+}
+
+function resonanceSpecializationCard(
+  station: AddBaseManagementState["resonance"]["stationSpecializations"][number],
+): unknown {
+  return html`
+    <article class="base-management-card" data-pressure="room">
+      <span>Station specialization</span>
+      <strong>${station.stationLabel}</strong>
+      <small>Current path: ${titleCase(station.currentPath)}</small>
+      <div class="base-card-actions wide">
+        ${() => station.options.map((option) => html`
+          <button
+            id=${`base-specialization-${safeElementId(station.stationId)}-${option.path}`}
+            type="button"
+            class=${option.active ? "active" : "ghost-button"}
+            title=${option.detail}
+            onClick=${() => void setStationSpecialization(station.stationId, option.path)}
+            disabled=${() => !ready() || option.active}
+          >
+            ${option.label}
+          </button>
+        `)}
+      </div>
+    </article>
+  `
 }
 
 function baseProcessingPanel(state: AddBaseManagementState): unknown {
@@ -3034,6 +3148,8 @@ function offlineReturnJobKindLabel(kind: AddOfflineReturnSummary["jobsCompleted"
       return "Processing finished"
     case "expedition":
       return "Expedition returned"
+    case "resonance":
+      return "Resonance tuned"
   }
 }
 
@@ -3719,6 +3835,23 @@ async function startProcessing(recipeId: string): Promise<void> {
   })
 }
 
+async function startResonanceRecipe(recipeId: string): Promise<void> {
+  await sendAndWaitForSnapshot(() => {
+    setLastCommand(`resonance:${recipeId}`)
+    client.startResonanceRecipe(recipeId)
+  })
+}
+
+async function setStationSpecialization(
+  stationId: string,
+  path: StationSpecializationPath,
+): Promise<void> {
+  await sendAndWaitForSnapshot(() => {
+    setLastCommand(`specialization:${stationId}:${path}`)
+    client.setStationSpecialization(stationId, path)
+  })
+}
+
 async function startExpedition(targetId: string, assignedCrew: number): Promise<void> {
   await sendAndWaitForSnapshot(() => {
     setLastCommand(`expedition:${targetId}:${assignedCrew}`)
@@ -3765,6 +3898,9 @@ async function runBaseRecommendedAction(state: AddBaseManagementState): Promise<
       return
     case "start_processing":
       await startProcessing(action.targetId)
+      return
+    case "start_resonance_recipe":
+      await startResonanceRecipe(action.targetId)
       return
     case "start_expedition": {
       const target = state.expeditions.targets.find((candidate) => candidate.id === action.targetId)

@@ -29,6 +29,13 @@ pub enum GameCommand {
     StartProcessing {
         recipe_id: String,
     },
+    StartResonanceRecipe {
+        recipe_id: String,
+    },
+    SetStationSpecialization {
+        station_id: String,
+        path: crate::state::StationSpecializationPathState,
+    },
     StartExpedition {
         target_id: String,
         assigned_crew: u16,

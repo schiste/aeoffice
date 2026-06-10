@@ -63,6 +63,14 @@ async function handleMessage(message: WorkerRequest) {
         runtime?.startProcessing(message.recipeId)
         postWorkerEvent({ type: 'snapshot', snapshot: snapshot() })
         break
+      case 'startResonanceRecipe':
+        runtime?.startResonanceRecipe(message.recipeId)
+        postWorkerEvent({ type: 'snapshot', snapshot: snapshot() })
+        break
+      case 'setStationSpecialization':
+        runtime?.setStationSpecialization(message.stationId, message.path)
+        postWorkerEvent({ type: 'snapshot', snapshot: snapshot() })
+        break
       case 'startExpedition':
         runtime?.startExpedition(message.targetId, message.assignedCrew)
         postWorkerEvent({ type: 'snapshot', snapshot: snapshot() })

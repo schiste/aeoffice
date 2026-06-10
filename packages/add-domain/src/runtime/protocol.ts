@@ -116,6 +116,9 @@ export interface ExpeditionReportSnapshot {
   stoneGained: number
   waterGained: number
   vibesGained: number
+  echoShardsGained: number
+  signalScrapGained: number
+  harmonicResidueGained: number
   wounds: number
   clues: number
   dungeonLeads: number
@@ -128,6 +131,45 @@ export interface ExpeditionSnapshot {
   totalWounds: number
   totalClues: number
   totalDungeonLeads: number
+}
+
+export type CrystalTuningTrack = 'bassline' | 'chorus' | 'harmonics'
+export type StationSpecializationPath = 'balanced' | 'conversion' | 'field' | 'extraction'
+
+export interface ResonanceMaterialSnapshot {
+  echoShards: number
+  signalScrap: number
+  harmonicResidue: number
+}
+
+export interface CrystalTuningSnapshot {
+  basslineLevel: number
+  chorusLevel: number
+  harmonicsLevel: number
+}
+
+export interface ResonanceJobSnapshot {
+  recipeId: string
+  stationId: string
+  totalWorkSeconds: number
+  remainingWorkSeconds: number
+}
+
+export interface ResonanceReportSnapshot {
+  recipeId: string
+  stationId: string
+  tuningTrack: CrystalTuningTrack | null
+  tuningAmount: number
+  expeditionSupportAmount: number
+}
+
+export interface ResonanceSnapshot {
+  materials: ResonanceMaterialSnapshot
+  tuning: CrystalTuningSnapshot
+  expeditionSupportLevel: number
+  activeJobs: Record<string, ResonanceJobSnapshot>
+  completedReports: ResonanceReportSnapshot[]
+  stationSpecializations: Record<string, StationSpecializationPath>
 }
 
 export interface BaseSnapshot {
@@ -252,6 +294,7 @@ export interface SimulationSnapshot {
   crystalCircle: CrystalCircleSnapshot
   processing: ProcessingSnapshot
   expeditions: ExpeditionSnapshot
+  resonance: ResonanceSnapshot
   base: BaseSnapshot
   power: PowerSnapshot
   stations: Record<string, StationSnapshot>
@@ -450,6 +493,9 @@ export interface ExpeditionRewardDef {
   stone: number
   water: number
   vibes: number
+  echoShards: number
+  signalScrap: number
+  harmonicResidue: number
   wounds: number
   clues: number
   dungeonLeads: number
@@ -465,6 +511,26 @@ export interface ExpeditionTargetDef {
   support: ExpeditionSupportDef
   risk: ExpeditionRisk
   expectedLoot: ExpeditionRewardDef
+  uiOrder: number
+  playerHint: string
+}
+
+export interface ResonanceMaterialCostDef {
+  materialId: string
+  amount: number
+}
+
+export type ResonanceEffectDef =
+  | { kind: 'increment_tuning'; track: CrystalTuningTrack; amount: number }
+  | { kind: 'increment_expedition_support'; amount: number }
+
+export interface ResonanceRecipeDef {
+  id: string
+  label: string
+  stationId: string
+  durationSeconds: number
+  costs: ResonanceMaterialCostDef[]
+  effect: ResonanceEffectDef
   uiOrder: number
   playerHint: string
 }
@@ -645,6 +711,7 @@ export interface CatalogSnapshot {
   processingRecipes: ProcessingRecipeDef[]
   worldActions: WorldActionDef[]
   expeditionTargets: ExpeditionTargetDef[]
+  resonanceRecipes: ResonanceRecipeDef[]
   storyBeats: StoryBeatDef[]
   flags: FlagDef[]
   models: ModelDef[]
@@ -808,6 +875,8 @@ export type WorkerRequest =
   | { type: 'startWorldAction'; actionId: string }
   | { type: 'startConstruction'; optionId: string }
   | { type: 'startProcessing'; recipeId: string }
+  | { type: 'startResonanceRecipe'; recipeId: string }
+  | { type: 'setStationSpecialization'; stationId: string; path: StationSpecializationPath }
   | { type: 'startExpedition'; targetId: string; assignedCrew: number }
   | { type: 'clearExpeditionReports' }
   | { type: 'recruitFromSurvivorCave' }

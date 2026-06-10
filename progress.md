@@ -191,6 +191,22 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   `npm run check` is currently blocked by unrelated dirty ADD dungeon work
   resolving `@aedventure/game-dungeon`; keep that out of targeted travel-reveal
   commits until the dungeon package is intentionally staged.
+- Phase 9 resonance/conversion loops are implemented end to end. Expeditions
+  now return strange materials, Resonance recipes consume them through powered
+  stations, Crystal tuning permanently boosts Bassline/Chorus/Harmonics output,
+  field support shortens expedition duration, and station specialization paths
+  bias conversion, field, or extraction behavior.
+- The ADD Base panel now includes a Resonance tab with strange material stock,
+  tuning levels, recipe progress, station specialization controls, and
+  player-facing blockers. `render_game_to_text` exposes the resonance projection
+  for smoke/agent inspection, and offline-return summaries can report completed
+  resonance jobs.
+- Verification passed for `cargo test -p add-core`,
+  `npm --workspace @aedventure/add-domain run build`,
+  `npm --workspace @aedventure/add-rpg run build`, `npm run smoke:add-rpg`, and
+  full `npm run check`. The regenerated
+  `tmp/add-rpg-resonance-smoke.png` screenshot was inspected and showed the
+  Resonance tab/tuning/material cards without text overlap.
 - The debug-style event feed is no longer visible in the primary app UI. It has
   been replaced with compact session/world/media status pills, a compact room
   chat transcript, and transient toast feedback for join/reset/error-like events.

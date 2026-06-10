@@ -11,7 +11,7 @@ export interface AddOfflineReturnResourceDelta {
 export interface AddOfflineReturnCompletedJob {
   readonly id: string
   readonly label: string
-  readonly kind: "construction" | "processing" | "expedition"
+  readonly kind: "construction" | "processing" | "expedition" | "resonance"
 }
 
 export interface AddOfflineReturnPausedRule {
@@ -56,6 +56,7 @@ export function selectAddOfflineReturnSummary(
   const jobsCompleted = [
     ...completedConstructionJobs(before, after, catalog),
     ...completedProcessingJobs(before, after, catalog),
+    ...completedResonanceJobs(before, after, catalog),
     ...completedExpeditionJobs(before, after, catalog),
   ]
   const recruitsArrived = Math.max(
@@ -150,6 +151,23 @@ function completedExpeditionJobs(
       id: `expedition:${job.id}`,
       label: target?.label ?? job.targetId,
       kind: "expedition" as const,
+    }]
+  })
+}
+
+function completedResonanceJobs(
+  before: SimulationSnapshot,
+  after: SimulationSnapshot,
+  catalog: CatalogSnapshot,
+): readonly AddOfflineReturnCompletedJob[] {
+  return recordValues(before.resonance.activeJobs).flatMap((job) => {
+    const sameJobStillRunning = recordValue(after.resonance.activeJobs, job.stationId)?.recipeId === job.recipeId
+    if (sameJobStillRunning) return []
+    const recipe = catalog.resonanceRecipes.find((candidate) => candidate.id === job.recipeId)
+    return [{
+      id: job.recipeId,
+      label: recipe?.label ?? job.recipeId,
+      kind: "resonance" as const,
     }]
   })
 }
@@ -278,6 +296,18 @@ function resourceValue(snapshot: SimulationSnapshot, resourceId: string): number
     default:
       return 0
   }
+}
+
+function recordValue<T>(record: Record<string, T> | ReadonlyMap<string, T>, key: string): T | undefined {
+  const maybeMap = record as unknown as { get?: (key: string) => T | undefined }
+  if (typeof maybeMap.get === "function") return maybeMap.get(key)
+  return (record as Record<string, T> | undefined)?.[key]
+}
+
+function recordValues<T>(record: Record<string, T> | ReadonlyMap<string, T>): T[] {
+  const maybeMap = record as unknown as { values?: () => Iterable<T> }
+  if (typeof maybeMap.values === "function") return Array.from(maybeMap.values())
+  return Object.values(record as Record<string, T>)
 }
 
 function formatOfflineDuration(seconds: number): string {

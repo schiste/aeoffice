@@ -31,6 +31,8 @@ pub struct GameState {
     pub processing: ProcessingState,
     #[serde(default)]
     pub expeditions: ExpeditionState,
+    #[serde(default)]
+    pub resonance: ResonanceState,
     pub base: BaseState,
     pub power: PowerState,
     pub stations: BTreeMap<String, StationState>,
@@ -76,7 +78,7 @@ impl GameState {
     pub fn new() -> Self {
         let balance = balance_snapshot();
         Self {
-            schema_version: 14,
+            schema_version: 15,
             clock_seconds: 0.0,
             resources: ResourcePools {
                 bassline: 0.0,
@@ -124,6 +126,7 @@ impl GameState {
             },
             processing: ProcessingState::new(),
             expeditions: ExpeditionState::new(),
+            resonance: ResonanceState::new(),
             base: BaseState::new(),
             power: PowerState::new(),
             stations: initial_station_states(),
@@ -472,6 +475,12 @@ pub struct ExpeditionReport {
     pub stone_gained: f64,
     pub water_gained: f64,
     pub vibes_gained: f64,
+    #[serde(default)]
+    pub echo_shards_gained: u16,
+    #[serde(default)]
+    pub signal_scrap_gained: u16,
+    #[serde(default)]
+    pub harmonic_residue_gained: u16,
     pub wounds: u16,
     pub clues: u16,
     pub dungeon_leads: u16,
@@ -483,6 +492,108 @@ pub enum ExpeditionRiskState {
     Low,
     Medium,
     High,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ResonanceState {
+    pub materials: ResonanceMaterialState,
+    pub tuning: CrystalTuningState,
+    pub expedition_support_level: u16,
+    pub active_jobs: BTreeMap<String, ResonanceJob>,
+    pub completed_reports: Vec<ResonanceReport>,
+    pub station_specializations: BTreeMap<String, StationSpecializationPathState>,
+}
+
+impl ResonanceState {
+    pub fn new() -> Self {
+        Self {
+            materials: ResonanceMaterialState::new(),
+            tuning: CrystalTuningState::new(),
+            expedition_support_level: 0,
+            active_jobs: BTreeMap::new(),
+            completed_reports: Vec::new(),
+            station_specializations: BTreeMap::new(),
+        }
+    }
+}
+
+impl Default for ResonanceState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ResonanceMaterialState {
+    pub echo_shards: u16,
+    pub signal_scrap: u16,
+    pub harmonic_residue: u16,
+}
+
+impl ResonanceMaterialState {
+    pub fn new() -> Self {
+        Self {
+            echo_shards: 0,
+            signal_scrap: 0,
+            harmonic_residue: 0,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct CrystalTuningState {
+    pub bassline_level: u16,
+    pub chorus_level: u16,
+    pub harmonics_level: u16,
+}
+
+impl CrystalTuningState {
+    pub fn new() -> Self {
+        Self {
+            bassline_level: 0,
+            chorus_level: 0,
+            harmonics_level: 0,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ResonanceJob {
+    pub recipe_id: String,
+    pub station_id: String,
+    pub total_work_seconds: f64,
+    pub remaining_work_seconds: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ResonanceReport {
+    pub recipe_id: String,
+    pub station_id: String,
+    pub tuning_track: Option<CrystalTuningTrackState>,
+    pub tuning_amount: u16,
+    pub expedition_support_amount: u16,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum CrystalTuningTrackState {
+    Bassline,
+    Chorus,
+    Harmonics,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum StationSpecializationPathState {
+    Balanced,
+    Conversion,
+    Field,
+    Extraction,
 }
 
 impl ProcessingState {

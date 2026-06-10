@@ -318,7 +318,7 @@ export interface RuntimeTextState {
     readonly jobsCompleted: readonly {
       readonly id: string
       readonly label: string
-      readonly kind: "construction" | "processing" | "expedition"
+      readonly kind: "construction" | "processing" | "expedition" | "resonance"
     }[]
     readonly recruitsArrived: number
     readonly bubble: {
@@ -595,8 +595,42 @@ export interface RuntimeTextState {
         readonly id: number
         readonly targetId: string
         readonly rewardCopy: string
+        readonly resonanceCopy: string
         readonly woundCopy: string
         readonly clueCopy: string
+      }[]
+    }
+    readonly resonance: {
+      readonly summary: string
+      readonly expeditionSupportLevel: number
+      readonly activeJobCount: number
+      readonly completedReportCount: number
+      readonly recommendedRecipeId: string | null
+      readonly materials: readonly {
+        readonly id: string
+        readonly value: number
+      }[]
+      readonly tuning: {
+        readonly basslineLevel: number
+        readonly chorusLevel: number
+        readonly harmonicsLevel: number
+        readonly basslineBonusPercent: number
+        readonly chorusBonusPercent: number
+        readonly harmonicsBonusPercent: number
+      }
+      readonly recipes: readonly {
+        readonly id: string
+        readonly stationId: string
+        readonly enabled: boolean
+        readonly inProgress: boolean
+        readonly blockedReason: string | null
+        readonly progressPercent: number
+        readonly effectLabel: string
+        readonly costLabel: string
+      }[]
+      readonly stationSpecializations: readonly {
+        readonly stationId: string
+        readonly currentPath: string
       }[]
     }
     readonly activeConstructionId: string | null
@@ -1286,8 +1320,42 @@ function baseManagementTelemetry(
         id: report.id,
         targetId: report.targetId,
         rewardCopy: report.rewardCopy,
+        resonanceCopy: report.resonanceCopy,
         woundCopy: report.woundCopy,
         clueCopy: report.clueCopy,
+      })),
+    },
+    resonance: {
+      summary: state.resonance.summary,
+      expeditionSupportLevel: state.resonance.expeditionSupportLevel,
+      activeJobCount: state.resonance.activeJobCount,
+      completedReportCount: state.resonance.completedReportCount,
+      recommendedRecipeId: state.resonance.recommendedRecipeId,
+      materials: state.resonance.materials.map((material) => ({
+        id: material.id,
+        value: material.value,
+      })),
+      tuning: {
+        basslineLevel: state.resonance.tuning.basslineLevel,
+        chorusLevel: state.resonance.tuning.chorusLevel,
+        harmonicsLevel: state.resonance.tuning.harmonicsLevel,
+        basslineBonusPercent: state.resonance.tuning.basslineBonusPercent,
+        chorusBonusPercent: state.resonance.tuning.chorusBonusPercent,
+        harmonicsBonusPercent: state.resonance.tuning.harmonicsBonusPercent,
+      },
+      recipes: state.resonance.recipes.map((recipe) => ({
+        id: recipe.id,
+        stationId: recipe.stationId,
+        enabled: recipe.enabled,
+        inProgress: recipe.inProgress,
+        blockedReason: recipe.blockedReason,
+        progressPercent: round2(recipe.progressPercent),
+        effectLabel: recipe.effectLabel,
+        costLabel: recipe.costLabel,
+      })),
+      stationSpecializations: state.resonance.stationSpecializations.map((station) => ({
+        stationId: station.stationId,
+        currentPath: station.currentPath,
       })),
     },
     activeConstructionId: state.activeConstruction?.id ?? null,

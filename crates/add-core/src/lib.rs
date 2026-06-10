@@ -14,26 +14,30 @@ pub use game_data::{
     FlowDef, FlowDirection, HeroExposureDef, ModelKind, ModelRefDef, PersistenceDef,
     PersistenceScope, PowerBalance, PowerFallbackMode, PowerProfileDef, PresentationDef,
     PresentationReveal, ProcessingRecipeDef, ProcessingTrack, ProgressionBalance,
-    RecruitmentBalance, RequirementDef, ResourceCategory, ResourceDef, RoleDef, RoleSlotPool,
-    ScavengeBalance, StationCategory, StationDef, StoryBeatDef, StoryChoiceDef, StructureDef,
-    StructureKind, SurvivalBalance, TerrainProfile, TerrainSnapshot, TileDef, TileFeature, TileTag,
-    TuningAffinity, UiElementDef, UnlockDef, UnlockKind, VibesBalance, VisibilityConditionDef,
-    VisibilityDef, WaterBalance, WorldActionDef, balance_snapshot, catalog_snapshot,
-    construction_option_def, construction_options, entity_schema_def, entity_schemas,
-    expedition_target_def, expedition_targets, flora, flora_def, presentation_def,
-    processing_recipe_def, processing_recipes, recruit_cost_for_index, resource_def, resources,
-    role_def, roles, station_def, stations, story_beat_def, story_beats, structure_def, structures,
-    terrain_profile_for, tile_def, tile_id_for, world_action_def, world_actions,
+    RecruitmentBalance, RequirementDef, ResonanceEffectDef, ResonanceMaterialCostDef,
+    ResonanceRecipeDef, ResonanceTuningTrackDef, ResourceCategory, ResourceDef, RoleDef,
+    RoleSlotPool, ScavengeBalance, StationCategory, StationDef, StoryBeatDef, StoryChoiceDef,
+    StructureDef, StructureKind, SurvivalBalance, TerrainProfile, TerrainSnapshot, TileDef,
+    TileFeature, TileTag, TuningAffinity, UiElementDef, UnlockDef, UnlockKind, VibesBalance,
+    VisibilityConditionDef, VisibilityDef, WaterBalance, WorldActionDef, balance_snapshot,
+    catalog_snapshot, construction_option_def, construction_options, entity_schema_def,
+    entity_schemas, expedition_target_def, expedition_targets, flora, flora_def, presentation_def,
+    processing_recipe_def, processing_recipes, recruit_cost_for_index, resonance_recipe_def,
+    resonance_recipes, resource_def, resources, role_def, roles, station_def, stations,
+    story_beat_def, story_beats, structure_def, structures, terrain_profile_for, tile_def,
+    tile_id_for, world_action_def, world_actions,
 };
 pub use save::{export_save, import_save};
 pub use simulation::Simulation;
 pub use state::{
-    BaseState, BubbleState, ConstructionJob, CrystalCircleState, DEFAULT_BASE_SLOTS,
-    DEFAULT_TOTAL_CREW, ExpeditionJob, ExpeditionReport, ExpeditionRiskState, ExpeditionState,
-    ForcedReturnPhase, ForcedReturnState, GRID_RADIUS, GameState, HeroLocationState,
-    HeroProgressState, HeroSurvivalState, HexCoordState, HexState, HexVisualState, NarrativeState,
-    ObjectiveState, PowerState, ProcessingJob, ProcessingState, RecruitTravel, RecruitmentState,
-    ResourcePools, RosterState, StationState, WorldAction, WoundTrackState,
+    BaseState, BubbleState, ConstructionJob, CrystalCircleState, CrystalTuningState,
+    CrystalTuningTrackState, DEFAULT_BASE_SLOTS, DEFAULT_TOTAL_CREW, ExpeditionJob,
+    ExpeditionReport, ExpeditionRiskState, ExpeditionState, ForcedReturnPhase, ForcedReturnState,
+    GRID_RADIUS, GameState, HeroLocationState, HeroProgressState, HeroSurvivalState, HexCoordState,
+    HexState, HexVisualState, NarrativeState, ObjectiveState, PowerState, ProcessingJob,
+    ProcessingState, RecruitTravel, RecruitmentState, ResonanceJob, ResonanceMaterialState,
+    ResonanceReport, ResonanceState, ResourcePools, RosterState, StationSpecializationPathState,
+    StationState, WorldAction, WoundTrackState,
 };
 
 #[cfg(test)]
@@ -42,7 +46,8 @@ mod tests {
 
     use super::{
         DEFAULT_TOTAL_CREW, ForcedReturnPhase, ForcedReturnState, GameCommand, GameState,
-        HeroLocationState, HexCoordState, RecruitTravel, Simulation, export_save,
+        HeroLocationState, HexCoordState, RecruitTravel, Simulation,
+        StationSpecializationPathState, StationState, export_save,
         game_data::{
             CONSTRUCTION_OUTPUT, CONSTRUCTION_REMOVING_MOSS, CONSTRUCTION_STORAGE,
             EXPEDITION_LOCAL_SCAVENGE_SWEEP, PROJECT_BUILD_FIRE_PIT, PROJECT_BUILD_MIX_CONSOLE,
@@ -51,17 +56,17 @@ mod tests {
             PROJECT_RESTORE_STUDIO, PROJECT_SAFE_WATER_SYSTEMS, RECIPE_MIX_SIGNAL_BALANCING,
             RECIPE_RESEARCH_CHORUS_ROUTING, RECIPE_RESEARCH_HARMONIC_STUDY,
             RECIPE_RESONANCE_FIELD_CALIBRATION, RECIPE_WORKSHOP_BUILDER_TOOLS,
-            RECIPE_WORKSHOP_WATER_CONDENSERS, RESOURCE_BASSLINE, RESOURCE_CHORUS,
-            RESOURCE_HARMONICS, RESOURCE_STONE, RESOURCE_VIBES, RESOURCE_WATER, ROLE_CONSTRUCTION,
-            ROLE_CRYSTAL_BASSLINE, ROLE_CRYSTAL_CHORUS, ROLE_CRYSTAL_HARMONICS, ROLE_FIRE_PIT,
-            ROLE_SCAVENGE, ROLE_WATER, STATION_CRYSTAL_CIRCLE, STATION_FIRE_PIT,
-            STATION_MIX_CONSOLE, STATION_RESEARCH_BOOTH, STATION_RESONANCE_CHAMBER,
-            STATION_WORKSHOP, STORY_BEAT_AWAIT_SURVIVOR_ARRIVAL, STORY_BEAT_BUILD_FIRE_PIT,
-            STORY_BEAT_ENTER_THE_BUBBLE, STORY_BEAT_EXPLORE_BASE, STORY_BEAT_FIRST_GLIMPSE,
-            STORY_BEAT_FIRST_RECRUIT, STORY_BEAT_INVESTIGATE_BASE, STORY_BEAT_REACH_SURVIVOR_CAVE,
-            STORY_BEAT_RESTORE_STUDIO, STORY_BEAT_ROAD_TO_BASE, STORY_BEAT_STABILIZE_BASE,
-            STRUCTURE_BASE, STRUCTURE_CAVE, STRUCTURE_CRYSTAL_CIRCLE, TILE_BASE_CORE,
-            TILE_MOUNTAIN_WALL, TILE_SURVIVOR_CAVE, WORLD_ACTION_EXPLORE_BASE,
+            RECIPE_WORKSHOP_WATER_CONDENSERS, RESONANCE_RECIPE_BASSLINE_OVERTONE,
+            RESOURCE_BASSLINE, RESOURCE_CHORUS, RESOURCE_HARMONICS, RESOURCE_STONE, RESOURCE_VIBES,
+            RESOURCE_WATER, ROLE_CONSTRUCTION, ROLE_CRYSTAL_BASSLINE, ROLE_CRYSTAL_CHORUS,
+            ROLE_CRYSTAL_HARMONICS, ROLE_FIRE_PIT, ROLE_SCAVENGE, ROLE_WATER,
+            STATION_CRYSTAL_CIRCLE, STATION_FIRE_PIT, STATION_MIX_CONSOLE, STATION_RESEARCH_BOOTH,
+            STATION_RESONANCE_CHAMBER, STATION_WORKSHOP, STORY_BEAT_AWAIT_SURVIVOR_ARRIVAL,
+            STORY_BEAT_BUILD_FIRE_PIT, STORY_BEAT_ENTER_THE_BUBBLE, STORY_BEAT_EXPLORE_BASE,
+            STORY_BEAT_FIRST_GLIMPSE, STORY_BEAT_FIRST_RECRUIT, STORY_BEAT_INVESTIGATE_BASE,
+            STORY_BEAT_REACH_SURVIVOR_CAVE, STORY_BEAT_RESTORE_STUDIO, STORY_BEAT_ROAD_TO_BASE,
+            STORY_BEAT_STABILIZE_BASE, STRUCTURE_BASE, STRUCTURE_CAVE, STRUCTURE_CRYSTAL_CIRCLE,
+            TILE_BASE_CORE, TILE_MOUNTAIN_WALL, TILE_SURVIVOR_CAVE, WORLD_ACTION_EXPLORE_BASE,
             WORLD_ACTION_INVESTIGATE_BASE,
         },
         import_save,
@@ -1116,6 +1121,99 @@ mod tests {
         assert!(simulation.state().expeditions.active_jobs.is_empty());
         assert_eq!(simulation.state().expeditions.completed_reports.len(), 1);
         assert!(simulation.state().resources.stone > before_stone);
+    }
+
+    #[test]
+    fn expeditions_return_strange_materials_for_resonance() {
+        let mut simulation = Simulation::new();
+
+        simulation.apply(GameCommand::StartExpedition {
+            target_id: EXPEDITION_LOCAL_SCAVENGE_SWEEP.to_string(),
+            assigned_crew: 1,
+        });
+        simulation.apply(GameCommand::Tick { seconds: 120.0 });
+
+        let report = simulation
+            .state()
+            .expeditions
+            .completed_reports
+            .last()
+            .expect("expedition should report rewards");
+        assert!(report.echo_shards_gained > 0);
+        assert!(report.signal_scrap_gained > 0);
+        assert_eq!(
+            simulation.state().resonance.materials.echo_shards,
+            report.echo_shards_gained
+        );
+        assert_eq!(
+            simulation.state().resonance.materials.signal_scrap,
+            report.signal_scrap_gained
+        );
+    }
+
+    #[test]
+    fn resonance_recipe_consumes_materials_and_tunes_bassline() {
+        let mut state = GameState::new();
+        state.roster.hero_assigned = true;
+        state.base.resonance_chamber_built = true;
+        state.resources.chorus = 100.0;
+        state.resonance.materials.echo_shards = 1;
+        state.resonance.materials.signal_scrap = 1;
+        state.stations.insert(
+            STATION_RESONANCE_CHAMBER.to_string(),
+            StationState {
+                requested_enabled: true,
+                is_powered: true,
+                power_order: 30,
+            },
+        );
+        let before_generation = Simulation::from_state(state.clone())
+            .state()
+            .power
+            .bassline_generation_per_second;
+        let mut simulation = Simulation::from_state(state);
+
+        simulation.apply(GameCommand::StartResonanceRecipe {
+            recipe_id: RESONANCE_RECIPE_BASSLINE_OVERTONE.to_string(),
+        });
+
+        assert_eq!(simulation.state().resonance.materials.echo_shards, 0);
+        assert_eq!(simulation.state().resonance.materials.signal_scrap, 0);
+        assert_eq!(simulation.state().resonance.active_jobs.len(), 1);
+
+        simulation.apply(GameCommand::Tick { seconds: 45.0 });
+
+        assert!(simulation.state().resonance.active_jobs.is_empty());
+        assert_eq!(simulation.state().resonance.tuning.bassline_level, 1);
+        assert!(
+            simulation.state().power.bassline_generation_per_second > before_generation,
+            "Bassline tuning should raise runtime generation"
+        );
+    }
+
+    #[test]
+    fn resonance_support_changes_expedition_duration() {
+        let mut state = GameState::new();
+        state.resonance.expedition_support_level = 2;
+        state.resonance.station_specializations.insert(
+            STATION_RESONANCE_CHAMBER.to_string(),
+            StationSpecializationPathState::Field,
+        );
+        let mut simulation = Simulation::from_state(state);
+
+        simulation.apply(GameCommand::StartExpedition {
+            target_id: EXPEDITION_LOCAL_SCAVENGE_SWEEP.to_string(),
+            assigned_crew: 1,
+        });
+
+        let job = simulation
+            .state()
+            .expeditions
+            .active_jobs
+            .first()
+            .expect("expedition should start");
+        assert!(job.duration_seconds < 120.0);
+        assert_eq!(job.duration_seconds, job.remaining_seconds);
     }
 
     #[test]

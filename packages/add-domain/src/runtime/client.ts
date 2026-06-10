@@ -1,4 +1,10 @@
-import type { CatalogSnapshot, SimulationSnapshot, WorkerEvent, WorkerRequest } from './protocol'
+import type {
+  CatalogSnapshot,
+  SimulationSnapshot,
+  StationSpecializationPath,
+  WorkerEvent,
+  WorkerRequest,
+} from './protocol'
 
 export interface SimulationClientOptions {
   onSnapshot(snapshot: SimulationSnapshot): void
@@ -65,6 +71,14 @@ export class SimulationClient {
 
   startProcessing(recipeId: string) {
     this.post({ type: 'startProcessing', recipeId })
+  }
+
+  startResonanceRecipe(recipeId: string) {
+    this.post({ type: 'startResonanceRecipe', recipeId })
+  }
+
+  setStationSpecialization(stationId: string, path: StationSpecializationPath) {
+    this.post({ type: 'setStationSpecialization', stationId, path })
   }
 
   startExpedition(targetId: string, assignedCrew: number) {

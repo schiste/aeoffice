@@ -8,24 +8,32 @@ use crate::game_data::{
     FLAG_CRYSTAL_REMOVING_MOSS_COMPLETED, FLAG_CRYSTAL_REMOVING_MOSS_UNLOCKED,
     FLAG_HERO_FORCED_RETURN_ACTIVE, FLAG_HERO_OUTSIDE_BUBBLE, FLAG_HERO_RECOVERING_AT_STUDIO,
     HeroExposureDef, INTRO_STORY_BEAT_IDS, ItemEffectKind, PerkStat, ProcessingTrack,
-    RESOURCE_BASSLINE, RESOURCE_CHORUS, RESOURCE_HARMONICS, RESOURCE_STONE, RESOURCE_VIBES,
-    RESOURCE_WATER, ROLE_CONSTRUCTION, ROLE_CRYSTAL_BASSLINE, ROLE_CRYSTAL_CHORUS,
-    ROLE_CRYSTAL_HARMONICS, ROLE_FIRE_PIT, ROLE_SCAVENGE, ROLE_WATER, RequirementDef, RoleSlotPool,
+    RESONANCE_MATERIAL_ECHO_SHARDS, RESONANCE_MATERIAL_HARMONIC_RESIDUE,
+    RESONANCE_MATERIAL_SIGNAL_SCRAP, RESOURCE_BASSLINE, RESOURCE_CHORUS, RESOURCE_HARMONICS,
+    RESOURCE_STONE, RESOURCE_VIBES, RESOURCE_WATER, ROLE_CONSTRUCTION, ROLE_CRYSTAL_BASSLINE,
+    ROLE_CRYSTAL_CHORUS, ROLE_CRYSTAL_HARMONICS, ROLE_FIRE_PIT, ROLE_SCAVENGE, ROLE_WATER,
+    RequirementDef, ResonanceEffectDef, ResonanceRecipeDef, ResonanceTuningTrackDef, RoleSlotPool,
     STATION_MIX_CONSOLE, STATION_RESEARCH_BOOTH, STATION_RESONANCE_CHAMBER, STATION_WORKSHOP,
     TileFeature, balance_snapshot, construction_option_def, expedition_target_def, item_def,
-    perk_def, processing_recipe_def, recruit_cost_for_index, role_def, station_def, stations,
-    story_beat_def, tile_def, world_action_def,
+    perk_def, processing_recipe_def, recruit_cost_for_index, resonance_recipe_def, role_def,
+    station_def, stations, story_beat_def, tile_def, world_action_def,
 };
 use crate::state::{
-    ConstructionJob, ExpeditionJob, ExpeditionReport, ExpeditionRiskState, ForcedReturnPhase,
-    ForcedReturnState, GRID_RADIUS, GameState, HeroLocationState, HexCoordState, HexState,
-    HexVisualState, WorldAction, initial_discovered_cells,
+    ConstructionJob, CrystalTuningTrackState, ExpeditionJob, ExpeditionReport, ExpeditionRiskState,
+    ForcedReturnPhase, ForcedReturnState, GRID_RADIUS, GameState, HeroLocationState, HexCoordState,
+    HexState, HexVisualState, ResonanceJob, ResonanceReport, StationSpecializationPathState,
+    WorldAction, initial_discovered_cells,
 };
 
 /// Scrap-metal items yielded per second of scavenging effort (a unit of effort
 /// is one worker at full efficiency). Independent of stone storage.
 const SCRAP_PER_EFFORT_SECOND: f64 = 0.2;
 const ITEM_SCRAP_METAL: &str = "item.scrap_metal";
+const RESONANCE_TUNING_OUTPUT_BONUS_PER_LEVEL: f64 = 0.06;
+const RESONANCE_SUPPORT_DURATION_REDUCTION_PER_LEVEL: f64 = 0.04;
+const RESONANCE_SUPPORT_DURATION_REDUCTION_CAP: f64 = 0.35;
+const STATION_SPECIALIZATION_CONVERSION_SPEED_BONUS: f64 = 0.2;
+const STATION_SPECIALIZATION_FIELD_DURATION_BONUS: f64 = 0.12;
 
 #[derive(Debug, Clone)]
 pub struct Simulation {
@@ -56,8 +64,8 @@ impl Simulation {
 
     pub fn from_state(mut state: GameState) -> Self {
         let balance = balance_snapshot();
-        if state.schema_version < 14 {
-            state.schema_version = 14;
+        if state.schema_version < 15 {
+            state.schema_version = 15;
         }
         state.resources.bassline_cap = state
             .resources
@@ -130,6 +138,12 @@ impl Simulation {
             GameCommand::StartWorldAction { action_id } => self.start_world_action(&action_id),
             GameCommand::StartConstruction { option_id } => self.start_construction(&option_id),
             GameCommand::StartProcessing { recipe_id } => self.start_processing(&recipe_id),
+            GameCommand::StartResonanceRecipe { recipe_id } => {
+                self.start_resonance_recipe(&recipe_id)
+            }
+            GameCommand::SetStationSpecialization { station_id, path } => {
+                self.set_station_specialization(&station_id, path)
+            }
             GameCommand::StartExpedition {
                 target_id,
                 assigned_crew,
@@ -603,6 +617,89 @@ impl Simulation {
         self.push_note(format!("{} started.", recipe_def.label));
     }
 
+    fn start_resonance_recipe(&mut self, recipe_id: &str) {
+        let Some(recipe_def) = resonance_recipe_def(recipe_id) else {
+            self.push_note(format!("Unknown resonance recipe: {recipe_id}."));
+            return;
+        };
+
+        if self
+            .state
+            .resonance
+            .active_jobs
+            .contains_key(recipe_def.station_id)
+        {
+            self.push_note(format!(
+                "{} is already running resonance work.",
+                self.station_label(recipe_def.station_id)
+            ));
+            return;
+        }
+
+        if !self.station_powered(recipe_def.station_id) {
+            self.push_note(format!(
+                "{} needs power before {} can start.",
+                self.station_label(recipe_def.station_id),
+                recipe_def.label
+            ));
+            return;
+        }
+
+        if let Some(missing) = recipe_def
+            .costs
+            .iter()
+            .find(|cost| self.resonance_material_amount(cost.material_id) < cost.amount)
+        {
+            self.push_note(format!(
+                "Not enough {} for {}: need {}.",
+                resonance_material_label(missing.material_id),
+                recipe_def.label,
+                missing.amount
+            ));
+            return;
+        }
+
+        for cost in recipe_def.costs {
+            self.spend_resonance_material(cost.material_id, cost.amount);
+        }
+
+        let duration = self.resonance_recipe_duration_seconds(recipe_def);
+        self.state.resonance.active_jobs.insert(
+            recipe_def.station_id.to_string(),
+            ResonanceJob {
+                recipe_id: recipe_def.id.to_string(),
+                station_id: recipe_def.station_id.to_string(),
+                total_work_seconds: duration,
+                remaining_work_seconds: duration,
+            },
+        );
+        self.push_note(format!("{} started.", recipe_def.label));
+    }
+
+    fn set_station_specialization(
+        &mut self,
+        station_id: &str,
+        path: StationSpecializationPathState,
+    ) {
+        if station_def(station_id).is_none() {
+            self.push_note(format!(
+                "Unknown station specialization target: {station_id}."
+            ));
+            return;
+        }
+        self.state
+            .resonance
+            .station_specializations
+            .insert(station_id.to_string(), path);
+        self.refresh_power_state();
+        self.refresh_bubble_state();
+        self.push_note(format!(
+            "{} specialization set to {}.",
+            self.station_label(station_id),
+            station_specialization_label(path)
+        ));
+    }
+
     fn start_expedition(&mut self, target_id: &str, assigned_crew: u16) {
         let Some(target_def) = expedition_target_def(target_id) else {
             self.push_note(format!("Unknown expedition target: {target_id}."));
@@ -653,8 +750,8 @@ impl Simulation {
             id,
             target_id: target_def.id.to_string(),
             assigned_crew,
-            duration_seconds: target_def.duration_seconds,
-            remaining_seconds: target_def.duration_seconds,
+            duration_seconds: self.expedition_duration_seconds(target_def),
+            remaining_seconds: self.expedition_duration_seconds(target_def),
             risk: expedition_risk_state(target_def.risk),
         });
         self.push_note(format!(
@@ -1115,6 +1212,7 @@ impl Simulation {
 
         self.progress_construction(safe_seconds, crew_efficiency);
         self.progress_processing(safe_seconds);
+        self.progress_resonance(safe_seconds);
         self.progress_expeditions(safe_seconds);
         self.progress_vibes(safe_seconds, crew_efficiency);
         self.resolve_station_power(safe_seconds);
@@ -1150,7 +1248,9 @@ impl Simulation {
         } else {
             base_output
         };
-        output * self.perk_multiplier(PerkStat::CrystalOutput)
+        output
+            * self.perk_multiplier(PerkStat::CrystalOutput)
+            * self.resonance_tuning_multiplier(CrystalTuningTrackState::Bassline)
     }
 
     fn chorus_output_per_worker(&self) -> f64 {
@@ -1158,6 +1258,7 @@ impl Simulation {
             + f64::from(self.state.crystal_circle.output_level)
                 * self.balance().crystal.chorus_per_worker_level_bonus)
             * self.perk_multiplier(PerkStat::CrystalOutput)
+            * self.resonance_tuning_multiplier(CrystalTuningTrackState::Chorus)
     }
 
     fn harmonics_output_per_worker(&self) -> f64 {
@@ -1165,6 +1266,7 @@ impl Simulation {
             + f64::from(self.state.crystal_circle.output_level)
                 * self.balance().crystal.harmonics_per_worker_level_bonus)
             * self.perk_multiplier(PerkStat::CrystalOutput)
+            * self.resonance_tuning_multiplier(CrystalTuningTrackState::Harmonics)
     }
 
     fn bassline_cap(&self) -> f64 {
@@ -1759,6 +1861,104 @@ impl Simulation {
         self.normalize_assignment();
     }
 
+    fn progress_resonance(&mut self, seconds: f64) {
+        if self.state.resonance.active_jobs.is_empty() {
+            return;
+        }
+
+        let mut completed_station_ids = Vec::new();
+        for job in self.state.resonance.active_jobs.values_mut() {
+            job.remaining_work_seconds = (job.remaining_work_seconds - seconds).max(0.0);
+            if job.remaining_work_seconds <= 0.0 {
+                completed_station_ids.push(job.station_id.clone());
+            }
+        }
+        if completed_station_ids.is_empty() {
+            return;
+        }
+
+        let mut completed_jobs = Vec::new();
+        for station_id in completed_station_ids {
+            if let Some(job) = self.state.resonance.active_jobs.remove(&station_id) {
+                completed_jobs.push(job);
+            }
+        }
+
+        for job in completed_jobs {
+            let Some(recipe_def) = resonance_recipe_def(&job.recipe_id) else {
+                continue;
+            };
+            let report = self.complete_resonance_job(&job, recipe_def);
+            self.state.resonance.completed_reports.push(report);
+            if self.state.resonance.completed_reports.len() > 8 {
+                self.state.resonance.completed_reports.remove(0);
+            }
+            self.push_note(format!("{} resonance recipe completed.", recipe_def.label));
+        }
+
+        self.refresh_power_state();
+        self.refresh_bubble_state();
+    }
+
+    fn complete_resonance_job(
+        &mut self,
+        job: &ResonanceJob,
+        recipe_def: &ResonanceRecipeDef,
+    ) -> ResonanceReport {
+        let mut tuning_track = None;
+        let mut tuning_amount = 0;
+        let mut expedition_support_amount = 0;
+        match recipe_def.effect {
+            ResonanceEffectDef::IncrementTuning { track, amount } => {
+                let runtime_track = crystal_tuning_track_state(track);
+                tuning_track = Some(runtime_track);
+                tuning_amount = amount;
+                match runtime_track {
+                    CrystalTuningTrackState::Bassline => {
+                        self.state.resonance.tuning.bassline_level = self
+                            .state
+                            .resonance
+                            .tuning
+                            .bassline_level
+                            .saturating_add(amount);
+                    }
+                    CrystalTuningTrackState::Chorus => {
+                        self.state.resonance.tuning.chorus_level = self
+                            .state
+                            .resonance
+                            .tuning
+                            .chorus_level
+                            .saturating_add(amount);
+                    }
+                    CrystalTuningTrackState::Harmonics => {
+                        self.state.resonance.tuning.harmonics_level = self
+                            .state
+                            .resonance
+                            .tuning
+                            .harmonics_level
+                            .saturating_add(amount);
+                    }
+                }
+            }
+            ResonanceEffectDef::IncrementExpeditionSupport { amount } => {
+                expedition_support_amount = amount;
+                self.state.resonance.expedition_support_level = self
+                    .state
+                    .resonance
+                    .expedition_support_level
+                    .saturating_add(amount);
+            }
+        }
+
+        ResonanceReport {
+            recipe_id: recipe_def.id.to_string(),
+            station_id: job.station_id.clone(),
+            tuning_track,
+            tuning_amount,
+            expedition_support_amount,
+        }
+    }
+
     fn complete_expedition_job(
         &mut self,
         job: &ExpeditionJob,
@@ -1767,6 +1967,15 @@ impl Simulation {
         let stone_gained = self.add_capped_resource(RESOURCE_STONE, target_def.expected_loot.stone);
         let water_gained = self.add_capped_resource(RESOURCE_WATER, target_def.expected_loot.water);
         let vibes_gained = self.add_capped_resource(RESOURCE_VIBES, target_def.expected_loot.vibes);
+        let echo_shards_gained =
+            self.expedition_material_reward(target_def.expected_loot.echo_shards);
+        let signal_scrap_gained =
+            self.expedition_material_reward(target_def.expected_loot.signal_scrap);
+        let harmonic_residue_gained =
+            self.expedition_material_reward(target_def.expected_loot.harmonic_residue);
+        self.add_resonance_material(RESONANCE_MATERIAL_ECHO_SHARDS, echo_shards_gained);
+        self.add_resonance_material(RESONANCE_MATERIAL_SIGNAL_SCRAP, signal_scrap_gained);
+        self.add_resonance_material(RESONANCE_MATERIAL_HARMONIC_RESIDUE, harmonic_residue_gained);
 
         ExpeditionReport {
             id: job.id,
@@ -1777,6 +1986,9 @@ impl Simulation {
             stone_gained,
             water_gained,
             vibes_gained,
+            echo_shards_gained,
+            signal_scrap_gained,
+            harmonic_residue_gained,
             wounds: target_def.expected_loot.wounds,
             clues: target_def.expected_loot.clues,
             dungeon_leads: target_def.expected_loot.dungeon_leads,
@@ -2800,6 +3012,138 @@ impl Simulation {
             .unwrap_or(false)
     }
 
+    fn station_specialization(&self, station_id: &str) -> StationSpecializationPathState {
+        self.state
+            .resonance
+            .station_specializations
+            .get(station_id)
+            .copied()
+            .unwrap_or(StationSpecializationPathState::Balanced)
+    }
+
+    fn resonance_tuning_multiplier(&self, track: CrystalTuningTrackState) -> f64 {
+        1.0 + f64::from(self.resonance_tuning_level(track))
+            * RESONANCE_TUNING_OUTPUT_BONUS_PER_LEVEL
+    }
+
+    fn resonance_tuning_level(&self, track: CrystalTuningTrackState) -> u16 {
+        match track {
+            CrystalTuningTrackState::Bassline => self.state.resonance.tuning.bassline_level,
+            CrystalTuningTrackState::Chorus => self.state.resonance.tuning.chorus_level,
+            CrystalTuningTrackState::Harmonics => self.state.resonance.tuning.harmonics_level,
+        }
+    }
+
+    fn resonance_material_amount(&self, material_id: &str) -> u16 {
+        match material_id {
+            RESONANCE_MATERIAL_ECHO_SHARDS => self.state.resonance.materials.echo_shards,
+            RESONANCE_MATERIAL_SIGNAL_SCRAP => self.state.resonance.materials.signal_scrap,
+            RESONANCE_MATERIAL_HARMONIC_RESIDUE => self.state.resonance.materials.harmonic_residue,
+            _ => 0,
+        }
+    }
+
+    fn add_resonance_material(&mut self, material_id: &str, amount: u16) {
+        match material_id {
+            RESONANCE_MATERIAL_ECHO_SHARDS => {
+                self.state.resonance.materials.echo_shards = self
+                    .state
+                    .resonance
+                    .materials
+                    .echo_shards
+                    .saturating_add(amount);
+            }
+            RESONANCE_MATERIAL_SIGNAL_SCRAP => {
+                self.state.resonance.materials.signal_scrap = self
+                    .state
+                    .resonance
+                    .materials
+                    .signal_scrap
+                    .saturating_add(amount);
+            }
+            RESONANCE_MATERIAL_HARMONIC_RESIDUE => {
+                self.state.resonance.materials.harmonic_residue = self
+                    .state
+                    .resonance
+                    .materials
+                    .harmonic_residue
+                    .saturating_add(amount);
+            }
+            _ => {}
+        }
+    }
+
+    fn spend_resonance_material(&mut self, material_id: &str, amount: u16) {
+        match material_id {
+            RESONANCE_MATERIAL_ECHO_SHARDS => {
+                self.state.resonance.materials.echo_shards = self
+                    .state
+                    .resonance
+                    .materials
+                    .echo_shards
+                    .saturating_sub(amount);
+            }
+            RESONANCE_MATERIAL_SIGNAL_SCRAP => {
+                self.state.resonance.materials.signal_scrap = self
+                    .state
+                    .resonance
+                    .materials
+                    .signal_scrap
+                    .saturating_sub(amount);
+            }
+            RESONANCE_MATERIAL_HARMONIC_RESIDUE => {
+                self.state.resonance.materials.harmonic_residue = self
+                    .state
+                    .resonance
+                    .materials
+                    .harmonic_residue
+                    .saturating_sub(amount);
+            }
+            _ => {}
+        }
+    }
+
+    fn resonance_recipe_duration_seconds(&self, recipe_def: &ResonanceRecipeDef) -> f64 {
+        let mut multiplier = 1.0;
+        if self.station_specialization(recipe_def.station_id)
+            == StationSpecializationPathState::Conversion
+        {
+            multiplier -= STATION_SPECIALIZATION_CONVERSION_SPEED_BONUS;
+        }
+        (recipe_def.duration_seconds * multiplier.max(0.25)).max(1.0)
+    }
+
+    fn expedition_duration_seconds(&self, target_def: &ExpeditionTargetDef) -> f64 {
+        let support_bonus = (f64::from(self.state.resonance.expedition_support_level)
+            * RESONANCE_SUPPORT_DURATION_REDUCTION_PER_LEVEL)
+            .min(RESONANCE_SUPPORT_DURATION_REDUCTION_CAP);
+        let station_bonus = if self.station_specialization(STATION_RESONANCE_CHAMBER)
+            == StationSpecializationPathState::Field
+        {
+            STATION_SPECIALIZATION_FIELD_DURATION_BONUS
+        } else {
+            0.0
+        };
+        target_def.duration_seconds * (1.0 - support_bonus - station_bonus).clamp(0.4, 1.0)
+    }
+
+    fn expedition_material_reward(&self, base_amount: u16) -> u16 {
+        if base_amount == 0 {
+            return 0;
+        }
+        let support_bonus = self.state.resonance.expedition_support_level / 2;
+        let extraction_bonus = if self.station_specialization(STATION_WORKSHOP)
+            == StationSpecializationPathState::Extraction
+        {
+            1
+        } else {
+            0
+        };
+        base_amount
+            .saturating_add(support_bonus)
+            .saturating_add(extraction_bonus)
+    }
+
     fn tile_for_hex(&self, hex: &HexState) -> Option<&crate::game_data::TileDef> {
         tile_def(&hex.tile_id)
     }
@@ -3223,5 +3567,31 @@ fn expedition_risk_state(risk: ExpeditionRiskDef) -> ExpeditionRiskState {
         ExpeditionRiskDef::Low => ExpeditionRiskState::Low,
         ExpeditionRiskDef::Medium => ExpeditionRiskState::Medium,
         ExpeditionRiskDef::High => ExpeditionRiskState::High,
+    }
+}
+
+fn crystal_tuning_track_state(track: ResonanceTuningTrackDef) -> CrystalTuningTrackState {
+    match track {
+        ResonanceTuningTrackDef::Bassline => CrystalTuningTrackState::Bassline,
+        ResonanceTuningTrackDef::Chorus => CrystalTuningTrackState::Chorus,
+        ResonanceTuningTrackDef::Harmonics => CrystalTuningTrackState::Harmonics,
+    }
+}
+
+fn resonance_material_label(material_id: &str) -> &'static str {
+    match material_id {
+        RESONANCE_MATERIAL_ECHO_SHARDS => "Echo Shards",
+        RESONANCE_MATERIAL_SIGNAL_SCRAP => "Signal Scrap",
+        RESONANCE_MATERIAL_HARMONIC_RESIDUE => "Harmonic Residue",
+        _ => "Strange Material",
+    }
+}
+
+fn station_specialization_label(path: StationSpecializationPathState) -> &'static str {
+    match path {
+        StationSpecializationPathState::Balanced => "Balanced",
+        StationSpecializationPathState::Conversion => "Conversion",
+        StationSpecializationPathState::Field => "Field",
+        StationSpecializationPathState::Extraction => "Extraction",
     }
 }

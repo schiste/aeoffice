@@ -346,6 +346,7 @@ async function exerciseBaseManagementSurface(page, consoleErrors) {
       state.baseManagement?.tabIds?.includes("crew") &&
       state.baseManagement?.tabIds?.includes("social") &&
       state.baseManagement?.tabIds?.includes("expeditions") &&
+      state.baseManagement?.tabIds?.includes("resonance") &&
       state.baseManagement?.tabIds?.includes("processing") &&
       state.baseManagement?.resourcePressure?.some((resource) => resource.id === "resource.bassline") &&
       state.baseManagement?.resourcePressure?.every(
@@ -381,6 +382,10 @@ async function exerciseBaseManagementSurface(page, consoleErrors) {
         (target) => target.id === "expedition.local_scavenge_sweep",
       ) &&
       typeof state.baseManagement?.expeditions?.summary === "string" &&
+      state.baseManagement?.resonance?.recipes?.some(
+        (recipe) => recipe.id === "resonance.recipe.bassline_overtone",
+      ) &&
+      typeof state.baseManagement?.resonance?.summary === "string" &&
       typeof state.baseManagement?.recommendedAction?.label === "string" &&
       typeof state.baseManagement?.nextBottleneck?.label === "string",
     consoleErrors,
@@ -498,6 +503,7 @@ async function exerciseBaseManagementSurface(page, consoleErrors) {
     "Crew",
     "Social",
     "Expeditions",
+    "Resonance",
     "Processing",
   ].forEach((expectedText) => {
     assert.match(
@@ -736,13 +742,71 @@ async function exerciseBaseManagementSurface(page, consoleErrors) {
     ),
     "Returned expedition report should describe material rewards.",
   )
+  assert.ok(
+    returnedExpedition.baseManagement.expeditions.reports.some((report) =>
+      /Echo|Signal/i.test(report.resonanceCopy),
+    ),
+    "Returned expedition report should describe strange material rewards.",
+  )
   await assertNonBlankNamedAppScreenshot(
     page,
     "add-rpg-expeditions-smoke.png",
     "ADD RPG expeditions surface screenshot",
   )
 
-  for (const tab of ["build", "power", "crew", "social", "expeditions", "processing", "crystal"]) {
+  await page.locator("#base-tab-resonance").click()
+  const resonanceReady = await waitForTextState(
+    page,
+    (state) =>
+      state.baseManagement?.active === true &&
+      state.baseManagement?.selectedTab === "resonance" &&
+      state.baseManagement?.resonance?.materials?.some(
+        (material) => material.id === "echo_shards" && material.value >= 1,
+      ) &&
+      state.baseManagement?.resonance?.recipes?.some(
+        (recipe) => recipe.id === "resonance.recipe.bassline_overtone" && recipe.enabled,
+      ),
+    consoleErrors,
+  )
+  assert.equal(resonanceReady.baseManagement.resonance.tuning.basslineLevel, 0)
+  await assertVisibleText(page, "#base-management-panel", [
+    "Resonance loop",
+    "Strange material",
+    "Crystal tuning",
+    "Bassline Overtone",
+    "Start resonance",
+  ])
+  await page.locator("#base-start-resonance-resonance-recipe-bassline_overtone").click()
+  await waitForTextState(
+    page,
+    (state) =>
+      state.baseManagement?.selectedTab === "resonance" &&
+      state.baseManagement?.resonance?.activeJobCount === 1 &&
+      state.baseManagement?.resonance?.recipes?.some(
+        (recipe) => recipe.id === "resonance.recipe.bassline_overtone" && recipe.inProgress,
+      ),
+    consoleErrors,
+  )
+  await page.evaluate(() => window.advanceTime?.(45000))
+  const tunedResonance = await waitForTextState(
+    page,
+    (state) =>
+      state.baseManagement?.selectedTab === "resonance" &&
+      state.baseManagement?.resonance?.activeJobCount === 0 &&
+      state.baseManagement?.resonance?.tuning?.basslineLevel >= 1,
+    consoleErrors,
+  )
+  assert.ok(
+    tunedResonance.baseManagement.resonance.tuning.basslineBonusPercent >= 6,
+    "Bassline Overtone should improve Bassline tuning.",
+  )
+  await assertNonBlankNamedAppScreenshot(
+    page,
+    "add-rpg-resonance-smoke.png",
+    "ADD RPG resonance conversion surface screenshot",
+  )
+
+  for (const tab of ["build", "power", "crew", "social", "expeditions", "resonance", "processing", "crystal"]) {
     await page.locator(`#base-tab-${tab}`).click()
     await waitForTextState(
       page,

@@ -3,8 +3,8 @@ use serde::Serialize;
 mod catalog;
 use catalog::{
     BALANCE, CONSTRUCTION_OPTIONS, ENTITY_SCHEMAS, EXPEDITION_TARGETS, FLAGS, FLORA, ITEMS, PERKS,
-    PROCESSING_RECIPES, RESOURCES, ROLES, STATIONS, STORY_BEATS, STRUCTURES, TILES, UI_ELEMENTS,
-    WORLD_ACTIONS,
+    PROCESSING_RECIPES, RESONANCE_RECIPES, RESOURCES, ROLES, STATIONS, STORY_BEATS, STRUCTURES,
+    TILES, UI_ELEMENTS, WORLD_ACTIONS,
 };
 
 pub const RESOURCE_BASSLINE: &str = "resource.bassline";
@@ -14,6 +14,9 @@ pub const RESOURCE_STONE: &str = "resource.stone";
 pub const RESOURCE_WATER: &str = "resource.water";
 pub const RESOURCE_VIBES: &str = "resource.vibes";
 pub const COST_ITEM_SKIN: &str = "cost.skin";
+pub const RESONANCE_MATERIAL_ECHO_SHARDS: &str = "echo_shards";
+pub const RESONANCE_MATERIAL_SIGNAL_SCRAP: &str = "signal_scrap";
+pub const RESONANCE_MATERIAL_HARMONIC_RESIDUE: &str = "harmonic_residue";
 
 pub const FLAG_BASE_STUDIO_RESTORE_UNLOCKED: &str = "base.studio_restore_unlocked";
 pub const FLAG_BASE_STUDIO_RESTORED: &str = "base.studio_restored";
@@ -57,6 +60,10 @@ pub const PROJECT_PREPARE_LOUDSPEAKERS: &str = "project.prepare_loudspeakers";
 pub const EXPEDITION_LOCAL_SCAVENGE_SWEEP: &str = "expedition.local_scavenge_sweep";
 pub const EXPEDITION_SURVIVOR_CAVE_WATCH: &str = "expedition.survivor_cave_watch";
 pub const EXPEDITION_FAR_RUINS_PROBE: &str = "expedition.far_ruins_probe";
+pub const RESONANCE_RECIPE_BASSLINE_OVERTONE: &str = "resonance.recipe.bassline_overtone";
+pub const RESONANCE_RECIPE_CHORUS_CARRIER: &str = "resonance.recipe.chorus_carrier";
+pub const RESONANCE_RECIPE_HARMONIC_LATTICE: &str = "resonance.recipe.harmonic_lattice";
+pub const RESONANCE_RECIPE_FIELD_ATTUNEMENT: &str = "resonance.recipe.field_attunement";
 pub const RECIPE_RESONANCE_FIELD_CALIBRATION: &str = "recipe.resonance_field_calibration";
 pub const RECIPE_MIX_SIGNAL_BALANCING: &str = "recipe.mix_signal_balancing";
 pub const RECIPE_WORKSHOP_BUILDER_TOOLS: &str = "recipe.workshop_builder_tools";
@@ -756,6 +763,9 @@ pub struct ExpeditionRewardDef {
     pub stone: f64,
     pub water: f64,
     pub vibes: f64,
+    pub echo_shards: u16,
+    pub signal_scrap: u16,
+    pub harmonic_residue: u16,
     pub wounds: u16,
     pub clues: u16,
     pub dungeon_leads: u16,
@@ -773,6 +783,46 @@ pub struct ExpeditionTargetDef {
     pub support: ExpeditionSupportDef,
     pub risk: ExpeditionRiskDef,
     pub expected_loot: ExpeditionRewardDef,
+    pub ui_order: u8,
+    pub player_hint: &'static str,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum ResonanceTuningTrackDef {
+    Bassline,
+    Chorus,
+    Harmonics,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ResonanceMaterialCostDef {
+    pub material_id: &'static str,
+    pub amount: u16,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, PartialEq)]
+#[serde(rename_all = "snake_case", tag = "kind")]
+pub enum ResonanceEffectDef {
+    IncrementTuning {
+        track: ResonanceTuningTrackDef,
+        amount: u16,
+    },
+    IncrementExpeditionSupport {
+        amount: u16,
+    },
+}
+
+#[derive(Debug, Clone, Copy, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ResonanceRecipeDef {
+    pub id: &'static str,
+    pub label: &'static str,
+    pub station_id: &'static str,
+    pub duration_seconds: f64,
+    pub costs: &'static [ResonanceMaterialCostDef],
+    pub effect: ResonanceEffectDef,
     pub ui_order: u8,
     pub player_hint: &'static str,
 }
@@ -833,6 +883,7 @@ pub struct CatalogSnapshot {
     pub processing_recipes: Vec<ProcessingRecipeDef>,
     pub world_actions: Vec<WorldActionDef>,
     pub expedition_targets: Vec<ExpeditionTargetDef>,
+    pub resonance_recipes: Vec<ResonanceRecipeDef>,
     pub story_beats: Vec<StoryBeatDef>,
     pub flags: Vec<FlagDef>,
     pub models: Vec<ModelDef>,
@@ -2098,6 +2149,7 @@ pub fn catalog_snapshot() -> CatalogSnapshot {
         processing_recipes: PROCESSING_RECIPES.to_vec(),
         world_actions: WORLD_ACTIONS.to_vec(),
         expedition_targets: EXPEDITION_TARGETS.to_vec(),
+        resonance_recipes: RESONANCE_RECIPES.to_vec(),
         story_beats: STORY_BEATS.to_vec(),
         flags: FLAGS.to_vec(),
         models: model_snapshot(),
@@ -2136,6 +2188,14 @@ pub fn expedition_targets() -> &'static [ExpeditionTargetDef] {
 
 pub fn expedition_target_def(id: &str) -> Option<&'static ExpeditionTargetDef> {
     EXPEDITION_TARGETS.iter().find(|target| target.id == id)
+}
+
+pub fn resonance_recipes() -> &'static [ResonanceRecipeDef] {
+    RESONANCE_RECIPES
+}
+
+pub fn resonance_recipe_def(id: &str) -> Option<&'static ResonanceRecipeDef> {
+    RESONANCE_RECIPES.iter().find(|recipe| recipe.id == id)
 }
 
 pub fn story_beats() -> &'static [StoryBeatDef] {

@@ -96,6 +96,28 @@ impl WebRuntime {
         });
     }
 
+    #[wasm_bindgen(js_name = startResonanceRecipe)]
+    pub fn start_resonance_recipe(&mut self, recipe_id: &str) {
+        self.simulation.apply(GameCommand::StartResonanceRecipe {
+            recipe_id: recipe_id.to_string(),
+        });
+    }
+
+    #[wasm_bindgen(js_name = setStationSpecialization)]
+    pub fn set_station_specialization(&mut self, station_id: &str, path: &str) {
+        let path = match path {
+            "conversion" => add_core::StationSpecializationPathState::Conversion,
+            "field" => add_core::StationSpecializationPathState::Field,
+            "extraction" => add_core::StationSpecializationPathState::Extraction,
+            _ => add_core::StationSpecializationPathState::Balanced,
+        };
+        self.simulation
+            .apply(GameCommand::SetStationSpecialization {
+                station_id: station_id.to_string(),
+                path,
+            });
+    }
+
     #[wasm_bindgen(js_name = startExpedition)]
     pub fn start_expedition(&mut self, target_id: &str, assigned_crew: u16) {
         self.simulation.apply(GameCommand::StartExpedition {
