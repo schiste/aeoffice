@@ -546,6 +546,15 @@ export interface StoryBeatDef {
   worldActionId: string | null
   choices: StoryChoiceDef[]
   relatedIds: string[]
+  /** Storylet (QBN) fields — authored in content + consumed by the authoritative
+   * Rust salience selector (a beat becomes active when all `preconditions` hold,
+   * highest `priority` wins; a non-repeatable beat auto-resolves when all
+   * `autoCompleteWhen` hold). The runtime snapshot omits them, so they are
+   * optional here — the TS layer renders the active beat, it does not re-select. */
+  preconditions?: ConditionDef[]
+  autoCompleteWhen?: ConditionDef[]
+  priority?: number
+  repeatable?: boolean
 }
 
 export interface StoryChoiceDef {
@@ -553,6 +562,19 @@ export interface StoryChoiceDef {
   label: string
   response: string
 }
+
+/** A condition over game state, evaluated in the sim (`evaluate_condition`).
+ * A condition array is implicitly AND. */
+export type ConditionDef =
+  | { kind: 'always' }
+  | { kind: 'flag_set'; flag_id: string }
+  | { kind: 'flag_unset'; flag_id: string }
+  | { kind: 'resource_at_least'; resource_id: string; amount: number }
+  | { kind: 'bubble_reach_at_least'; n: number }
+  | { kind: 'beat_completed'; beat_id: string }
+  | { kind: 'recruitment_enabled' }
+  | { kind: 'recruited_any' }
+  | { kind: 'hero_outside_bubble' }
 
 export interface FlagDef {
   id: string

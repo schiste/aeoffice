@@ -633,6 +633,7 @@ pub enum Condition {
     ChoiceMade { beat_id: &'static str, option_id: &'static str },
     RoleAvailable(&'static str),
     RecruitmentEnabled,
+    RecruitedAny,
     HeroOutsideBubble,
     HeroForcedReturn,
     HeroRecovering,
@@ -897,6 +898,20 @@ pub struct StoryBeatDef {
     pub world_action_id: Option<&'static str>,
     pub choices: &'static [StoryChoiceDef],
     pub related_ids: &'static [&'static str],
+    /// Storylet (QBN) fields. The salience selector activates the highest-priority
+    /// storylet whose `preconditions` all hold; an active storylet auto-resolves
+    /// when its `auto_complete_when` conditions hold. `repeatable` storylets can
+    /// re-activate after their preconditions lapse and hold again. These drive the
+    /// authoritative Rust selector only; the serialized snapshot omits them (the
+    /// TS layer renders the active beat, it does not re-select).
+    #[serde(skip)]
+    pub preconditions: &'static [Condition],
+    #[serde(skip)]
+    pub auto_complete_when: &'static [Condition],
+    #[serde(skip)]
+    pub priority: i16,
+    #[serde(skip)]
+    pub repeatable: bool,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, PartialEq)]

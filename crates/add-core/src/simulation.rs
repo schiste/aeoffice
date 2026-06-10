@@ -16,7 +16,7 @@ use crate::game_data::{
     STATION_MIX_CONSOLE, STATION_RESEARCH_BOOTH, STATION_RESONANCE_CHAMBER, STATION_WORKSHOP,
     TileFeature, balance_snapshot, construction_option_def, expedition_target_def, item_def,
     perk_def, processing_recipe_def, recruit_cost_for_index, resonance_recipe_def, role_def,
-    station_def, stations, story_beat_def, tile_def, world_action_def,
+    station_def, stations, story_beat_def, story_beats, tile_def, world_action_def,
 };
 use crate::state::{
     ConstructionJob, CrystalTuningTrackState, ExpeditionJob, ExpeditionReport, ExpeditionRiskState,
@@ -2263,26 +2263,48 @@ impl Simulation {
         }
     }
 
-    fn refresh_narrative_state(&mut self) {
-        if self.state.base.tutorial_investigated
-            || self.state.base.tutorial_explored
-            || self.state.base.studio_restored
-        {
-            self.mark_story_beat_complete(crate::game_data::STORY_BEAT_ROAD_TO_BASE);
-            self.mark_story_beat_complete(crate::game_data::STORY_BEAT_FIRST_GLIMPSE);
-            self.mark_story_beat_complete(crate::game_data::STORY_BEAT_ENTER_THE_BUBBLE);
+    /// Salience selection over the storylet pool (replaces the hardcoded intro
+    /// chain). Each refresh: cascade-resolve any active spine storylet whose
+    /// `auto_complete_when` holds, then surface the most salient eligible
+    /// storylet as `active_beat_id`. Reactive/side storylets light up whenever
+    /// their preconditions hold — the engine reacts to game state, not a line.
+    pub(crate) fn refresh_narrative_state(&mut self) {
+        loop {
+            let Some(beat_id) = self.best_eligible_storylet() else {
+                self.state.narrative.active_beat_id = None;
+                return;
+            };
+            let beat = story_beat_def(&beat_id).expect("eligible beat is in the catalog");
+            // Non-repeatable spine beats resolve when their state conditions hold;
+            // repeatable/reactive beats stay active only while still eligible.
+            if !beat.repeatable
+                && !beat.auto_complete_when.is_empty()
+                && self.evaluate_conditions(beat.auto_complete_when)
+            {
+                self.mark_story_beat_complete(&beat_id);
+                continue;
+            }
+            self.state.narrative.active_beat_id = Some(beat_id);
+            return;
         }
-        if self.state.base.tutorial_investigated {
-            self.mark_story_beat_complete(crate::game_data::STORY_BEAT_INVESTIGATE_BASE);
-        }
-        if self.state.base.tutorial_explored {
-            self.mark_story_beat_complete(crate::game_data::STORY_BEAT_EXPLORE_BASE);
-        }
+    }
 
-        self.state.narrative.active_beat_id = INTRO_STORY_BEAT_IDS
+    /// The most salient storylet that can be active now: highest `priority`, then
+    /// lowest `sequence`, among storylets whose preconditions all hold and that
+    /// aren't already completed (unless `repeatable`).
+    fn best_eligible_storylet(&self) -> Option<String> {
+        story_beats()
             .iter()
-            .find(|beat_id| !self.story_beat_completed(beat_id))
-            .map(|beat_id| (*beat_id).to_string());
+            .filter(|beat| {
+                (beat.repeatable || !self.story_beat_completed(beat.id))
+                    && self.evaluate_conditions(beat.preconditions)
+            })
+            .max_by(|a, b| {
+                a.priority
+                    .cmp(&b.priority)
+                    .then_with(|| b.sequence.cmp(&a.sequence))
+            })
+            .map(|beat| beat.id.to_string())
     }
 
     fn story_beat_completed(&self, beat_id: &str) -> bool {
@@ -3281,6 +3303,7 @@ impl Simulation {
                 .is_some_and(|chosen| chosen == option_id),
             Condition::RoleAvailable(role_id) => self.role_available(role_id),
             Condition::RecruitmentEnabled => self.state.objectives.recruitment_enabled,
+            Condition::RecruitedAny => self.state.recruitment.total_recruited_this_run > 0,
             Condition::HeroOutsideBubble => self.flag_value(FLAG_HERO_OUTSIDE_BUBBLE),
             Condition::HeroForcedReturn => self.flag_value(FLAG_HERO_FORCED_RETURN_ACTIVE),
             Condition::HeroRecovering => self.flag_value(FLAG_HERO_RECOVERING_AT_STUDIO),

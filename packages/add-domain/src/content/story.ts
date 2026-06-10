@@ -1,8 +1,17 @@
-import type { StoryBeatDef } from "../runtime/protocol"
+import type { ConditionDef, StoryBeatDef } from "../runtime/protocol"
 
-// Authored content: story beats + dialogue choices (quests/dialogue source of
-// truth). codegen -> Rust `const STORY_BEATS`. `worldActionId`/`relatedIds`
-// reference ids in other catalogs by value.
+// Authored content: story beats as STORYLETS (quests/dialogue source of truth).
+// codegen -> Rust `const STORY_BEATS`. The Rust salience selector activates the
+// highest-`priority` beat whose `preconditions` all hold; a non-repeatable beat
+// auto-resolves when its `autoCompleteWhen` conditions hold. Beats 1-3 still
+// resolve via their dialogue choice; beats 4-11 resolve from game state, so the
+// whole spine (including the formerly-orphaned 6-11) is now data-driven.
+// `worldActionId`/`relatedIds`/condition ids reference other catalogs by value.
+
+const flagSet = (flag_id: string): ConditionDef => ({ kind: "flag_set", flag_id })
+const beatDone = (beat_id: string): ConditionDef => ({ kind: "beat_completed", beat_id })
+const NONE: ConditionDef[] = []
+
 export const STORY_BEATS: readonly StoryBeatDef[] = [
   {
     id: "story.beat.road_to_base", schemaId: "story.beat.road_to_base", label: "Road to Base",
@@ -13,6 +22,7 @@ export const STORY_BEATS: readonly StoryBeatDef[] = [
       { id: "story.choice.road.keep_moving", label: "Keep moving through the ash", response: "You refuse to stop moving. If there is shelter ahead, momentum will find it first." },
     ],
     relatedIds: ["tile.base_core", "structure.base"],
+    preconditions: NONE, autoCompleteWhen: NONE, priority: 0, repeatable: false,
   },
   {
     id: "story.beat.first_glimpse", schemaId: "story.beat.first_glimpse", label: "First Glimpse",
@@ -23,6 +33,7 @@ export const STORY_BEATS: readonly StoryBeatDef[] = [
       { id: "story.choice.glimpse.scan_ruins", label: "Scan the ruins", response: "The outer shell is wrecked, but the center still breathes. The Base might be dying, not dead." },
     ],
     relatedIds: ["tile.ridge_line", "tile.base_core", "structure.crystal_circle"],
+    preconditions: [beatDone("story.beat.road_to_base")], autoCompleteWhen: NONE, priority: 0, repeatable: false,
   },
   {
     id: "story.beat.enter_the_bubble", schemaId: "story.beat.enter_the_bubble", label: "Enter the Bubble",
@@ -33,6 +44,7 @@ export const STORY_BEATS: readonly StoryBeatDef[] = [
       { id: "story.choice.bubble.touch_air", label: "Test the air first", response: "Your hand trembles at the border. Inside the Bubble, the noise of the world finally steps back." },
     ],
     relatedIds: ["resource.bassline", "station.crystal_circle", "tile.base_core"],
+    preconditions: [beatDone("story.beat.first_glimpse")], autoCompleteWhen: NONE, priority: 0, repeatable: false,
   },
   {
     id: "story.beat.investigate_base", schemaId: "story.beat.investigate_base", label: "Investigate Base",
@@ -43,6 +55,7 @@ export const STORY_BEATS: readonly StoryBeatDef[] = [
       { id: "story.choice.investigate.trace_hum", label: "Trace the hum through the walls", response: "The sound has a source. If you can reach it, the Base might answer back." },
     ],
     relatedIds: ["world_action.investigate_base", "story.beat.explore_base", "structure.base"],
+    preconditions: [beatDone("story.beat.enter_the_bubble")], autoCompleteWhen: [flagSet("base.tutorial_investigated")], priority: 0, repeatable: false,
   },
   {
     id: "story.beat.explore_base", schemaId: "story.beat.explore_base", label: "Explore Base",
@@ -53,41 +66,48 @@ export const STORY_BEATS: readonly StoryBeatDef[] = [
       { id: "story.choice.explore.look_for_rooms", label: "Look for livable rooms", response: "If more people are coming, they will need more than a miracle. They will need a place to stay." },
     ],
     relatedIds: ["world_action.explore_base", "project.restore_studio", "construction.removing_moss", "resource.water"],
+    preconditions: [beatDone("story.beat.investigate_base")], autoCompleteWhen: [flagSet("base.tutorial_explored")], priority: 0, repeatable: false,
   },
   {
     id: "story.beat.restore_studio", schemaId: "story.beat.restore_studio", label: "Restore Studio",
     body: "The Studio is the first room worth saving. If you can bring it back, the Base can start singing again.",
     arc: "base_onboarding", sequence: 60, worldActionId: null, choices: [],
     relatedIds: ["project.restore_studio", "resource.chorus", "project.build_fire_pit"],
+    preconditions: [beatDone("story.beat.explore_base")], autoCompleteWhen: [flagSet("base.studio_restored")], priority: 0, repeatable: false,
   },
   {
     id: "story.beat.build_fire_pit", schemaId: "story.beat.build_fire_pit", label: "Build Fire Pit",
     body: "The Fire Pit is less about heat than rhythm. People gather around steady signals before they trust walls and wiring.",
     arc: "base_onboarding", sequence: 70, worldActionId: null, choices: [],
     relatedIds: ["project.build_fire_pit", "station.fire_pit", "story.beat.reach_survivor_cave", "ui.action.recruit"],
+    preconditions: [flagSet("base.studio_restored")], autoCompleteWhen: [flagSet("base.fire_pit_built")], priority: 0, repeatable: false,
   },
   {
     id: "story.beat.reach_survivor_cave", schemaId: "story.beat.reach_survivor_cave", label: "Reach Survivor Cave",
     body: "If the Bubble holds long enough, its edge will brush the cave where the next survivors are hiding.",
     arc: "base_onboarding", sequence: 75, worldActionId: null, choices: [],
     relatedIds: ["tile.survivor_cave", "ui.map.cave_gate", "story.beat.first_recruit"],
+    preconditions: [flagSet("base.fire_pit_built")], autoCompleteWhen: [{ kind: "recruitment_enabled" }], priority: 0, repeatable: false,
   },
   {
     id: "story.beat.first_recruit", schemaId: "story.beat.first_recruit", label: "First Survivor Recruited",
     body: "The first recruit is proof the Base is more than a shelter. It is becoming a place people can choose.",
     arc: "base_onboarding", sequence: 80, worldActionId: null, choices: [],
     relatedIds: ["ui.action.recruit", "tile.survivor_cave", "ui.status.base.recruits", "story.beat.await_survivor_arrival"],
+    preconditions: [{ kind: "recruitment_enabled" }], autoCompleteWhen: [{ kind: "recruited_any" }], priority: 0, repeatable: false,
   },
   {
     id: "story.beat.await_survivor_arrival", schemaId: "story.beat.await_survivor_arrival", label: "Await Survivor Arrival",
     body: "Signal the route. Keep the Base stable. A promise only matters if someone can safely walk into it.",
     arc: "base_onboarding", sequence: 85, worldActionId: null, choices: [],
     relatedIds: ["ui.status.base.recruits", "story.beat.stabilize_base"],
+    preconditions: [{ kind: "recruited_any" }], autoCompleteWhen: [{ kind: "bubble_reach_at_least", n: 4 }], priority: 0, repeatable: false,
   },
   {
     id: "story.beat.stabilize_base", schemaId: "story.beat.stabilize_base", label: "Stabilize the Base",
     body: "The Base is alive, but not safe yet. Power, morale, housing, and sound all need to hold at once now.",
     arc: "base_onboarding", sequence: 90, worldActionId: null, choices: [],
     relatedIds: ["resource.chorus", "resource.harmonics", "ui.panel.power", "ui.panel.base"],
+    preconditions: [beatDone("story.beat.await_survivor_arrival")], autoCompleteWhen: NONE, priority: 0, repeatable: false,
   },
 ]

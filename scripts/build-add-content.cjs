@@ -133,6 +133,27 @@ const EFFECTS_FIELD = {
   },
 }
 
+// Reusable: a single `Condition` (the unified gating vocabulary, evaluated in the
+// sim). Flat variants only — combinators (All/Any/Not) exist in Rust but are not
+// authored in content (a condition array is implicitly AND).
+const CONDITION = {
+  name: "cond",
+  kind: "taggedEnum",
+  rustEnum: "Condition",
+  variants: {
+    always: { variant: "Always" },
+    flag_set: { variant: "FlagSet", tuple: [{ name: "flag", from: "flag_id", kind: "idConst", prefix: "FLAG_" }] },
+    flag_unset: { variant: "FlagUnset", tuple: [{ name: "flag", from: "flag_id", kind: "idConst", prefix: "FLAG_" }] },
+    resource_at_least: { variant: "ResourceAtLeast", fields: [{ name: "resource_id", from: "resource_id", kind: "string" }, { name: "amount", kind: "f64" }] },
+    bubble_reach_at_least: { variant: "BubbleReachAtLeast", tuple: [{ name: "n", from: "n", kind: "i64" }] },
+    beat_completed: { variant: "BeatCompleted", tuple: [{ name: "beat", from: "beat_id", kind: "idConst" }] },
+    recruitment_enabled: { variant: "RecruitmentEnabled" },
+    recruited_any: { variant: "RecruitedAny" },
+    hero_outside_bubble: { variant: "HeroOutsideBubble" },
+  },
+}
+const conditionsField = (name) => ({ name, kind: "array", element: CONDITION })
+
 // Reusable: visibility (conditions) + presentation, shared by ui_elements and
 // entity_schemas. Condition arg fields are snake_case in the JSON.
 const VISIBILITY_CONDITION = {
@@ -438,6 +459,10 @@ const FILES = [
               },
             },
             { name: "related_ids", kind: "array", element: { name: "r", kind: "string" } },
+            conditionsField("preconditions"),
+            conditionsField("auto_complete_when"),
+            { name: "priority", kind: "i64" },
+            { name: "repeatable", kind: "bool" },
           ],
         },
       },

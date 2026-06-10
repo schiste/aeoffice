@@ -49,7 +49,7 @@ mod tests {
         HeroLocationState, HexCoordState, RecruitTravel, Simulation,
         StationSpecializationPathState, StationState, export_save,
         game_data::{
-            Condition, EffectDef, FLAG_BASE_STUDIO_RESTORED,
+            Condition, EffectDef, FLAG_BASE_FIRE_PIT_BUILT, FLAG_BASE_STUDIO_RESTORED,
             CONSTRUCTION_OUTPUT, CONSTRUCTION_REMOVING_MOSS, CONSTRUCTION_STORAGE,
             EXPEDITION_LOCAL_SCAVENGE_SWEEP, PROJECT_BUILD_FIRE_PIT, PROJECT_BUILD_MIX_CONSOLE,
             PROJECT_BUILD_RESEARCH_BOOTH, PROJECT_BUILD_RESONANCE_CHAMBER, PROJECT_BUILD_WORKSHOP,
@@ -755,7 +755,13 @@ mod tests {
         });
         simulation.apply(GameCommand::Tick { seconds: 10.0 });
 
-        assert_eq!(simulation.state().narrative.active_beat_id, None);
+        // Beats 6-11 are revived by the storylet selector: after Explore the spine
+        // advances to Restore Studio (preconditioned on Explore) instead of going
+        // dark like the old hardcoded intro chain did.
+        assert_eq!(
+            simulation.state().narrative.active_beat_id.as_deref(),
+            Some(STORY_BEAT_RESTORE_STUDIO)
+        );
         assert_eq!(
             simulation
                 .state()
@@ -1859,5 +1865,36 @@ mod tests {
         assert!(sim.evaluate_condition(&Condition::BeatCompleted(STORY_BEAT_ROAD_TO_BASE)));
         assert!(sim.evaluate_condition(&Condition::BubbleReachAtLeast(0)));
         assert!(!sim.evaluate_condition(&Condition::BubbleReachAtLeast(1)));
+    }
+
+    #[test]
+    fn storylet_selector_revives_late_beats_from_state() {
+        let mut sim = Simulation::new();
+        // Fast-forward the intro, then drive the late spine purely from game state.
+        sim.apply_effects(&[
+            EffectDef::CompleteBeat { beat_id: STORY_BEAT_ROAD_TO_BASE },
+            EffectDef::CompleteBeat { beat_id: STORY_BEAT_FIRST_GLIMPSE },
+            EffectDef::CompleteBeat { beat_id: STORY_BEAT_ENTER_THE_BUBBLE },
+            EffectDef::CompleteBeat { beat_id: STORY_BEAT_INVESTIGATE_BASE },
+            EffectDef::CompleteBeat { beat_id: STORY_BEAT_EXPLORE_BASE },
+            EffectDef::SetFlag { flag_id: FLAG_BASE_STUDIO_RESTORED, value: true },
+        ]);
+        sim.refresh_narrative_state();
+        // studio_restored auto-resolves Restore Studio + activates Build Fire Pit —
+        // a beat that the old hardcoded intro chain never reached.
+        assert_eq!(
+            sim.state().narrative.active_beat_id.as_deref(),
+            Some(STORY_BEAT_BUILD_FIRE_PIT)
+        );
+
+        sim.apply_effects(&[EffectDef::SetFlag {
+            flag_id: FLAG_BASE_FIRE_PIT_BUILT,
+            value: true,
+        }]);
+        sim.refresh_narrative_state();
+        assert_eq!(
+            sim.state().narrative.active_beat_id.as_deref(),
+            Some(STORY_BEAT_REACH_SURVIVOR_CAVE)
+        );
     }
 }
