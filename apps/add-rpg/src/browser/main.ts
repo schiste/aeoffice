@@ -42,6 +42,8 @@ import {
   STUDIO_GROUNDS_AREA_MAP_ID,
   addMapModeLabel,
   createAddWorldForMapMode,
+  selectAddStoryMoment,
+  type AddStoryMoment,
   type AddUiState,
   type AddDiscoveryActionLink,
   type AddDungeonObjectiveStep,
@@ -139,6 +141,27 @@ interface PendingOfflineReturnSummary {
   readonly source: AddOfflineReturnSummary["source"]
 }
 
+interface BaseRateSnapshotResource {
+  readonly id: string
+  readonly label: string
+  readonly netPerSecond: number
+  readonly gainPerSecond: number
+  readonly spendPerSecond: number
+}
+
+interface BaseRateChange {
+  readonly reason: string
+  readonly changedAtMs: number
+  readonly summary: string
+  readonly changes: readonly {
+    readonly id: string
+    readonly label: string
+    readonly beforeNetPerSecond: number
+    readonly afterNetPerSecond: number
+    readonly deltaPerSecond: number
+  }[]
+}
+
 declare global {
   interface Window {
     render_game_to_text?: () => string
@@ -192,6 +215,7 @@ const [firstPlayableCollapsed, setFirstPlayableCollapsed] =
   createSignal(shouldCollapseQuestPanelByDefault())
 const [baseManagementTab, setBaseManagementTab] =
   createSignal<AddBaseManagementTabId>("crystal")
+const [baseRateChange, setBaseRateChange] = createSignal<BaseRateChange | null>(null)
 const [questPanelPosition, setQuestPanelPosition] = createSignal(defaultQuestPanelPosition())
 const [travelExperience, setTravelExperience] = createSignal<TravelExperience | null>(null)
 const [lastDiscoveryMovement, setLastDiscoveryMovement] =
@@ -1159,6 +1183,8 @@ function baseManagementPanel(): unknown {
         </div>
       </div>
       ${() => currentActionSurface()}
+      ${() => baseManagementCommandStrip(state)}
+      ${() => baseRateChangePanel()}
       ${() => basePlayerLoopPanel(state)}
       <div class="base-management-tabs" role="tablist" aria-label="Base management sections">
         ${() => baseManagementTabButtons(state)}
@@ -1184,6 +1210,54 @@ function baseManagementPanel(): unknown {
       </div>
     </section>
   `
+}
+
+function baseManagementCommandStrip(state: AddBaseManagementState): unknown {
+  return html`
+    <article
+      id="base-bottleneck-strip"
+      class="base-bottleneck-strip"
+      data-severity=${state.nextBottleneck.severity}
+      aria-label="Base bottleneck and rate watch"
+    >
+      <div class="base-bottleneck-primary">
+        <span>Bottleneck</span>
+        <strong>${state.nextBottleneck.label}</strong>
+        <small>${state.nextBottleneck.detail}</small>
+      </div>
+      <div class="base-bottleneck-action">
+        <span>Recommended</span>
+        <strong>${state.recommendedAction.label}</strong>
+        <small>${state.recommendedAction.detail}</small>
+      </div>
+      <div class="base-bottleneck-rates" aria-label="Current base rates">
+        ${() => baseRateWatchChips(state)}
+      </div>
+      <button
+        id="base-command-strip-action"
+        type="button"
+        class="base-command-action"
+        onClick=${() => void runBaseRecommendedAction(state)}
+        disabled=${() => !ready() || !state.recommendedAction.enabled || !state.recommendedAction.targetId}
+      >
+        Do it
+      </button>
+    </article>
+  `
+}
+
+function baseRateWatchChips(state: AddBaseManagementState): readonly unknown[] {
+  const rates = state.playerLoop.rateWatch.rates.slice(0, 3)
+  if (rates.length === 0) {
+    return [html`<span data-direction="flat">Rates flat</span>`]
+  }
+  return rates.map(
+    (rate) => html`
+      <span data-direction=${rate.netPerSecond > 0 ? "up" : rate.netPerSecond < 0 ? "down" : "flat"}>
+        ${rate.copy}
+      </span>
+    `,
+  )
 }
 
 function dungeonContextPanel(): unknown {
@@ -1259,6 +1333,45 @@ function resourceCompactLabel(id: string, label: string): string {
   }
 }
 
+function storyMoment(): AddStoryMoment | null {
+  const currentSnapshot = snapshot()
+  const currentCatalog = catalog()
+  if (!currentSnapshot || !currentCatalog) return null
+  return selectAddStoryMoment(currentSnapshot, currentCatalog)
+}
+
+// The narrative moment: the authoritative active beat (Rust salience engine) with
+// ALL of its choices surfaced as buttons — real, consequential agency, not a
+// single hardcoded option. Rendered atop the unified decision surface.
+function storyMomentBlock(): unknown {
+  const moment = storyMoment()
+  if (!moment || !moment.awaitingChoice) return null
+  return html`
+    <div
+      class="story-moment"
+      data-arc=${moment.arc}
+      aria-label=${`Story moment: ${moment.label}`}
+    >
+      <div class="story-moment-kicker">${moment.label}</div>
+      <p class="story-moment-body">${moment.body}</p>
+      <div class="story-moment-choices">
+        ${moment.choices.map(
+          (choice) => html`
+            <button
+              type="button"
+              class="story-moment-choice"
+              data-choice-id=${choice.id}
+              onClick=${() => void chooseStoryOption(moment.beatId, choice.id)}
+            >
+              ${choice.label}
+            </button>
+          `,
+        )}
+      </div>
+    </div>
+  `
+}
+
 function currentActionSurface(): unknown {
   return html`
     <article
@@ -1269,6 +1382,7 @@ function currentActionSurface(): unknown {
       data-enabled=${() => (currentActionState().enabled ? "true" : "false")}
       aria-label="Current action"
     >
+      ${() => storyMomentBlock()}
       <div class="current-action-kicker">
         <span>Current decision</span>
         <small>${() => currentActionKickerMeta()}</small>
@@ -1623,14 +1737,35 @@ function baseManagementTabButtons(state: AddBaseManagementState): readonly unkno
         id=${`base-tab-${section.id}`}
         type="button"
         role="tab"
+        data-severity=${baseTabSeverity(section)}
         class=${() => (baseManagementTab() === section.id ? "active" : "")}
         aria-selected=${() => baseManagementTab() === section.id}
         onClick=${() => setBaseManagementTab(section.id)}
       >
-        ${section.label}
+        <span>${section.label}</span>
+        <small>${baseTabMeta(section)}</small>
       </button>
     `,
   )
+}
+
+function baseTabMeta(section: AddBaseManagementState["sections"][number]): string {
+  if (section.blockedReason) return "Blocked"
+  const warning = section.metrics.find((metric) => metric.severity === "warning")
+  if (warning) return warning.value
+  const danger = section.metrics.find((metric) => metric.severity === "danger")
+  if (danger) return danger.value
+  const good = section.metrics.find((metric) => metric.severity === "good")
+  if (good) return good.value
+  return section.primaryActionId ? "Action" : "Ready"
+}
+
+function baseTabSeverity(section: AddBaseManagementState["sections"][number]): string {
+  if (section.blockedReason) return "warning"
+  if (section.metrics.some((metric) => metric.severity === "danger")) return "danger"
+  if (section.metrics.some((metric) => metric.severity === "warning")) return "warning"
+  if (section.metrics.some((metric) => metric.severity === "good")) return "good"
+  return "neutral"
 }
 
 function baseManagementMetricRows(section: AddBaseManagementState["sections"][number] | undefined): readonly unknown[] {
@@ -2192,6 +2327,26 @@ function baseStaffingCommandPanel(state: AddBaseManagementState): unknown {
   `
 }
 
+function baseRateChangePanel(): unknown {
+  const change = baseRateChange()
+  if (!change) return null
+  return html`
+    <article id="base-rate-change" class="base-rate-change" aria-label="Rate change after staffing">
+      <span>Rate change</span>
+      <strong>${change.summary}</strong>
+      <small>${change.reason}</small>
+      <div class="base-rate-change-list">
+        ${() => change.changes.map((item) => html`
+          <span data-direction=${item.deltaPerSecond > 0 ? "up" : item.deltaPerSecond < 0 ? "down" : "flat"}>
+            ${item.label}
+            <strong>${signedRateCopy(item.deltaPerSecond)}</strong>
+          </span>
+        `)}
+      </div>
+    </article>
+  `
+}
+
 function baseSlotPoolRows(pools: readonly AddBaseManagementState["staffing"]["slotPools"][number][]): readonly unknown[] {
   return pools.map((pool) => html`
     <article class="base-slot-pool" data-pressure=${pool.pressure}>
@@ -2221,23 +2376,26 @@ function baseRoleRows(
             type="button"
             class="ghost-button"
             onClick=${() => void setHeroRole(role.id)}
-            disabled=${() => !ready() || !role.available || !role.heroAllowed}
+            disabled=${() => !ready() || !currentBaseRole(role.id)?.available || !currentBaseRole(role.id)?.heroAllowed}
           >
             Hero
           </button>
           <button
             id=${`base-role-${slugForRole(role.id)}-minus`}
             type="button"
-            onClick=${() => void setRoleCrew(role.id, Math.max(0, role.crewAssigned - 1))}
-            disabled=${() => !ready() || !role.available || role.crewAssigned <= 0}
+            onClick=${() => void adjustRoleCrew(role.id, -1)}
+            disabled=${() => {
+              const currentRole = currentBaseRole(role.id)
+              return !ready() || !currentRole?.available || currentRole.crewAssigned <= 0
+            }}
           >
             -1
           </button>
           <button
             id=${`base-role-${slugForRole(role.id)}-plus`}
             type="button"
-            onClick=${() => void setRoleCrew(role.id, role.crewAssigned + 1)}
-            disabled=${() => !ready() || !canAddCrewToRole(role, state)}
+            onClick=${() => void adjustRoleCrew(role.id, 1)}
+            disabled=${() => !ready() || !canAddCrewToCurrentRole(role.id)}
           >
             +1
           </button>
@@ -2245,6 +2403,22 @@ function baseRoleRows(
       </article>
     `,
   )
+}
+
+function currentBaseRole(roleId: string): AddBaseManagementState["roles"][number] | null {
+  return baseManagementState()?.roles.find((role) => role.id === roleId) ?? null
+}
+
+function canAddCrewToCurrentRole(roleId: string): boolean {
+  const state = baseManagementState()
+  const role = currentBaseRole(roleId)
+  return Boolean(state && role && canAddCrewToRole(role, state))
+}
+
+async function adjustRoleCrew(roleId: string, delta: number): Promise<void> {
+  const role = currentBaseRole(roleId)
+  if (!role) return
+  await setRoleCrew(roleId, Math.max(0, role.crewAssigned + delta))
 }
 
 function canAddCrewToRole(
@@ -2320,16 +2494,24 @@ function baseConstructionProjectCard(
           <strong>Missing resource</strong>
           <small>${option.missingResource ?? "None"}</small>
         </span>
-        <span>
-          <strong>Result</strong>
-          <small>${option.resultPreview}</small>
-        </span>
-        <span>
-          <strong>Future economy</strong>
-          <small>${option.futureEconomyChange}</small>
-        </span>
       </div>
-      <small class="base-construction-risk">${option.basslineRisk.copy}</small>
+      <details class="base-card-details">
+        <summary>Future economy</summary>
+        <div>
+          <span>
+            <strong>Result</strong>
+            <small>${option.resultPreview}</small>
+          </span>
+          <span>
+            <strong>Economy change</strong>
+            <small>${option.futureEconomyChange}</small>
+          </span>
+          <span>
+            <strong>Bassline risk</strong>
+            <small>${option.basslineRisk.copy}</small>
+          </span>
+        </div>
+      </details>
       ${option.blockedReason && !option.complete
         ? html`<small class="base-machine-blocker">${option.blockedReason}</small>`
         : null}
@@ -4343,18 +4525,173 @@ async function chooseStoryOption(beatId: string, optionId: string): Promise<void
   })
 }
 
-async function setHeroRole(roleId: string): Promise<void> {
+function captureBaseRateSnapshot(): readonly BaseRateSnapshotResource[] {
+  const state = baseManagementState()
+  return (state?.resources ?? []).map((resource) => ({
+    id: resource.id,
+    label: resource.label,
+    netPerSecond: resource.netPerSecond,
+    gainPerSecond: resource.gainPerSecond,
+    spendPerSecond: resource.spendPerSecond,
+  }))
+}
+
+function baseRateDeltaChanges(
+  before: readonly BaseRateSnapshotResource[],
+  after: readonly BaseRateSnapshotResource[],
+): BaseRateChange["changes"] {
+  const beforeById = new Map(before.map((resource) => [resource.id, resource]))
+  return after
+    .map((resource) => {
+      const previous = beforeById.get(resource.id)
+      const beforeNetPerSecond = previous?.netPerSecond ?? resource.netPerSecond
+      const gainDelta = resource.gainPerSecond - (previous?.gainPerSecond ?? resource.gainPerSecond)
+      const spendDelta = resource.spendPerSecond - (previous?.spendPerSecond ?? resource.spendPerSecond)
+      const netDelta = resource.netPerSecond - beforeNetPerSecond
+      const displayDelta =
+        Math.abs(gainDelta) >= 0.001
+          ? gainDelta
+          : Math.abs(spendDelta) >= 0.001
+            ? -spendDelta
+            : netDelta
+      return {
+        id: resource.id,
+        label: resource.label,
+        beforeNetPerSecond,
+        afterNetPerSecond: resource.netPerSecond,
+        deltaPerSecond: displayDelta,
+      }
+    })
+    .filter((change) => Math.abs(change.deltaPerSecond) >= 0.001)
+    .sort((left, right) => Math.abs(right.deltaPerSecond) - Math.abs(left.deltaPerSecond))
+    .slice(0, 4)
+}
+
+function recordBaseRateChange(
+  before: readonly BaseRateSnapshotResource[],
+  reason: string,
+): void {
+  const after = captureBaseRateSnapshot()
+  const changes = baseRateDeltaChanges(before, after)
+
+  setBaseRateChange({
+    reason,
+    changedAtMs: Date.now(),
+    summary:
+      changes.length > 0
+        ? changes
+            .map((change) => `${change.label} ${signedRateCopy(change.deltaPerSecond)}`)
+            .join(" · ")
+        : "No visible rate change yet",
+    changes:
+      changes.length > 0
+        ? changes
+        : after.slice(0, 3).map((resource) => ({
+            id: resource.id,
+            label: resource.label,
+            beforeNetPerSecond: resource.netPerSecond,
+            afterNetPerSecond: resource.netPerSecond,
+            deltaPerSecond: 0,
+      })),
+  })
+}
+
+function resourceIdForRoleRateChange(roleId: string): string | null {
+  switch (roleId) {
+    case ROLE_CRYSTAL_BASSLINE:
+      return RESOURCE_BASSLINE
+    case ROLE_CRYSTAL_CHORUS:
+      return RESOURCE_CHORUS
+    case ROLE_CRYSTAL_HARMONICS:
+      return RESOURCE_HARMONICS
+    case ROLE_SCAVENGE:
+      return RESOURCE_STONE
+    case ROLE_WATER:
+      return RESOURCE_WATER
+    case ROLE_FIRE_PIT:
+      return RESOURCE_VIBES
+    default:
+      return null
+  }
+}
+
+async function waitForBaseRateChange(
+  before: readonly BaseRateSnapshotResource[],
+  roleId: string,
+): Promise<void> {
+  const resourceId = resourceIdForRoleRateChange(roleId)
+  const deadline = Date.now() + 4000
+  while (Date.now() < deadline && !lastError()) {
+    const changes = baseRateDeltaChanges(before, captureBaseRateSnapshot())
+    const changed = resourceId
+      ? changes.some((change) => change.id === resourceId)
+      : changes.length > 0
+    if (changed) return
+    const beforeVersion = snapshotVersion
+    await waitForSnapshotAfter(beforeVersion)
+    if (snapshotVersion === beforeVersion) {
+      await new Promise((resolve) => window.setTimeout(resolve, 120))
+    }
+  }
+}
+
+function roleLabelForRateChange(roleId: string): string {
+  return baseManagementState()?.roles.find((role) => role.id === roleId)?.label ?? roleId
+}
+
+async function waitForHeroRole(roleId: string): Promise<void> {
+  const deadline = Date.now() + 4000
+  while (Date.now() < deadline && snapshot()?.roster.heroRoleId !== roleId && !lastError()) {
+    const beforeVersion = snapshotVersion
+    await waitForSnapshotAfter(beforeVersion)
+    if (snapshotVersion === beforeVersion) return
+  }
+}
+
+async function waitForRoleCrew(roleId: string, crew: number): Promise<void> {
+  const deadline = Date.now() + 4000
+  while (
+    Date.now() < deadline &&
+    baseManagementState()?.roles.find((role) => role.id === roleId)?.crewAssigned !== crew &&
+    !lastError()
+  ) {
+    const beforeVersion = snapshotVersion
+    await waitForSnapshotAfter(beforeVersion)
+    if (snapshotVersion === beforeVersion) return
+  }
+}
+
+async function setHeroRole(
+  roleId: string,
+  options: { readonly trackRateChange?: boolean } = {},
+): Promise<void> {
+  const before = options.trackRateChange === false ? [] : captureBaseRateSnapshot()
   await sendAndWaitForSnapshot(() => {
     setLastCommand(`hero_role:${roleId}`)
     client.setHeroRole(roleId)
   })
+  await waitForHeroRole(roleId)
+  if (options.trackRateChange !== false) {
+    await waitForBaseRateChange(before, roleId)
+    recordBaseRateChange(before, `Hero moved to ${roleLabelForRateChange(roleId)}.`)
+  }
 }
 
-async function setRoleCrew(roleId: string, crew: number): Promise<void> {
+async function setRoleCrew(
+  roleId: string,
+  crew: number,
+  options: { readonly trackRateChange?: boolean } = {},
+): Promise<void> {
+  const before = options.trackRateChange === false ? [] : captureBaseRateSnapshot()
   await sendAndWaitForSnapshot(() => {
     setLastCommand(`crew:${roleId}:${crew}`)
     client.setRoleCrew(roleId, crew)
   })
+  await waitForRoleCrew(roleId, crew)
+  if (options.trackRateChange !== false) {
+    await waitForBaseRateChange(before, roleId)
+    recordBaseRateChange(before, `Crew changed on ${roleLabelForRateChange(roleId)}.`)
+  }
 }
 
 async function applyStaffingPreset(
@@ -4364,14 +4701,16 @@ async function applyStaffingPreset(
   const preset = state?.staffing.presets.find((candidate) => candidate.id === presetId)
   if (!state || !preset?.enabled) return
 
-  await setHeroRole(preset.heroRoleId)
+  const before = captureBaseRateSnapshot()
+  await setHeroRole(preset.heroRoleId, { trackRateChange: false })
   for (const role of state.roles) {
-    if (role.crewAssigned > 0) await setRoleCrew(role.id, 0)
+    if (role.crewAssigned > 0) await setRoleCrew(role.id, 0, { trackRateChange: false })
   }
   for (const [roleId, crew] of Object.entries(preset.crewByRole)) {
-    if (crew > 0) await setRoleCrew(roleId, crew)
+    if (crew > 0) await setRoleCrew(roleId, crew, { trackRateChange: false })
   }
   setLastCommand(`staffing_preset:${preset.id}`)
+  recordBaseRateChange(before, `${preset.label} preset applied.`)
 }
 
 async function startConstruction(optionId: string): Promise<void> {
@@ -4739,6 +5078,7 @@ function toTextState(): RuntimeTextState {
     discovery: currentDiscovery,
     baseManagement: baseManagementState(),
     baseManagementTab: baseManagementTab(),
+    baseRateChange: baseRateChange(),
     dungeonObjective: currentDungeonObjective,
     mapMode: mapMode(),
     dungeonTarget: mapMode() === "dungeon_square" ? dungeonTarget() : null,
