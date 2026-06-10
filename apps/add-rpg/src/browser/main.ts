@@ -832,7 +832,7 @@ function AddRpgApp() {
             ${() => objectiveCopy()}
           </p>
           <p class="note-line">
-            ${() => uiState()?.notes[0] ?? "Waiting for runtime notes."}
+            ${() => uiState()?.notes[0] ?? "Waiting for system notes."}
           </p>
         </section>
 
@@ -1073,31 +1073,6 @@ function contextualPanel(): unknown {
   return discoveryPanel()
 }
 
-function travelStatusPanel(): unknown {
-  return html`
-    <section
-      class=${() => travelPanelClass()}
-      data-interface-tier="secondary"
-      data-interface-answer="what-changed"
-      aria-live="polite"
-      aria-label="Travel time and exposure"
-    >
-      <div>
-        <span>${() => travelPanelTitle()}</span>
-        <strong>${() => travelPanelClockCopy()}</strong>
-      </div>
-      <p>${() => travelPanelDetailCopy()}</p>
-      <div class="travel-risk-row">
-        <span class=${() => `travel-risk-pill ${travelRiskState()}`}>
-          ${() => travelRiskCopy()}
-        </span>
-        <span>${ADD_TILE_TRAVEL_PRESENTATION.visibleGameMinutes}m daylight step</span>
-      </div>
-      <i style=${() => travelProgressStyle()} aria-hidden="true" />
-    </section>
-  `
-}
-
 function discoveryPanel(): unknown {
   const link = () => heroDungeonLink()
   return html`
@@ -1141,8 +1116,6 @@ function discoveryPanel(): unknown {
           </button>
         </div>
       </div>
-      ${() => travelStatusPanel()}
-      ${() => interfaceHierarchyBrief()}
       ${() => currentActionSurface()}
       ${() => discoveryPanelBody()}
     </section>
@@ -1184,8 +1157,6 @@ function baseManagementPanel(): unknown {
           <span class="small-chip">${() => titleCase(baseManagementTab())}</span>
         </div>
       </div>
-      ${() => travelStatusPanel()}
-      ${() => interfaceHierarchyBrief()}
       ${() => currentActionSurface()}
       ${() => basePlayerLoopPanel(state)}
       <div class="base-management-tabs" role="tablist" aria-label="Base management sections">
@@ -1235,8 +1206,6 @@ function dungeonContextPanel(): unknown {
           ${() => dungeonReturnLabel()}
         </button>
       </div>
-      ${() => travelStatusPanel()}
-      ${() => interfaceHierarchyBrief()}
       ${() => currentActionSurface()}
       <p class="objective-copy">
         ${dungeon?.detail ?? "Explore the interior and return when ready."}
@@ -1300,14 +1269,31 @@ function currentActionSurface(): unknown {
       aria-label="Current action"
     >
       <div class="current-action-kicker">
-        <span>${() => currentActionState().sourceLabel}</span>
-        <small>${() => currentActionState().metaLabel}</small>
+        <span>Current decision</span>
+        <small>${() => currentActionKickerMeta()}</small>
       </div>
-      <strong>${() => currentActionState().label}</strong>
-      <small>${() => currentActionState().detail}</small>
+      <dl class="decision-brief" aria-label="Decision brief">
+        <div data-question="what-should-i-do">
+          <dt>Do now</dt>
+          <dd>${() => currentActionState().label}</dd>
+        </div>
+        <div data-question="what-if-i-wait">
+          <dt>Wait</dt>
+          <dd>${() => interfaceHierarchyState().questions.whatHappensIfIWait}</dd>
+        </div>
+        <div data-question="what-changed">
+          <dt>Changed</dt>
+          <dd>${() => interfaceHierarchyState().questions.whatChanged}</dd>
+        </div>
+        <div data-question="where-am-i">
+          <dt>Where</dt>
+          <dd>${() => interfaceHierarchyState().questions.whereAmI}</dd>
+        </div>
+      </dl>
+      <small class="current-action-detail">${() => currentActionState().detail}</small>
       ${() =>
         currentActionState().progressLabel
-          ? html`<em>${() => currentActionState().progressLabel}</em>`
+          ? html`<em class="current-action-progress">${() => currentActionState().progressLabel}</em>`
           : null}
       ${() =>
         currentActionState().primaryLabel
@@ -1327,32 +1313,10 @@ function currentActionSurface(): unknown {
   `
 }
 
-function interfaceHierarchyBrief(): unknown {
-  return html`
-    <section
-      id="interface-hierarchy-brief"
-      class="interface-hierarchy-brief"
-      data-interface-tier="secondary"
-      aria-label="Player interface hierarchy"
-    >
-      <article data-question="where-am-i">
-        <span>Where</span>
-        <strong>${() => interfaceHierarchyState().questions.whereAmI}</strong>
-      </article>
-      <article data-question="what-changed">
-        <span>Changed</span>
-        <strong>${() => interfaceHierarchyState().questions.whatChanged}</strong>
-      </article>
-      <article data-question="what-should-i-do">
-        <span>Do now</span>
-        <strong>${() => interfaceHierarchyState().questions.whatShouldIDoNow}</strong>
-      </article>
-      <article data-question="what-if-i-wait">
-        <span>Wait</span>
-        <strong>${() => interfaceHierarchyState().questions.whatHappensIfIWait}</strong>
-      </article>
-    </section>
-  `
+function currentActionKickerMeta(): string {
+  const action = currentActionState()
+  const parts = [action.sourceLabel, action.metaLabel].filter((part) => part.length > 0)
+  return parts.join(" · ")
 }
 
 function interfaceHierarchyState(): AddInterfaceHierarchyState {
@@ -1480,14 +1444,14 @@ function currentActionState(): AddCurrentActionState {
 
   return {
     source: "runtime",
-    sourceLabel: "Runtime",
-    label: "Wait for runtime",
-    detail: "The ADD runtime has not produced a decision snapshot yet.",
+    sourceLabel: "Loading",
+    label: "Preparing world",
+    detail: "The world state is loading. This should only take a moment.",
     kind: "boot",
     enabled: false,
     primaryLabel: null,
     primaryEnabled: false,
-    metaLabel: ready() ? "Ready" : "Booting",
+    metaLabel: ready() ? "Ready" : "Starting",
     progressLabel: null,
     actionId: null,
   }
@@ -2016,7 +1980,7 @@ function expeditionReportRows(state: AddBaseManagementState): readonly unknown[]
       <article class="base-management-card">
         <span>Report log</span>
         <strong>${state.expeditions.completedReportCount} saved</strong>
-        <small>Clearing reports keeps the saved log focused; totals stay in telemetry.</small>
+        <small>Clearing reports keeps this list short; totals remain saved.</small>
         <button
           id="base-clear-expedition-reports"
           type="button"
@@ -2587,24 +2551,34 @@ function discoveryPanelBody(): unknown {
   if (discoveryPanelCollapsed()) return null
   return html`
     <div id="discovery-panel-body" class="discovery-panel-body">
-      <strong>${() => discoveryState()?.headline ?? "Waiting for discovery"}</strong>
-      <p>${() => discoveryState()?.detail ?? "Move the Hero or select a tile to reveal the next choice."}</p>
       <div class="discovery-movement">
         <span>${() => discoveryState()?.movement.title ?? "Scout one step at a time"}</span>
         <small>${() => discoveryMovementMetricCopy()}</small>
       </div>
-      ${() => discoveryConsequenceCard()}
-      ${() => discoverySelectedTileCard()}
-      <div class="discovery-tiles">
-        ${() => discoveryTileRows()}
-      </div>
-      <div class="discovery-resources">
-        ${() => discoveryResourceRows()}
-      </div>
-      <div class="discovery-actions">
-        ${() => discoveryActionButtons()}
-      </div>
+      ${() => discoveryConsequenceSection()}
+      ${() => discoverySelectedTileSection()}
+      ${() => discoveryTileChoicesSection()}
+      ${() => discoveryResourceSection()}
+      ${() => discoveryActionsSection()}
     </div>
+  `
+}
+
+function discoveryConsequenceSection(): unknown {
+  const consequences = discoveryState()?.movementConsequences
+  if (!consequences || (!consequences.active && consequences.safety.severity === "safe")) {
+    return null
+  }
+  return html`
+    <details id="movement-consequences-section" class="context-detail-section">
+      <summary>
+        <span>Consequences</span>
+        <small>${consequences.safety.headline}</small>
+      </summary>
+      <div class="context-detail-body">
+        ${() => discoveryConsequenceCard()}
+      </div>
+    </details>
   `
 }
 
@@ -2681,6 +2655,22 @@ function discoveryTileRows(): readonly unknown[] {
       </article>
     `,
   )
+}
+
+function discoverySelectedTileSection(): unknown {
+  const detail = discoveryState()?.tileDetail
+  if (!detail) return null
+  return html`
+    <details id="selected-tile-section" class="context-detail-section">
+      <summary>
+        <span>Selected tile</span>
+        <small>${detail.label}</small>
+      </summary>
+      <div class="context-detail-body">
+        ${() => discoverySelectedTileCard()}
+      </div>
+    </details>
+  `
 }
 
 function discoverySelectedTileCard(): unknown {
@@ -2797,6 +2787,21 @@ function tileActionPriority(action: AddTileAction): number {
   return 3
 }
 
+function discoveryTileChoicesSection(): unknown {
+  const choices = discoveryState()?.tileChoices ?? []
+  return html`
+    <details id="tile-choices-section" class="context-detail-section">
+      <summary>
+        <span>Nearby choices</span>
+        <small>${choices.length} option${choices.length === 1 ? "" : "s"}</small>
+      </summary>
+      <div class="context-detail-body discovery-tiles">
+        ${() => discoveryTileRows()}
+      </div>
+    </details>
+  `
+}
+
 function discoveryResourceRows(): readonly unknown[] {
   const resources = discoveryState()?.resourceLinks ?? []
   const visible = resources.filter((resource) => resource.relevant)
@@ -2814,6 +2819,23 @@ function discoveryResourceRows(): readonly unknown[] {
       </article>
     `,
   )
+}
+
+function discoveryResourceSection(): unknown {
+  const resources = discoveryState()?.resourceLinks ?? []
+  const relevantCount = resources.filter((resource) => resource.relevant).length
+  if (resources.length === 0) return null
+  return html`
+    <details id="resource-context-section" class="context-detail-section">
+      <summary>
+        <span>Resources</span>
+        <small>${relevantCount > 0 ? `${relevantCount} relevant` : "No blocker"}</small>
+      </summary>
+      <div class="context-detail-body discovery-resources">
+        ${() => discoveryResourceRows()}
+      </div>
+    </details>
+  `
 }
 
 function discoveryActionButtons(): readonly unknown[] {
@@ -2838,6 +2860,24 @@ function discoveryActionButtons(): readonly unknown[] {
       </button>
     `,
   )
+}
+
+function discoveryActionsSection(): unknown {
+  const links = (discoveryState()?.actionLinks ?? []).filter(
+    (link) => link.id !== discoveryState()?.nextAction.actionId,
+  )
+  if (links.length === 0) return null
+  return html`
+    <details id="secondary-actions-section" class="context-detail-section">
+      <summary>
+        <span>Other actions</span>
+        <small>${links.length} available</small>
+      </summary>
+      <div class="context-detail-body discovery-actions">
+        ${() => discoveryActionButtons()}
+      </div>
+    </details>
+  `
 }
 
 function objectivePanelTitle(): string {
@@ -2926,17 +2966,17 @@ function firstPlayableProgressWidth(): string {
 
 function firstPlayableCopy(): string {
   const firstPlayable = uiState()?.firstPlayable
-  if (!firstPlayable) return "Waiting for the ADD runtime."
+  if (!firstPlayable) return "Waiting for the world."
   if (firstPlayable.complete) {
     return persistenceReadyForFirstPlayable()
-      ? "The first ADD arc is complete and save/offline behavior has been exercised."
-      : "The first ADD arc is complete. Save now or run offline catch-up to verify the idle layer."
+      ? "The first arc is complete, and save/offline behavior is ready."
+      : "The first arc is complete. Save now or let the base run while away."
   }
   const current = currentFirstPlayableStep()
   if (current) {
-    return `${current.label}. Use Current Action to advance; this panel tracks the first ADD arc.`
+    return `Tracking: ${current.label}. The decision panel carries the next action.`
   }
-  return "Follow the current action to complete the first ADD arc."
+  return "Track first-arc progress here while the decision panel handles the next action."
 }
 
 function firstPlayableStepRows(): readonly unknown[] {
@@ -3236,16 +3276,6 @@ function daylightMeterStyle(): Record<string, string> {
   }
 }
 
-function travelProgressStyle(): Record<string, string> {
-  const experience = travelExperience()
-  const mapTravel = mapInfo().travel
-  const progress =
-    experience?.phase === "arrived" ? 1 : mapTravel.active ? mapTravel.progress : 0
-  return {
-    "--travel-progress": `${Math.max(4, Math.round(progress * 100))}%`,
-  }
-}
-
 function worldTimePrimaryCopy(): string {
   const time = displayedWorldTime()
   if (!time) return "Day 1 · --:--"
@@ -3258,74 +3288,8 @@ function worldTimeSecondaryCopy(): string {
   return `${time.seasonLabel} · ${titleCase(time.daylightPhase)} · ${time.sunrise}/${time.sunset}`
 }
 
-function travelPanelClass(): string {
-  const phase = travelExperience()?.phase
-  if (phase === "traveling") return "travel-panel active"
-  if (phase === "arrived") return "travel-panel arrived"
-  return mapInfo().travel.previewAdjacent ? "travel-panel preview adjacent" : "travel-panel preview"
-}
-
-function travelPanelTitle(): string {
-  const experience = travelExperience()
-  if (experience?.phase === "traveling") return "Crossing tile"
-  if (experience?.phase === "arrived") return "Arrived"
-  return "Next step"
-}
-
-function travelPanelClockCopy(): string {
-  const experience = travelExperience()
-  const currentSnapshot = snapshot()
-  if (experience) {
-    return `${experience.fromTime.localTime} -> ${experience.toTime.localTime}`
-  }
-  if (!currentSnapshot) return "+1h"
-  const arrival = selectAddWorldTimeForClockSeconds(
-    currentSnapshot.clockSeconds + ADD_TILE_TRAVEL_PRESENTATION.runtimeSeconds,
-  )
-  return `${displayedWorldTime()?.localTime ?? "--:--"} -> ${arrival.localTime}`
-}
-
-function travelPanelDetailCopy(): string {
-  const experience = travelExperience()
-  if (experience) {
-    const destination = experience.event.destinationLabel
-    const suffix =
-      experience.phase === "traveling"
-        ? "The clock is burning forward while the Hero crosses the tile."
-        : "One hour was spent in the field."
-    return `${destination}. ${suffix}`
-  }
-
-  const travel = mapInfo().travel
-  if (travel.previewAdjacent && travel.previewLabel) {
-    return `${travel.previewLabel}. Crossing there will consume one in-game hour.`
-  }
-  if (travel.previewLabel) {
-    return `${travel.previewLabel}. Move one adjacent tile at a time to control exposure.`
-  }
-  return "Every adjacent tile crossing consumes one in-game hour."
-}
-
 function travelRiskState(): string {
   return currentTravelRisk() ?? "none"
-}
-
-function travelRiskCopy(): string {
-  const risk = currentTravelRisk()
-  switch (risk) {
-    case "studio":
-      return "Sheltered"
-    case "safe_field":
-      return "Safe field"
-    case "fringe":
-      return "Toxic fringe"
-    case "toxic":
-      return "High toxicity"
-    case "unknown":
-      return "Unknown conditions"
-    default:
-      return "Exposure varies"
-  }
 }
 
 function currentTravelRisk(): string | null {

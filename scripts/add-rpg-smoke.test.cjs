@@ -216,6 +216,19 @@ async function assertBootAndRenderTextContract(page, consoleErrors) {
   assert.equal(initial.shell.currentAction.primaryEnabled, true)
   assert.match(initial.shell.interfaceHierarchy.tertiary.waitForecast, /60m|Clock/)
   assert.equal(await page.locator("#current-action-surface").count(), 1)
+  assert.equal(await page.locator("#interface-hierarchy-brief").count(), 0)
+  for (const question of [
+    "what-should-i-do",
+    "what-if-i-wait",
+    "what-changed",
+    "where-am-i",
+  ]) {
+    assert.equal(
+      await page.locator(`#current-action-surface .decision-brief [data-question="${question}"]`).count(),
+      1,
+      `Current action should expose ${question} in the compact decision brief.`,
+    )
+  }
   assert.equal(await page.locator("#discovery-next-action").count(), 0)
   assert.equal(await page.locator("#base-management-recommendation").count(), 0)
   assert.equal(await page.locator("#first-playable-action").count(), 0)
@@ -1559,6 +1572,7 @@ async function exerciseStudioTileDetailLinks(page, consoleErrors) {
       consoleErrors,
     )
     assert.ok(selectedStudio.discovery.tileDetail.linkCount >= 2)
+    await openDetailsSection(page, "#selected-tile-section")
     const studioTileText = await page.locator("#selected-tile-decision").innerText()
     ;[
       "The Studio",
@@ -1880,6 +1894,7 @@ async function exerciseMainCharacterMovement(page, consoleErrors) {
     moved.discovery.movementConsequences.futureAuthority,
     "automatic_return_thresholds_later",
   )
+  await openDetailsSection(page, "#movement-consequences-section")
   assert.match(
     await page.locator("#movement-consequences").innerText(),
     /Movement consequences|Viral load|Time|Safety/,
@@ -1889,6 +1904,11 @@ async function exerciseMainCharacterMovement(page, consoleErrors) {
     page,
     "add-rpg-movement-consequences-smoke.png",
     "ADD RPG movement consequences screenshot",
+  )
+  assert.equal(
+    await page.locator("#tile-choices-section").evaluate((node) => node.open),
+    false,
+    "Nearby tile choices should start collapsed behind a density control.",
   )
   assert.match(
     await page.locator("#current-action-surface").innerText(),
@@ -2053,6 +2073,7 @@ async function interactWithMap(page, consoleErrors) {
       state.discovery.selectedTile.usefulnessReasons.length > 0,
     consoleErrors,
   )
+  await openDetailsSection(page, "#selected-tile-section")
   assert.match(
     await page.locator("#selected-tile-decision").innerText(),
     /Travel|Toxicity|Known|Unknown|Links|No known submap/,
@@ -2332,15 +2353,31 @@ async function clickUntilTextState(
 }
 
 async function clickVisibleElementByDomId(page, id) {
-  const selector = `[id="${id}"]`
-  await page.locator(selector).waitFor({ state: "visible" })
+  await page.waitForFunction((targetId) => document.getElementById(targetId) !== null, id)
   await page.evaluate((targetId) => {
     const element = document.getElementById(targetId)
     if (!(element instanceof HTMLElement)) {
-      throw new Error(`Expected #${targetId} to be a visible HTMLElement.`)
+      throw new Error(`Expected #${targetId} to be an HTMLElement.`)
     }
+    element.scrollIntoView({ block: "center", inline: "nearest" })
     element.click()
   }, id)
+}
+
+async function openDetailsSection(page, selector) {
+  const details = page.locator(selector)
+  await details.waitFor({ state: "attached" })
+  const isOpen = await details.evaluate((node) => {
+    if (!(node instanceof HTMLDetailsElement)) {
+      throw new Error(`Expected ${node.id || "target"} to be a details element.`)
+    }
+    return node.open
+  })
+  if (!isOpen) {
+    await details.evaluate((node) => {
+      node.open = true
+    })
+  }
 }
 
 async function renderGameToText(page) {

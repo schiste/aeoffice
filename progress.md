@@ -2749,3 +2749,19 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   qa:renderer`, visual inspection of `tmp/add-rpg-smoke.png`,
   `tmp/add-rpg-base-management-smoke.png`, `tmp/add-rpg-dungeon-map-smoke.png`,
   and `tmp/add-rpg-offline-return-smoke.png`, plus full `npm run check`.
+- Interface Phase 4 mobile layout pass is implemented. Narrow viewports use an
+  ultra-compact topbar, short map-mode labels, a contextual bottom sheet,
+  collapsed objective tracker, and camera controls above the sheet. ADD smoke
+  now asserts the mobile layout at `390x760` and `360x740` and captures
+  `tmp/add-rpg-mobile-smoke.png` plus
+  `tmp/add-rpg-mobile-narrow-smoke.png`.
+- Interface Phase 5 contextual panel density pass is implemented. The old
+  travel status card and separate four-question hierarchy grid were removed
+  from contextual panels; `#current-action-surface` now owns the scannable
+  `Do now / Wait / Changed / Where` decision brief. Discovery secondary data
+  now lives behind expandable sections for consequences, selected tile, nearby
+  choices, resources, and other actions. Verification passed with
+  `npm run agent:verify:add-ui`, direct Vite browser build for ADD, and
+  `npm run smoke:add-rpg:built`; full `npm run smoke:add-rpg` is currently
+  blocked before UI smoke by unrelated dirty storylet/content-generation work
+  around `Condition::RecruitedAny` and generated `StoryBeatDef` fields.
