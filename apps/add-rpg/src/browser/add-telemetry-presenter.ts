@@ -142,6 +142,7 @@ export interface AddRuntimeTelemetryPresenterInput {
   readonly lastDungeonEntryCommand: string | null
   readonly lastTileActionTarget: string | null
   readonly currentAction: AddCurrentActionState
+  readonly returnReviewNextAction: AddCurrentActionState
   readonly interfaceHierarchy: AddInterfaceHierarchyState
   readonly shellMenuOpen: boolean
   readonly adminOpen: boolean
@@ -405,6 +406,19 @@ export interface RuntimeTextState {
       readonly label: string
       readonly detail: string
     }[]
+    readonly nextAction: {
+      readonly source: AddCurrentActionSource
+      readonly label: string
+      readonly detail: string
+      readonly actionId: string | null
+    }
+    readonly review: {
+      readonly changedCount: number
+      readonly completedCount: number
+      readonly blockerCount: number
+      readonly unchangedCount: number
+      readonly manualProgressionRule: string
+    }
   } | null
   readonly discovery: {
     readonly phase: string
@@ -964,7 +978,7 @@ export function createAddRuntimeTextState(
     },
     travel: travelTelemetry(input),
     map: input.mapInfo,
-    offlineReturn: offlineReturnTelemetry(input.offlineReturn),
+    offlineReturn: offlineReturnTelemetry(input.offlineReturn, input.returnReviewNextAction),
     discovery: input.discovery
       ? {
           phase: input.discovery.phase,
@@ -1118,8 +1132,10 @@ export function createAddRuntimeTextState(
 
 function offlineReturnTelemetry(
   summary: AddOfflineReturnSummary | null,
+  nextAction: AddCurrentActionState,
 ): RuntimeTextState["offlineReturn"] {
   if (!summary) return null
+  const blockerCount = summary.didNotProgress.length + (summary.brownout.occurred ? 1 : 0)
   return {
     source: summary.source,
     elapsedSeconds: round2(summary.elapsedSeconds),
@@ -1155,6 +1171,20 @@ function offlineReturnTelemetry(
       label: rule.label,
       detail: rule.detail,
     })),
+    nextAction: {
+      source: nextAction.source,
+      label: nextAction.label,
+      detail: nextAction.detail,
+      actionId: nextAction.actionId,
+    },
+    review: {
+      changedCount: summary.resourcesGained.length,
+      completedCount: summary.jobsCompleted.length,
+      blockerCount,
+      unchangedCount: summary.didNotProgress.length,
+      manualProgressionRule:
+        "Automated/systemic loops can resolve offline; manual Hero/world actions and local collection require online input.",
+    },
   }
 }
 

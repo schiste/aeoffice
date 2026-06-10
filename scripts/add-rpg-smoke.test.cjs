@@ -1259,24 +1259,48 @@ async function exerciseSaveReloadOfflineAndReset(page, advanced, consoleErrors) 
   )
   assert.equal(typeof offlineTicked.offlineReturn.bubble.summary, "string")
   assert.equal(typeof offlineTicked.offlineReturn.brownout.summary, "string")
+  assert.equal(typeof offlineTicked.offlineReturn.nextAction.label, "string")
+  assert.ok(
+    offlineTicked.offlineReturn.review.blockerCount >= offlineTicked.offlineReturn.didNotProgress.length,
+    "Offline return review should make blocker count scannable.",
+  )
+  assert.match(
+    offlineTicked.offlineReturn.review.manualProgressionRule,
+    /Automated|manual|online/i,
+    "Offline return review should clarify manual-vs-offline progression rules.",
+  )
   await closeAdmin(page, consoleErrors)
   await page.locator("#offline-return-panel").waitFor({ state: "visible" })
   await assertVisibleText(page, "#offline-return-panel", [
     "While you were away",
+    "Manual catch-up",
     "Gained",
     "Completed",
     "Recruits",
     "Bubble",
     "Brownouts",
-    "Paused by design",
+    "Blockers",
+    "Unchanged systems",
+    "Offline rules",
+    "Automated loops only",
+    "After dismissing",
+    "Continue to next action",
   ])
   await assertNonBlankNamedAppScreenshot(
     page,
     "add-rpg-offline-return-smoke.png",
     "ADD RPG offline return summary screenshot",
   )
-  await page.locator("#dismiss-offline-return").click()
+  await page.locator("#dismiss-offline-return-primary").click()
   await page.locator("#offline-return-panel").waitFor({ state: "hidden" })
+  await waitForTextState(
+    page,
+    (state) =>
+      state.offlineReturn === null &&
+      state.shell?.currentAction?.source !== "offline_return" &&
+      state.shell?.currentAction?.label === offlineTicked.offlineReturn.nextAction.label,
+    consoleErrors,
+  )
 
   await openAdmin(page, consoleErrors)
   await page.locator("#reset-runtime").click()

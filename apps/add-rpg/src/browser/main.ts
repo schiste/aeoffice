@@ -1592,9 +1592,11 @@ function interfaceHierarchyState(): AddInterfaceHierarchyState {
   }
 }
 
-function currentActionState(): AddCurrentActionState {
+function currentActionState(
+  options: { readonly ignoreOfflineReturn?: boolean } = {},
+): AddCurrentActionState {
   const offline = offlineReturnSummary()
-  if (offline) {
+  if (offline && !options.ignoreOfflineReturn) {
     return {
       source: "offline_return",
       sourceLabel: "Return review",
@@ -1695,6 +1697,10 @@ function currentActionState(): AddCurrentActionState {
     progressLabel: null,
     actionId: null,
   }
+}
+
+function returnReviewNextAction(): AddCurrentActionState {
+  return currentActionState({ ignoreOfflineReturn: true })
 }
 
 function discoveryActionLinkFor(actionId: string | null): AddDiscoveryActionLink | null {
@@ -3885,15 +3891,34 @@ function offlineReturnPanel(): unknown {
         <button
           id="dismiss-offline-return"
           type="button"
-          class="panel-icon-button"
+          class="enter-dungeon-button contextual-action-button"
           onClick=${dismissOfflineReturnSummary}
           aria-label="Dismiss offline return summary"
         >
-          Dismiss
+          Continue
         </button>
       </div>
-      ${() => currentActionSurface()}
-      <p class="offline-return-headline">${summary.headline}</p>
+      <article class="offline-return-hero">
+        <span>${summary.source === "manual" ? "Manual catch-up" : "Autosave return"}</span>
+        <strong>${summary.headline}</strong>
+        <small>${summary.summary}</small>
+      </article>
+      <div class="offline-return-highlights" aria-label="Return highlights">
+        ${() => offlineReturnHighlightRows(summary)}
+      </div>
+      <article class="offline-return-card offline-return-next">
+        <span>After dismissing</span>
+        <strong>${() => returnReviewNextAction().label}</strong>
+        <small>${() => returnReviewNextAction().detail}</small>
+        <button
+          id="dismiss-offline-return-primary"
+          type="button"
+          class="primary-action"
+          onClick=${dismissOfflineReturnSummary}
+        >
+          Continue to next action
+        </button>
+      </article>
       <div class="offline-return-grid">
         <article class="offline-return-card">
           <span>Gained</span>
@@ -3922,12 +3947,23 @@ function offlineReturnPanel(): unknown {
           <strong>${summary.brownout.occurred ? "Pressure" : "Stable"}</strong>
           <small>${summary.brownout.summary}</small>
         </article>
+        <article class="offline-return-card offline-return-blockers">
+          <span>Blockers</span>
+          <ul>${offlineReturnBlockerRows(summary)}</ul>
+        </article>
         <article class="offline-return-card offline-return-paused">
-          <span>Paused by design</span>
+          <span>Unchanged systems</span>
           <ul>${offlineReturnPausedRows(summary)}</ul>
         </article>
+        <article class="offline-return-card offline-return-rules">
+          <span>Offline rules</span>
+          <strong>Automated loops only</strong>
+          <small>
+            Passive/systemic base loops can resolve while away. Manual Hero travel,
+            world actions, and local collection still require online input.
+          </small>
+        </article>
       </div>
-      <p class="offline-return-summary">${summary.summary}</p>
     </section>
   `
 }
@@ -3951,6 +3987,23 @@ function offlineReturnResourceRows(summary: AddOfflineReturnSummary): readonly u
         <strong>${resource.label}</strong>
         <small>${formatSignedResourceDelta(resource.delta)} to ${formatResource(resource.after)}</small>
       </li>
+    `,
+  )
+}
+
+function offlineReturnHighlightRows(summary: AddOfflineReturnSummary): readonly unknown[] {
+  const blockerCount = summary.didNotProgress.length + (summary.brownout.occurred ? 1 : 0)
+  return [
+    ["Away", summary.elapsedLabel],
+    ["Gains", `${summary.resourcesGained.length}`],
+    ["Jobs", `${summary.jobsCompleted.length}`],
+    ["Blockers", `${blockerCount}`],
+  ].map(
+    ([label, value]) => html`
+      <span>
+        <small>${label}</small>
+        <strong>${value}</strong>
+      </span>
     `,
   )
 }
@@ -3996,6 +4049,35 @@ function offlineReturnPausedRows(summary: AddOfflineReturnSummary): readonly unk
       </li>
     `,
   )
+}
+
+function offlineReturnBlockerRows(summary: AddOfflineReturnSummary): readonly unknown[] {
+  const rows: unknown[] = []
+  if (summary.brownout.occurred) {
+    rows.push(html`
+      <li>
+        <strong>Brownout pressure</strong>
+        <small>${summary.brownout.summary}</small>
+      </li>
+    `)
+  }
+  summary.didNotProgress.forEach((rule) => {
+    rows.push(html`
+      <li>
+        <strong>${rule.label}</strong>
+        <small>${rule.detail}</small>
+      </li>
+    `)
+  })
+  if (rows.length === 0) {
+    rows.push(html`
+      <li>
+        <strong>No return blockers</strong>
+        <small>Nothing needed attention during this offline window.</small>
+      </li>
+    `)
+  }
+  return rows
 }
 
 function travelDialogEyebrow(kind: TravelDialogKind): string {
@@ -5210,6 +5292,7 @@ function toTextState(): RuntimeTextState {
     lastDungeonEntryCommand: lastDungeonEntryCommand(),
     lastTileActionTarget: lastTileActionTarget(),
     currentAction: currentActionState(),
+    returnReviewNextAction: returnReviewNextAction(),
     interfaceHierarchy: interfaceHierarchyState(),
     shellMenuOpen: shellMenuOpen(),
     adminOpen: adminOpen(),

@@ -2797,3 +2797,13 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   build for ADD, `npm run agent:verify:add-ui`, and
   `npm run smoke:add-rpg:built`; visually inspected
   `tmp/add-rpg-survivor-cave-entry-smoke.png`.
+- Interface Phase 9 return/offline review UX is implemented. The "While you
+  were away" panel now leads with a short outcome summary, scannable highlight
+  counters, a first-viewport "After dismissing" next-action card, explicit
+  blockers, unchanged/manual systems, and offline-vs-manual progression rules.
+  `render_game_to_text` exposes the same next-action and review counts so
+  agents can reason about the return state without scraping copy. Verification
+  passed with `npm --workspace @aedventure/add-rpg run build:types`, direct
+  Vite browser build for ADD, `npm run agent:verify:add-ui`, and
+  `npm run smoke:add-rpg:built`; visually inspected
+  `tmp/add-rpg-offline-return-smoke.png`.
