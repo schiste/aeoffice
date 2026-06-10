@@ -162,6 +162,16 @@ interface BaseRateChange {
   }[]
 }
 
+type AddFocusedRegion =
+  | "world"
+  | "topbar"
+  | "context_panel"
+  | "objective_tracker"
+  | "map_controls"
+  | "menu"
+  | "admin"
+  | "unknown"
+
 declare global {
   interface Window {
     render_game_to_text?: () => string
@@ -216,7 +226,10 @@ const [firstPlayableCollapsed, setFirstPlayableCollapsed] =
   createSignal(shouldCollapseQuestPanelByDefault())
 const [questPanelDragging, setQuestPanelDragging] = createSignal(false)
 const [lastQuestPanelAction, setLastQuestPanelAction] =
-  createSignal<"idle" | "dragging" | "dragged" | "collapsed" | "expanded">("idle")
+  createSignal<"idle" | "dragging" | "dragged" | "collapsed" | "expanded" | "keyboard_moved">(
+    "idle",
+  )
+const [focusedRegion, setFocusedRegion] = createSignal<AddFocusedRegion>("world")
 const [baseManagementTab, setBaseManagementTab] =
   createSignal<AddBaseManagementTabId>("crystal")
 const [baseRateChange, setBaseRateChange] = createSignal<BaseRateChange | null>(null)
@@ -570,7 +583,10 @@ function AddRpgApp() {
             ? "add-app-shell menu-open"
             : "add-app-shell"}
       data-interface-hierarchy="map-decision-status-admin"
+      onFocusIn=${handleShellFocusIn}
+      onKeyDown=${handleShellKeyDown}
     >
+      <a class="skip-link" href="#current-action-surface">Skip to current decision</a>
       <section class="world-pane" data-interface-tier="primary" aria-label="Primary game world">
         <div
           id="add-world"
@@ -639,19 +655,24 @@ function AddRpgApp() {
                   onClick=${() => setShellMenuOpen((open) => !open)}
                   aria-controls="shell-menu-panel"
                   aria-expanded=${() => shellMenuOpen()}
-                  aria-label="Open secondary menu"
+                  aria-haspopup="menu"
+                  aria-label=${() =>
+                    shellMenuOpen() ? "Close secondary menu" : "Open secondary menu"}
                 >
                   Menu
                 </button>
                 <div
                   id="shell-menu-panel"
                   class=${() => (shellMenuOpen() ? "shell-menu-panel open" : "shell-menu-panel")}
+                  role="menu"
+                  aria-label="Secondary menu"
                   aria-hidden=${() => !shellMenuOpen()}
                 >
                   <button
                     id="open-admin"
                     type="button"
                     class="ghost-button admin-menu-action"
+                    role="menuitem"
                     onClick=${() => {
                       setShellMenuOpen(false)
                       setDevToolsOpen(false)
@@ -679,16 +700,22 @@ function AddRpgApp() {
             style=${() => questPanelStyle()}
             data-dragging=${() => questPanelDragging()}
             data-last-action=${() => lastQuestPanelAction()}
-            aria-label="First playable objective"
+            aria-labelledby="first-playable-title"
+            aria-describedby="first-playable-keyboard-help"
           >
             <div
               class="panel-heading first-playable-drag-handle"
+              role="group"
+              tabindex="0"
+              aria-label="Objective tracker handle. Use arrow keys to move it."
+              aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight Enter Space"
               onPointerDown=${beginQuestPanelDrag}
               onPointerMove=${dragQuestPanel}
               onPointerUp=${endQuestPanelDrag}
               onPointerCancel=${endQuestPanelDrag}
+              onKeyDown=${handleQuestPanelKeyboard}
             >
-              <span>${() => objectivePanelTitle()}</span>
+              <span id="first-playable-title">${() => objectivePanelTitle()}</span>
               <div class="panel-heading-actions">
                 <span class="small-chip">
                   ${() => objectivePanelChip()}
@@ -706,6 +733,10 @@ function AddRpgApp() {
                 </button>
               </div>
             </div>
+            <span id="first-playable-keyboard-help" class="sr-only">
+              Use arrow keys while the tracker handle is focused to move this panel. Press Enter
+              or Space to collapse or expand it.
+            </span>
             <div
               id="first-playable-body"
               class="first-playable-body"
@@ -1075,6 +1106,60 @@ function closeAdminView(): void {
   setDevToolsOpen(false)
 }
 
+function handleShellFocusIn(event: FocusEvent): void {
+  const target = event.target instanceof Element ? event.target : null
+  if (!target) {
+    setFocusedRegion("unknown")
+    return
+  }
+  if (target.closest("#admin-view")) {
+    setFocusedRegion("admin")
+  } else if (target.closest("#shell-menu-panel, .shell-menu")) {
+    setFocusedRegion("menu")
+  } else if (target.closest("#first-playable-panel")) {
+    setFocusedRegion("objective_tracker")
+  } else if (
+    target.closest(
+      "#discovery-panel, #base-management-panel, #dungeon-context-panel, #offline-return-panel",
+    )
+  ) {
+    setFocusedRegion("context_panel")
+  } else if (target.closest(".map-camera-controls")) {
+    setFocusedRegion("map_controls")
+  } else if (target.closest(".map-topbar")) {
+    setFocusedRegion("topbar")
+  } else if (target.closest("#add-world")) {
+    setFocusedRegion("world")
+  } else {
+    setFocusedRegion("unknown")
+  }
+}
+
+function handleShellKeyDown(event: KeyboardEvent): void {
+  if (event.key !== "Escape") return
+
+  if (shellMenuOpen()) {
+    event.preventDefault()
+    event.stopPropagation()
+    setShellMenuOpen(false)
+    focusElementById("open-shell-menu")
+    return
+  }
+
+  if (adminOpen()) {
+    event.preventDefault()
+    event.stopPropagation()
+    closeAdminView()
+    focusElementById("open-shell-menu")
+  }
+}
+
+function focusElementById(id: string): void {
+  window.requestAnimationFrame(() => {
+    document.getElementById(id)?.focus()
+  })
+}
+
 function defaultQuestPanelPosition(): QuestPanelPosition {
   if (typeof window !== "undefined" && window.innerWidth <= 520) {
     return { x: 8, y: 46 }
@@ -1140,6 +1225,33 @@ function endQuestPanelDrag(event: PointerEvent): void {
   setQuestPanelDragging(false)
   setLastQuestPanelAction(questPanelDrag.moved ? "dragged" : "idle")
   questPanelDrag = null
+}
+
+function handleQuestPanelKeyboard(event: KeyboardEvent): void {
+  const keyOffsets: Record<string, readonly [number, number]> = {
+    ArrowUp: [0, -1],
+    ArrowDown: [0, 1],
+    ArrowLeft: [-1, 0],
+    ArrowRight: [1, 0],
+  }
+  const offset = keyOffsets[event.key]
+  if (offset) {
+    event.preventDefault()
+    event.stopPropagation()
+    const step = event.shiftKey ? 48 : 16
+    const current = questPanelPosition()
+    setQuestPanelPosition(
+      clampQuestPanelPosition(current.x + offset[0] * step, current.y + offset[1] * step),
+    )
+    setLastQuestPanelAction("keyboard_moved")
+    return
+  }
+
+  if (event.key === "Enter" || event.key === " ") {
+    event.preventDefault()
+    event.stopPropagation()
+    toggleFirstPlayablePanel()
+  }
 }
 
 function toggleFirstPlayablePanel(): void {
@@ -1217,10 +1329,11 @@ function discoveryPanel(): unknown {
         discoveryPanelCollapsed()
           ? "panel discovery-panel collapsed"
           : "panel discovery-panel"}
-      aria-label="Discovery loop"
+      role="region"
+      aria-labelledby="discovery-panel-title"
     >
       <div class="panel-heading discovery-heading">
-        <span>Discovery</span>
+        <span id="discovery-panel-title">Discovery</span>
         <div>
           ${() =>
             link()
@@ -1228,6 +1341,7 @@ function discoveryPanel(): unknown {
                 id="enter-dungeon"
                 type="button"
                 class="enter-dungeon-button contextual-action-button"
+                aria-label=${() => `Enter ${link()?.label ?? "discovered dungeon"}`}
                 onClick=${() => {
                   const currentLink = link()
                   if (currentLink) enterDungeonLink(currentLink)
@@ -1267,11 +1381,12 @@ function baseManagementPanel(): unknown {
       data-interface-tier="secondary"
       data-interface-answer="current-decision-action"
       class="panel base-management-panel"
-      aria-label="Base management"
+      role="region"
+      aria-labelledby="base-management-panel-title"
       data-tab=${() => baseManagementTab()}
     >
       <div class="panel-heading base-management-heading">
-        <span>${state.title}</span>
+        <span id="base-management-panel-title">${state.title}</span>
         <div>
           ${() =>
             entrance()
@@ -1279,6 +1394,7 @@ function baseManagementPanel(): unknown {
                 id="enter-studio-dungeon"
                 type="button"
                 class="enter-dungeon-button contextual-action-button"
+                aria-label=${() => entrance()?.label ?? "Enter Studio dungeon"}
                 onClick=${() => {
                   const currentEntrance = entrance()
                   if (currentEntrance) enterDungeonInteraction(currentEntrance)
@@ -1377,15 +1493,17 @@ function dungeonContextPanel(): unknown {
       data-interface-tier="secondary"
       data-interface-answer="current-decision-action"
       class="panel dungeon-context-panel"
-      aria-label="Dungeon objective"
+      role="region"
+      aria-labelledby="dungeon-context-panel-title"
     >
       <div class="panel-heading dungeon-context-heading">
-        <span>${dungeon?.label ?? "Dungeon"}</span>
+        <span id="dungeon-context-panel-title">${dungeon?.label ?? "Dungeon"}</span>
         <button
           id="return-overworld"
           type="button"
           class="enter-dungeon-button return-overworld-button contextual-action-button"
           onClick=${() => returnToOverworldFromDungeon()}
+          aria-label=${() => dungeonReturnLabel()}
         >
           ${() => dungeonReturnLabel()}
         </button>
@@ -1613,6 +1731,8 @@ function currentActionSurface(): unknown {
       data-source=${() => currentActionState().source}
       data-kind=${() => currentActionState().kind}
       data-enabled=${() => (currentActionState().enabled ? "true" : "false")}
+      tabindex="-1"
+      aria-live="polite"
       aria-label="Current action"
     >
       ${() => storyMomentBlock()}
@@ -1652,6 +1772,7 @@ function currentActionSurface(): unknown {
                 class="primary-action"
                 onClick=${() => void runCurrentAction()}
                 disabled=${() => !currentActionState().primaryEnabled}
+                aria-label=${() => currentActionPrimaryAriaLabel()}
               >
                 ${() => currentActionState().primaryLabel}
               </button>
@@ -1665,6 +1786,12 @@ function currentActionKickerMeta(): string {
   const action = currentActionState()
   const parts = [action.sourceLabel, action.metaLabel].filter((part) => part.length > 0)
   return parts.join(" · ")
+}
+
+function currentActionPrimaryAriaLabel(): string {
+  const action = currentActionState()
+  const label = action.primaryLabel ?? "Current action"
+  return action.primaryEnabled ? label : `${label} unavailable: ${action.detail}`
 }
 
 function interfaceHierarchyState(): AddInterfaceHierarchyState {
@@ -1981,6 +2108,7 @@ function baseManagementTabButtons(state: AddBaseManagementState): readonly unkno
         data-severity=${baseTabSeverity(section)}
         class=${() => (baseManagementTab() === section.id ? "active" : "")}
         aria-selected=${() => baseManagementTab() === section.id}
+        aria-label=${`${section.label}: ${section.blockedReason ?? section.detail}`}
         onClick=${() => setBaseManagementTab(section.id)}
       >
         <span>${section.label}</span>
@@ -3077,6 +3205,8 @@ function discoveryTileRows(): readonly unknown[] {
         data-visibility=${choice.visibility}
         data-state=${choice.decisionState}
         aria-pressed=${choice.decisionState === "selected"}
+        aria-label=${`${choice.label}. ${choice.copy}. ${choice.actionHint}`}
+        onFocus=${() => selectDiscoveryChoice(choice.cell)}
         onClick=${() => selectDiscoveryChoice(choice.cell)}
         title=${choice.actionHint}
       >
@@ -3230,6 +3360,11 @@ function selectedTileActionRows(detail: AddTileDetailSummary): readonly unknown[
             class="selected-tile-action-note blocked"
             data-action-kind=${action.kind}
             data-enabled="false"
+            role="note"
+            aria-label=${unavailableTileActionAriaLabel(
+              action,
+              "This link is not available from the Hero's current position.",
+            )}
             title=${action.blockedReason ?? action.label}
           >
             <strong>${action.label}</strong>
@@ -3249,6 +3384,7 @@ function selectedTileActionRows(detail: AddTileDetailSummary): readonly unknown[
           class="primary-action"
           onClick=${(event: Event) => runCurrentTileDetailAction(event)}
           disabled=${() => !action.enabled}
+          aria-label=${action.label}
           title=${action.blockedReason ?? action.label}
         >
           ${action.label}
@@ -3265,6 +3401,7 @@ function selectedTileActionRows(detail: AddTileDetailSummary): readonly unknown[
           type="button"
           class="secondary-action selected-tile-travel-action"
           onClick=${(event: Event) => runCurrentTileDetailAction(event)}
+          aria-label=${action.label}
           title=${action.blockedReason ?? action.label}
         >
           ${action.label}
@@ -3276,6 +3413,8 @@ function selectedTileActionRows(detail: AddTileDetailSummary): readonly unknown[
         class="selected-tile-action-note blocked"
         data-action-kind=${action.kind}
         data-enabled="false"
+        role="note"
+        aria-label=${unavailableTileActionAriaLabel(action, "Use the map to make this choice.")}
         title=${action.blockedReason ?? action.label}
       >
         <strong>${action.label}</strong>
@@ -3283,6 +3422,10 @@ function selectedTileActionRows(detail: AddTileDetailSummary): readonly unknown[
       </span>
     `
   })
+}
+
+function unavailableTileActionAriaLabel(action: AddTileAction, fallbackReason: string): string {
+  return `${action.label} unavailable: ${action.blockedReason ?? fallbackReason}`
 }
 
 function tileActionShouldRender(action: AddTileAction): boolean {
@@ -4013,13 +4156,14 @@ function offlineReturnPanel(): unknown {
       id="offline-return-panel"
       class="offline-return-panel"
       data-source=${summary.source}
-      aria-label="Offline return summary"
+      role="region"
+      aria-labelledby="offline-return-title"
       aria-live="polite"
     >
       <div class="offline-return-heading">
         <div>
           <span>While you were away</span>
-          <h2>The base lived for ${summary.elapsedLabel}</h2>
+          <h2 id="offline-return-title">The base lived for ${summary.elapsedLabel}</h2>
         </div>
         <button
           id="dismiss-offline-return"
@@ -5430,6 +5574,7 @@ function toTextState(): RuntimeTextState {
     shellMenuOpen: shellMenuOpen(),
     adminOpen: adminOpen(),
     devToolsOpen: devToolsOpen(),
+    focusedRegion: focusedRegion(),
     discoveryPanelCollapsed: discoveryPanelCollapsed(),
     firstPlayableCollapsed: firstPlayableCollapsed(),
     questPanelPosition: questPanelPosition(),
@@ -5437,6 +5582,7 @@ function toTextState(): RuntimeTextState {
       dragging: questPanelDragging(),
       lastAction: lastQuestPanelAction(),
       dragEnabled: true,
+      keyboardMoveEnabled: true,
       collapseControlLabel: objectivePanelToggleLabel(),
     },
     runtime: {

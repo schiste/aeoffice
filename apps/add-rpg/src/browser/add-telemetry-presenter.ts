@@ -149,6 +149,15 @@ export interface AddRuntimeTelemetryPresenterInput {
   readonly shellMenuOpen: boolean
   readonly adminOpen: boolean
   readonly devToolsOpen: boolean
+  readonly focusedRegion:
+    | "world"
+    | "topbar"
+    | "context_panel"
+    | "objective_tracker"
+    | "map_controls"
+    | "menu"
+    | "admin"
+    | "unknown"
   readonly discoveryPanelCollapsed: boolean
   readonly firstPlayableCollapsed: boolean
   readonly questPanelPosition: {
@@ -157,8 +166,15 @@ export interface AddRuntimeTelemetryPresenterInput {
   }
   readonly questPanelInteraction: {
     readonly dragging: boolean
-    readonly lastAction: "idle" | "dragging" | "dragged" | "collapsed" | "expanded"
+    readonly lastAction:
+      | "idle"
+      | "dragging"
+      | "dragged"
+      | "collapsed"
+      | "expanded"
+      | "keyboard_moved"
     readonly dragEnabled: true
+    readonly keyboardMoveEnabled: true
     readonly collapseControlLabel: string
   }
   readonly runtime: {
@@ -211,9 +227,35 @@ export interface RuntimeTextState {
       readonly x: number
       readonly y: number
       readonly dragging: boolean
-      readonly lastAction: "idle" | "dragging" | "dragged" | "collapsed" | "expanded"
+      readonly lastAction:
+        | "idle"
+        | "dragging"
+        | "dragged"
+        | "collapsed"
+        | "expanded"
+        | "keyboard_moved"
       readonly dragEnabled: true
+      readonly keyboardMoveEnabled: true
       readonly collapseControlLabel: string
+    }
+    readonly accessibility: {
+      readonly keyboardNavigation: true
+      readonly focusVisible: true
+      readonly focusedRegion:
+        | "world"
+        | "topbar"
+        | "context_panel"
+        | "objective_tracker"
+        | "map_controls"
+        | "menu"
+        | "admin"
+        | "unknown"
+      readonly currentActionLiveRegion: "polite"
+      readonly contextualPanelsLabelled: true
+      readonly objectiveTrackerKeyboardMove: true
+      readonly rightRailAvoidsScrollTrap: true
+      readonly mobileBottomSheetAvoidsScrollTrap: true
+      readonly shortcuts: readonly string[]
     }
     readonly discoveryPanel: {
       readonly collapsed: boolean
@@ -975,7 +1017,24 @@ export function createAddRuntimeTextState(
         dragging: input.questPanelInteraction.dragging,
         lastAction: input.questPanelInteraction.lastAction,
         dragEnabled: input.questPanelInteraction.dragEnabled,
+        keyboardMoveEnabled: input.questPanelInteraction.keyboardMoveEnabled,
         collapseControlLabel: input.questPanelInteraction.collapseControlLabel,
+      },
+      accessibility: {
+        keyboardNavigation: true,
+        focusVisible: true,
+        focusedRegion: input.focusedRegion,
+        currentActionLiveRegion: "polite",
+        contextualPanelsLabelled: true,
+        objectiveTrackerKeyboardMove: true,
+        rightRailAvoidsScrollTrap: true,
+        mobileBottomSheetAvoidsScrollTrap: true,
+        shortcuts: [
+          "Tab / Shift+Tab moves through panels and controls",
+          "Escape closes the menu or admin view",
+          "Arrow keys move the focused objective tracker handle",
+          "Enter or Space toggles the focused objective tracker",
+        ],
       },
       discoveryPanel: {
         collapsed: input.discoveryPanelCollapsed,

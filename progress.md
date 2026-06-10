@@ -2830,3 +2830,18 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   `npm run smoke:add-rpg:built`, `npm run agent:verify:add-ui`, and
   `npm run qa:renderer`; visually inspected
   `tmp/add-rpg-selected-tile-decision-smoke.png`.
+- Interface Phase 12 accessibility/readability is implemented. The ADD shell now
+  exposes an accessibility telemetry contract with focused region, keyboard
+  navigation support, labelled contextual panels, live current-action updates,
+  skip-link support, and scroll-trap guardrails for the right rail/mobile bottom
+  sheet. The objective tracker can be moved with keyboard arrow keys and
+  collapsed/expanded with Enter or Space from the focused handle; Escape closes
+  the secondary menu or admin drawer and returns focus to the menu button.
+  Closed admin drawers are no longer keyboard-reachable off screen, muted small
+  labels have stronger contrast, focus states are more visible, and reduced
+  motion requests are respected. Verification passed with `npm --workspace
+  @aedventure/add-rpg run build:types`, `npm --workspace @aedventure/add-rpg
+  run build`, `npm run smoke:add-rpg:built`, and
+  `npm run agent:verify:add-ui`; visually inspected `tmp/add-rpg-smoke.png`,
+  `tmp/add-rpg-mobile-narrow-smoke.png`, and
+  `tmp/add-rpg-selected-tile-decision-smoke.png`.

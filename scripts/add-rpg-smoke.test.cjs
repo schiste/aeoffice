@@ -158,9 +158,19 @@ async function assertBootAndRenderTextContract(page, consoleErrors) {
       state.shell?.discoveryPanel?.collapsed === false &&
       state.shell?.questPanel?.collapsed === false &&
       state.shell?.questPanel?.dragEnabled === true &&
+      state.shell?.questPanel?.keyboardMoveEnabled === true &&
       state.shell?.questPanel?.dragging === false &&
       state.shell?.questPanel?.lastAction === "idle" &&
       state.shell?.questPanel?.collapseControlLabel === "Collapse objective tracker" &&
+      state.shell?.accessibility?.keyboardNavigation === true &&
+      state.shell?.accessibility?.focusVisible === true &&
+      state.shell?.accessibility?.currentActionLiveRegion === "polite" &&
+      state.shell?.accessibility?.contextualPanelsLabelled === true &&
+      state.shell?.accessibility?.objectiveTrackerKeyboardMove === true &&
+      state.shell?.accessibility?.rightRailAvoidsScrollTrap === true &&
+      state.shell?.accessibility?.mobileBottomSheetAvoidsScrollTrap === true &&
+      Array.isArray(state.shell?.accessibility?.shortcuts) &&
+      state.shell.accessibility.shortcuts.length >= 4 &&
       Number.isFinite(state.shell?.questPanel?.x) &&
       Number.isFinite(state.shell?.questPanel?.y) &&
       state.mapMode?.active === "overworld_hex" &&
@@ -230,6 +240,11 @@ async function assertBootAndRenderTextContract(page, consoleErrors) {
   )
   assert.equal(initial.shell.currentAction.primaryEnabled, true)
   assert.match(initial.shell.interfaceHierarchy.tertiary.waitForecast, /60m|Clock/)
+  assert.equal(await page.locator(".skip-link").count(), 1)
+  assert.equal(await page.locator("#current-action-surface[aria-live='polite']").count(), 1)
+  assert.equal(await page.locator("#discovery-panel[role='region'][aria-labelledby]").count(), 1)
+  assert.equal(await page.locator("#first-playable-panel[aria-describedby]").count(), 1)
+  assert.equal(await page.locator(".first-playable-drag-handle[tabindex='0']").count(), 1)
   assert.equal(await page.locator("#current-action-surface").count(), 1)
   assert.equal(await page.locator("#interface-hierarchy-brief").count(), 0)
   for (const question of [
@@ -258,11 +273,22 @@ async function assertBootAndRenderTextContract(page, consoleErrors) {
 }
 
 async function assertAdminDeveloperSeparation(page, consoleErrors) {
+  assert.equal(
+    await page.locator("#admin-view").evaluate((element) => getComputedStyle(element).visibility),
+    "hidden",
+    "Closed admin drawer should not stay keyboard reachable off screen.",
+  )
   const opened = await openAdmin(page, consoleErrors)
   assert.equal(opened.shell.adminOpen, true)
   assert.equal(opened.shell.devToolsOpen, false)
   assert.equal(opened.shell.interfaceHierarchy.advanced.developerToolsOpen, false)
   assert.equal(opened.shell.interfaceHierarchy.advanced.runtimeInternalsHiddenByDefault, true)
+  await page.locator("#close-admin").focus()
+  await waitForTextState(
+    page,
+    (state) => state.shell?.accessibility?.focusedRegion === "admin",
+    consoleErrors,
+  )
 
   const adminText = await page.locator("#admin-view").innerText()
   ;[
@@ -298,10 +324,26 @@ async function assertAdminDeveloperSeparation(page, consoleErrors) {
   assert.match(devText, /UI -> Worker -> Rust\/WASM -> Snapshot/i)
   assert.match(devText, /Import text/i)
 
+  await page.keyboard.press("Escape")
+  await waitForTextState(
+    page,
+    (state) =>
+      state.shell?.adminOpen === false &&
+      state.shell?.devToolsOpen === false &&
+      state.shell?.accessibility?.focusedRegion === "menu",
+    consoleErrors,
+  )
+  assert.equal(await page.locator("#open-shell-menu").evaluate((element) => document.activeElement === element), true)
+  await openAdmin(page, consoleErrors)
   await closeAdmin(page, consoleErrors)
   const closed = await renderGameToText(page)
   assert.equal(closed.shell.adminOpen, false)
   assert.equal(closed.shell.devToolsOpen, false)
+  assert.equal(
+    await page.locator("#admin-view").evaluate((element) => getComputedStyle(element).visibility),
+    "hidden",
+    "Closed admin drawer should be hidden after normal close.",
+  )
 }
 
 function assertInitialVisibilityContract(initial) {
@@ -1472,6 +1514,7 @@ async function exerciseQuestHud(page, consoleErrors) {
   const before = await renderGameToText(page)
   assert.equal(before.shell?.questPanel?.collapsed, false)
   assert.equal(before.shell?.questPanel?.dragEnabled, true)
+  assert.equal(before.shell?.questPanel?.keyboardMoveEnabled, true)
   assert.equal(before.shell?.questPanel?.dragging, false)
   const box = await handle.boundingBox()
   assert.ok(box, "First playable drag handle should have a browser box")
@@ -1495,7 +1538,25 @@ async function exerciseQuestHud(page, consoleErrors) {
     consoleErrors,
   )
 
-  await page.locator("#toggle-first-playable-panel").click()
+  await handle.focus()
+  await waitForTextState(
+    page,
+    (state) => state.shell?.accessibility?.focusedRegion === "objective_tracker",
+    consoleErrors,
+  )
+  await page.keyboard.press("ArrowRight")
+  await page.keyboard.press("ArrowDown")
+  const keyboardMoved = await waitForTextState(
+    page,
+    (state) =>
+      Math.abs((state.shell?.questPanel?.x ?? 0) - dragged.shell.questPanel.x) >= 12 &&
+      Math.abs((state.shell?.questPanel?.y ?? 0) - dragged.shell.questPanel.y) >= 12 &&
+      state.shell?.questPanel?.lastAction === "keyboard_moved" &&
+      state.shell?.questPanel?.dragging === false,
+    consoleErrors,
+  )
+
+  await page.keyboard.press("Space")
   await page.locator("#first-playable-body").waitFor({ state: "hidden" })
   const collapsed = await waitForTextState(
     page,
@@ -1505,21 +1566,23 @@ async function exerciseQuestHud(page, consoleErrors) {
       state.shell.questPanel.collapseControlLabel === "Expand objective tracker",
     consoleErrors,
   )
-  assert.equal(collapsed.shell.questPanel.x, dragged.shell.questPanel.x)
-  assert.equal(collapsed.shell.questPanel.y, dragged.shell.questPanel.y)
+  assert.equal(collapsed.shell.questPanel.x, keyboardMoved.shell.questPanel.x)
+  assert.equal(collapsed.shell.questPanel.y, keyboardMoved.shell.questPanel.y)
 
-  await page.locator("#toggle-first-playable-panel").click()
+  await page.keyboard.press("Enter")
   await page.locator("#first-playable-body").waitFor({ state: "visible" })
-  return waitForTextState(
+  const expanded = await waitForTextState(
     page,
     (state) =>
       state.shell?.questPanel?.collapsed === false &&
-      state.shell.questPanel.x === dragged.shell.questPanel.x &&
-      state.shell.questPanel.y === dragged.shell.questPanel.y &&
+      state.shell.questPanel.x === keyboardMoved.shell.questPanel.x &&
+      state.shell.questPanel.y === keyboardMoved.shell.questPanel.y &&
       state.shell.questPanel.lastAction === "expanded" &&
       state.shell.questPanel.collapseControlLabel === "Collapse objective tracker",
     consoleErrors,
   )
+  await page.locator("#current-action-surface").focus()
+  return expanded
 }
 
 async function assertIdleAmbientClockAdvances(page) {
