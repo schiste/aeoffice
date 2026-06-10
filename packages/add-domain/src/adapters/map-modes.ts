@@ -22,6 +22,7 @@ import {
   STUDIO_DUNGEON_MAP_ID,
 } from "../dungeons/studio"
 import { addAreaByMapId, addAreaById, DEFAULT_AREA_MAP_ID } from "../areas/registry"
+import { selectAddMapScaleForMode } from "./map-scale"
 
 export type AddMapMode = "overworld_hex" | "dungeon_square" | "base_square" | "area_hex"
 
@@ -54,12 +55,16 @@ export function createAddWorldForMapMode(
   catalog: CatalogSnapshot,
   options: CreateAddWorldOptions = {},
 ): GameWorld {
+  const metersPerCell = selectAddMapScaleForMode(mode).metersPerCell
   if (mode === "overworld_hex") {
-    return addSnapshotToGameWorld(snapshot, catalog, {
-      worldId: "add.rpg.live-world",
-      mapId: "add.rpg.hex-overworld",
-      hexRadius: 26,
-    })
+    return stampMapScale(
+      addSnapshotToGameWorld(snapshot, catalog, {
+        worldId: "add.rpg.live-world",
+        mapId: "add.rpg.hex-overworld",
+        hexRadius: 26,
+      }),
+      metersPerCell,
+    )
   }
 
   const map =
@@ -68,17 +73,35 @@ export function createAddWorldForMapMode(
       : mode === "area_hex"
         ? areaMapForId(options.areaMapId)
         : baseSquareMap()
-  return {
-    id: "add.rpg.live-world",
-    activeMapId: map.id,
-    maps: [map],
-    metadata: {
-      source: "add-runtime-square-map",
-      mapMode: mode,
-      runtimeAuthority: "rust-wasm",
-      projectionOnly: true,
-      fixture: false,
+  return stampMapScale(
+    {
+      id: "add.rpg.live-world",
+      activeMapId: map.id,
+      maps: [map],
+      metadata: {
+        source: "add-runtime-square-map",
+        mapMode: mode,
+        runtimeAuthority: "rust-wasm",
+        projectionOnly: true,
+        fixture: false,
+      },
     },
+    metersPerCell,
+  )
+}
+
+/** Stamp the real-world scale onto the active map's metadata so the renderer can
+ * draw a scale bar without re-deriving the mode (the overworld map carries no
+ * mapMode in its metadata). */
+function stampMapScale(world: GameWorld, metersPerCell: number | null): GameWorld {
+  if (metersPerCell == null) return world
+  return {
+    ...world,
+    maps: world.maps.map((map) =>
+      map.id === world.activeMapId
+        ? { ...map, metadata: { ...map.metadata, metersPerCell } }
+        : map,
+    ),
   }
 }
 

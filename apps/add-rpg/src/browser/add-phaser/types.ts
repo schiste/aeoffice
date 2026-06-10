@@ -274,6 +274,9 @@ export interface AddPhaserMapInfo {
     }
   }
   readonly presentation: PhaserMapPresentationState
+  /** Cartographic scale bar for the current zoom: a "nice" distance label and its
+   * on-screen pixel width. Null when the map defines no real-world scale. */
+  readonly scaleBar?: { readonly label: string; readonly widthPx: number } | null
 }
 
 export interface RenderContext {

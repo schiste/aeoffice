@@ -980,6 +980,27 @@ export class AddRpgHexScene extends Phaser.Scene {
     this.drawMinimap()
   }
 
+  /** Compute the cartographic scale bar: a "nice" 1/2/5 distance and its on-screen
+   * pixel width at the current zoom, derived from the map's metersPerCell. Rendered
+   * as a DOM overlay by the host (robust against canvas occlusion). */
+  private computeScaleBar(): { readonly label: string; readonly widthPx: number } | null {
+    const context = this.context
+    if (!context) return null
+    const metersRaw = context.map.metadata?.metersPerCell
+    const metersPerCell = typeof metersRaw === "number" ? metersRaw : null
+    if (!metersPerCell || metersPerCell <= 0) return null
+    // World pixels spanned by one cell step, then to screen pixels via zoom.
+    const a: CellCoord =
+      context.topologyKind === "hex" ? { kind: "hex", q: 0, r: 0 } : { kind: "square", x: 0, y: 0 }
+    const b: CellCoord =
+      context.topologyKind === "hex" ? { kind: "hex", q: 1, r: 0 } : { kind: "square", x: 1, y: 0 }
+    const worldStep = distanceBetween(centerFor(a, context), centerFor(b, context))
+    const pxPerMeter = (worldStep * this.cameras.main.zoom) / metersPerCell
+    if (!Number.isFinite(pxPerMeter) || pxPerMeter <= 0) return null
+    const meters = niceScaleMeters(120 / pxPerMeter)
+    return { label: formatScaleDistance(meters), widthPx: Math.round(meters * pxPerMeter) }
+  }
+
   /** Strategic overview in the top-right: discovered cells as dots + Base/Cave/
    * Hero markers, projecting the same world coords into a small screen-space box.
    * Overworld only (dungeons are small + fully framed). */
@@ -1357,20 +1378,26 @@ export class AddRpgHexScene extends Phaser.Scene {
         },
         rendererType: rendererType(this.game.renderer.type),
       }
-      this.lastInfo = projectAddPhaserMapInfo({
-        rendererState: this.lastRendererState,
-        context: null,
-        worldInteractionPolicy: this.worldInteractionPolicy,
-      })
+      this.lastInfo = {
+        ...projectAddPhaserMapInfo({
+          rendererState: this.lastRendererState,
+          context: null,
+          worldInteractionPolicy: this.worldInteractionPolicy,
+        }),
+        scaleBar: null,
+      }
       return
     }
 
     this.lastRendererState = this.rendererStateForContext(context, summary, valid)
-    this.lastInfo = projectAddPhaserMapInfo({
-      rendererState: this.lastRendererState,
-      context,
-      worldInteractionPolicy: this.worldInteractionPolicy,
-    })
+    this.lastInfo = {
+      ...projectAddPhaserMapInfo({
+        rendererState: this.lastRendererState,
+        context,
+        worldInteractionPolicy: this.worldInteractionPolicy,
+      }),
+      scaleBar: this.computeScaleBar(),
+    }
   }
 
   private rendererStateForContext(
@@ -1502,4 +1529,22 @@ function viewportPointFor(
     x: ((worldPoint.x - view.x) / Math.max(1, view.width)) * width,
     y: ((worldPoint.y - view.y) / Math.max(1, view.height)) * height,
   }
+}
+
+/** Round a raw metre distance to a "nice" 1/2/5 × 10ⁿ value, like a real map. */
+function niceScaleMeters(raw: number): number {
+  if (!Number.isFinite(raw) || raw <= 0) return 1
+  const pow = Math.pow(10, Math.floor(Math.log10(raw)))
+  const fraction = raw / pow
+  const nice = fraction >= 5 ? 5 : fraction >= 2 ? 2 : 1
+  return nice * pow
+}
+
+/** Format a nice metre value as "500 m" / "2 km" (values are always 1/2/5 × 10ⁿ). */
+function formatScaleDistance(meters: number): string {
+  if (meters >= 1000) {
+    const km = meters / 1000
+    return `${Number.isInteger(km) ? km : km.toFixed(1)} km`
+  }
+  return `${meters} m`
 }
