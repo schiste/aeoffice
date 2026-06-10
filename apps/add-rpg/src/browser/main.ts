@@ -1083,6 +1083,7 @@ function baseManagementPanel(): unknown {
         <span>${state.title}</span>
         <span class="small-chip">${() => titleCase(baseManagementTab())}</span>
       </div>
+      ${() => basePlayerLoopPanel(state)}
       <article
         id="base-management-recommendation"
         class="base-management-recommendation"
@@ -1117,6 +1118,71 @@ function baseManagementPanel(): unknown {
         ${() => baseManagementTabContent(state)}
       </div>
     </section>
+  `
+}
+
+function basePlayerLoopPanel(state: AddBaseManagementState): unknown {
+  const loop = state.playerLoop
+  const currentStep = loop.steps.find((step) => step.status === "current")
+  return html`
+    <section
+      id="base-player-loop"
+      class="base-player-loop"
+      data-health=${loop.health.status}
+      aria-label="Base player loop"
+    >
+      <header>
+        <span>Player loop</span>
+        <strong>${currentStep?.label ?? "Decide"}</strong>
+        <small>${loop.summary}</small>
+      </header>
+      <div class="base-loop-focus-grid">
+        <article data-severity=${loop.health.severity}>
+          <span>Health</span>
+          <strong>${loop.health.label}</strong>
+          <small>${loop.health.detail}</small>
+        </article>
+        <article data-severity=${loop.bottleneck.severity}>
+          <span>Bottleneck</span>
+          <strong>${loop.bottleneck.label}</strong>
+          <small>${loop.bottleneck.detail}</small>
+        </article>
+        <article data-severity=${state.recommendedAction.enabled ? "good" : "neutral"}>
+          <span>Action</span>
+          <strong>${state.recommendedAction.label}</strong>
+          <small>${state.recommendedAction.detail}</small>
+        </article>
+        <article data-severity="neutral">
+          <span>Return</span>
+          <strong>${loop.returnPlan.horizonSeconds === null ? "Review now" : formatEconomyDuration(loop.returnPlan.horizonSeconds)}</strong>
+          <small>${loop.returnPlan.summary}</small>
+        </article>
+      </div>
+      <div class="base-loop-rate-strip">
+        <span>Rates</span>
+        <strong>${loop.rateWatch.summary}</strong>
+      </div>
+      <div class="base-loop-steps" aria-label="Idle loop steps">
+        ${() => loop.steps.map(basePlayerLoopStep)}
+      </div>
+      <small class="base-loop-hint">${loop.decisionHint}</small>
+    </section>
+  `
+}
+
+function basePlayerLoopStep(
+  step: AddBaseManagementState["playerLoop"]["steps"][number],
+): unknown {
+  return html`
+    <button
+      type="button"
+      class="base-loop-step"
+      data-status=${step.status}
+      onClick=${() => step.tabId && setBaseManagementTab(step.tabId)}
+      disabled=${() => step.tabId === null}
+    >
+      <span>${step.label}</span>
+    </button>
   `
 }
 

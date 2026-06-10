@@ -193,6 +193,59 @@ export interface AddBaseEconomyProjection {
   readonly offlinePreview: AddBaseEconomyOfflinePreview
 }
 
+export type AddBasePlayerLoopStepId =
+  | "check_health"
+  | "see_bottleneck"
+  | "act"
+  | "watch_rates"
+  | "push_growth"
+  | "come_back"
+  | "review_return"
+  | "decide_again"
+
+export type AddBasePlayerLoopStepStatus = "done" | "current" | "next"
+
+export interface AddBasePlayerLoopStep {
+  readonly id: AddBasePlayerLoopStepId
+  readonly label: string
+  readonly detail: string
+  readonly status: AddBasePlayerLoopStepStatus
+  readonly tabId: AddBaseManagementTabId | null
+}
+
+export interface AddBasePlayerLoopProjection {
+  readonly summary: string
+  readonly currentStepId: AddBasePlayerLoopStepId
+  readonly health: {
+    readonly status: "stable" | "strained" | "critical"
+    readonly label: string
+    readonly detail: string
+    readonly severity: "good" | "warning" | "danger"
+  }
+  readonly bottleneck: AddBaseManagementState["nextBottleneck"]
+  readonly rateWatch: {
+    readonly summary: string
+    readonly rates: readonly {
+      readonly resourceId: string
+      readonly label: string
+      readonly netPerSecond: number
+      readonly copy: string
+    }[]
+  }
+  readonly growthPush: {
+    readonly label: string
+    readonly detail: string
+    readonly tabId: AddBaseManagementTabId
+  }
+  readonly returnPlan: {
+    readonly summary: string
+    readonly horizonSeconds: number | null
+    readonly reviewLabel: string
+  }
+  readonly decisionHint: string
+  readonly steps: readonly AddBasePlayerLoopStep[]
+}
+
 export type AddBaseSocialPressureStatus =
   | "locked"
   | "ready"
@@ -522,6 +575,7 @@ export interface AddBaseManagementState {
   readonly processing: readonly AddBaseProcessingManagementSummary[]
   readonly stationMachine: AddBaseStationMachineProjection
   readonly economy: AddBaseEconomyProjection
+  readonly playerLoop: AddBasePlayerLoopProjection
   readonly socialPressure: AddBaseSocialPressureProjection
   readonly expeditions: AddBaseExpeditionProjection
   readonly resonance: AddBaseResonanceProjection
@@ -643,6 +697,18 @@ export function selectAddBaseManagementState(
     expeditions,
     resonance,
   )
+  const playerLoop = selectBasePlayerLoopProjection({
+    snapshot,
+    resources,
+    economy,
+    staffing,
+    buildLoop,
+    socialPressure,
+    expeditions,
+    resonance,
+    nextBottleneck,
+    recommendedAction,
+  })
 
   return {
     title: "The Studio",
@@ -658,6 +724,7 @@ export function selectAddBaseManagementState(
     processing,
     stationMachine,
     economy,
+    playerLoop,
     socialPressure,
     expeditions,
     resonance,
@@ -1805,6 +1872,335 @@ function selectRecommendedBaseAction(
     kind: "wait",
     targetId: null,
     enabled: false,
+  }
+}
+
+function selectBasePlayerLoopProjection(input: {
+  readonly snapshot: SimulationSnapshot
+  readonly resources: readonly AddBaseResourceManagementSummary[]
+  readonly economy: AddBaseEconomyProjection
+  readonly staffing: AddBaseStaffingProjection
+  readonly buildLoop: AddBaseConstructionProjection
+  readonly socialPressure: AddBaseSocialPressureProjection
+  readonly expeditions: AddBaseExpeditionProjection
+  readonly resonance: AddBaseResonanceProjection
+  readonly nextBottleneck: AddBaseManagementState["nextBottleneck"]
+  readonly recommendedAction: AddBaseManagementState["recommendedAction"]
+}): AddBasePlayerLoopProjection {
+  const health = baseLoopHealth(input.snapshot, input.economy, input.socialPressure, input.nextBottleneck)
+  const rateWatch = baseLoopRateWatch(input.resources)
+  const growthPush = baseLoopGrowthPush(input)
+  const returnPlan = baseLoopReturnPlan(input.snapshot, input.economy)
+  const currentStepId = baseLoopCurrentStep(input.recommendedAction, returnPlan, health)
+  const reviewCount =
+    input.expeditions.completedReportCount +
+    input.resonance.completedReportCount +
+    input.snapshot.recruitment.pendingRecruits.length
+  const stepSpecs: readonly Omit<AddBasePlayerLoopStep, "status">[] = [
+    {
+      id: "check_health",
+      label: "Check base health",
+      detail: health.detail,
+      tabId: "power",
+    },
+    {
+      id: "see_bottleneck",
+      label: "Find the bottleneck",
+      detail: input.nextBottleneck.detail,
+      tabId: "crystal",
+    },
+    {
+      id: "act",
+      label: "Assign or start",
+      detail: input.recommendedAction.detail,
+      tabId: tabForRecommendedAction(input.recommendedAction.kind),
+    },
+    {
+      id: "watch_rates",
+      label: "Watch rates change",
+      detail: rateWatch.summary,
+      tabId: "crystal",
+    },
+    {
+      id: "push_growth",
+      label: "Push growth",
+      detail: growthPush.detail,
+      tabId: growthPush.tabId,
+    },
+    {
+      id: "come_back",
+      label: "Come back later",
+      detail: returnPlan.summary,
+      tabId: "build",
+    },
+    {
+      id: "review_return",
+      label: "Review what happened",
+      detail:
+        reviewCount > 0
+          ? `${reviewCount} return item(s) are ready to review.`
+          : returnPlan.reviewLabel,
+      tabId: "expeditions",
+    },
+    {
+      id: "decide_again",
+      label: "Make a better decision",
+      detail: baseLoopDecisionHint(input.recommendedAction, input.economy, returnPlan),
+      tabId: tabForRecommendedAction(input.recommendedAction.kind),
+    },
+  ]
+  const currentIndex = stepSpecs.findIndex((step) => step.id === currentStepId)
+  const steps = stepSpecs.map((step, index) => ({
+    ...step,
+    status:
+      index < currentIndex
+        ? ("done" as const)
+        : index === currentIndex
+          ? ("current" as const)
+          : ("next" as const),
+  }))
+  const summary = `${health.label}. ${input.nextBottleneck.label}. ${input.recommendedAction.label}.`
+  return {
+    summary,
+    currentStepId,
+    health,
+    bottleneck: input.nextBottleneck,
+    rateWatch,
+    growthPush,
+    returnPlan,
+    decisionHint: baseLoopDecisionHint(input.recommendedAction, input.economy, returnPlan),
+    steps,
+  }
+}
+
+function baseLoopHealth(
+  snapshot: SimulationSnapshot,
+  economy: AddBaseEconomyProjection,
+  socialPressure: AddBaseSocialPressureProjection,
+  nextBottleneck: AddBaseManagementState["nextBottleneck"],
+): AddBasePlayerLoopProjection["health"] {
+  const danger = economy.stalledSystems.find((system) => system.severity === "danger")
+  if (snapshot.power.brownoutActive) {
+    return {
+      status: "critical",
+      label: "Base critical",
+      detail: "Brownout is active; stabilize Chorus or station power before expanding.",
+      severity: "danger",
+    }
+  }
+  if (socialPressure.status === "overcrowded" || snapshot.base.missingBunks > 0) {
+    return {
+      status: "critical",
+      label: "Base overcrowded",
+      detail: socialPressure.housing.warning,
+      severity: "danger",
+    }
+  }
+  if (danger) {
+    return {
+      status: "critical",
+      label: danger.label,
+      detail: danger.reason,
+      severity: "danger",
+    }
+  }
+  if (nextBottleneck.severity !== "neutral" || economy.limitingResource) {
+    return {
+      status: "strained",
+      label: "Base strained",
+      detail: economy.limitingResource?.copy ?? nextBottleneck.detail,
+      severity: "warning",
+    }
+  }
+  return {
+    status: "stable",
+    label: "Base stable",
+    detail: "No emergency is blocking the current loop; optimize rates or push growth.",
+    severity: "good",
+  }
+}
+
+function baseLoopRateWatch(
+  resources: readonly AddBaseResourceManagementSummary[],
+): AddBasePlayerLoopProjection["rateWatch"] {
+  const preferredIds = [
+    RESOURCE_BASSLINE,
+    RESOURCE_CHORUS,
+    RESOURCE_HARMONICS,
+    RESOURCE_STONE,
+    RESOURCE_WATER,
+    RESOURCE_VIBES,
+  ]
+  const rates = preferredIds.flatMap((resourceId) => {
+    const resource = resourceById(resources, resourceId)
+    if (!resource) return []
+    return [{
+      resourceId,
+      label: resource.label,
+      netPerSecond: resource.netPerSecond,
+      copy: `${resource.label} ${formatSignedRate(resource.netPerSecond)}`,
+    }]
+  })
+  const shownRates = rates
+    .filter((rate) => Math.abs(rate.netPerSecond) >= 0.001)
+    .slice(0, 3)
+  const visibleRates = shownRates.length > 0 ? shownRates : rates.slice(0, 3)
+  return {
+    summary:
+      visibleRates.length > 0
+        ? visibleRates.map((rate) => rate.copy).join(" · ")
+        : "All visible rates are flat; assign crew or start a project.",
+    rates: visibleRates,
+  }
+}
+
+function baseLoopGrowthPush(input: {
+  readonly snapshot: SimulationSnapshot
+  readonly buildLoop: AddBaseConstructionProjection
+  readonly socialPressure: AddBaseSocialPressureProjection
+  readonly expeditions: AddBaseExpeditionProjection
+  readonly resonance: AddBaseResonanceProjection
+  readonly recommendedAction: AddBaseManagementState["recommendedAction"]
+}): AddBasePlayerLoopProjection["growthPush"] {
+  if (input.buildLoop.activeJob) {
+    return {
+      label: input.buildLoop.activeJob.label,
+      detail: `Construction is underway; ${formatDuration(input.buildLoop.activeJob.estimatedCompletionSeconds ?? 0)} until the next base change.`,
+      tabId: "build",
+    }
+  }
+  const readyProject = input.buildLoop.projects.find((project) => project.enabled)
+  if (readyProject) {
+    return {
+      label: readyProject.label,
+      detail: `Start this project to change the future economy: ${readyProject.futureEconomyChange}`,
+      tabId: "build",
+    }
+  }
+  if (input.socialPressure.recruitment.canRecruitNow) {
+    return {
+      label: "Recruit survivor",
+      detail: input.socialPressure.supportForecast.copy,
+      tabId: "social",
+    }
+  }
+  const target = input.expeditions.targets.find((candidate) => candidate.id === input.expeditions.recommendedTargetId)
+  if (target) {
+    return {
+      label: target.label,
+      detail: `Send an expedition for ${target.expectedLootCopy}.`,
+      tabId: "expeditions",
+    }
+  }
+  const recipe = input.resonance.recipes.find((candidate) => candidate.id === input.resonance.recommendedRecipeId)
+  if (recipe) {
+    return {
+      label: recipe.label,
+      detail: `Convert finds into ${recipe.effectLabel}.`,
+      tabId: "resonance",
+    }
+  }
+  return {
+    label: input.recommendedAction.label,
+    detail: input.snapshot.objectives.reachObjectiveMet
+      ? "The bubble objective is met; refine production, recruitment, and conversion."
+      : `Bubble reach is ${input.snapshot.bubble.reachFromBase}/${input.snapshot.objectives.reachObjectiveTarget}; keep Bassline moving.`,
+    tabId: tabForRecommendedAction(input.recommendedAction.kind),
+  }
+}
+
+function baseLoopReturnPlan(
+  snapshot: SimulationSnapshot,
+  economy: AddBaseEconomyProjection,
+): AddBasePlayerLoopProjection["returnPlan"] {
+  const timedEvents = [
+    snapshot.activeConstruction
+      ? {
+          label: "construction",
+          remainingSeconds: snapshot.activeConstruction.remainingWorkSeconds,
+        }
+      : null,
+    ...snapshot.expeditions.activeJobs.map((job) => ({
+      label: "expedition",
+      remainingSeconds: job.remainingSeconds,
+    })),
+    ...recordValues(snapshot.processing.activeJobs).map((job) => ({
+      label: "processing",
+      remainingSeconds: job.remainingWorkSeconds,
+    })),
+    ...recordValues(snapshot.resonance.activeJobs).map((job) => ({
+      label: "resonance",
+      remainingSeconds: job.remainingWorkSeconds,
+    })),
+    ...snapshot.recruitment.pendingRecruits.map((recruit) => ({
+      label: "recruit",
+      remainingSeconds: recruit.remainingSeconds,
+    })),
+  ].filter((event): event is { readonly label: string; readonly remainingSeconds: number } =>
+    event !== null && event.remainingSeconds > 0,
+  )
+  const nextEvent = timedEvents.slice().sort((left, right) => left.remainingSeconds - right.remainingSeconds)[0]
+  if (nextEvent) {
+    return {
+      summary: `Come back in ${formatDuration(nextEvent.remainingSeconds)} for ${nextEvent.label}.`,
+      horizonSeconds: nextEvent.remainingSeconds,
+      reviewLabel: `Review ${nextEvent.label} output, then rebalance the next bottleneck.`,
+    }
+  }
+  const forecast = economy.waitForecasts.find((candidate) => candidate.label === "5m") ?? economy.waitForecasts[0]
+  return {
+    summary: forecast
+      ? `${forecast.label} check: ${forecast.summary}`
+      : economy.offlinePreview.summary,
+    horizonSeconds: forecast?.horizonSeconds ?? null,
+    reviewLabel: "Review resources and bottlenecks after the base has run.",
+  }
+}
+
+function baseLoopCurrentStep(
+  action: AddBaseManagementState["recommendedAction"],
+  returnPlan: AddBasePlayerLoopProjection["returnPlan"],
+  health: AddBasePlayerLoopProjection["health"],
+): AddBasePlayerLoopStepId {
+  if (health.status === "critical") return "check_health"
+  if (action.enabled) return "act"
+  if (returnPlan.horizonSeconds !== null) return "come_back"
+  return "see_bottleneck"
+}
+
+function baseLoopDecisionHint(
+  action: AddBaseManagementState["recommendedAction"],
+  economy: AddBaseEconomyProjection,
+  returnPlan: AddBasePlayerLoopProjection["returnPlan"],
+): string {
+  if (action.enabled) return `Do "${action.label}", then watch whether the rate card changes.`
+  if (economy.limitingResource?.timeToAffordSeconds === null) {
+    return "Waiting will not solve the limiter; change crew, build, power, or exploration pressure."
+  }
+  if (returnPlan.horizonSeconds !== null) return `${returnPlan.reviewLabel} Then choose the next action.`
+  return "Use the bottleneck and forecast cards to choose the next assignment."
+}
+
+function tabForRecommendedAction(
+  kind: AddBaseManagementState["recommendedAction"]["kind"],
+): AddBaseManagementTabId {
+  switch (kind) {
+    case "assign_role":
+      return "crew"
+    case "start_construction":
+      return "build"
+    case "power_station":
+      return "power"
+    case "start_processing":
+      return "processing"
+    case "recruit_survivor":
+      return "social"
+    case "start_expedition":
+      return "expeditions"
+    case "start_resonance_recipe":
+      return "resonance"
+    case "wait":
+      return "crystal"
   }
 }
 

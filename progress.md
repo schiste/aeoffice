@@ -207,6 +207,21 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   full `npm run check`. The regenerated
   `tmp/add-rpg-resonance-smoke.png` screenshot was inspected and showed the
   Resonance tab/tuning/material cards without text overlap.
+- Phase 10 player-loop polish is implemented as a domain projection rather than
+  component-only copy. `add-domain` now exposes `baseManagement.playerLoop` with
+  health, bottleneck, recommended action context, rates to watch, growth push,
+  return plan, decision hint, and the eight-step idle cadence from "check base
+  health" through "make a better decision."
+- The ADD Base panel now renders that player-loop projection as a compact
+  command surface above the recommendation. `render_game_to_text` exposes the
+  same contract for agents/smoke tests, and ADD smoke asserts the eight ordered
+  steps, one current step, health status, visible rates, return plan, and
+  decision hint.
+- Verification passed for `npm --workspace @aedventure/add-domain run build`,
+  `npm --workspace @aedventure/add-rpg run build`, `npm run smoke:add-rpg`, and
+  full `npm run check`. The regenerated
+  `tmp/add-rpg-base-management-smoke.png` screenshot was inspected; the loop
+  panel is readable and did not overlap the map or recommendation controls.
 - The debug-style event feed is no longer visible in the primary app UI. It has
   been replaced with compact session/world/media status pills, a compact room
   chat transcript, and transient toast feedback for join/reset/error-like events.

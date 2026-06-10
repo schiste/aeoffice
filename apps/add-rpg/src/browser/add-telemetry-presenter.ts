@@ -427,6 +427,42 @@ export interface RuntimeTextState {
       readonly targetId: string | null
       readonly enabled: boolean
     }
+    readonly playerLoop: {
+      readonly summary: string
+      readonly currentStepId: string
+      readonly health: {
+        readonly status: string
+        readonly label: string
+        readonly severity: string
+      }
+      readonly bottleneck: {
+        readonly id: string
+        readonly label: string
+        readonly severity: string
+      }
+      readonly rateWatch: {
+        readonly summary: string
+        readonly rates: readonly {
+          readonly resourceId: string
+          readonly netPerSecond: number
+          readonly copy: string
+        }[]
+      }
+      readonly growthPush: {
+        readonly label: string
+        readonly tabId: AddBaseManagementTabId
+      }
+      readonly returnPlan: {
+        readonly summary: string
+        readonly horizonSeconds: number | null
+      }
+      readonly decisionHint: string
+      readonly steps: readonly {
+        readonly id: string
+        readonly status: string
+        readonly tabId: AddBaseManagementTabId | null
+      }[]
+    }
     readonly resourcePressure: readonly {
       readonly id: string
       readonly value: number
@@ -1136,6 +1172,45 @@ function baseManagementTelemetry(
       kind: state.recommendedAction.kind,
       targetId: state.recommendedAction.targetId,
       enabled: state.recommendedAction.enabled,
+    },
+    playerLoop: {
+      summary: state.playerLoop.summary,
+      currentStepId: state.playerLoop.currentStepId,
+      health: {
+        status: state.playerLoop.health.status,
+        label: state.playerLoop.health.label,
+        severity: state.playerLoop.health.severity,
+      },
+      bottleneck: {
+        id: state.playerLoop.bottleneck.id,
+        label: state.playerLoop.bottleneck.label,
+        severity: state.playerLoop.bottleneck.severity,
+      },
+      rateWatch: {
+        summary: state.playerLoop.rateWatch.summary,
+        rates: state.playerLoop.rateWatch.rates.map((rate) => ({
+          resourceId: rate.resourceId,
+          netPerSecond: round3(rate.netPerSecond),
+          copy: rate.copy,
+        })),
+      },
+      growthPush: {
+        label: state.playerLoop.growthPush.label,
+        tabId: state.playerLoop.growthPush.tabId,
+      },
+      returnPlan: {
+        summary: state.playerLoop.returnPlan.summary,
+        horizonSeconds:
+          state.playerLoop.returnPlan.horizonSeconds === null
+            ? null
+            : round2(state.playerLoop.returnPlan.horizonSeconds),
+      },
+      decisionHint: state.playerLoop.decisionHint,
+      steps: state.playerLoop.steps.map((step) => ({
+        id: step.id,
+        status: step.status,
+        tabId: step.tabId,
+      })),
     },
     resourcePressure: state.resources.map((resource) => ({
       id: resource.id,

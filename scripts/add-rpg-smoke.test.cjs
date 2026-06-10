@@ -386,12 +386,44 @@ async function exerciseBaseManagementSurface(page, consoleErrors) {
         (recipe) => recipe.id === "resonance.recipe.bassline_overtone",
       ) &&
       typeof state.baseManagement?.resonance?.summary === "string" &&
+      state.baseManagement?.playerLoop?.steps?.length === 8 &&
+      state.baseManagement?.playerLoop?.steps?.filter((step) => step.status === "current").length === 1 &&
+      typeof state.baseManagement?.playerLoop?.health?.label === "string" &&
+      typeof state.baseManagement?.playerLoop?.rateWatch?.summary === "string" &&
+      typeof state.baseManagement?.playerLoop?.returnPlan?.summary === "string" &&
       typeof state.baseManagement?.recommendedAction?.label === "string" &&
       typeof state.baseManagement?.nextBottleneck?.label === "string",
     consoleErrors,
   )
   assert.equal(base.shell.adminOpen, false)
   assert.ok(base.baseManagement.recommendedAction.kind.length > 0)
+  assert.deepEqual(
+    base.baseManagement.playerLoop.steps.map((step) => step.id),
+    [
+      "check_health",
+      "see_bottleneck",
+      "act",
+      "watch_rates",
+      "push_growth",
+      "come_back",
+      "review_return",
+      "decide_again",
+    ],
+    "Base player loop should expose the full idle decision cadence.",
+  )
+  assert.ok(
+    ["stable", "strained", "critical"].includes(base.baseManagement.playerLoop.health.status),
+    "Base player loop should expose a stable health status.",
+  )
+  assert.ok(
+    base.baseManagement.playerLoop.rateWatch.rates.length > 0,
+    "Base player loop should expose visible rates to watch after actions.",
+  )
+  assert.ok(
+    typeof base.baseManagement.playerLoop.decisionHint === "string" &&
+      base.baseManagement.playerLoop.decisionHint.length > 0,
+    "Base player loop should explain how to make the next decision.",
+  )
   assert.ok(base.baseManagement.resourcePressure.length >= 3)
   assert.ok(base.baseManagement.rolePressure.length >= 3)
   assert.ok(base.baseManagement.economy.waitForecasts.length, "Base economy should forecast wait outcomes.")
@@ -488,6 +520,14 @@ async function exerciseBaseManagementSurface(page, consoleErrors) {
   const panelText = await page.locator("#base-management-panel").innerText()
   ;[
     "The Studio",
+    "Player loop",
+    "Health",
+    "Bottleneck",
+    "Action",
+    "Return",
+    "Rates",
+    "Check base health",
+    "Make a better decision",
     "Recommended",
     "Current limiter",
     "Gain",
