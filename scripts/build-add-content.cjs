@@ -472,6 +472,7 @@ const FILES = [
             { name: "priority", kind: "i64" },
             { name: "repeatable", kind: "bool" },
             effectsField("on_complete"),
+            effectsField("on_activate"),
           ],
         },
       },

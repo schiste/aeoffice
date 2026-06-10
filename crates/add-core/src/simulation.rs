@@ -2274,6 +2274,18 @@ impl Simulation {
     /// storylet as `active_beat_id`. Reactive/side storylets light up whenever
     /// their preconditions hold — the engine reacts to game state, not a line.
     pub(crate) fn refresh_narrative_state(&mut self) {
+        // Let repeatable beats re-fire on_activate after they lapse: drop any
+        // activation marker whose beat is repeatable and no longer eligible.
+        let activated: Vec<String> =
+            self.state.narrative.activated_beat_ids.iter().cloned().collect();
+        for id in activated {
+            if story_beat_def(&id).is_some_and(|beat| {
+                beat.repeatable && !self.evaluate_conditions(beat.preconditions)
+            }) {
+                self.state.narrative.activated_beat_ids.remove(&id);
+            }
+        }
+
         loop {
             let Some(beat_id) = self.best_eligible_storylet() else {
                 self.state.narrative.active_beat_id = None;
@@ -2288,6 +2300,12 @@ impl Simulation {
             {
                 self.mark_story_beat_complete(&beat_id);
                 continue;
+            }
+            // Fire on_activate once per activation (the lapse cleanup above lets
+            // repeatable beats fire again on re-trigger).
+            if !self.state.narrative.activated_beat_ids.contains(&beat_id) {
+                self.state.narrative.activated_beat_ids.insert(beat_id.clone());
+                self.apply_effects(beat.on_activate);
             }
             self.state.narrative.active_beat_id = Some(beat_id);
             return;

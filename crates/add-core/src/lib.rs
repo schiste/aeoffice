@@ -1949,6 +1949,10 @@ mod tests {
             sim.state().narrative.active_beat_id.as_deref(),
             Some(STORY_BEAT_HERO_EXPOSED)
         );
+        // on_activate fired exactly once on activation...
+        assert_eq!(sim.quality("exposure_seen"), 1);
+        sim.refresh_narrative_state();
+        assert_eq!(sim.quality("exposure_seen"), 1, "on_activate must not re-fire");
 
         // Resolving it applies the choice effect and hands the spine back.
         sim.apply(GameCommand::ChooseStoryOption {

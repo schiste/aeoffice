@@ -125,5 +125,6 @@ export const STORY_BEATS: readonly StoryBeatDef[] = [
     relatedIds: ["story.beat.explore_base"],
     preconditions: [{ kind: "hero_outside_bubble" }, beatDone("story.beat.explore_base")],
     autoCompleteWhen: NONE, priority: 100, repeatable: false,
+    onActivate: [{ kind: "add_quality", key: "exposure_seen", amount: 1 }],
   },
 ]

@@ -922,6 +922,10 @@ pub struct StoryBeatDef {
     /// follow-on flags). Rust-internal; omitted from the snapshot.
     #[serde(skip)]
     pub on_complete: &'static [EffectDef],
+    /// Effects applied when this beat first becomes active (fires once per
+    /// activation; a repeatable beat re-fires after it lapses and re-triggers).
+    #[serde(skip)]
+    pub on_activate: &'static [EffectDef],
 }
 
 #[derive(Debug, Clone, Copy, Serialize, PartialEq)]

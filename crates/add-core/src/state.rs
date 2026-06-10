@@ -386,6 +386,11 @@ pub struct NarrativeState {
     /// effects write them, so new story state needs no Rust struct fields.
     #[serde(default)]
     pub qualities: BTreeMap<String, i64>,
+    /// Beats whose `on_activate` effects have already fired this activation. A
+    /// repeatable beat is removed once its preconditions lapse, so it re-fires
+    /// the next time it triggers.
+    #[serde(default)]
+    pub activated_beat_ids: BTreeSet<String>,
 }
 
 impl NarrativeState {
@@ -395,6 +400,7 @@ impl NarrativeState {
             completed_beat_ids: Vec::new(),
             choice_by_beat: BTreeMap::new(),
             qualities: BTreeMap::new(),
+            activated_beat_ids: BTreeSet::new(),
         }
     }
 }

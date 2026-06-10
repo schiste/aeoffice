@@ -576,6 +576,9 @@ export interface StoryBeatDef {
   repeatable?: boolean
   /** Effects applied once when the beat resolves (rewards/quality shifts). */
   onComplete?: EffectDef[]
+  /** Effects applied when the beat first becomes active (fires once per
+   * activation). */
+  onActivate?: EffectDef[]
 }
 
 export interface StoryChoiceDef {
