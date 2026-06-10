@@ -474,6 +474,53 @@ export interface RuntimeTextState {
         readonly caveat: string
       }
     }
+    readonly socialPressure: {
+      readonly status: string
+      readonly headline: string
+      readonly detail: string
+      readonly vibes: {
+        readonly value: number
+        readonly cap: number
+        readonly gainPerSecond: number
+        readonly lossPerSecond: number
+        readonly netPerSecond: number
+        readonly explanation: string
+        readonly lossExplanation: string
+        readonly timeToNextRecruitSeconds: number | null
+      }
+      readonly housing: {
+        readonly capacity: number
+        readonly occupied: number
+        readonly free: number
+        readonly missing: number
+        readonly pressure: string
+        readonly overcrowdedSeconds: number
+        readonly warning: string
+      }
+      readonly recruitment: {
+        readonly enabled: boolean
+        readonly pendingCount: number
+        readonly nextCost: number
+        readonly canAfford: boolean
+        readonly canRecruitNow: boolean
+        readonly blocker: string | null
+        readonly costProjection: string
+      }
+      readonly pendingArrivals: readonly {
+        readonly id: string
+        readonly remainingSeconds: number
+        readonly progressPercent: number
+      }[]
+      readonly supportForecast: {
+        readonly canSupport: boolean
+        readonly status: string
+        readonly bunksAfterArrival: number
+        readonly missingBunksAfterArrival: number
+        readonly vibesAfterCommit: number
+        readonly copy: string
+        readonly warning: string | null
+      }
+    }
     readonly rolePressure: readonly {
       readonly id: string
       readonly heroAssigned: boolean
@@ -1075,6 +1122,57 @@ function baseManagementTelemetry(
         enabled: state.economy.offlinePreview.enabled,
         summary: state.economy.offlinePreview.summary,
         caveat: state.economy.offlinePreview.caveat,
+      },
+    },
+    socialPressure: {
+      status: state.socialPressure.status,
+      headline: state.socialPressure.headline,
+      detail: state.socialPressure.detail,
+      vibes: {
+        value: round2(state.socialPressure.vibes.value),
+        cap: round2(state.socialPressure.vibes.cap),
+        gainPerSecond: round3(state.socialPressure.vibes.gainPerSecond),
+        lossPerSecond: round3(state.socialPressure.vibes.lossPerSecond),
+        netPerSecond: round3(state.socialPressure.vibes.netPerSecond),
+        explanation: state.socialPressure.vibes.explanation,
+        lossExplanation: state.socialPressure.vibes.lossExplanation,
+        timeToNextRecruitSeconds:
+          state.socialPressure.vibes.timeToNextRecruitSeconds === null
+            ? null
+            : round2(state.socialPressure.vibes.timeToNextRecruitSeconds),
+      },
+      housing: {
+        capacity: state.socialPressure.housing.capacity,
+        occupied: state.socialPressure.housing.occupied,
+        free: state.socialPressure.housing.free,
+        missing: state.socialPressure.housing.missing,
+        pressure: state.socialPressure.housing.pressure,
+        overcrowdedSeconds: round2(state.socialPressure.housing.overcrowdedSeconds),
+        warning: state.socialPressure.housing.warning,
+      },
+      recruitment: {
+        enabled: state.socialPressure.recruitment.enabled,
+        pendingCount: state.socialPressure.recruitment.pendingCount,
+        nextCost: round2(state.socialPressure.recruitment.nextCost),
+        canAfford: state.socialPressure.recruitment.canAfford,
+        canRecruitNow: state.socialPressure.recruitment.canRecruitNow,
+        blocker: state.socialPressure.recruitment.blocker,
+        costProjection: state.socialPressure.recruitment.costProjection,
+      },
+      pendingArrivals: state.socialPressure.pendingArrivals.map((arrival) => ({
+        id: arrival.id,
+        remainingSeconds: round2(arrival.remainingSeconds),
+        progressPercent: round2(arrival.progressPercent),
+      })),
+      supportForecast: {
+        canSupport: state.socialPressure.supportForecast.canSupport,
+        status: state.socialPressure.supportForecast.status,
+        bunksAfterArrival: state.socialPressure.supportForecast.bunksAfterArrival,
+        missingBunksAfterArrival:
+          state.socialPressure.supportForecast.missingBunksAfterArrival,
+        vibesAfterCommit: round2(state.socialPressure.supportForecast.vibesAfterCommit),
+        copy: state.socialPressure.supportForecast.copy,
+        warning: state.socialPressure.supportForecast.warning,
       },
     },
     rolePressure: state.roles.map((role) => ({

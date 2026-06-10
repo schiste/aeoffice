@@ -1098,6 +1098,69 @@ h1 {
   background: rgb(255 244 201 / 7%);
 }
 
+.base-social-overview {
+  display: grid;
+  gap: 0.18rem;
+  border: 1px solid rgb(240 185 93 / 24%);
+  border-radius: 8px;
+  padding: 0.68rem;
+  background:
+    linear-gradient(180deg, rgb(240 185 93 / 13%), rgb(255 244 201 / 5%)),
+    rgb(11 17 16 / 48%);
+  box-shadow: inset 3px 0 0 #f0b95d;
+}
+
+.base-social-overview[data-status="ready"] {
+  border-color: rgb(95 209 216 / 30%);
+  background:
+    linear-gradient(180deg, rgb(95 209 216 / 13%), rgb(255 244 201 / 5%)),
+    rgb(11 17 16 / 48%);
+  box-shadow: inset 3px 0 0 #5fd1d8;
+}
+
+.base-social-overview[data-status="overcrowded"] {
+  border-color: rgb(200 101 75 / 38%);
+  background:
+    linear-gradient(180deg, rgb(200 101 75 / 16%), rgb(255 244 201 / 5%)),
+    rgb(11 17 16 / 48%);
+  box-shadow: inset 3px 0 0 #c8654b;
+}
+
+.base-social-overview > span {
+  color: rgb(247 238 210 / 58%);
+  font-size: 0.64rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.base-social-overview > strong {
+  color: #fff2bd;
+  font-size: 0.92rem;
+  font-weight: 950;
+  line-height: 1.12;
+}
+
+.base-social-overview > small,
+.base-card-note {
+  color: rgb(247 238 210 / 67%);
+  font-size: 0.64rem;
+  font-weight: 720;
+  line-height: 1.24;
+}
+
+.base-card-note.warning {
+  color: #ffd3a5;
+}
+
+.social-pressure-list {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.social-pressure-list .base-social-overview,
+.social-pressure-list .base-management-card.active {
+  grid-column: 1 / -1;
+}
+
 .base-staffing-command {
   display: grid;
   gap: 0.58rem;
@@ -1573,13 +1636,17 @@ h1 {
 .base-metric[data-severity="good"],
 .base-management-card[data-powered="true"],
 .base-management-card[data-pressure="staffed"],
-.base-management-card[data-pressure="room"] {
+.base-management-card[data-pressure="room"],
+.base-management-card[data-pressure="supported"] {
   background: rgb(95 209 216 / 11%);
 }
 
 .base-metric[data-severity="warning"],
 .base-management-card[data-pressure="understaffed"],
-.base-management-card[data-pressure="near_cap"] {
+.base-management-card[data-pressure="near_cap"],
+.base-management-card[data-pressure="tight"],
+.base-management-card[data-pressure="pending"],
+.base-management-card[data-pressure="unaffordable"] {
   background: rgb(240 185 93 / 12%);
 }
 
@@ -1588,6 +1655,20 @@ h1 {
 .base-management-card[data-pressure="full"],
 .base-management-card[data-pressure="overcrowded"] {
   background: rgb(200 101 75 / 14%);
+}
+
+.base-progress-track {
+  overflow: hidden;
+  height: 5px;
+  border-radius: 999px;
+  background: rgb(255 244 201 / 13%);
+}
+
+.base-progress-track i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #5fd1d8, #f0b95d);
 }
 
 .base-management-card.active {
@@ -2609,6 +2690,10 @@ h1 {
   }
 
   .base-staffing-presets {
+    grid-template-columns: 1fr;
+  }
+
+  .social-pressure-list {
     grid-template-columns: 1fr;
   }
 

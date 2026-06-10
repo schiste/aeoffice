@@ -180,6 +180,67 @@ export interface AddBaseEconomyProjection {
   readonly offlinePreview: AddBaseEconomyOfflinePreview
 }
 
+export type AddBaseSocialPressureStatus =
+  | "locked"
+  | "ready"
+  | "waiting_vibes"
+  | "pending_arrival"
+  | "housing_tight"
+  | "overcrowded"
+
+export interface AddBaseSocialPendingRecruit {
+  readonly id: string
+  readonly label: string
+  readonly remainingSeconds: number
+  readonly totalSeconds: number
+  readonly progressPercent: number
+  readonly arrivalCopy: string
+}
+
+export interface AddBaseSocialPressureProjection {
+  readonly status: AddBaseSocialPressureStatus
+  readonly headline: string
+  readonly detail: string
+  readonly vibes: {
+    readonly value: number
+    readonly cap: number
+    readonly gainPerSecond: number
+    readonly lossPerSecond: number
+    readonly netPerSecond: number
+    readonly explanation: string
+    readonly lossExplanation: string
+    readonly timeToNextRecruitSeconds: number | null
+  }
+  readonly housing: {
+    readonly capacity: number
+    readonly occupied: number
+    readonly free: number
+    readonly missing: number
+    readonly pressure: "room" | "full" | "overcrowded"
+    readonly overcrowdedSeconds: number
+    readonly warning: string
+  }
+  readonly recruitment: {
+    readonly enabled: boolean
+    readonly pendingCount: number
+    readonly nextCost: number
+    readonly canAfford: boolean
+    readonly canRecruitNow: boolean
+    readonly blocker: string | null
+    readonly costProjection: string
+  }
+  readonly pendingArrivals: readonly AddBaseSocialPendingRecruit[]
+  readonly supportForecast: {
+    readonly canSupport: boolean
+    readonly status: "supported" | "tight" | "overcrowded" | "locked" | "unaffordable" | "pending"
+    readonly bunksAfterArrival: number
+    readonly missingBunksAfterArrival: number
+    readonly vibesAfterCommit: number
+    readonly copy: string
+    readonly warning: string | null
+  }
+}
+
 export type AddBaseConstructionCategory =
   | "repair"
   | "crystal"
@@ -337,6 +398,7 @@ export interface AddBaseManagementState {
   readonly processing: readonly AddBaseProcessingManagementSummary[]
   readonly stationMachine: AddBaseStationMachineProjection
   readonly economy: AddBaseEconomyProjection
+  readonly socialPressure: AddBaseSocialPressureProjection
   readonly sections: readonly AddBaseManagementSection[]
   readonly activeConstruction: AddConstructionSummary | null
   readonly vibes: {
@@ -448,6 +510,7 @@ export function selectAddBaseManagementState(
     catalog,
     construction,
   )
+  const socialPressure = selectBaseSocialPressureProjection(snapshot)
 
   return {
     title: "The Studio",
@@ -463,6 +526,7 @@ export function selectAddBaseManagementState(
     processing,
     stationMachine,
     economy,
+    socialPressure,
     sections: baseSections({
       snapshot,
       resources,
@@ -476,28 +540,23 @@ export function selectAddBaseManagementState(
     }),
     activeConstruction,
     vibes: {
-      value: snapshot.resources.vibes,
-      cap: snapshot.resources.vibesCap,
+      value: socialPressure.vibes.value,
+      cap: socialPressure.vibes.cap,
       badVibesMultiplier: snapshot.base.badVibesMultiplier,
-      recruitmentPressure: recruitmentPressureCopy(snapshot),
+      recruitmentPressure: socialPressure.detail,
     },
     bunks: {
-      capacity: snapshot.base.bunksCapacity,
-      occupied: snapshot.base.occupantCount,
-      free: snapshot.base.freeBunks,
-      missing: snapshot.base.missingBunks,
-      pressure:
-        snapshot.base.missingBunks > 0
-          ? "overcrowded"
-          : snapshot.base.freeBunks <= 0
-            ? "full"
-            : "room",
+      capacity: socialPressure.housing.capacity,
+      occupied: socialPressure.housing.occupied,
+      free: socialPressure.housing.free,
+      missing: socialPressure.housing.missing,
+      pressure: socialPressure.housing.pressure,
     },
     recruitment: {
-      enabled: snapshot.objectives.recruitmentEnabled,
-      pending: snapshot.recruitment.pendingRecruits.length,
-      nextCost: snapshot.recruitment.nextRecruitCost,
-      pressure: recruitmentPressureCopy(snapshot),
+      enabled: socialPressure.recruitment.enabled,
+      pending: socialPressure.recruitment.pendingCount,
+      nextCost: socialPressure.recruitment.nextCost,
+      pressure: socialPressure.detail,
     },
     power: {
       requestedUpkeepPerSecond: snapshot.power.requestedUpkeepPerSecond,
@@ -1956,6 +2015,252 @@ function selectBaseEconomyProjection(
       caveat: "Preview uses current rates; the Rust/WASM runtime remains authoritative on reload.",
     },
   }
+}
+
+function selectBaseSocialPressureProjection(
+  snapshot: SimulationSnapshot,
+): AddBaseSocialPressureProjection {
+  const vibesGain = vibesGainPerSecond(snapshot)
+  const vibesLoss = snapshot.base.effectiveBadVibesRate
+  const vibesNet = vibesGain - vibesLoss
+  const missingVibes = Math.max(0, snapshot.recruitment.nextRecruitCost - snapshot.resources.vibes)
+  const timeToNextRecruitSeconds =
+    missingVibes <= 0 ? 0 : vibesNet > 0 ? missingVibes / vibesNet : null
+  const pendingArrivals = snapshot.recruitment.pendingRecruits
+    .slice()
+    .sort((left, right) => left.remainingSeconds - right.remainingSeconds)
+    .map((recruit, index) => pendingRecruitProjection(recruit, index))
+  const supportForecast = recruitSupportForecast(snapshot)
+  const status = socialPressureStatus(snapshot, supportForecast)
+  return {
+    status,
+    headline: socialPressureHeadline(status),
+    detail: socialPressureDetail(snapshot, supportForecast, timeToNextRecruitSeconds),
+    vibes: {
+      value: snapshot.resources.vibes,
+      cap: snapshot.resources.vibesCap,
+      gainPerSecond: vibesGain,
+      lossPerSecond: vibesLoss,
+      netPerSecond: vibesNet,
+      explanation: vibesGainExplanation(snapshot, vibesGain),
+      lossExplanation: vibesLossExplanation(snapshot, vibesLoss),
+      timeToNextRecruitSeconds,
+    },
+    housing: {
+      capacity: snapshot.base.bunksCapacity,
+      occupied: snapshot.base.occupantCount,
+      free: snapshot.base.freeBunks,
+      missing: snapshot.base.missingBunks,
+      pressure: housingPressure(snapshot),
+      overcrowdedSeconds: snapshot.base.overcrowdedSeconds,
+      warning: housingWarning(snapshot, supportForecast),
+    },
+    recruitment: {
+      enabled: snapshot.objectives.recruitmentEnabled,
+      pendingCount: pendingArrivals.length,
+      nextCost: snapshot.recruitment.nextRecruitCost,
+      canAfford: snapshot.resources.vibes >= snapshot.recruitment.nextRecruitCost,
+      canRecruitNow: supportForecast.canSupport &&
+        snapshot.objectives.recruitmentEnabled &&
+        pendingArrivals.length === 0 &&
+        snapshot.resources.vibes >= snapshot.recruitment.nextRecruitCost,
+      blocker: recruitmentBlocker(snapshot, supportForecast),
+      costProjection: recruitmentCostProjection(snapshot, timeToNextRecruitSeconds),
+    },
+    pendingArrivals,
+    supportForecast,
+  }
+}
+
+function pendingRecruitProjection(
+  recruit: SimulationSnapshot["recruitment"]["pendingRecruits"][number],
+  index: number,
+): AddBaseSocialPendingRecruit {
+  const totalSeconds = Math.max(1, recruit.totalSeconds)
+  const remainingSeconds = Math.max(0, recruit.remainingSeconds)
+  const progressPercent = Math.max(0, Math.min(100, ((totalSeconds - remainingSeconds) / totalSeconds) * 100))
+  return {
+    id: `pending_recruit_${index + 1}`,
+    label: `Recruit ${index + 1}`,
+    remainingSeconds,
+    totalSeconds,
+    progressPercent,
+    arrivalCopy:
+      remainingSeconds <= 0
+        ? "Arriving now"
+        : `Arrives in ${formatDuration(remainingSeconds)}.`,
+  }
+}
+
+function recruitSupportForecast(
+  snapshot: SimulationSnapshot,
+): AddBaseSocialPressureProjection["supportForecast"] {
+  const bunksAfterArrival = snapshot.base.freeBunks - 1
+  const missingBunksAfterArrival = Math.max(0, -bunksAfterArrival)
+  const vibesAfterCommit = snapshot.resources.vibes - snapshot.recruitment.nextRecruitCost
+  if (!snapshot.objectives.recruitmentEnabled) {
+    return {
+      canSupport: false,
+      status: "locked",
+      bunksAfterArrival,
+      missingBunksAfterArrival,
+      vibesAfterCommit,
+      copy: "Recruitment is still locked; first connect the Survivor Cave to the bubble.",
+      warning: "No recruit can be committed until the cave gate is open.",
+    }
+  }
+  if (snapshot.recruitment.pendingRecruits.length > 0) {
+    return {
+      canSupport: false,
+      status: "pending",
+      bunksAfterArrival,
+      missingBunksAfterArrival,
+      vibesAfterCommit,
+      copy: "A recruit is already traveling; let them arrive before committing another.",
+      warning: "Recruitment is intentionally paced one arrival at a time.",
+    }
+  }
+  if (snapshot.resources.vibes < snapshot.recruitment.nextRecruitCost) {
+    return {
+      canSupport: false,
+      status: "unaffordable",
+      bunksAfterArrival,
+      missingBunksAfterArrival,
+      vibesAfterCommit,
+      copy: `Need ${formatAmount(snapshot.recruitment.nextRecruitCost)} Vibes before recruiting.`,
+      warning: "Fire Pit output or Vibes storage is the current blocker.",
+    }
+  }
+  if (snapshot.base.missingBunks > 0 || missingBunksAfterArrival > 0) {
+    return {
+      canSupport: false,
+      status: "overcrowded",
+      bunksAfterArrival,
+      missingBunksAfterArrival,
+      vibesAfterCommit,
+      copy: `This recruit would leave ${missingBunksAfterArrival || snapshot.base.missingBunks} missing bunk(s).`,
+      warning: "Build bunks before adding more people or Bad Vibes pressure will grow.",
+    }
+  }
+  if (bunksAfterArrival === 0) {
+    return {
+      canSupport: true,
+      status: "tight",
+      bunksAfterArrival,
+      missingBunksAfterArrival,
+      vibesAfterCommit,
+      copy: "The base can support this recruit, but bunks will be full afterward.",
+      warning: "Plan housing before the next recruitment.",
+    }
+  }
+  return {
+    canSupport: true,
+    status: "supported",
+    bunksAfterArrival,
+    missingBunksAfterArrival,
+    vibesAfterCommit,
+    copy: `The base can support this recruit and keep ${bunksAfterArrival} bunk(s) free.`,
+    warning: null,
+  }
+}
+
+function socialPressureStatus(
+  snapshot: SimulationSnapshot,
+  supportForecast: AddBaseSocialPressureProjection["supportForecast"],
+): AddBaseSocialPressureStatus {
+  if (!snapshot.objectives.recruitmentEnabled) return "locked"
+  if (snapshot.base.missingBunks > 0) return "overcrowded"
+  if (snapshot.recruitment.pendingRecruits.length > 0) return "pending_arrival"
+  if (snapshot.resources.vibes < snapshot.recruitment.nextRecruitCost) return "waiting_vibes"
+  if (supportForecast.status === "tight") return "housing_tight"
+  return "ready"
+}
+
+function socialPressureHeadline(status: AddBaseSocialPressureStatus): string {
+  switch (status) {
+    case "locked":
+      return "Recruitment loop locked"
+    case "ready":
+      return "Recruitment ready"
+    case "waiting_vibes":
+      return "Vibes are building"
+    case "pending_arrival":
+      return "Recruit traveling"
+    case "housing_tight":
+      return "Recruitment is possible but tight"
+    case "overcrowded":
+      return "Overcrowding pressure"
+  }
+}
+
+function socialPressureDetail(
+  snapshot: SimulationSnapshot,
+  supportForecast: AddBaseSocialPressureProjection["supportForecast"],
+  timeToNextRecruitSeconds: number | null,
+): string {
+  if (snapshot.recruitment.pendingRecruits.length > 0) {
+    const next = snapshot.recruitment.pendingRecruits
+      .slice()
+      .sort((left, right) => left.remainingSeconds - right.remainingSeconds)[0]
+    return next ? `Next recruit arrives in ${formatDuration(next.remainingSeconds)}.` : supportForecast.copy
+  }
+  if (timeToNextRecruitSeconds === null) return supportForecast.copy
+  if (timeToNextRecruitSeconds > 0) {
+    return `${supportForecast.copy} At current Vibes flow, recruitment is ${formatDuration(timeToNextRecruitSeconds)} away.`
+  }
+  return supportForecast.copy
+}
+
+function vibesGainExplanation(snapshot: SimulationSnapshot, vibesGain: number): string {
+  if (!snapshot.base.firePitBuilt) return "Build the Fire Pit to start producing Vibes."
+  const firePitWorkers = effectiveRoleWorkers(snapshot, ROLE_FIRE_PIT)
+  return firePitWorkers > 0
+    ? `Fire Pit produces ${formatRate(vibesGain)} with ${formatAmount(firePitWorkers)} effective worker(s).`
+    : `Fire Pit produces ${formatRate(vibesGain)} passively; assign Fire Pit crew to increase it.`
+}
+
+function vibesLossExplanation(snapshot: SimulationSnapshot, vibesLoss: number): string {
+  if (vibesLoss <= 0) return "No Bad Vibes loss is active."
+  return `${formatRate(vibesLoss)} Bad Vibes from ${snapshot.base.missingBunks} missing bunk(s); multiplier ${formatAmount(snapshot.base.badVibesMultiplier)}.`
+}
+
+function housingPressure(snapshot: SimulationSnapshot): AddBaseSocialPressureProjection["housing"]["pressure"] {
+  if (snapshot.base.missingBunks > 0) return "overcrowded"
+  if (snapshot.base.freeBunks <= 0) return "full"
+  return "room"
+}
+
+function housingWarning(
+  snapshot: SimulationSnapshot,
+  supportForecast: AddBaseSocialPressureProjection["supportForecast"],
+): string {
+  if (snapshot.base.missingBunks > 0) {
+    return `${snapshot.base.missingBunks} bunk(s) missing; Bad Vibes pressure is rising.`
+  }
+  if (snapshot.base.freeBunks <= 0) return "Bunks are full; recruitment will create overcrowding."
+  if (supportForecast.status === "tight") return "One recruit fits, but housing will be full afterward."
+  return `${snapshot.base.freeBunks} bunk(s) free for future recruitment.`
+}
+
+function recruitmentBlocker(
+  snapshot: SimulationSnapshot,
+  supportForecast: AddBaseSocialPressureProjection["supportForecast"],
+): string | null {
+  if (supportForecast.canSupport) return null
+  return supportForecast.warning ?? supportForecast.copy
+}
+
+function recruitmentCostProjection(
+  snapshot: SimulationSnapshot,
+  timeToNextRecruitSeconds: number | null,
+): string {
+  if (snapshot.resources.vibes >= snapshot.recruitment.nextRecruitCost) {
+    return `Recruit now for ${formatAmount(snapshot.recruitment.nextRecruitCost)} Vibes; ${formatAmount(snapshot.resources.vibes - snapshot.recruitment.nextRecruitCost)} Vibes remain.`
+  }
+  if (timeToNextRecruitSeconds === null) {
+    return `${formatAmount(snapshot.recruitment.nextRecruitCost - snapshot.resources.vibes)} Vibes missing and current net Vibes is not positive.`
+  }
+  return `${formatAmount(snapshot.recruitment.nextRecruitCost - snapshot.resources.vibes)} Vibes missing; ready in ${formatDuration(timeToNextRecruitSeconds)} at current flow.`
 }
 
 function selectLimitingResource(

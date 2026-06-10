@@ -124,6 +124,16 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   paused rule split, checks the visible return panel copy, dismisses it, and
   captures `tmp/add-rpg-offline-return-smoke.png`; the screenshot was inspected
   for readable categories and no blocking overlap.
+- Phase 7 social pressure/recruitment is now a real base-management layer.
+  `add-domain` projects Vibes gain/loss, Bad Vibes pressure, bunks/free/missing
+  housing state, pending recruit arrivals, next recruit cost timing, and a
+  "can we support this recruit?" forecast. The ADD Social tab renders that
+  projection as the primary surface so recruiting reads as exciting but visibly
+  risky when housing or Vibes are weak.
+- ADD smoke now asserts the `baseManagement.socialPressure` telemetry contract,
+  checks Social tab copy for Vibes/Bunks/Recruitment/support forecast, and
+  captures `tmp/add-rpg-social-pressure-smoke.png`; the screenshot was inspected
+  after the focused two-column layout pass.
 - ADD Phaser fog rendering now uses a visual-only graphics layer above terrain
   and below landmarks. Hidden cells draw as dark silhouettes, discovered/stale
   cells get a muted overlay, visible cells render normally, and hidden-to-known

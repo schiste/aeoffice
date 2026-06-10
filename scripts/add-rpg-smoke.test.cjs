@@ -371,6 +371,11 @@ async function exerciseBaseManagementSurface(page, consoleErrors) {
       state.baseManagement?.stationMachine?.cards?.some((card) => card.id === "station.fire_pit") &&
       state.baseManagement?.stationMachine?.groups?.some((group) => group.id === "studio") &&
       state.baseManagement?.stationMachine?.groups?.some((group) => group.id === "crystal") &&
+      typeof state.baseManagement?.socialPressure?.headline === "string" &&
+      typeof state.baseManagement?.socialPressure?.vibes?.explanation === "string" &&
+      typeof state.baseManagement?.socialPressure?.housing?.warning === "string" &&
+      typeof state.baseManagement?.socialPressure?.recruitment?.costProjection === "string" &&
+      typeof state.baseManagement?.socialPressure?.supportForecast?.copy === "string" &&
       typeof state.baseManagement?.recommendedAction?.label === "string" &&
       typeof state.baseManagement?.nextBottleneck?.label === "string",
     consoleErrors,
@@ -390,6 +395,22 @@ async function exerciseBaseManagementSurface(page, consoleErrors) {
     typeof base.baseManagement.economy.offlinePreview.summary === "string" &&
       base.baseManagement.economy.offlinePreview.summary.length > 0,
     "Base economy should expose an offline preview summary.",
+  )
+  assert.ok(
+    ["locked", "ready", "waiting_vibes", "pending_arrival", "housing_tight", "overcrowded"].includes(
+      base.baseManagement.socialPressure.status,
+    ),
+    "Social pressure should expose a stable strategic status.",
+  )
+  assert.ok(
+    typeof base.baseManagement.socialPressure.vibes.lossExplanation === "string" &&
+      base.baseManagement.socialPressure.vibes.lossExplanation.length > 0,
+    "Vibes should explain gain/loss pressure.",
+  )
+  assert.ok(
+    typeof base.baseManagement.socialPressure.supportForecast.copy === "string" &&
+      base.baseManagement.socialPressure.supportForecast.copy.length > 0,
+    "Recruitment should forecast whether the base can support the recruit.",
   )
   assert.ok(
     base.baseManagement.rolePressure.some(
@@ -616,6 +637,36 @@ async function exerciseBaseManagementSurface(page, consoleErrors) {
     page,
     "add-rpg-station-machine-smoke.png",
     "ADD RPG station machine surface screenshot",
+  )
+
+  await page.locator("#base-tab-social").click()
+  await waitForTextState(
+    page,
+    (state) => state.baseManagement?.active === true && state.baseManagement?.selectedTab === "social",
+    consoleErrors,
+  )
+  const socialPanelText = await page.locator("#base-management-panel").innerText()
+  ;[
+    "Social pressure",
+    "Bunks",
+    "Recruitment",
+    "Vibes",
+    "Can we support this recruit",
+    "Pending arrival",
+    "Gain",
+    "Loss",
+    "Cost",
+  ].forEach((expectedText) => {
+    assert.match(
+      socialPanelText,
+      new RegExp(expectedText, "i"),
+      `Social panel should include ${expectedText}.`,
+    )
+  })
+  await assertNonBlankNamedAppScreenshot(
+    page,
+    "add-rpg-social-pressure-smoke.png",
+    "ADD RPG social pressure surface screenshot",
   )
 
   for (const tab of ["build", "power", "crew", "social", "processing", "crystal"]) {
@@ -909,7 +960,8 @@ async function exerciseSaveReloadOfflineAndReset(page, advanced, consoleErrors) 
   assert.equal(reset.snapshot.heroAssigned, false)
 
   await page.locator("#save-payload").fill("{ invalid add save")
-  await page.locator("#import-save").click()
+  assert.equal(await page.locator("#save-payload").inputValue(), "{ invalid add save")
+  await page.locator("#import-save").dispatchEvent("click")
   const errored = await waitForTextState(
     page,
     (state) => typeof state.runtime?.error === "string" && state.runtime.error.length > 0,

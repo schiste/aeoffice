@@ -1070,7 +1070,7 @@ function baseManagementPanel(): unknown {
   const state = baseManagementState()
   if (!state) return null
   const section = activeBaseManagementSection(state)
-  const focusedSystemTab = () => ["build", "power", "processing"].includes(baseManagementTab())
+  const focusedSystemTab = () => ["build", "power", "social", "processing"].includes(baseManagementTab())
   return html`
     <section
       id="base-management-panel"
@@ -1128,6 +1128,8 @@ function baseManagementLeadPanel(state: AddBaseManagementState): unknown {
     case "power":
     case "processing":
       return baseStationMachineSummary(state)
+    case "social":
+      return null
     default:
       return baseEconomyOverview(state)
   }
@@ -1307,37 +1309,95 @@ function baseCrewPanel(state: AddBaseManagementState): unknown {
 }
 
 function baseSocialPanel(state: AddBaseManagementState): unknown {
+  const social = state.socialPressure
   return html`
-    <div class="base-card-list">
-      <article class="base-management-card" data-severity=${state.bunks.pressure}>
-        <span>Bunks</span>
-        <strong>${state.bunks.occupied} / ${state.bunks.capacity}</strong>
-        <small>${state.bunks.missing > 0 ? `${state.bunks.missing} missing bunks` : `${state.bunks.free} free bunks`}</small>
+    <div class="base-card-list social-pressure-list">
+      <article class="base-social-overview" data-status=${social.status}>
+        <span>Social pressure</span>
+        <strong>${social.headline}</strong>
+        <small>${social.detail}</small>
       </article>
-      <article class="base-management-card">
+      <article class="base-management-card" data-pressure=${social.housing.pressure}>
+        <span>Bunks</span>
+        <strong>${social.housing.occupied} / ${social.housing.capacity}</strong>
+        <small>${social.housing.warning}</small>
+        <div class="base-economy-line">
+          <span>${social.housing.free} free</span>
+          <span>${social.housing.missing} missing</span>
+          <strong>${formatEconomyDuration(social.housing.overcrowdedSeconds)} crowded</strong>
+        </div>
+      </article>
+      <article class="base-management-card" data-pressure=${social.supportForecast.status}>
         <span>Recruitment</span>
-        <strong>${state.recruitment.enabled ? "Open" : "Locked"}</strong>
-        <small>${state.recruitment.pressure}</small>
+        <strong>${social.recruitment.enabled ? "Open" : "Locked"}</strong>
+        <small>${social.recruitment.costProjection}</small>
+        <div class="base-economy-line">
+          <span>Cost ${formatResource(social.recruitment.nextCost)}</span>
+          <span>${social.recruitment.pendingCount} pending</span>
+          <strong>${social.recruitment.canAfford ? "Affordable" : "Building Vibes"}</strong>
+        </div>
         <button
           id="base-recruit-survivor"
           type="button"
           onClick=${() => void recruitFromSurvivorCave()}
-          disabled=${() =>
-            !ready() ||
-            !state.recruitment.enabled ||
-            state.vibes.value < state.recruitment.nextCost ||
-            state.bunks.free <= 0}
+          disabled=${() => !ready() || !social.recruitment.canRecruitNow}
         >
           Recruit
         </button>
       </article>
-      <article class="base-management-card">
+      <article class="base-management-card" data-pressure=${social.vibes.netPerSecond < 0 ? "overcrowded" : "room"}>
         <span>Vibes</span>
-        <strong>${formatResource(state.vibes.value)} / ${formatResource(state.vibes.cap)}</strong>
-        <small>Bad vibes multiplier ${formatResource(state.vibes.badVibesMultiplier)}</small>
+        <strong>${formatResource(social.vibes.value)} / ${formatResource(social.vibes.cap)}</strong>
+        <small>${social.vibes.explanation}</small>
+        <div class="base-economy-line">
+          <span>Gain ${formatResource(social.vibes.gainPerSecond)}/s</span>
+          <span>Loss ${formatResource(social.vibes.lossPerSecond)}/s</span>
+          <strong>Net ${signedRateCopy(social.vibes.netPerSecond)}</strong>
+        </div>
+        <small class="base-card-note">${social.vibes.lossExplanation}</small>
       </article>
+      <article class="base-management-card" data-pressure=${social.supportForecast.status}>
+        <span>Can we support this recruit?</span>
+        <strong>${social.supportForecast.canSupport ? "Yes" : "Not yet"}</strong>
+        <small>${social.supportForecast.copy}</small>
+        <div class="base-economy-line">
+          <span>${social.supportForecast.bunksAfterArrival} bunks after</span>
+          <span>${formatResource(social.supportForecast.vibesAfterCommit)} Vibes after</span>
+        </div>
+        ${social.supportForecast.warning
+          ? html`<small class="base-card-note warning">${social.supportForecast.warning}</small>`
+          : null}
+      </article>
+      ${() => socialPendingArrivalRows(state)}
     </div>
   `
+}
+
+function socialPendingArrivalRows(state: AddBaseManagementState): readonly unknown[] {
+  const arrivals = state.socialPressure.pendingArrivals
+  if (arrivals.length === 0) {
+    return [
+      html`
+        <article class="base-management-card">
+          <span>Pending arrival</span>
+          <strong>None</strong>
+          <small>No recruit is traveling to the base right now.</small>
+        </article>
+      `,
+    ]
+  }
+  return arrivals.map(
+    (arrival) => html`
+      <article class="base-management-card active">
+        <span>Pending arrival</span>
+        <strong>${arrival.label}</strong>
+        <small>${arrival.arrivalCopy}</small>
+        <div class="base-progress-track" aria-label=${`${arrival.label} arrival progress`}>
+          <i style=${{ width: `${Math.round(arrival.progressPercent)}%` }} aria-hidden="true" />
+        </div>
+      </article>
+    `,
+  )
 }
 
 function baseProcessingPanel(state: AddBaseManagementState): unknown {
