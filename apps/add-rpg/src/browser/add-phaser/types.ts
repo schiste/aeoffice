@@ -156,6 +156,10 @@ export interface PhaserMapRendererState {
     readonly selectEnabled: true
     readonly hoveredCoord: CellCoord | null
     readonly selectedCoord: CellCoord | null
+    readonly activeCoord: CellCoord | null
+    readonly activeSource: "hover" | "selection" | "none"
+    readonly lastInput: "keyboard" | "pointer" | "programmatic" | "none"
+    readonly dragging: boolean
   }
   readonly presentation: PhaserMapPresentationState
 }
@@ -261,8 +265,15 @@ export interface AddPhaserMapInfo {
     readonly selectEnabled: true
     readonly hoveredCell: string | null
     readonly selectedCell: string | null
+    readonly activeCell: string | null
+    readonly activeSource: "hover" | "selection" | "none"
+    readonly lastInput: "keyboard" | "pointer" | "programmatic" | "none"
+    readonly dragging: boolean
     readonly hoveredHex: string | null
     readonly selectedHex: string | null
+    readonly activeLabel: string | null
+    readonly markerVisible: boolean
+    readonly primaryMarkerVisible: boolean
     readonly selectedLabel: string | null
     readonly hoveredDetail: AddTileInteractionDetail | null
     readonly selectedDetail: AddTileInteractionDetail | null

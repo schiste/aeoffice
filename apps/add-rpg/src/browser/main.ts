@@ -214,6 +214,9 @@ const [shellMenuOpen, setShellMenuOpen] = createSignal(false)
 const [discoveryPanelCollapsed, setDiscoveryPanelCollapsed] = createSignal(false)
 const [firstPlayableCollapsed, setFirstPlayableCollapsed] =
   createSignal(shouldCollapseQuestPanelByDefault())
+const [questPanelDragging, setQuestPanelDragging] = createSignal(false)
+const [lastQuestPanelAction, setLastQuestPanelAction] =
+  createSignal<"idle" | "dragging" | "dragged" | "collapsed" | "expanded">("idle")
 const [baseManagementTab, setBaseManagementTab] =
   createSignal<AddBaseManagementTabId>("crystal")
 const [baseRateChange, setBaseRateChange] = createSignal<BaseRateChange | null>(null)
@@ -245,6 +248,7 @@ let questPanelDrag:
       readonly startY: number
       readonly originX: number
       readonly originY: number
+      moved: boolean
     }
   | null = null
 
@@ -673,6 +677,8 @@ function AddRpgApp() {
                 ? "panel first-playable-panel first-playable-overlay collapsed"
                 : "panel first-playable-panel first-playable-overlay"}
             style=${() => questPanelStyle()}
+            data-dragging=${() => questPanelDragging()}
+            data-last-action=${() => lastQuestPanelAction()}
             aria-label="First playable objective"
           >
             <div
@@ -691,7 +697,7 @@ function AddRpgApp() {
                   id="toggle-first-playable-panel"
                   type="button"
                   class="panel-icon-button"
-                  onClick=${() => setFirstPlayableCollapsed(!firstPlayableCollapsed())}
+                  onClick=${toggleFirstPlayablePanel}
                   aria-expanded=${() => !firstPlayableCollapsed()}
                   aria-controls="first-playable-body"
                   aria-label=${() => objectivePanelToggleLabel()}
@@ -1103,7 +1109,10 @@ function beginQuestPanelDrag(event: PointerEvent): void {
     startY: event.clientY,
     originX: current.x,
     originY: current.y,
+    moved: false,
   }
+  setQuestPanelDragging(true)
+  setLastQuestPanelAction("dragging")
   const handle = event.currentTarget as HTMLElement
   handle.setPointerCapture(event.pointerId)
   handle.classList.add("dragging")
@@ -1115,6 +1124,9 @@ function dragQuestPanel(event: PointerEvent): void {
   event.stopPropagation()
   const nextX = questPanelDrag.originX + event.clientX - questPanelDrag.startX
   const nextY = questPanelDrag.originY + event.clientY - questPanelDrag.startY
+  if (Math.abs(nextX - questPanelDrag.originX) + Math.abs(nextY - questPanelDrag.originY) > 4) {
+    questPanelDrag.moved = true
+  }
   setQuestPanelPosition(clampQuestPanelPosition(nextX, nextY))
 }
 
@@ -1125,7 +1137,19 @@ function endQuestPanelDrag(event: PointerEvent): void {
   const handle = event.currentTarget as HTMLElement
   handle.releasePointerCapture(event.pointerId)
   handle.classList.remove("dragging")
+  setQuestPanelDragging(false)
+  setLastQuestPanelAction(questPanelDrag.moved ? "dragged" : "idle")
   questPanelDrag = null
+}
+
+function toggleFirstPlayablePanel(): void {
+  const nextCollapsed = !firstPlayableCollapsed()
+  setFirstPlayableCollapsed(nextCollapsed)
+  setLastQuestPanelAction(nextCollapsed ? "collapsed" : "expanded")
+  window.requestAnimationFrame(() => {
+    const current = questPanelPosition()
+    setQuestPanelPosition(clampQuestPanelPosition(current.x, current.y))
+  })
 }
 
 function clampQuestPanelPosition(x: number, y: number): QuestPanelPosition {
@@ -3052,6 +3076,7 @@ function discoveryTileRows(): readonly unknown[] {
         class="discovery-tile discovery-tile-choice"
         data-visibility=${choice.visibility}
         data-state=${choice.decisionState}
+        aria-pressed=${choice.decisionState === "selected"}
         onClick=${() => selectDiscoveryChoice(choice.cell)}
         title=${choice.actionHint}
       >
@@ -3199,10 +3224,25 @@ function selectedTileActionRows(detail: AddTileDetailSummary): readonly unknown[
       ? detail.links.find((link) => link.id === action.linkId)
       : null
     if (opensSubmap) {
+      if (!action.enabled) {
+        return html`
+          <span
+            class="selected-tile-action-note blocked"
+            data-action-kind=${action.kind}
+            data-enabled="false"
+            title=${action.blockedReason ?? action.label}
+          >
+            <strong>${action.label}</strong>
+            <small>${action.blockedReason ?? "This link is not available from the Hero's current position."}</small>
+          </span>
+        `
+      }
       return html`
         <button
           id=${`tile-detail-action-${safeElementId(action.id)}`}
           data-action-id=${action.id}
+          data-action-kind=${action.kind}
+          data-enabled="true"
           data-target-map-mode=${targetLink?.targetMapMode ?? ""}
           data-target-map-id=${targetLink?.targetMapId ?? ""}
           type="button"
@@ -3220,6 +3260,8 @@ function selectedTileActionRows(detail: AddTileDetailSummary): readonly unknown[
         <button
           id=${`tile-detail-action-${safeElementId(action.id)}`}
           data-action-id=${action.id}
+          data-action-kind=${action.kind}
+          data-enabled="true"
           type="button"
           class="secondary-action selected-tile-travel-action"
           onClick=${(event: Event) => runCurrentTileDetailAction(event)}
@@ -3230,7 +3272,12 @@ function selectedTileActionRows(detail: AddTileDetailSummary): readonly unknown[
       `
     }
     return html`
-      <span class="selected-tile-action-note" title=${action.blockedReason ?? action.label}>
+      <span
+        class="selected-tile-action-note blocked"
+        data-action-kind=${action.kind}
+        data-enabled="false"
+        title=${action.blockedReason ?? action.label}
+      >
         <strong>${action.label}</strong>
         <small>${action.blockedReason ?? "Use the map to make this choice."}</small>
       </span>
@@ -3431,7 +3478,7 @@ function objectivePanelChip(): string {
 
 function objectivePanelToggleLabel(): string {
   const action = firstPlayableCollapsed() ? "Expand" : "Collapse"
-  return `${action} ${objectivePanelTitle().toLowerCase()} tasks`
+  return `${action} objective tracker`
 }
 
 function objectivePanelBody(): unknown {
@@ -5386,6 +5433,12 @@ function toTextState(): RuntimeTextState {
     discoveryPanelCollapsed: discoveryPanelCollapsed(),
     firstPlayableCollapsed: firstPlayableCollapsed(),
     questPanelPosition: questPanelPosition(),
+    questPanelInteraction: {
+      dragging: questPanelDragging(),
+      lastAction: lastQuestPanelAction(),
+      dragEnabled: true,
+      collapseControlLabel: objectivePanelToggleLabel(),
+    },
     runtime: {
       ready: ready(),
       autoTick: autoTick(),
@@ -5709,8 +5762,15 @@ function emptyMapInfo(): AddPhaserMapInfo {
       selectEnabled: true,
       hoveredCell: null,
       selectedCell: null,
+      activeCell: null,
+      activeSource: "none",
+      lastInput: "none",
+      dragging: false,
       hoveredHex: null,
       selectedHex: null,
+      activeLabel: null,
+      markerVisible: false,
+      primaryMarkerVisible: false,
       selectedLabel: null,
       hoveredDetail: null,
       selectedDetail: null,

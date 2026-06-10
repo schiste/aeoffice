@@ -2818,3 +2818,15 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   build:types`, direct Vite browser build for ADD, and
   `npm run smoke:add-rpg:built`; visually inspected
   `tmp/add-rpg-admin-clean-smoke.png`.
+- Interface Phase 11 interaction polish is implemented. Shared Phaser
+  interaction rendering now fills hover/selected cells and shows blocked primary
+  markers distinctly; ADD map telemetry reports active cell/source, last input
+  method, marker visibility, and dragging state; selected-tile telemetry exposes
+  enabled actions, disabled reasons, and the primary action. The Discovery panel
+  now shows visible blocked-action reasons, selected tile choices expose pressed
+  state, and the objective tracker reports drag/collapse actions while reclamping
+  after size changes. Verification passed with `npm --workspace
+  @aedventure/add-rpg run build:types`, direct Vite browser build for ADD,
+  `npm run smoke:add-rpg:built`, `npm run agent:verify:add-ui`, and
+  `npm run qa:renderer`; visually inspected
+  `tmp/add-rpg-selected-tile-decision-smoke.png`.

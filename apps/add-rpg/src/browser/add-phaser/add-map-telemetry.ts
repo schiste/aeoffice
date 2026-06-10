@@ -101,6 +101,9 @@ export function projectAddPhaserMapInfo(
   const selectedDetail = rendererState.interaction.selectedCoord
     ? tileInteractionDetailForCoord(rendererState.interaction.selectedCoord, context.terrainByCoord)
     : null
+  const activeDetail = rendererState.interaction.activeCoord
+    ? tileInteractionDetailForCoord(rendererState.interaction.activeCoord, context.terrainByCoord)
+    : null
   const selectedCell = rendererState.interaction.selectedCoord
     ? context.terrainByCoord.get(addMapCoordKey(rendererState.interaction.selectedCoord))
     : undefined
@@ -229,12 +232,23 @@ export function projectAddPhaserMapInfo(
       selectedCell: rendererState.interaction.selectedCoord
         ? displayAddCell(rendererState.interaction.selectedCoord)
         : null,
+      activeCell: rendererState.interaction.activeCoord
+        ? displayAddCell(rendererState.interaction.activeCoord)
+        : null,
+      activeSource: rendererState.interaction.activeSource,
+      lastInput: rendererState.interaction.lastInput,
+      dragging: rendererState.interaction.dragging,
       hoveredHex: rendererState.interaction.hoveredCoord?.kind === "hex"
         ? displayAddCoord(rendererState.interaction.hoveredCoord)
         : null,
       selectedHex: rendererState.interaction.selectedCoord?.kind === "hex"
         ? displayAddCoord(rendererState.interaction.selectedCoord)
         : null,
+      activeLabel: activeDetail?.label ?? null,
+      markerVisible: Boolean((rendererState.renderers.interactions?.visibleAffordanceCount ?? 0) > 0),
+      primaryMarkerVisible: Boolean(
+        (rendererState.renderers.interactions?.primaryMarkerCount ?? 0) > 0,
+      ),
       selectedLabel: selectedDetail?.label ?? selectedInteraction?.label ?? null,
       hoveredDetail,
       selectedDetail,
@@ -326,6 +340,10 @@ export function emptyRendererState(): PhaserMapRendererState {
       selectEnabled: true,
       hoveredCoord: null,
       selectedCoord: null,
+      activeCoord: null,
+      activeSource: "none",
+      lastInput: "none",
+      dragging: false,
     },
     presentation: {
       terrainArt: "procedural_painterly_topology",
@@ -546,8 +564,15 @@ export function emptyMapInfo(): AddPhaserMapInfo {
       selectEnabled: true,
       hoveredCell: null,
       selectedCell: null,
+      activeCell: null,
+      activeSource: "none",
+      lastInput: "none",
+      dragging: false,
       hoveredHex: null,
       selectedHex: null,
+      activeLabel: null,
+      markerVisible: false,
+      primaryMarkerVisible: false,
       selectedLabel: null,
       hoveredDetail: null,
       selectedDetail: null,

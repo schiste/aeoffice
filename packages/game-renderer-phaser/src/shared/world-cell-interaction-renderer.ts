@@ -191,14 +191,16 @@ export class WorldCellInteractionRenderer {
     container.setDepth(depth)
     container.setName(`world-cell-action:${affordance.id}`)
 
-    const labelText = compactLabel(affordance.actionLabel ?? affordance.label ?? "Action")
+    const labelText = compactLabel(
+      style.enabled ? (affordance.actionLabel ?? affordance.label ?? "Action") : "Blocked",
+    )
     const label = this.scene.add.text(0, -4, labelText, {
       color: style.textColor,
       fontFamily: "Aptos, Segoe UI, sans-serif",
       fontSize: "11px",
       fontStyle: "800",
       align: "center",
-      backgroundColor: "rgba(255, 250, 226, 0.92)",
+      backgroundColor: style.enabled ? "rgba(255, 250, 226, 0.92)" : "rgba(35, 29, 24, 0.92)",
       stroke: "rgba(255, 255, 255, 0.52)",
       strokeThickness: 2,
       padding: { x: 7, y: 4 },
@@ -338,6 +340,9 @@ function drawSelectionCell(
   if (selection.coord.kind === "hex" && map.topology.kind === "hex") {
     const center = projector.cellCenter(selection.coord)
     if (!center) return
+    drawHexPath(graphics, center, map.topology.radius + 0.4)
+    graphics.fillStyle(color, selected ? 0.09 : 0.04)
+    graphics.fillPath()
     drawHexPath(graphics, center, map.topology.radius + 1.8)
     graphics.lineStyle(lineWidth, color, alpha)
     graphics.strokePath()
@@ -347,6 +352,8 @@ function drawSelectionCell(
   if (selection.coord.kind === "square" && map.topology.kind === "square") {
     const topLeft = projector.squareTopLeft(selection.coord)
     if (!topLeft) return
+    graphics.fillStyle(color, selected ? 0.08 : 0.035)
+    graphics.fillRect(topLeft.x, topLeft.y, map.topology.cellSize, map.topology.cellSize)
     graphics.lineStyle(lineWidth, color, alpha)
     graphics.strokeRect(topLeft.x, topLeft.y, map.topology.cellSize, map.topology.cellSize)
   }
@@ -452,7 +459,7 @@ function styleForAffordance(affordance: WorldCellInteractionAffordance): Resolve
         : 0x2f8f63)
   return {
     color,
-    textColor: affordance.textColor ?? (enabled ? "#18342a" : "#6f624d"),
+    textColor: affordance.textColor ?? (enabled ? "#18342a" : "#ffc48f"),
     enabled,
   }
 }

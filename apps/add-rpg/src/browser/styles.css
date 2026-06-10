@@ -803,8 +803,22 @@ h1 {
   box-shadow: none;
 }
 
-.discovery-tile-choice:hover:not(:disabled) {
-  background: rgb(255 244 201 / 12%);
+.discovery-tile-choice:hover:not(:disabled),
+.discovery-tile-choice:focus-visible {
+  border-color: rgb(95 209 216 / 44%);
+  background:
+    linear-gradient(90deg, rgb(95 209 216 / 13%), rgb(255 244 201 / 8%)),
+    rgb(255 244 201 / 8%);
+  transform: translateY(-1px);
+}
+
+.discovery-tile-choice[aria-pressed="true"],
+.discovery-tile-choice[data-state="selected"] {
+  border-color: rgb(240 185 93 / 48%);
+  background:
+    linear-gradient(90deg, rgb(240 185 93 / 17%), rgb(255 244 201 / 7%)),
+    rgb(255 244 201 / 8%);
+  box-shadow: inset 3px 0 0 #f0b95d;
 }
 
 .context-detail-section {
@@ -1088,6 +1102,13 @@ h1 {
   background: rgb(11 17 16 / 24%);
 }
 
+.selected-tile-action-note.blocked {
+  border: 1px solid rgb(200 101 75 / 24%);
+  background:
+    linear-gradient(90deg, rgb(200 101 75 / 11%), rgb(255 244 201 / 5%)),
+    rgb(11 17 16 / 28%);
+}
+
 .selected-tile-action-note strong,
 .selected-tile-action-note small {
   display: block;
@@ -1102,6 +1123,10 @@ h1 {
 .selected-tile-action-note small {
   margin-top: 0.12rem;
   color: rgb(247 238 210 / 56%);
+}
+
+.selected-tile-action-note.blocked small {
+  color: rgb(255 196 143 / 78%);
 }
 
 .base-management-panel {
@@ -3146,6 +3171,14 @@ h1 {
 .first-playable-overlay.collapsed {
   width: min(240px, calc(100vw - 28px));
   overflow: visible;
+}
+
+.first-playable-overlay[data-dragging="true"] {
+  border-color: rgb(95 209 216 / 42%);
+  box-shadow:
+    0 24px 64px rgb(0 0 0 / 30%),
+    0 0 0 2px rgb(95 209 216 / 10%),
+    inset 0 1px 0 rgb(255 255 255 / 9%);
 }
 
 .first-playable-body {

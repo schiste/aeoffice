@@ -157,6 +157,10 @@ async function assertBootAndRenderTextContract(page, consoleErrors) {
       state.shell?.devToolsOpen === false &&
       state.shell?.discoveryPanel?.collapsed === false &&
       state.shell?.questPanel?.collapsed === false &&
+      state.shell?.questPanel?.dragEnabled === true &&
+      state.shell?.questPanel?.dragging === false &&
+      state.shell?.questPanel?.lastAction === "idle" &&
+      state.shell?.questPanel?.collapseControlLabel === "Collapse objective tracker" &&
       Number.isFinite(state.shell?.questPanel?.x) &&
       Number.isFinite(state.shell?.questPanel?.y) &&
       state.mapMode?.active === "overworld_hex" &&
@@ -184,6 +188,11 @@ async function assertBootAndRenderTextContract(page, consoleErrors) {
       state.map?.landmarks?.survivorCaveVisible === true &&
       state.map?.authority?.rules === "rust_wasm_snapshot" &&
       state.map?.authority?.mutatesSimulation === false &&
+      state.map?.interaction?.activeSource === "selection" &&
+      state.map?.interaction?.activeCell === state.map?.interaction?.selectedCell &&
+      state.map?.interaction?.lastInput === "none" &&
+      state.map?.interaction?.markerVisible === true &&
+      state.map?.interaction?.primaryMarkerVisible === true &&
       state.map?.presentation?.terrainArt === "procedural_painterly_topology" &&
       state.map?.presentation?.bubbleEffects === "animated_halo_edge" &&
       state.map?.presentation?.landmarkSprites === "procedural_sprite_stack" &&
@@ -1462,6 +1471,8 @@ async function exerciseQuestHud(page, consoleErrors) {
   await handle.waitFor({ state: "visible" })
   const before = await renderGameToText(page)
   assert.equal(before.shell?.questPanel?.collapsed, false)
+  assert.equal(before.shell?.questPanel?.dragEnabled, true)
+  assert.equal(before.shell?.questPanel?.dragging, false)
   const box = await handle.boundingBox()
   assert.ok(box, "First playable drag handle should have a browser box")
   const start = {
@@ -1478,7 +1489,9 @@ async function exerciseQuestHud(page, consoleErrors) {
     page,
     (state) =>
       Math.abs((state.shell?.questPanel?.x ?? 0) - before.shell.questPanel.x) > 20 &&
-      Math.abs((state.shell?.questPanel?.y ?? 0) - before.shell.questPanel.y) > 10,
+      Math.abs((state.shell?.questPanel?.y ?? 0) - before.shell.questPanel.y) > 10 &&
+      state.shell?.questPanel?.lastAction === "dragged" &&
+      state.shell?.questPanel?.dragging === false,
     consoleErrors,
   )
 
@@ -1486,7 +1499,10 @@ async function exerciseQuestHud(page, consoleErrors) {
   await page.locator("#first-playable-body").waitFor({ state: "hidden" })
   const collapsed = await waitForTextState(
     page,
-    (state) => state.shell?.questPanel?.collapsed === true,
+    (state) =>
+      state.shell?.questPanel?.collapsed === true &&
+      state.shell.questPanel.lastAction === "collapsed" &&
+      state.shell.questPanel.collapseControlLabel === "Expand objective tracker",
     consoleErrors,
   )
   assert.equal(collapsed.shell.questPanel.x, dragged.shell.questPanel.x)
@@ -1499,7 +1515,9 @@ async function exerciseQuestHud(page, consoleErrors) {
     (state) =>
       state.shell?.questPanel?.collapsed === false &&
       state.shell.questPanel.x === dragged.shell.questPanel.x &&
-      state.shell.questPanel.y === dragged.shell.questPanel.y,
+      state.shell.questPanel.y === dragged.shell.questPanel.y &&
+      state.shell.questPanel.lastAction === "expanded" &&
+      state.shell.questPanel.collapseControlLabel === "Collapse objective tracker",
     consoleErrors,
   )
 }
@@ -2018,6 +2036,10 @@ async function exerciseMainCharacterMovement(page, consoleErrors) {
   )
   assert.ok(moved.travel.toTime, "Travel should expose an arrival time")
   assert.ok(moved.travel.exposureRisk, "Travel should expose an exposure risk")
+  assert.equal(moved.map.interaction.lastInput, "keyboard")
+  assert.equal(moved.map.interaction.activeSource, "selection")
+  assert.equal(moved.map.interaction.activeCell, moved.map.character.cell)
+  assert.equal(moved.map.interaction.selectedCell, moved.map.character.cell)
   assert.equal(moved.discovery.phase, "movement")
   assert.equal(typeof moved.discovery.nextAction.label, "string")
   assert.ok(moved.discovery.nextAction.label.length > 0)
@@ -2184,6 +2206,9 @@ async function exerciseMainCharacterMovement(page, consoleErrors) {
       state.map?.character?.lastMoveDirection === "north_west" &&
       state.map?.character?.lastMoveAccepted === true &&
       state.map?.character?.cell === expectedNorthWest &&
+      state.map?.interaction?.lastInput === "keyboard" &&
+      state.map?.interaction?.selectedCell === expectedNorthWest &&
+      state.map?.interaction?.activeCell === expectedNorthWest &&
       state.map?.character?.moving === false &&
       state.snapshot?.clockSeconds >= returned.snapshot.clockSeconds + 59,
     consoleErrors,
@@ -2200,7 +2225,9 @@ async function interactWithMap(page, consoleErrors) {
   await page.mouse.move(heroPoint.x, heroPoint.y)
   await waitForTextState(
     page,
-    (state) => state.map?.interaction?.hoveredHex !== null,
+    (state) =>
+      state.map?.interaction?.hoveredHex !== null &&
+      state.map.interaction.lastInput === "pointer",
     consoleErrors,
   )
   await page.mouse.click(heroPoint.x, heroPoint.y)
@@ -2208,12 +2235,20 @@ async function interactWithMap(page, consoleErrors) {
     page,
     (state) =>
       state.map?.interaction?.selectedHex !== null &&
+      state.map.interaction.lastInput === "pointer" &&
+      state.map.interaction.activeSource === "selection" &&
+      state.map.interaction.activeCell === state.map.interaction.selectedCell &&
+      state.map.interaction.primaryMarkerVisible === true &&
+      typeof state.map.interaction.activeLabel === "string" &&
       state.discovery?.selectedTile !== null &&
       state.discovery?.tileDetail !== null &&
       state.discovery.tileDetail.hasSubmap === false &&
       state.discovery.tileDetail.linkCount === 0 &&
       state.discovery.tileDetail.visibleLinkIds.length === 0 &&
       state.discovery.selectedTile.travelMinutes === 60 &&
+      state.discovery.tileDetail.primaryAction !== null &&
+      Array.isArray(state.discovery.tileDetail.disabledActionReasons) &&
+      Array.isArray(state.discovery.tileDetail.enabledActionIds) &&
       typeof state.discovery.selectedTile.travelRisk === "string" &&
       typeof state.discovery.selectedTile.standingHere === "boolean" &&
       Array.isArray(state.discovery.selectedTile.knownFacts) &&
@@ -2246,10 +2281,18 @@ async function interactWithMap(page, consoleErrors) {
     }
     element.click()
   })
+  await waitForTextState(
+    page,
+    (state) =>
+      state.map?.interaction?.lastInput === "programmatic" &&
+      state.map.interaction.activeSource === "selection" &&
+      state.discovery?.tileDetail !== null,
+    consoleErrors,
+  )
   await openDetailsSection(page, "#selected-tile-section")
   assert.match(
     await page.locator("#selected-tile-decision").evaluate((element) => element.textContent ?? ""),
-    /Travel|Toxicity|Known|Unknown|Links|Usefulness|Why it matters/,
+    /Travel|Toxicity|Known|Unknown|Links|Usefulness|Why it matters|Move closer|Use the map movement controls|Select an adjacent/,
     "Selected tile card should explain travel, risk, facts, usefulness, and optional submap links.",
   )
   await assertNonBlankNamedAppScreenshot(

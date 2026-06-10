@@ -109,6 +109,7 @@ export class AddRpgHexScene extends Phaser.Scene {
   private cameraInitialized = false
   private hoveredCoord: CellCoord | null = null
   private selectedCoord: CellCoord | null = null
+  private lastInteractionInput: "keyboard" | "pointer" | "programmatic" | "none" = "none"
   private tooltipText?: Phaser.GameObjects.Text
   private minimapGraphics?: Phaser.GameObjects.Graphics
   private lastRenderedMapId: string | null = null
@@ -282,6 +283,9 @@ export class AddRpgHexScene extends Phaser.Scene {
       this.refreshInfo()
       return false
     }
+    this.selectedCoord = nextCoord
+    this.hoveredCoord = null
+    this.lastInteractionInput = "keyboard"
     // Bumping a closed door opens it (authoritative toggle) instead of moving;
     // the next step enters once the new snapshot marks it open.
     if (nextCell.metadata?.door === true && nextCell.metadata?.doorOpen !== true) {
@@ -393,7 +397,6 @@ export class AddRpgHexScene extends Phaser.Scene {
     if (this.followHero) {
       this.focusOnCoord(nextCoord, ADD_TILE_TRAVEL_PRESENTATION.durationMs)
     }
-    this.selectedCoord = nextCoord
     this.characterFacing = direction
     this.characterMoveStatus = {
       direction,
@@ -414,6 +417,7 @@ export class AddRpgHexScene extends Phaser.Scene {
     if (!selectedCell) return false
     this.selectedCoord = selectedCell.coord
     this.hoveredCoord = null
+    this.lastInteractionInput = "programmatic"
     this.drawOverlay()
     this.refreshInfo()
     return true
@@ -1278,6 +1282,7 @@ export class AddRpgHexScene extends Phaser.Scene {
     const nextHover = this.coordAtPointer(pointer)
     if (sameCoord(nextHover, this.hoveredCoord)) return
     this.hoveredCoord = nextHover
+    this.lastInteractionInput = "pointer"
     this.drawOverlay()
     this.refreshInfo()
   }
@@ -1286,6 +1291,7 @@ export class AddRpgHexScene extends Phaser.Scene {
     this.dragging = false
     if (!this.dragMoved) {
       this.selectedCoord = this.coordAtPointer(pointer)
+      this.lastInteractionInput = "pointer"
       this.drawOverlay()
     }
     this.refreshInfo()
@@ -1505,6 +1511,10 @@ export class AddRpgHexScene extends Phaser.Scene {
         selectEnabled: true,
         hoveredCoord: this.hoveredCoord,
         selectedCoord: this.selectedCoord,
+        activeCoord: this.selectedCoord ?? this.hoveredCoord,
+        activeSource: this.selectedCoord ? "selection" : this.hoveredCoord ? "hover" : "none",
+        lastInput: this.lastInteractionInput,
+        dragging: this.dragging,
       },
       presentation: {
         terrainArt: "procedural_painterly_topology",

@@ -155,6 +155,12 @@ export interface AddRuntimeTelemetryPresenterInput {
     readonly x: number
     readonly y: number
   }
+  readonly questPanelInteraction: {
+    readonly dragging: boolean
+    readonly lastAction: "idle" | "dragging" | "dragged" | "collapsed" | "expanded"
+    readonly dragEnabled: true
+    readonly collapseControlLabel: string
+  }
   readonly runtime: {
     readonly ready: boolean
     readonly autoTick: boolean
@@ -204,6 +210,10 @@ export interface RuntimeTextState {
       readonly collapsed: boolean
       readonly x: number
       readonly y: number
+      readonly dragging: boolean
+      readonly lastAction: "idle" | "dragging" | "dragged" | "collapsed" | "expanded"
+      readonly dragEnabled: true
+      readonly collapseControlLabel: string
     }
     readonly discoveryPanel: {
       readonly collapsed: boolean
@@ -502,6 +512,18 @@ export interface RuntimeTextState {
       readonly targetMapIds: readonly string[]
       readonly actionIds: readonly string[]
       readonly actionKinds: readonly string[]
+      readonly enabledActionIds: readonly string[]
+      readonly disabledActionReasons: readonly {
+        readonly id: string
+        readonly label: string
+        readonly reason: string
+      }[]
+      readonly primaryAction: {
+        readonly id: string
+        readonly label: string
+        readonly enabled: boolean
+        readonly blockedReason: string | null
+      } | null
     } | null
     readonly dungeonEntryAvailable: boolean
     readonly dungeonEntryTarget: string | null
@@ -950,6 +972,10 @@ export function createAddRuntimeTextState(
         collapsed: input.firstPlayableCollapsed,
         x: input.questPanelPosition.x,
         y: input.questPanelPosition.y,
+        dragging: input.questPanelInteraction.dragging,
+        lastAction: input.questPanelInteraction.lastAction,
+        dragEnabled: input.questPanelInteraction.dragEnabled,
+        collapseControlLabel: input.questPanelInteraction.collapseControlLabel,
       },
       discoveryPanel: {
         collapsed: input.discoveryPanelCollapsed,
@@ -1080,6 +1106,24 @@ export function createAddRuntimeTextState(
                 ),
                 actionIds: input.discovery.tileDetail.actions.map((action) => action.id),
                 actionKinds: input.discovery.tileDetail.actions.map((action) => action.kind),
+                enabledActionIds: input.discovery.tileDetail.actions
+                  .filter((action) => action.enabled)
+                  .map((action) => action.id),
+                disabledActionReasons: input.discovery.tileDetail.actions
+                  .filter((action) => !action.enabled && action.blockedReason)
+                  .map((action) => ({
+                    id: action.id,
+                    label: action.label,
+                    reason: action.blockedReason ?? "Action is not currently available.",
+                  })),
+                primaryAction: input.discovery.tileDetail.actions[0]
+                  ? {
+                      id: input.discovery.tileDetail.actions[0].id,
+                      label: input.discovery.tileDetail.actions[0].label,
+                      enabled: input.discovery.tileDetail.actions[0].enabled,
+                      blockedReason: input.discovery.tileDetail.actions[0].blockedReason,
+                    }
+                  : null,
               }
             : null,
           dungeonEntryAvailable: input.discovery.dungeonEntry?.enabled ?? false,
