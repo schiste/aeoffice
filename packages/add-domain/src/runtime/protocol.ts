@@ -408,10 +408,29 @@ export interface RequirementDef {
 }
 
 export interface EffectDef {
-  kind: 'set_flag' | 'add_bunks' | 'add_skins' | 'increment_crystal_track' | 'increment_processing_track'
+  kind:
+    | 'set_flag'
+    | 'add_bunks'
+    | 'add_skins'
+    | 'increment_crystal_track'
+    | 'increment_processing_track'
+    | 'grant_resource'
+    | 'spend_resource'
+    | 'set_quality'
+    | 'add_quality'
+    | 'complete_beat'
+    | 'note'
   flag_id?: string
   value?: boolean
   amount?: number
+  /** grant_resource / spend_resource */
+  resource_id?: string
+  /** set_quality / add_quality */
+  key?: string
+  /** complete_beat */
+  beat_id?: string
+  /** note */
+  text?: string
   track?:
     | 'slot_capacity'
     | 'output'
@@ -555,12 +574,17 @@ export interface StoryBeatDef {
   autoCompleteWhen?: ConditionDef[]
   priority?: number
   repeatable?: boolean
+  /** Effects applied once when the beat resolves (rewards/quality shifts). */
+  onComplete?: EffectDef[]
 }
 
 export interface StoryChoiceDef {
   id: string
   label: string
   response: string
+  /** Effects applied when picked (the consequence). Authoring + Rust only; the
+   * snapshot omits them. */
+  effects?: EffectDef[]
 }
 
 /** A condition over game state, evaluated in the sim (`evaluate_condition`).

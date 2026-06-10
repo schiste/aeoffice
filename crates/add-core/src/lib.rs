@@ -1897,4 +1897,34 @@ mod tests {
             Some(STORY_BEAT_REACH_SURVIVOR_CAVE)
         );
     }
+
+    #[test]
+    fn story_choices_and_oncomplete_mutate_qualities() {
+        let mut sim = Simulation::new();
+
+        // The opening choice records a remembered quality — the world remembers
+        // the player's temperament (resolve vs haste).
+        assert_eq!(sim.quality("haste"), 0);
+        sim.apply(GameCommand::ChooseStoryOption {
+            beat_id: STORY_BEAT_ROAD_TO_BASE.to_string(),
+            option_id: "story.choice.road.keep_moving".to_string(),
+        });
+        assert_eq!(sim.quality("haste"), 1);
+        assert_eq!(sim.quality("resolve"), 0);
+
+        // Restore Studio's onComplete grants hope when the beat resolves.
+        assert_eq!(sim.quality("hope"), 0);
+        sim.apply_effects(&[
+            EffectDef::CompleteBeat { beat_id: STORY_BEAT_FIRST_GLIMPSE },
+            EffectDef::CompleteBeat { beat_id: STORY_BEAT_ENTER_THE_BUBBLE },
+            EffectDef::CompleteBeat { beat_id: STORY_BEAT_INVESTIGATE_BASE },
+            EffectDef::CompleteBeat { beat_id: STORY_BEAT_EXPLORE_BASE },
+            EffectDef::SetFlag {
+                flag_id: FLAG_BASE_STUDIO_RESTORED,
+                value: true,
+            },
+        ]);
+        sim.refresh_narrative_state();
+        assert_eq!(sim.quality("hope"), 1);
+    }
 }

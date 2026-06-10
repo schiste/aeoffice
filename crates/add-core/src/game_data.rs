@@ -884,6 +884,11 @@ pub struct StoryChoiceDef {
     pub id: &'static str,
     pub label: &'static str,
     pub response: &'static str,
+    /// Effects applied when the player picks this choice — the consequence that
+    /// makes the world remember (typically narrative qualities). Rust-internal;
+    /// omitted from the serialized snapshot.
+    #[serde(skip)]
+    pub effects: &'static [EffectDef],
 }
 
 #[derive(Debug, Clone, Copy, Serialize, PartialEq)]
@@ -912,6 +917,10 @@ pub struct StoryBeatDef {
     pub priority: i16,
     #[serde(skip)]
     pub repeatable: bool,
+    /// Effects applied once when this beat resolves (rewards, quality shifts,
+    /// follow-on flags). Rust-internal; omitted from the snapshot.
+    #[serde(skip)]
+    pub on_complete: &'static [EffectDef],
 }
 
 #[derive(Debug, Clone, Copy, Serialize, PartialEq)]

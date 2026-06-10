@@ -18,8 +18,8 @@ export const STORY_BEATS: readonly StoryBeatDef[] = [
     body: "The last safe road is a scar through dead ground. Somewhere ahead, a weak musical hum is still holding back the static.",
     arc: "pre_arrival", sequence: 10, worldActionId: null,
     choices: [
-      { id: "story.choice.road.follow_signal", label: "Follow the low signal", response: "You stay on the broken road because the distant hum feels like the only promise left." },
-      { id: "story.choice.road.keep_moving", label: "Keep moving through the ash", response: "You refuse to stop moving. If there is shelter ahead, momentum will find it first." },
+      { id: "story.choice.road.follow_signal", label: "Follow the low signal", response: "You stay on the broken road because the distant hum feels like the only promise left.", effects: [{ kind: "add_quality", key: "resolve", amount: 1 }] },
+      { id: "story.choice.road.keep_moving", label: "Keep moving through the ash", response: "You refuse to stop moving. If there is shelter ahead, momentum will find it first.", effects: [{ kind: "add_quality", key: "haste", amount: 1 }] },
     ],
     relatedIds: ["tile.base_core", "structure.base"],
     preconditions: NONE, autoCompleteWhen: NONE, priority: 0, repeatable: false,
@@ -74,6 +74,7 @@ export const STORY_BEATS: readonly StoryBeatDef[] = [
     arc: "base_onboarding", sequence: 60, worldActionId: null, choices: [],
     relatedIds: ["project.restore_studio", "resource.chorus", "project.build_fire_pit"],
     preconditions: [beatDone("story.beat.explore_base")], autoCompleteWhen: [flagSet("base.studio_restored")], priority: 0, repeatable: false,
+    onComplete: [{ kind: "add_quality", key: "hope", amount: 1 }],
   },
   {
     id: "story.beat.build_fire_pit", schemaId: "story.beat.build_fire_pit", label: "Build Fire Pit",

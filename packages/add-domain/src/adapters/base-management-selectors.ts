@@ -1178,6 +1178,10 @@ function effectPreview(snapshot: SimulationSnapshot, effect: EffectDef): string 
       return crystalTrackEffectPreview(snapshot, effect.track, effect.amount ?? 1)
     case "increment_processing_track":
       return processingTrackEffectPreview(snapshot, effect.track, effect.amount ?? 1)
+    default:
+      // Narrative/storylet effect kinds (qualities, resources, notes) never appear
+      // in base-management construction previews.
+      return ""
   }
 }
 

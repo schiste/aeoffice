@@ -343,13 +343,18 @@ impl Simulation {
             return;
         };
 
+        let choice_effects = choice.effects;
+        let world_action_none = beat.world_action_id.is_none();
         self.state
             .narrative
             .choice_by_beat
             .insert(beat_id.to_string(), option_id.to_string());
         self.push_note(format!("{}: {}", beat.label, choice.label));
+        // The consequence: the choice mutates state (typically narrative
+        // qualities) so later storylets can react to what the player chose.
+        self.apply_effects(choice_effects);
 
-        if beat.world_action_id.is_none() {
+        if world_action_none {
             self.mark_story_beat_complete(beat_id);
             self.refresh_narrative_state();
         }
@@ -2323,6 +2328,10 @@ impl Simulation {
             .narrative
             .completed_beat_ids
             .push(beat_id.to_string());
+        // Fire the beat's one-shot resolution effects (idempotent: guarded above).
+        if let Some(beat) = story_beat_def(beat_id) {
+            self.apply_effects(beat.on_complete);
+        }
     }
 
     fn story_action_allowed(&mut self, action_id: &str) -> bool {

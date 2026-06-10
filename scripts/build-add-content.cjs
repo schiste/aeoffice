@@ -129,6 +129,12 @@ const EFFECTS_FIELD = {
       add_skins: { variant: "AddSkins", fields: [{ name: "amount", kind: "i64" }] },
       increment_crystal_track: { variant: "IncrementCrystalTrack", fields: [{ name: "track", kind: "enum", rustEnum: "CrystalTrack" }, { name: "amount", kind: "i64" }] },
       increment_processing_track: { variant: "IncrementProcessingTrack", fields: [{ name: "track", kind: "enum", rustEnum: "ProcessingTrack" }, { name: "amount", kind: "i64" }] },
+      grant_resource: { variant: "GrantResource", fields: [{ name: "resource_id", from: "resource_id", kind: "string" }, { name: "amount", kind: "f64" }] },
+      spend_resource: { variant: "SpendResource", fields: [{ name: "resource_id", from: "resource_id", kind: "string" }, { name: "amount", kind: "f64" }] },
+      set_quality: { variant: "SetQuality", fields: [{ name: "key", from: "key", kind: "string" }, { name: "value", kind: "i64" }] },
+      add_quality: { variant: "AddQuality", fields: [{ name: "key", from: "key", kind: "string" }, { name: "amount", kind: "i64" }] },
+      complete_beat: { variant: "CompleteBeat", fields: [{ name: "beat_id", from: "beat_id", kind: "idConst" }] },
+      note: { variant: "Note", fields: [{ name: "text", from: "text", kind: "string" }] },
     },
   },
 }
@@ -153,6 +159,7 @@ const CONDITION = {
   },
 }
 const conditionsField = (name) => ({ name, kind: "array", element: CONDITION })
+const effectsField = (name) => ({ ...EFFECTS_FIELD, name })
 
 // Reusable: visibility (conditions) + presentation, shared by ui_elements and
 // entity_schemas. Condition arg fields are snake_case in the JSON.
@@ -455,6 +462,7 @@ const FILES = [
                   { name: "id", kind: "string" },
                   { name: "label", kind: "string" },
                   { name: "response", kind: "string" },
+                  effectsField("effects"),
                 ],
               },
             },
@@ -463,6 +471,7 @@ const FILES = [
             conditionsField("auto_complete_when"),
             { name: "priority", kind: "i64" },
             { name: "repeatable", kind: "bool" },
+            effectsField("on_complete"),
           ],
         },
       },
