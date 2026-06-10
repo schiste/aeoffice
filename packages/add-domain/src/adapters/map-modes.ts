@@ -21,8 +21,9 @@ import {
   studioDungeonMap,
   STUDIO_DUNGEON_MAP_ID,
 } from "../dungeons/studio"
+import { addAreaByMapId, addAreaById, DEFAULT_AREA_MAP_ID } from "../areas/registry"
 
-export type AddMapMode = "overworld_hex" | "dungeon_square" | "base_square"
+export type AddMapMode = "overworld_hex" | "dungeon_square" | "base_square" | "area_hex"
 
 export const ADD_BASE_SQUARE_MAP_ID = "add.rpg.base.studio"
 
@@ -35,6 +36,7 @@ export interface AddMapModeOption {
 
 export const ADD_MAP_MODE_OPTIONS: readonly AddMapModeOption[] = [
   { id: "overworld_hex", label: "Overworld", topology: "hex", fixture: false },
+  { id: "area_hex", label: "Area", topology: "hex", fixture: false },
   { id: "dungeon_square", label: "Dungeon", topology: "square", fixture: false },
   { id: "base_square", label: "Base", topology: "square", fixture: false },
 ]
@@ -42,6 +44,8 @@ export const ADD_MAP_MODE_OPTIONS: readonly AddMapModeOption[] = [
 export interface CreateAddWorldOptions {
   /** Which dungeon map to load in dungeon_square mode. Defaults to the Studio. */
   readonly dungeonMapId?: string
+  /** Which area map to load in area_hex mode. Defaults to the Studio Grounds. */
+  readonly areaMapId?: string
 }
 
 export function createAddWorldForMapMode(
@@ -61,7 +65,9 @@ export function createAddWorldForMapMode(
   const map =
     mode === "dungeon_square"
       ? dungeonMapForId(options.dungeonMapId ?? STUDIO_DUNGEON_MAP_ID, snapshot)
-      : baseSquareMap()
+      : mode === "area_hex"
+        ? areaMapForId(options.areaMapId)
+        : baseSquareMap()
   return {
     id: "add.rpg.live-world",
     activeMapId: map.id,
@@ -78,6 +84,13 @@ export function createAddWorldForMapMode(
 
 export function addMapModeLabel(mode: AddMapMode): string {
   return ADD_MAP_MODE_OPTIONS.find((option) => option.id === mode)?.label ?? mode
+}
+
+function areaMapForId(areaMapId: string | undefined): GameMap {
+  const area =
+    (areaMapId ? addAreaByMapId(areaMapId) ?? addAreaById(areaMapId) : undefined) ??
+    addAreaByMapId(DEFAULT_AREA_MAP_ID)
+  return (area ?? addAreaByMapId(DEFAULT_AREA_MAP_ID))!.build()
 }
 
 function dungeonMapForId(mapId: string, snapshot: SimulationSnapshot): GameMap {

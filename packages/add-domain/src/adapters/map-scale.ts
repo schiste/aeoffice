@@ -40,5 +40,14 @@ export function selectAddMapScaleForMode(mode: AddMapMode): AddMapScaleSummary {
         preserveAspectRatio: true,
         movementRule: "dungeon_submap_cells_use_local_exploration_timing_later",
       }
+    case "area_hex":
+      return {
+        topology: "hex",
+        travelScale: "local",
+        cellSizePx: 48,
+        timePerCellSeconds: null,
+        preserveAspectRatio: true,
+        movementRule: "area_submap_hex_cells_use_local_exploration_timing",
+      }
   }
 }
