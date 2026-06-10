@@ -1262,6 +1262,7 @@ function baseRateWatchChips(state: AddBaseManagementState): readonly unknown[] {
 
 function dungeonContextPanel(): unknown {
   const dungeon = dungeonObjectiveState()
+  const currentStep = () => currentDungeonObjectiveStep(dungeon)
   return html`
     <section
       id="dungeon-context-panel"
@@ -1281,12 +1282,136 @@ function dungeonContextPanel(): unknown {
           ${() => dungeonReturnLabel()}
         </button>
       </div>
-      ${() => currentActionSurface()}
-      <p class="objective-copy">
-        ${dungeon?.detail ?? "Explore the interior and return when ready."}
-      </p>
+      <article class="dungeon-mode-summary">
+        <span>Dungeon status</span>
+        <strong>${dungeon?.headline ?? "Explore the interior"}</strong>
+        <small>${dungeon?.detail ?? "Explore the interior and return when ready."}</small>
+      </article>
+      <div class="dungeon-context-grid">
+        <article class="dungeon-context-card emphasis">
+          <span>Current objective</span>
+          <strong>${currentStep()?.label ?? dungeon?.headline ?? "Get your bearings"}</strong>
+          <small>${currentStep()?.detail ?? dungeon?.detail ?? "Inspect the room, then return when ready."}</small>
+        </article>
+        <article class="dungeon-context-card">
+          <span>Discovered exits</span>
+          <div class="dungeon-context-list">
+            ${() => dungeonExitRows(dungeon)}
+          </div>
+        </article>
+        <article class="dungeon-context-card">
+          <span>Blockers</span>
+          <div class="dungeon-context-list">
+            ${() => dungeonBlockerRows()}
+          </div>
+        </article>
+        <article class="dungeon-context-card local-map">
+          <span>Local map</span>
+          <div class="dungeon-map-metrics">
+            ${() => dungeonLocalMapMetricRows()}
+          </div>
+        </article>
+      </div>
     </section>
   `
+}
+
+function currentDungeonObjectiveStep(
+  dungeon: ReturnType<typeof dungeonObjectiveState>,
+): AddDungeonObjectiveStep | null {
+  return dungeon?.steps.find((step) => step.id === dungeon.currentStepId) ?? null
+}
+
+function dungeonExitRows(dungeon: ReturnType<typeof dungeonObjectiveState>): readonly unknown[] {
+  const info = mapInfo()
+  const exits = [
+    ...(info.character.dungeonLinksAtCell ?? []),
+    ...(info.dungeonLinks.selected ?? []),
+  ]
+  const uniqueExits = Array.from(new Map(exits.map((exit) => [exit.targetMapId ?? exit.id, exit])).values())
+  return [
+    html`
+      <span class="dungeon-context-row available">
+        <strong>${dungeon?.returnLabel ?? "Return to overworld"}</strong>
+        <small>Known route back to the outside map.</small>
+      </span>
+    `,
+    ...(uniqueExits.length > 0
+      ? uniqueExits.map(
+          (exit) => html`
+            <span class="dungeon-context-row ${exit.enabled ? "available" : "blocked"}">
+              <strong>${exit.label}</strong>
+              <small>${exit.enabled ? "Discovered and usable." : "Discovered but blocked for now."}</small>
+            </span>
+          `,
+        )
+      : [
+          html`
+            <span class="dungeon-context-row muted">
+              <strong>No additional exits found</strong>
+              <small>Explore visible rooms to reveal more interior links later.</small>
+            </span>
+          `,
+        ]),
+  ]
+}
+
+function dungeonBlockerRows(): readonly unknown[] {
+  const info = mapInfo()
+  const rows: unknown[] = []
+  const activeBlocker = info.character.blockedReason ?? info.travel.blockedReason
+  if (activeBlocker) {
+    rows.push(html`
+      <span class="dungeon-context-row blocked">
+        <strong>Movement blocked</strong>
+        <small>${titleCase(activeBlocker.replaceAll("_", " "))}</small>
+      </span>
+    `)
+  }
+  if (info.visibility.hiddenCells > 0) {
+    rows.push(html`
+      <span class="dungeon-context-row watch">
+        <strong>${info.visibility.hiddenCells} hidden cells</strong>
+        <small>Line of sight is still limiting what the Hero knows.</small>
+      </span>
+    `)
+  }
+  if (info.cells.blocked > 0) {
+    rows.push(html`
+      <span class="dungeon-context-row watch">
+        <strong>${info.cells.blocked} walls or sealed cells</strong>
+        <small>These shape movement and future encounter routes.</small>
+      </span>
+    `)
+  }
+  if (rows.length === 0) {
+    rows.push(html`
+      <span class="dungeon-context-row available">
+        <strong>No immediate blocker</strong>
+        <small>The local route is currently open.</small>
+      </span>
+    `)
+  }
+  return rows
+}
+
+function dungeonLocalMapMetricRows(): readonly unknown[] {
+  const info = mapInfo()
+  return [
+    ["Visible", `${info.visibility.visibleCells}`],
+    ["Hidden", `${info.visibility.hiddenCells}`],
+    ["Blocked", `${info.cells.blocked}`],
+    ["Hero", info.character.cell ?? "Unknown"],
+    ["Selected", info.interaction.selectedCell ?? "None"],
+    ["Facing", titleCase(info.character.facing ?? "unknown")],
+  ].map(
+    ([label, value]) => html`
+      <span>
+        <small>${label}</small>
+        <strong>${value}</strong>
+      </span>
+    `,
+  )
 }
 
 function resourceStatusStrip(): unknown {

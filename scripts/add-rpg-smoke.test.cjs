@@ -1738,7 +1738,14 @@ async function exerciseSurvivorCaveDungeonEntry(page, consoleErrors) {
       state.dungeonObjective?.label === "Survivor Cave" &&
       state.dungeonObjective?.mapId === "add.rpg.dungeon.survivor-cave" &&
       state.dungeonObjective?.currentStepId === "survey-cave-mouth" &&
-      state.dungeonObjective?.returnAvailable === true,
+      state.dungeonObjective?.returnAvailable === true &&
+      state.dungeonContext?.active === true &&
+      state.dungeonContext?.panel === "dungeon_context" &&
+      state.dungeonContext?.currentObjective?.currentStepId === "survey-cave-mouth" &&
+      state.dungeonContext?.returnAction?.available === true &&
+      state.dungeonContext?.discoveredExits?.labels?.includes("Return to overworld") &&
+      state.dungeonContext?.blockers?.hiddenCells > 0 &&
+      state.dungeonContext?.localMapState?.heroCell === "square:2,4",
     consoleErrors,
   )
   assert.equal(dungeon.ui.firstPlayable.currentStepId, before.ui.firstPlayable.currentStepId)
@@ -1752,6 +1759,31 @@ async function exerciseSurvivorCaveDungeonEntry(page, consoleErrors) {
     await page.locator("#first-playable-panel").innerText(),
     /Survivor Cave|safe threshold|cave/i,
     "The objective panel should switch to cave-specific dungeon copy.",
+  )
+  const dungeonPanelText = await page.locator("#dungeon-context-panel").innerText()
+  ;[
+    "Dungeon status",
+    "Current objective",
+    "Discovered exits",
+    "Blockers",
+    "Local map",
+    "Return to overworld",
+  ].forEach((expectedText) => {
+    assert.match(
+      dungeonPanelText,
+      new RegExp(expectedText, "i"),
+      `Dungeon context panel should include ${expectedText}.`,
+    )
+  })
+  assert.doesNotMatch(
+    dungeonPanelText,
+    /Return outside/i,
+    "Dungeon context panel should not duplicate the full left objective step list.",
+  )
+  assert.doesNotMatch(
+    dungeonPanelText,
+    /Road to Base|Follow the low signal|Keep moving through the ash/i,
+    "Dungeon context panel should stay local to dungeon mode, not global story choices.",
   )
   await assertNonBlankNamedAppScreenshot(
     page,

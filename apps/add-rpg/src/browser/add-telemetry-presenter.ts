@@ -857,6 +857,38 @@ export interface RuntimeTextState {
       readonly status: string
     }[]
   } | null
+  readonly dungeonContext: {
+    readonly active: boolean
+    readonly panel: "dungeon_context"
+    readonly currentObjective: {
+      readonly label: string
+      readonly headline: string
+      readonly currentStepId: string
+    }
+    readonly returnAction: {
+      readonly label: string
+      readonly available: boolean
+    }
+    readonly discoveredExits: {
+      readonly count: number
+      readonly labels: readonly string[]
+    }
+    readonly blockers: {
+      readonly hiddenCells: number
+      readonly blockedCells: number
+      readonly activeBlocker: string | null
+      readonly validationWarning: string | null
+    }
+    readonly localMapState: {
+      readonly totalCells: number
+      readonly visibleCells: number
+      readonly hiddenCells: number
+      readonly blockedCells: number
+      readonly heroCell: string | null
+      readonly selectedCell: string | null
+      readonly facing: string | null
+    }
+  } | null
   readonly persistence: {
     readonly storageKey: string
     readonly autosaveEnabled: boolean
@@ -1057,6 +1089,7 @@ export function createAddRuntimeTextState(
           })),
         }
       : null,
+    dungeonContext: dungeonContextTelemetry(input),
     persistence: {
       storageKey: ADD_AUTOSAVE_STORAGE_KEY,
       autosaveEnabled: input.persistence.autosaveEnabled,
@@ -1649,6 +1682,53 @@ function baseManagementTelemetry(
       activeUpkeepPerSecond: round3(state.power.activeUpkeepPerSecond),
       requestedUpkeepPerSecond: round3(state.power.requestedUpkeepPerSecond),
       brownoutActive: state.power.brownoutActive,
+    },
+  }
+}
+
+function dungeonContextTelemetry(
+  input: AddRuntimeTelemetryPresenterInput,
+): RuntimeTextState["dungeonContext"] {
+  if (input.mapMode !== "dungeon_square" || !input.dungeonObjective) return null
+
+  const mapInfo = input.mapInfo
+  const exits = [
+    ...mapInfo.character.dungeonLinksAtCell,
+    ...mapInfo.dungeonLinks.selected,
+  ]
+  const uniqueExits = Array.from(
+    new Map(exits.map((exit) => [exit.targetMapId || exit.id, exit])).values(),
+  )
+  return {
+    active: true,
+    panel: "dungeon_context",
+    currentObjective: {
+      label: input.dungeonObjective.label,
+      headline: input.dungeonObjective.headline,
+      currentStepId: input.dungeonObjective.currentStepId,
+    },
+    returnAction: {
+      label: input.dungeonObjective.returnLabel,
+      available: true,
+    },
+    discoveredExits: {
+      count: 1 + uniqueExits.length,
+      labels: [input.dungeonObjective.returnLabel, ...uniqueExits.map((exit) => exit.label)],
+    },
+    blockers: {
+      hiddenCells: mapInfo.visibility.hiddenCells,
+      blockedCells: mapInfo.cells.blocked,
+      activeBlocker: mapInfo.character.blockedReason ?? mapInfo.travel.blockedReason,
+      validationWarning: mapInfo.validationValid ? null : mapInfo.validationSummary,
+    },
+    localMapState: {
+      totalCells: mapInfo.cells.total,
+      visibleCells: mapInfo.visibility.visibleCells,
+      hiddenCells: mapInfo.visibility.hiddenCells,
+      blockedCells: mapInfo.cells.blocked,
+      heroCell: mapInfo.character.cell,
+      selectedCell: mapInfo.interaction.selectedCell,
+      facing: mapInfo.character.facing,
     },
   }
 }

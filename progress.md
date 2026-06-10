@@ -2787,3 +2787,13 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   base loop. Verification passed with `npm --workspace @aedventure/add-rpg run
   build:types`, direct Vite browser build for ADD,
   `npm run agent:verify:add-ui`, and `npm run smoke:add-rpg:built`.
+- Interface Phase 8 dungeon context UX is implemented. Dungeon mode now has a
+  distinct right-side context panel instead of reusing the global story/current
+  action surface. The panel shows the current dungeon objective, return action,
+  discovered exits, blocker/visibility constraints, and local map state without
+  duplicating the full left objective step list. `render_game_to_text` now
+  exposes `dungeonContext` for smoke/agent checks. Verification passed with
+  `npm --workspace @aedventure/add-rpg run build:types`, direct Vite browser
+  build for ADD, `npm run agent:verify:add-ui`, and
+  `npm run smoke:add-rpg:built`; visually inspected
+  `tmp/add-rpg-survivor-cave-entry-smoke.png`.
