@@ -129,6 +129,15 @@ async function assertBootAndRenderTextContract(page, consoleErrors) {
       state.shell?.framework === "solid" &&
       state.shell?.surface === "fullscreen_map_shell" &&
       state.shell?.hostsPhaserMap === true &&
+      state.shell?.interfaceHierarchy?.primary?.label === "Map" &&
+      state.shell?.interfaceHierarchy?.secondary?.label === "Decision" &&
+      state.shell?.interfaceHierarchy?.tertiary?.label === "Status" &&
+      state.shell?.interfaceHierarchy?.advanced?.label === "Admin" &&
+      state.shell?.interfaceHierarchy?.advanced?.hiddenByDefault === true &&
+      state.shell?.interfaceHierarchy?.questions?.whereAmI?.length > 0 &&
+      state.shell?.interfaceHierarchy?.questions?.whatChanged?.length > 0 &&
+      state.shell?.interfaceHierarchy?.questions?.whatShouldIDoNow?.length > 0 &&
+      state.shell?.interfaceHierarchy?.questions?.whatHappensIfIWait?.length > 0 &&
       state.shell?.adminOpen === false &&
       state.shell?.discoveryPanel?.collapsed === false &&
       state.shell?.questPanel?.collapsed === false &&
@@ -187,6 +196,10 @@ async function assertBootAndRenderTextContract(page, consoleErrors) {
   assert.equal(initial.boundary.runtimeAuthority, "rust-wasm")
   assert.equal(initial.boundary.firstTargetApp, "apps/add-rpg")
   assert.equal(initial.runtime.error, null)
+  assert.match(initial.shell.interfaceHierarchy.questions.whereAmI, /Overworld/)
+  assert.equal(initial.shell.interfaceHierarchy.secondary.actionLabel, "Enter Survivor Cave")
+  assert.equal(initial.shell.interfaceHierarchy.secondary.actionEnabled, true)
+  assert.match(initial.shell.interfaceHierarchy.tertiary.waitForecast, /60m|Clock/)
   assert.equal(initial.snapshot.heroMap, initial.map.landmarks.survivorCave)
   assert.equal(initial.mapMode.scale.topology, "hex")
   assert.equal(initial.mapMode.scale.travelScale, "strategic")
@@ -1482,8 +1495,10 @@ async function exerciseStudioTileDetailLinks(page, consoleErrors) {
     await waitForTextState(
       page,
       (state) =>
-        state.mapMode?.active === "base_square" &&
-        state.runtime?.lastCommand === "return:studio",
+        (state.mapMode?.active === "base_square" &&
+          state.map?.mapId === "add.rpg.base.studio") ||
+        (state.mapMode?.active === "area_hex" &&
+          state.map?.mapId === "add.rpg.area.studio-grounds"),
       consoleErrors,
     )
 
@@ -1508,12 +1523,12 @@ async function returnToOverworld(page, consoleErrors) {
   const returnButton = page.locator("#return-overworld")
   if (await returnButton.isVisible()) {
     try {
-      await returnButton.click({ force: true, timeout: 3000 })
+      await clickVisibleElementByDomId(page, "return-overworld")
     } catch {
-      await page.locator("#map-mode-overworld_hex").click({ force: true })
+      await clickVisibleElementByDomId(page, "map-mode-overworld_hex")
     }
   } else {
-    await page.locator("#map-mode-overworld_hex").click({ force: true })
+    await clickVisibleElementByDomId(page, "map-mode-overworld_hex")
   }
   return waitForTextState(
     page,

@@ -2711,3 +2711,15 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   `tmp/add-rpg-studio-subtile-dungeon-entrance-smoke.png`. Remaining UI note:
   Studio/base interior labels can still overlap in the square subtile view and
   should be handled in the next interface polish pass.
+- Interface Phase 1 hierarchy is implemented. The ADD shell now declares one
+  player-facing hierarchy: primary map/world, secondary decision/action,
+  tertiary resources/time/status, and hidden advanced Admin. Discovery and Base
+  panels lead with a compact four-question brief: where am I, what changed,
+  what should I do now, and what happens if I wait. The top rail now carries
+  compact key resources beside time/status, while `render_game_to_text` exposes
+  `shell.interfaceHierarchy` for agent/smoke inspection. The Studio dungeon
+  return label now handles `area_hex` correctly, and the Studio smoke flow was
+  aligned with the committed area/base return paths. Verification passed with
+  `npm --workspace @aedventure/add-rpg run build`, `npm run smoke:add-rpg`,
+  `npm run qa:renderer`, visual inspection of `tmp/add-rpg-smoke.png`, and full
+  `npm run check`.

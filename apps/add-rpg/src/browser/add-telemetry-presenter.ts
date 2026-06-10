@@ -63,6 +63,35 @@ export interface AddTelemetryClockAnimationState {
   readonly remainingMinutes: number
 }
 
+export interface AddInterfaceHierarchyState {
+  readonly primary: {
+    readonly label: "Map"
+    readonly answer: string
+  }
+  readonly secondary: {
+    readonly label: "Decision"
+    readonly answer: string
+    readonly actionLabel: string
+    readonly actionEnabled: boolean
+  }
+  readonly tertiary: {
+    readonly label: "Status"
+    readonly answer: string
+    readonly waitForecast: string
+  }
+  readonly advanced: {
+    readonly label: "Admin"
+    readonly hiddenByDefault: true
+    readonly open: boolean
+  }
+  readonly questions: {
+    readonly whereAmI: string
+    readonly whatChanged: string
+    readonly whatShouldIDoNow: string
+    readonly whatHappensIfIWait: string
+  }
+}
+
 export interface AddRuntimeTelemetryPresenterInput {
   readonly snapshot: SimulationSnapshot | null
   readonly catalog: CatalogSnapshot | null
@@ -79,6 +108,7 @@ export interface AddRuntimeTelemetryPresenterInput {
   readonly dungeonTarget: string | null
   readonly lastDungeonEntryCommand: string | null
   readonly lastTileActionTarget: string | null
+  readonly interfaceHierarchy: AddInterfaceHierarchyState
   readonly adminOpen: boolean
   readonly discoveryPanelCollapsed: boolean
   readonly firstPlayableCollapsed: boolean
@@ -126,6 +156,7 @@ export interface RuntimeTextState {
     readonly framework: "solid"
     readonly surface: "fullscreen_map_shell"
     readonly hostsPhaserMap: boolean
+    readonly interfaceHierarchy: AddInterfaceHierarchyState
     readonly adminOpen: boolean
     readonly questPanel: {
       readonly collapsed: boolean
@@ -800,6 +831,7 @@ export function createAddRuntimeTextState(
       framework: "solid",
       surface: "fullscreen_map_shell",
       hostsPhaserMap: true,
+      interfaceHierarchy: input.interfaceHierarchy,
       adminOpen: input.adminOpen,
       questPanel: {
         collapsed: input.firstPlayableCollapsed,

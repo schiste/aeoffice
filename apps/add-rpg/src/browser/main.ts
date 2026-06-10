@@ -75,6 +75,7 @@ import {
   type AddTelemetryTravelDialogKind as TravelDialogKind,
   type AddTelemetryTravelDramaState as TravelDramaState,
   type AddTelemetryTravelExperience as TravelExperience,
+  type AddInterfaceHierarchyState,
 } from "./add-telemetry-presenter"
 import {
   clearAutosave,
@@ -524,9 +525,17 @@ function AddRpgApp() {
   })
 
   return html`
-    <main class=${() => (adminOpen() ? "add-app-shell admin-open" : "add-app-shell")}>
-      <section class="world-pane">
-        <div id="add-world" class="add-world" ref=${(node: HTMLDivElement) => (mapElement = node)}>
+    <main
+      class=${() => (adminOpen() ? "add-app-shell admin-open" : "add-app-shell")}
+      data-interface-hierarchy="map-decision-status-admin"
+    >
+      <section class="world-pane" data-interface-tier="primary" aria-label="Primary game world">
+        <div
+          id="add-world"
+          class="add-world"
+          data-interface-tier="primary"
+          ref=${(node: HTMLDivElement) => (mapElement = node)}
+        >
           <div class=${() => (mapInfo().ready ? "map-loading hidden" : "map-loading")}>
             Initializing map
           </div>
@@ -543,14 +552,19 @@ function AddRpgApp() {
             style=${() => toxicityHazeStyle()}
             aria-hidden="true"
           />
-          <div class="map-topbar" aria-label="ADD map navigation">
+          <div
+            class="map-topbar"
+            data-interface-tier="tertiary"
+            aria-label="ADD map navigation and status"
+          >
             <div class="map-mode-switcher" role="tablist" aria-label="ADD map mode">
               ${() => mapModeButtons()}
             </div>
-            <div class="status-stack">
+            <div class="status-stack" data-interface-answer="resources-time-status">
               <span class="status-pill" data-state=${() => statusState()}>
                 ${() => statusLabel()}
               </span>
+              ${() => resourceStatusStrip()}
               <div
                 class=${() =>
                   travelExperience()?.phase === "traveling" || clockAnimation()
@@ -625,6 +639,8 @@ function AddRpgApp() {
           </div>
           <section
             class=${() => travelPanelClass()}
+            data-interface-tier="secondary"
+            data-interface-answer="what-changed"
             aria-live="polite"
             aria-label="Travel time and exposure"
           >
@@ -646,6 +662,8 @@ function AddRpgApp() {
           ${() => offlineReturnPanel()}
           <section
             id="first-playable-panel"
+            data-interface-tier="secondary"
+            data-interface-answer="objective-progress"
             class=${() =>
               firstPlayableCollapsed()
                 ? "panel first-playable-panel first-playable-overlay collapsed"
@@ -686,7 +704,11 @@ function AddRpgApp() {
               ${() => objectivePanelBody()}
             </div>
           </section>
-          <div class="map-hud" aria-label="ADD map controls">
+          <div
+            class="map-hud"
+            data-interface-tier="tertiary"
+            aria-label="ADD map controls"
+          >
             <div class="map-camera-controls">
               <button
                 id="map-zoom-out"
@@ -718,6 +740,36 @@ function AddRpgApp() {
               >
                 Center
               </button>
+              <button
+                id="map-focus-hero"
+                type="button"
+                class="map-button text"
+                onClick=${() => focusMap("hero")}
+                disabled=${() => !mapInfo().ready}
+              >
+                Hero
+              </button>
+              ${() =>
+                mapMode() === "overworld_hex"
+                  ? html`<button
+                        id="map-focus-base"
+                        type="button"
+                        class="map-button text"
+                        onClick=${() => focusMap("base")}
+                        disabled=${() => !mapInfo().ready}
+                      >
+                        Base
+                      </button>
+                      <button
+                        id="map-focus-cave"
+                        type="button"
+                        class="map-button text"
+                        onClick=${() => focusMap("cave")}
+                        disabled=${() => !mapInfo().ready}
+                      >
+                        Cave
+                      </button>`
+                  : null}
             </div>
             <div class="map-selection-readout">
               <span>${() => mapFocusCopy()}</span>
@@ -734,6 +786,7 @@ function AddRpgApp() {
 
       <aside
         id="admin-view"
+        data-interface-tier="advanced"
         class=${() => (adminOpen() ? "admin-view open" : "admin-view")}
         aria-label="ADD admin controls"
         aria-hidden=${() => !adminOpen()}
@@ -1039,6 +1092,8 @@ function discoveryPanel(): unknown {
   return html`
     <section
       id="discovery-panel"
+      data-interface-tier="secondary"
+      data-interface-answer="current-decision-action"
       class=${() =>
         discoveryPanelCollapsed()
           ? "panel discovery-panel collapsed"
@@ -1061,6 +1116,7 @@ function discoveryPanel(): unknown {
           </button>
         </div>
       </div>
+      ${() => interfaceHierarchyBrief()}
       ${() => discoveryNextActionCard()}
       ${() => discoveryPanelBody()}
     </section>
@@ -1075,6 +1131,8 @@ function baseManagementPanel(): unknown {
   return html`
     <section
       id="base-management-panel"
+      data-interface-tier="secondary"
+      data-interface-answer="current-decision-action"
       class="panel base-management-panel"
       aria-label="Base management"
       data-tab=${() => baseManagementTab()}
@@ -1083,6 +1141,7 @@ function baseManagementPanel(): unknown {
         <span>${state.title}</span>
         <span class="small-chip">${() => titleCase(baseManagementTab())}</span>
       </div>
+      ${() => interfaceHierarchyBrief()}
       ${() => basePlayerLoopPanel(state)}
       <article
         id="base-management-recommendation"
@@ -1119,6 +1178,186 @@ function baseManagementPanel(): unknown {
       </div>
     </section>
   `
+}
+
+function resourceStatusStrip(): unknown {
+  const resources = uiState()?.resources ?? []
+  const priorityIds = [RESOURCE_BASSLINE, RESOURCE_CHORUS, RESOURCE_STONE, RESOURCE_WATER]
+  const prioritized = priorityIds
+    .map((id) => resources.find((resource) => resource.id === id))
+    .filter((resource): resource is AddUiState["resources"][number] => Boolean(resource))
+    .slice(0, 4)
+  if (prioritized.length === 0) return null
+
+  return html`
+    <div
+      id="resource-status-strip"
+      class="resource-status-strip"
+      data-interface-tier="tertiary"
+      aria-label="Key resources"
+    >
+      ${() =>
+        prioritized.map(
+          (resource) => html`
+            <span data-resource=${resource.id}>
+              <small>${resource.label}</small>
+              <strong>${formatResource(resource.value)}</strong>
+            </span>
+          `,
+        )}
+    </div>
+  `
+}
+
+function interfaceHierarchyBrief(): unknown {
+  return html`
+    <section
+      id="interface-hierarchy-brief"
+      class="interface-hierarchy-brief"
+      data-interface-tier="secondary"
+      aria-label="Player interface hierarchy"
+    >
+      <article data-question="where-am-i">
+        <span>Where</span>
+        <strong>${() => interfaceHierarchyState().questions.whereAmI}</strong>
+      </article>
+      <article data-question="what-changed">
+        <span>Changed</span>
+        <strong>${() => interfaceHierarchyState().questions.whatChanged}</strong>
+      </article>
+      <article data-question="what-should-i-do">
+        <span>Do now</span>
+        <strong>${() => interfaceHierarchyState().questions.whatShouldIDoNow}</strong>
+      </article>
+      <article data-question="what-if-i-wait">
+        <span>Wait</span>
+        <strong>${() => interfaceHierarchyState().questions.whatHappensIfIWait}</strong>
+      </article>
+    </section>
+  `
+}
+
+function interfaceHierarchyState(): AddInterfaceHierarchyState {
+  const questions = {
+    whereAmI: interfaceWhereCopy(),
+    whatChanged: interfaceChangedCopy(),
+    whatShouldIDoNow: interfaceActionCopy(),
+    whatHappensIfIWait: interfaceWaitCopy(),
+  }
+  const action = interfaceActionState()
+  return {
+    primary: {
+      label: "Map",
+      answer: questions.whereAmI,
+    },
+    secondary: {
+      label: "Decision",
+      answer: questions.whatShouldIDoNow,
+      actionLabel: action.label,
+      actionEnabled: action.enabled,
+    },
+    tertiary: {
+      label: "Status",
+      answer: interfaceStatusCopy(),
+      waitForecast: questions.whatHappensIfIWait,
+    },
+    advanced: {
+      label: "Admin",
+      hiddenByDefault: true,
+      open: adminOpen(),
+    },
+    questions,
+  }
+}
+
+function interfaceWhereCopy(): string {
+  const info = mapInfo()
+  if (mapMode() === "base_square") return "The Studio submap"
+  if (mapMode() === "dungeon_square") {
+    const objective = selectAddDungeonObjective({
+      mapMode: mapMode(),
+      dungeonMapId: dungeonTarget(),
+      heroCell: info.character.cell,
+    })
+    return objective?.label ? `${objective.label} interior` : "Dungeon interior"
+  }
+  const currentEntrance = info.character.dungeonLinksAtCell[0]?.label
+  if (currentEntrance) return `Overworld at ${currentEntrance}`
+  const selected = info.interaction.selectedLabel
+  if (selected) return `Overworld near ${selected}`
+  return info.character.cell ? `Overworld ${info.character.cell}` : addMapModeLabel(mapMode())
+}
+
+function interfaceChangedCopy(): string {
+  const experience = travelExperience()
+  if (experience?.phase === "traveling") return `Crossing to ${experience.event.destinationLabel}`
+  if (experience?.phase === "arrived") return `Arrived at ${experience.event.destinationLabel}`
+
+  const movement = lastDiscoveryMovement()
+  if (movement) {
+    const revealed = movement.discoveredAfter - movement.discoveredBefore
+    const toxicityDelta = movement.toxicityAfter - movement.toxicityBefore
+    const parts: string[] = []
+    if (revealed > 0) parts.push(`${revealed} region${revealed === 1 ? "" : "s"} revealed`)
+    if (toxicityDelta > 0) parts.push(`${Math.round(toxicityDelta * 100)}% toxicity gained`)
+    if (parts.length > 0) return parts.join(" · ")
+    return `Scouted ${movement.destinationLabel}`
+  }
+
+  const selected = discoveryState()?.tileDetail?.label ?? mapInfo().interaction.selectedLabel
+  if (selected) return `Selected ${selected}`
+
+  const base = baseManagementState()
+  if (base) return base.nextBottleneck.label
+
+  return "Opening state is stable"
+}
+
+function interfaceActionCopy(): string {
+  return interfaceActionState().label
+}
+
+function interfaceActionState(): { readonly label: string; readonly enabled: boolean } {
+  if (mapMode() === "base_square") {
+    const action = baseManagementState()?.recommendedAction
+    if (action) return { label: action.label, enabled: action.enabled }
+  }
+
+  if (mapMode() === "dungeon_square") {
+    const objective = selectAddDungeonObjective({
+      mapMode: mapMode(),
+      dungeonMapId: dungeonTarget(),
+      heroCell: mapInfo().character.cell,
+    })
+    if (objective) return { label: objective.headline, enabled: objective.active }
+  }
+
+  const action = discoveryState()?.nextAction
+  if (action) return { label: action.label, enabled: action.enabled }
+  return { label: "Wait for runtime", enabled: false }
+}
+
+function interfaceWaitCopy(): string {
+  const base = baseManagementState()
+  if (mapMode() === "base_square" && base) {
+    const forecast = base.economy.waitForecasts[0]
+    return forecast?.summary ?? base.economy.offlinePreview.summary
+  }
+
+  const experience = travelExperience()
+  if (experience?.phase === "traveling") return "The hour is already passing"
+
+  if (mapMode() === "dungeon_square") {
+    return "Interior time is slow; base systems keep their state"
+  }
+
+  return "Clock advances; each adjacent crossing costs 60m"
+}
+
+function interfaceStatusCopy(): string {
+  const resource = uiState()?.resources.find((candidate) => candidate.id === RESOURCE_BASSLINE)
+  const resourceCopy = resource ? `Bassline ${formatResource(resource.value)}` : "Resources pending"
+  return `${worldTimePrimaryCopy()} · ${statusLabel()} · ${resourceCopy}`
 }
 
 function basePlayerLoopPanel(state: AddBaseManagementState): unknown {
@@ -3359,11 +3598,24 @@ function returnToOverworldFromDungeon(): void {
   const returnMode = mapMode() === "dungeon_square" ? dungeonReturnMode() : "overworld_hex"
   setTravelExperience(null)
   setMapMode(returnMode)
-  setLastCommand(returnMode === "base_square" ? "return:studio" : "return:overworld")
+  setLastCommand(
+    returnMode === "base_square"
+      ? "return:studio"
+      : returnMode === "area_hex"
+        ? "return:area"
+        : "return:overworld",
+  )
 }
 
 function dungeonReturnLabel(): string {
-  return dungeonReturnMode() === "base_square" ? "Return to The Studio" : "Return to Overworld"
+  switch (dungeonReturnMode()) {
+    case "base_square":
+      return "Return to The Studio"
+    case "area_hex":
+      return "Return to Studio Grounds"
+    default:
+      return "Return to Overworld"
+  }
 }
 
 function enterDungeonLink(link: AddPhaserMapInfo["character"]["dungeonLinksAtCell"][number]): void {
@@ -3376,9 +3628,11 @@ function enterDungeonLink(link: AddPhaserMapInfo["character"]["dungeonLinksAtCel
 function enterDungeonInteraction(interaction: GameInteraction): void {
   const targetMapId = dungeonTargetMapIdForInteraction(interaction)
   if (!targetMapId) return
+  const currentMode = mapMode()
   setLastTileActionTarget(targetMapId)
   enterDungeonTarget(targetMapId, `interaction-enter:${targetMapId}`, {
-    returnMode: mapMode() === "base_square" ? "base_square" : "overworld_hex",
+    returnMode:
+      currentMode === "base_square" || currentMode === "area_hex" ? currentMode : "overworld_hex",
   })
 }
 
@@ -3451,6 +3705,11 @@ function zoomMap(factor: number): void {
 
 function resetMapCamera(): void {
   mapHost?.resetCamera()
+  refreshMapInfo()
+}
+
+function focusMap(target: "hero" | "base" | "cave"): void {
+  mapHost?.focusOn(target)
   refreshMapInfo()
 }
 
@@ -4221,6 +4480,7 @@ function toTextState(): RuntimeTextState {
     dungeonTarget: mapMode() === "dungeon_square" ? dungeonTarget() : null,
     lastDungeonEntryCommand: lastDungeonEntryCommand(),
     lastTileActionTarget: lastTileActionTarget(),
+    interfaceHierarchy: interfaceHierarchyState(),
     adminOpen: adminOpen(),
     discoveryPanelCollapsed: discoveryPanelCollapsed(),
     firstPlayableCollapsed: firstPlayableCollapsed(),
