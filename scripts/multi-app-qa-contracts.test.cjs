@@ -15,6 +15,8 @@ function main() {
   const packageJson = readJson("package.json")
   const packageLock = readText("package-lock.json")
   const verifyTargetStack = readText("scripts/verify-target-stack.sh")
+  const agentVerify = readText("scripts/agent-verify.sh")
+  const agentGuide = readText("AGENTS.md")
 
   assert.equal(
     packageJson.scripts.check,
@@ -31,6 +33,10 @@ function main() {
   assertScript(packageJson, "smoke:apps", "smoke:engine-sandbox")
   assertScript(packageJson, "qa:renderer", "scripts/renderer-qa.test.cjs")
   assertScript(packageJson, "qa:multi-app", "scripts/multi-app-qa-contracts.test.cjs")
+  assertScript(packageJson, "agent:verify", "scripts/agent-verify.sh focused")
+  assertScript(packageJson, "agent:verify:add-ui", "scripts/agent-verify.sh add-ui")
+  assertScript(packageJson, "agent:verify:types", "scripts/agent-verify.sh types")
+  assertScript(packageJson, "agent:verify:gate", "scripts/agent-verify.sh gate")
   assertRetiredFragmentsAbsent("package.json", JSON.stringify(packageJson, null, 2))
   assertRetiredFragmentsAbsent("package-lock.json", packageLock)
 
@@ -45,6 +51,7 @@ function main() {
   assertStackStep(verifyTargetStack, "npm run smoke:office:built")
   assertStackStep(verifyTargetStack, "npm run qa:renderer:built")
   assertRetiredFragmentsAbsent("scripts/verify-target-stack.sh", verifyTargetStack)
+  assertAgentVerificationContract(agentVerify, agentGuide)
 
   assertScreenshotContract("scripts/frontend-smoke.test.cjs", [
     "assertNonBlankImageBuffer",
@@ -123,6 +130,32 @@ function assertRetiredFragmentsAbsent(label, text) {
       text.includes(fragment),
       false,
       `${label} must not reference retired placeholder RPG fragment ${fragment}.`,
+    )
+  })
+}
+
+function assertAgentVerificationContract(scriptText, guideText) {
+  ;[
+    "focused_checks",
+    "add_ui_checks",
+    "AGENT_VERIFY_SMOKE",
+    "npm run check",
+  ].forEach((fragment) => {
+    assert.ok(
+      scriptText.includes(fragment),
+      `Expected scripts/agent-verify.sh to include ${fragment}.`,
+    )
+  })
+
+  ;[
+    "npm run agent:verify",
+    "npm run agent:verify:add-ui",
+    "npm run agent:verify:gate",
+    "Do not use the full target-stack gate as the default",
+  ].forEach((fragment) => {
+    assert.ok(
+      guideText.includes(fragment),
+      `Expected AGENTS.md to document ${fragment}.`,
     )
   })
 }
