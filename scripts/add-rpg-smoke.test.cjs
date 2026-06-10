@@ -2070,14 +2070,31 @@ async function interactWithMap(page, consoleErrors) {
       Array.isArray(state.discovery.selectedTile.unknownFacts) &&
       Number.isInteger(state.discovery.selectedTile.dungeonLinkCount) &&
       typeof state.discovery.selectedTile.usefulnessLevel === "string" &&
-      state.discovery.selectedTile.usefulnessReasons.length > 0,
+      state.discovery.selectedTile.usefulnessReasons.length > 0 &&
+      Array.isArray(state.discovery.tileChoices) &&
+      state.discovery.tileChoices.length > 0 &&
+      state.discovery.tileChoices.every(
+        (choice) =>
+          typeof choice.actionLabel === "string" &&
+          choice.actionLabel.length > 0 &&
+          typeof choice.actionHint === "string" &&
+          choice.actionHint.length > 0,
+      ),
     consoleErrors,
   )
+  await openDetailsSection(page, "#tile-choices-section")
+  const tileChoicesText = await page.locator("#tile-choices-section").innerText()
+  assert.match(
+    tileChoicesText,
+    /Review selected|Compare route|Review entrance|Assess scout|Use selected route/i,
+    "Nearby tile choices should expose a player-facing action label.",
+  )
+  await page.locator(".discovery-tile-choice").first().click()
   await openDetailsSection(page, "#selected-tile-section")
   assert.match(
     await page.locator("#selected-tile-decision").innerText(),
-    /Travel|Toxicity|Known|Unknown|Links|No known submap/,
-    "Selected tile card should explain travel, risk, facts, and optional submap links.",
+    /Travel|Toxicity|Known|Unknown|Links|Usefulness|Why it matters/,
+    "Selected tile card should explain travel, risk, facts, usefulness, and optional submap links.",
   )
   await assertNonBlankNamedAppScreenshot(
     page,

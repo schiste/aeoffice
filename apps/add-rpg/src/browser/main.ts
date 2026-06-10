@@ -65,6 +65,7 @@ import type { GameInteraction, GameWorld } from "@aedventure/game-world"
 import type { VisibilityMap } from "@aedventure/game-visibility"
 import {
   AddRpgPhaserMapHost,
+  type AddCharacterMoveDirection,
   type AddCharacterTravelEvent,
   type AddPhaserMapInfo,
 } from "./phaser-add-map"
@@ -2646,13 +2647,24 @@ function discoveryTileRows(): readonly unknown[] {
   }
   return choices.map(
     (choice) => html`
-      <article class="discovery-tile" data-visibility=${choice.visibility}>
+      <button
+        id=${`discovery-choice-${safeElementId(choice.id)}`}
+        type="button"
+        class="discovery-tile discovery-tile-choice"
+        data-visibility=${choice.visibility}
+        data-state=${choice.decisionState}
+        onClick=${() => selectDiscoveryChoice(choice.cell)}
+        title=${choice.actionHint}
+      >
         <span>
           ${choice.label}
           <small>${choice.copy}</small>
         </span>
-        <strong>${choice.dungeonCount > 0 ? `${choice.dungeonCount} link` : titleCase(choice.risk.replaceAll("_", " "))}</strong>
-      </article>
+        <strong>
+          ${choice.actionLabel}
+          <small>${choice.dungeonCount > 0 ? `${choice.dungeonCount} link` : titleCase(choice.risk.replaceAll("_", " "))}</small>
+        </strong>
+      </button>
     `,
   )
 }
@@ -2675,21 +2687,24 @@ function discoverySelectedTileSection(): unknown {
 
 function discoverySelectedTileCard(): unknown {
   const detail = discoveryState()?.tileDetail
+  const decision = discoveryState()?.selectedTile
   if (!detail) return null
   return html`
     <article
       id="selected-tile-decision"
       class="discovery-selected-tile"
-      data-usefulness=${() => discoveryState()?.selectedTile?.usefulness.level ?? "low"}
+      data-usefulness=${() => decision?.usefulness.level ?? "low"}
       data-visibility=${detail.visibility}
+      data-risk=${detail.travel.risk}
     >
       <header>
         <span>
           Selected tile
           <strong>${detail.label}</strong>
         </span>
-        <small>${detail.hasSubmap ? "Submap" : "No submap"}</small>
+        <small>${selectedTileStatusLabel(detail)}</small>
       </header>
+      <p class="selected-tile-summary">${decision?.travel.copy ?? detail.travel.copy}</p>
       <div class="selected-tile-actions">
         ${() => selectedTileActionRows(detail)}
       </div>
@@ -2712,6 +2727,15 @@ function discoverySelectedTileCard(): unknown {
           <strong>${detail.links.length}</strong>
           <small>${detail.hasSubmap ? "Optional detail map available here" : "No known submap on this tile"}</small>
         </span>
+        <span>
+          Usefulness
+          <strong>${titleCase((decision?.usefulness.level ?? "low").replaceAll("_", " "))}</strong>
+          <small>${selectedTileUsefulnessSummary(decision?.usefulness.reasons ?? [])}</small>
+        </span>
+      </div>
+      <div class="selected-tile-usefulness">
+        <small>Why it matters</small>
+        ${selectedTileUsefulnessRows(decision?.usefulness.reasons ?? [])}
       </div>
       <div class="selected-tile-facts">
         <div>
@@ -2727,6 +2751,23 @@ function discoverySelectedTileCard(): unknown {
       </div>
     </article>
   `
+}
+
+function selectedTileStatusLabel(detail: AddTileDetailSummary): string {
+  if (detail.visibility === "hidden") return "Unknown region"
+  if (detail.hasSubmap) return "Submap link"
+  if (detail.travel.standingHere) return "Current tile"
+  if (detail.travel.canTravelNow) return "Adjacent route"
+  return "Known region"
+}
+
+function selectedTileUsefulnessSummary(reasons: readonly string[]): string {
+  return reasons[0] ?? "Useful for map knowledge and future routing."
+}
+
+function selectedTileUsefulnessRows(reasons: readonly string[]): readonly unknown[] {
+  const rows = reasons.length > 0 ? reasons : ["Useful for map knowledge and future routing."]
+  return rows.map((reason) => html`<span>${reason}</span>`)
 }
 
 function selectedTileLinkRows(detail: AddTileDetailSummary): readonly unknown[] {
@@ -2747,33 +2788,126 @@ function selectedTileLinkRows(detail: AddTileDetailSummary): readonly unknown[] 
 }
 
 function selectedTileActionRows(detail: AddTileDetailSummary): readonly unknown[] {
-  return [...detail.actions].sort(compareTileActionPriority).map((action) => {
+  const actions = [...detail.actions].filter(tileActionShouldRender).sort(compareTileActionPriority)
+  if (actions.length === 0) {
+    return [
+      html`<span class="selected-tile-action-note">No useful action is available from this tile yet.</span>`,
+    ]
+  }
+  return actions.map((action) => {
     const opensSubmap = action.kind === "enter_submap" || action.kind === "manage_base"
     const targetLink = action.linkId
       ? detail.links.find((link) => link.id === action.linkId)
       : null
-    return opensSubmap
-      ? html`
-          <button
-            id=${`tile-detail-action-${safeElementId(action.id)}`}
-            data-action-id=${action.id}
-            data-target-map-mode=${targetLink?.targetMapMode ?? ""}
-            data-target-map-id=${targetLink?.targetMapId ?? ""}
-            type="button"
-            class="primary-action"
-            onClick=${(event: Event) => runCurrentTileDetailAction(event)}
-            disabled=${() => !action.enabled}
-            title=${action.blockedReason ?? action.label}
-          >
-            ${action.label}
-          </button>
-        `
-      : html`
-          <span class="selected-tile-action-note" title=${action.blockedReason ?? action.label}>
-            ${action.label}
-          </span>
-        `
+    if (opensSubmap) {
+      return html`
+        <button
+          id=${`tile-detail-action-${safeElementId(action.id)}`}
+          data-action-id=${action.id}
+          data-target-map-mode=${targetLink?.targetMapMode ?? ""}
+          data-target-map-id=${targetLink?.targetMapId ?? ""}
+          type="button"
+          class="primary-action"
+          onClick=${(event: Event) => runCurrentTileDetailAction(event)}
+          disabled=${() => !action.enabled}
+          title=${action.blockedReason ?? action.label}
+        >
+          ${action.label}
+        </button>
+      `
+    }
+    if (action.kind === "travel" && action.enabled) {
+      return html`
+        <button
+          id=${`tile-detail-action-${safeElementId(action.id)}`}
+          data-action-id=${action.id}
+          type="button"
+          class="secondary-action selected-tile-travel-action"
+          onClick=${(event: Event) => runCurrentTileDetailAction(event)}
+          title=${action.blockedReason ?? action.label}
+        >
+          ${action.label}
+        </button>
+      `
+    }
+    return html`
+      <span class="selected-tile-action-note" title=${action.blockedReason ?? action.label}>
+        <strong>${action.label}</strong>
+        <small>${action.blockedReason ?? "Use the map to make this choice."}</small>
+      </span>
+    `
   })
+}
+
+function tileActionShouldRender(action: AddTileAction): boolean {
+  if (action.enabled) return true
+  if (action.kind === "travel") return true
+  if (action.kind === "enter_submap" || action.kind === "manage_base") return action.linkId !== null
+  return false
+}
+
+function selectDiscoveryChoice(cell: string): void {
+  const selected = mapHost?.selectCell(cell) ?? false
+  if (selected) refreshMapInfo()
+  openContextDetailSection("selected-tile-section")
+}
+
+function openContextDetailSection(id: string): void {
+  const section = document.getElementById(id)
+  if (section instanceof HTMLDetailsElement) {
+    section.open = true
+    window.requestAnimationFrame(() => {
+      section.scrollIntoView({ block: "nearest", behavior: "smooth" })
+    })
+  }
+}
+
+async function runSelectedTileTravelAction(detail: AddTileDetailSummary): Promise<void> {
+  if (!detail.travel.canTravelNow || detail.travel.standingHere) return
+  const direction = directionBetweenAddCells(mapInfo().character.cell, detail.cell)
+  if (!direction) return
+  await mapHost?.moveMainCharacter(direction)
+  refreshMapInfo()
+}
+
+function directionBetweenAddCells(
+  fromCell: string | null,
+  toCell: string | null,
+): AddCharacterMoveDirection | null {
+  const from = parseAddDisplayCell(fromCell)
+  const to = parseAddDisplayCell(toCell)
+  if (!from || !to || from.kind !== to.kind) return null
+
+  const dx = to.a - from.a
+  const dy = to.b - from.b
+  if (from.kind === "square") {
+    if (dx === 0 && dy === -1) return "up"
+    if (dx === 1 && dy === 0) return "right"
+    if (dx === 0 && dy === 1) return "down"
+    if (dx === -1 && dy === 0) return "left"
+    return null
+  }
+
+  if (dx === 0 && dy === -1) return "north_west"
+  if (dx === 1 && dy === -1) return "north_east"
+  if (dx === 1 && dy === 0) return "right"
+  if (dx === 0 && dy === 1) return "south_east"
+  if (dx === -1 && dy === 1) return "south_west"
+  if (dx === -1 && dy === 0) return "left"
+  return null
+}
+
+function parseAddDisplayCell(
+  cell: string | null,
+): { readonly kind: "hex" | "square"; readonly a: number; readonly b: number } | null {
+  if (!cell) return null
+  const match = /^(hex|square):(-?\d+),(-?\d+)$/.exec(cell)
+  if (!match) return null
+  return {
+    kind: match[1] as "hex" | "square",
+    a: Number(match[2]),
+    b: Number(match[3]),
+  }
 }
 
 function compareTileActionPriority(left: AddTileAction, right: AddTileAction): number {
@@ -3778,6 +3912,10 @@ function runCurrentTileDetailAction(event: Event): void {
 }
 
 function runTileDetailAction(detail: AddTileDetailSummary, action: AddTileAction): void {
+  if (action.kind === "travel") {
+    void runSelectedTileTravelAction(detail)
+    return
+  }
   if (!action.enabled || !action.linkId) return
   const link = detail.links.find((candidate) => candidate.id === action.linkId)
   if (!link?.targetMapMode) return

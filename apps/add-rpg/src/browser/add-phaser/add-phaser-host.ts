@@ -57,6 +57,10 @@ export class AddRpgPhaserMapHost {
     return this.scene.moveMainCharacter(direction)
   }
 
+  selectCell(cell: string): boolean {
+    return this.scene.selectCell(cell)
+  }
+
   setTravelLocked(locked: boolean): void {
     this.scene.setTravelLocked(locked)
   }

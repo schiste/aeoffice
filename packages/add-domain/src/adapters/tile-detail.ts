@@ -131,7 +131,12 @@ function tileFactsSummary(tile: AddTileInteractionDetail): AddTileFactsSummary {
   if (tile.visibility === "hidden") {
     return {
       known: [],
-      unknown: ["Exact terrain", "current danger", "interior links", "resource value"],
+      unknown: [
+        "Terrain after scouting",
+        "current toxicity after arrival",
+        "dungeon or submap links",
+        "resource value and usefulness",
+      ],
     }
   }
 
@@ -232,7 +237,7 @@ function tileActions(input: {
       blockedReason: input.travel.canTravelNow
         ? null
         : input.travel.adjacent
-          ? "Reveal the region before committing to exact travel details."
+          ? "Use the map movement controls to spend the scouting hour; precise details appear on arrival."
           : "Select an adjacent region or move closer first.",
       linkId: null,
     })
@@ -276,7 +281,7 @@ function travelCopy(
     return "The Hero is already here; use local links or choose the next adjacent region."
   }
   if (tile.visibility === "hidden") {
-    return "A blind scouting step: the destination becomes reliable only as the Hero reveals it."
+    return "Blind scout: spending the hour reveals reliable terrain, toxicity, links, and value only after arrival."
   }
   if (canTravelNow) {
     return "Adjacent destination: crossing consumes one in-game hour."

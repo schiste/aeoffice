@@ -2765,3 +2765,15 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   `npm run smoke:add-rpg:built`; full `npm run smoke:add-rpg` is currently
   blocked before UI smoke by unrelated dirty storylet/content-generation work
   around `Condition::RecruitedAny` and generated `StoryBeatDef` fields.
+- Interface Phase 6 discovery decision UX is implemented. Nearby revealed
+  choices are now real selectable rows with action labels and hints, and the
+  selected tile card explains travel time, toxicity, known facts, unknown
+  facts, dungeon/submap links, and usefulness reasons. Enabled adjacent travel
+  CTAs route through the existing Phaser `moveMainCharacter` path so the
+  one-hour clock, warning dialog, reveal halo, and runtime snapshot remain the
+  single source of movement truth. Unavailable actions are hidden unless their
+  blocked reason is useful to the scouting decision. Verification passed with
+  `npm --workspace @aedventure/add-domain run build`,
+  `npm --workspace @aedventure/add-rpg exec vite -- build --config
+  vite.config.mjs`, `npm run agent:verify:add-ui`, and
+  `npm run smoke:add-rpg:built`.

@@ -742,6 +742,18 @@ h1 {
   background: rgb(255 244 201 / 7%);
 }
 
+.discovery-tile-choice {
+  width: 100%;
+  min-height: 0;
+  border-color: rgb(255 244 201 / 12%);
+  text-align: left;
+  box-shadow: none;
+}
+
+.discovery-tile-choice:hover:not(:disabled) {
+  background: rgb(255 244 201 / 12%);
+}
+
 .context-detail-section {
   border: 1px solid rgb(255 244 201 / 10%);
   border-radius: 8px;
@@ -862,7 +874,7 @@ h1 {
 
 .selected-tile-metrics {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 6px;
 }
 
@@ -926,6 +938,34 @@ h1 {
   margin: 0;
 }
 
+.selected-tile-summary {
+  border-radius: 7px;
+  padding: 0.5rem 0.56rem;
+  background: rgb(95 209 216 / 9%);
+}
+
+.selected-tile-usefulness {
+  display: grid;
+  gap: 0.24rem;
+  border-radius: 7px;
+  padding: 0.52rem 0.56rem;
+  background: rgb(240 185 93 / 9%);
+}
+
+.selected-tile-usefulness small {
+  color: rgb(247 238 210 / 52%);
+  font-size: 0.6rem;
+  font-weight: 920;
+  text-transform: uppercase;
+}
+
+.selected-tile-usefulness span {
+  color: rgb(247 238 210 / 76%);
+  font-size: 0.66rem;
+  font-weight: 760;
+  line-height: 1.24;
+}
+
 .selected-tile-links,
 .selected-tile-actions {
   position: relative;
@@ -938,6 +978,19 @@ h1 {
   position: relative;
   z-index: 3;
   pointer-events: auto;
+}
+
+.selected-tile-travel-action,
+.secondary-action {
+  width: 100%;
+  min-height: 2.4rem;
+  border-color: rgb(95 209 216 / 34%);
+  background: rgb(95 209 216 / 14%);
+  color: #c9fff9;
+}
+
+.secondary-action:hover:not(:disabled) {
+  background: rgb(95 209 216 / 22%);
 }
 
 .selected-tile-link {
@@ -980,6 +1033,22 @@ h1 {
   border-radius: 7px;
   padding: 0.5rem 0.56rem;
   background: rgb(11 17 16 / 24%);
+}
+
+.selected-tile-action-note strong,
+.selected-tile-action-note small {
+  display: block;
+}
+
+.selected-tile-action-note strong {
+  color: #fff2bd;
+  font-size: 0.66rem;
+  font-weight: 880;
+}
+
+.selected-tile-action-note small {
+  margin-top: 0.12rem;
+  color: rgb(247 238 210 / 56%);
 }
 
 .base-management-panel {

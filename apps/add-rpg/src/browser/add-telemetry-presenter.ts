@@ -432,6 +432,18 @@ export interface RuntimeTextState {
       readonly futureAuthority: string
     }
     readonly tileChoiceCount: number
+    readonly tileChoices: readonly {
+      readonly id: string
+      readonly label: string
+      readonly cell: string
+      readonly visibility: string
+      readonly risk: string
+      readonly adjacent: boolean
+      readonly dungeonCount: number
+      readonly actionLabel: string
+      readonly actionHint: string
+      readonly decisionState: string
+    }[]
     readonly selectedTile: {
       readonly cell: string
       readonly label: string
@@ -943,6 +955,18 @@ export function createAddRuntimeTextState(
             futureAuthority: input.discovery.movementConsequences.futureAuthority,
           },
           tileChoiceCount: input.discovery.tileChoices.length,
+          tileChoices: input.discovery.tileChoices.map((choice) => ({
+            id: choice.id,
+            label: choice.label,
+            cell: choice.cell,
+            visibility: choice.visibility,
+            risk: choice.risk,
+            adjacent: choice.adjacent,
+            dungeonCount: choice.dungeonCount,
+            actionLabel: choice.actionLabel,
+            actionHint: choice.actionHint,
+            decisionState: choice.decisionState,
+          })),
           selectedTile: input.discovery.selectedTile
             ? {
                 cell: input.discovery.selectedTile.cell,

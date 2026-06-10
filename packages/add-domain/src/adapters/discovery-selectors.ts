@@ -140,6 +140,9 @@ export interface AddDiscoveryTileChoice {
   readonly adjacent: boolean
   readonly dungeonCount: number
   readonly copy: string
+  readonly actionLabel: string
+  readonly actionHint: string
+  readonly decisionState: "arrival" | "hidden" | "known" | "linked" | "selected"
 }
 
 export type AddDiscoveryTileUsefulnessLevel = "high" | "medium" | "low" | "unknown"
@@ -297,11 +300,11 @@ function nextActionFor(options: {
     if (selectedTile.visibility === "hidden") {
       return {
         label: "Scout the unknown edge",
-        detail: "This region is intentionally vague: exact terrain, danger, and entrances stay hidden until the Hero reveals it.",
+        detail: "This region is intentionally vague: spend the crossing only if expanding the map is worth losing an hour.",
         kind: "inspect",
         enabled: true,
         actionId: null,
-        inputHint: "Move one step at a time from a known neighbor.",
+        inputHint: "Use arrows, tap the edge tile, or choose another known neighbor first.",
       }
     }
     return {
@@ -556,9 +559,9 @@ function detailFor(
     return "Use the current available action to convert revealed information into resources, reach, construction, or recruitment."
   }
   if (input.previewTile?.visibility === "hidden") {
-    return "Unknown regions are deliberate blind edges: you can plan around them, but exact terrain, danger, and entrances stay hidden until revealed."
+    return "Unknown regions are deliberate blind edges: decide whether spending an hour to reveal terrain, danger, and entrances is worth it."
   }
-  return "Select or hover a nearby revealed tile to compare travel risk, static facts, and possible links."
+  return "Select or hover a nearby revealed tile to compare travel time, toxicity, known facts, unknowns, and possible links."
 }
 
 function movementSummaryFor(input: AddDiscoverySelectorInput): AddDiscoveryMovementSummary {
@@ -617,6 +620,9 @@ function tileChoicesFor(input: AddDiscoverySelectorInput): readonly AddDiscovery
       adjacent: false,
       dungeonCount: 0,
       copy: "Arrival tile: use the newly revealed surroundings to choose the next step.",
+      actionLabel: "Review arrival",
+      actionHint: "Open the selected tile details.",
+      decisionState: "arrival",
     })
   }
   return choices.slice(0, 2)
@@ -629,6 +635,7 @@ function addTileChoice(
   adjacent: boolean,
 ): void {
   if (!tile) return
+  const choiceAction = tileChoiceAction(tile, id, adjacent)
   choices.push({
     id,
     label: tile.label,
@@ -640,11 +647,57 @@ function addTileChoice(
     dungeonCount: tile.dungeonLinks.length,
     copy:
       tile.visibility === "hidden"
-        ? "Unknown edge: useful for scouting, but the region will not promise terrain, danger, or entrances yet."
+        ? "Unknown region: scouting spends one hour to reveal terrain, current danger, entrances, and value."
         : tile.dungeonLinks.length > 0
           ? "Known link: this tile can open a deeper area."
           : tile.travelCopy,
+    actionLabel: choiceAction.label,
+    actionHint: choiceAction.hint,
+    decisionState: choiceAction.state,
   })
+}
+
+function tileChoiceAction(
+  tile: AddTileInteractionDetail,
+  id: string,
+  adjacent: boolean,
+): {
+  readonly label: string
+  readonly hint: string
+  readonly state: AddDiscoveryTileChoice["decisionState"]
+} {
+  if (id === "selected") {
+    return {
+      label: adjacent ? "Use selected route" : "Review selected",
+      hint: adjacent
+        ? "Open the selected tile card to compare crossing cost and risk."
+        : "Open the selected tile card for known and unknown facts.",
+      state: "selected",
+    }
+  }
+  if (tile.visibility === "hidden") {
+    return {
+      label: adjacent ? "Assess scout" : "Mark unknown",
+      hint: adjacent
+        ? "Review what the one-hour blind crossing can reveal."
+        : "Keep this edge in mind until the Hero reaches a neighboring tile.",
+      state: "hidden",
+    }
+  }
+  if (tile.dungeonLinks.length > 0) {
+    return {
+      label: "Review entrance",
+      hint: "Pin this tile and inspect the available submap links.",
+      state: "linked",
+    }
+  }
+  return {
+    label: adjacent ? "Compare route" : "Review facts",
+    hint: adjacent
+      ? "Pin this tile and compare crossing cost, toxicity, and usefulness."
+      : "Pin this tile and inspect known facts.",
+    state: "known",
+  }
 }
 
 function dungeonEntryFor(input: AddDiscoverySelectorInput): AddDiscoveryDungeonEntry | null {
@@ -740,7 +793,7 @@ function knownFactRows(tile: AddTileInteractionDetail): readonly string[] {
 
 function unknownFactRows(tile: AddTileInteractionDetail): readonly string[] {
   if (tile.visibility === "hidden") {
-    return ["Exact terrain", "current danger", "entrance links", "resource value"]
+    return ["Terrain after scouting", "current toxicity after arrival", "dungeon or submap links", "resource value and usefulness"]
   }
   if (tile.knownInfoLevel === "known_static") {
     return ["Current toxicity", "active threats", "fresh resource state"]
@@ -760,7 +813,7 @@ function travelDecisionCopy(
     return "The Hero is already here; use local links or choose the next adjacent region."
   }
   if (tile.visibility === "hidden") {
-    return "A blind scouting step: the destination becomes reliable only as the Hero reveals it."
+    return "Blind scout: spending the hour reveals reliable terrain, risk, links, and value only after arrival."
   }
   if (canTravelNow) {
     return "Adjacent destination: crossing consumes one in-game hour."
@@ -775,7 +828,7 @@ function dungeonDecisionCopy(
   tile: AddTileInteractionDetail,
   heroLinks: readonly AddDungeonLinkInfo[],
 ): string {
-  if (tile.visibility === "hidden") return "Dungeon links are hidden until discovery."
+  if (tile.visibility === "hidden") return "Submap and dungeon links are deliberately hidden until this region is discovered."
   if (tile.dungeonLinks.length === 0) return "No dungeon entrance is known on this tile."
   const enterable = tile.dungeonLinks.some((tileLink) =>
     heroLinks.some((heroLink) => heroLink.enabled && heroLink.id === tileLink.id),
@@ -790,7 +843,7 @@ function usefulnessReasonsFor(
   tile: AddTileInteractionDetail,
 ): readonly string[] {
   if (tile.visibility === "hidden") {
-    return ["Unknown edge: choose it only when you want to spend time turning uncertainty into map knowledge."]
+    return ["High-uncertainty scout: useful when expanding the map is worth a full hour of exposure."]
   }
 
   const firstPlayable = selectAddFirstPlayableSummary(input.snapshot, input.catalog)

@@ -406,6 +406,19 @@ export class AddRpgHexScene extends Phaser.Scene {
     return true
   }
 
+  selectCell(cell: string): boolean {
+    if (!this.context) return false
+    const selectedCell = this.context.terrainCells.find(
+      (candidate) => displayAddCell(candidate.coord) === cell,
+    )
+    if (!selectedCell) return false
+    this.selectedCoord = selectedCell.coord
+    this.hoveredCoord = null
+    this.drawOverlay()
+    this.refreshInfo()
+    return true
+  }
+
   setTravelLocked(locked: boolean): void {
     this.travelRuntimeLocked = locked
     this.refreshInfo()
