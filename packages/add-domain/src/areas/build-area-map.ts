@@ -23,12 +23,20 @@ export interface AreaDefinition {
   readonly id: string
   readonly mapId: string
   readonly label: string
-  /** Hex disk radius (the honeycomb size). */
+  /** Hex disk radius in CELLS (the honeycomb's ring count). */
   readonly radius: number
+  /** On-screen size of each hex in pixels. Note: the renderer reads
+   * `topology.radius` as the per-cell pixel radius (see visualCellRadius), so
+   * this must be a screen size, not the ring count. Defaults to a readable size. */
+  readonly cellPixelRadius?: number
   /** Where the Hero spawns on entry. */
   readonly entryCoord: { readonly q: number; readonly r: number }
   readonly cells?: readonly AreaCellSpec[]
 }
+
+// A local area is small (a few rings), so its hexes should read large. The camera
+// fit then frames the disk to the viewport.
+const DEFAULT_AREA_CELL_PIXEL_RADIUS = 48
 
 function hexDisk(radius: number): { q: number; r: number }[] {
   const coords: { q: number; r: number }[] = []
@@ -93,7 +101,13 @@ export function buildAreaMap(def: AreaDefinition): GameMap {
   return {
     id: def.mapId,
     label: def.label,
-    topology: { kind: "hex", radius: def.radius, bounds },
+    // topology.radius is the per-hex PIXEL radius (visualCellRadius), not the ring
+    // count — the grid extent lives in `bounds`.
+    topology: {
+      kind: "hex",
+      radius: def.cellPixelRadius ?? DEFAULT_AREA_CELL_PIXEL_RADIUS,
+      bounds,
+    },
     layers: [
       { id: `${def.mapId}.terrain`, kind: "terrain", label: "Terrain", zIndex: 0, cells },
       { id: `${def.mapId}.landmarks`, kind: "objects", label: "Landmarks", zIndex: 30, cells: [] },
