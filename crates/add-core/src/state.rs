@@ -29,6 +29,8 @@ pub struct GameState {
     pub narrative: NarrativeState,
     pub crystal_circle: CrystalCircleState,
     pub processing: ProcessingState,
+    #[serde(default)]
+    pub expeditions: ExpeditionState,
     pub base: BaseState,
     pub power: PowerState,
     pub stations: BTreeMap<String, StationState>,
@@ -74,7 +76,7 @@ impl GameState {
     pub fn new() -> Self {
         let balance = balance_snapshot();
         Self {
-            schema_version: 13,
+            schema_version: 14,
             clock_seconds: 0.0,
             resources: ResourcePools {
                 bassline: 0.0,
@@ -121,6 +123,7 @@ impl GameState {
                 removing_moss_completed: false,
             },
             processing: ProcessingState::new(),
+            expeditions: ExpeditionState::new(),
             base: BaseState::new(),
             power: PowerState::new(),
             stations: initial_station_states(),
@@ -415,6 +418,71 @@ pub struct ProcessingState {
     pub research_chorus_routing_level: u8,
     pub research_harmonic_study_level: u8,
     pub active_jobs: BTreeMap<String, ProcessingJob>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ExpeditionState {
+    pub active_jobs: Vec<ExpeditionJob>,
+    pub completed_reports: Vec<ExpeditionReport>,
+    pub next_job_id: u32,
+    pub total_wounds: u16,
+    pub total_clues: u16,
+    pub total_dungeon_leads: u16,
+}
+
+impl ExpeditionState {
+    pub fn new() -> Self {
+        Self {
+            active_jobs: Vec::new(),
+            completed_reports: Vec::new(),
+            next_job_id: 1,
+            total_wounds: 0,
+            total_clues: 0,
+            total_dungeon_leads: 0,
+        }
+    }
+}
+
+impl Default for ExpeditionState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ExpeditionJob {
+    pub id: u32,
+    pub target_id: String,
+    pub assigned_crew: u16,
+    pub duration_seconds: f64,
+    pub remaining_seconds: f64,
+    pub risk: ExpeditionRiskState,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ExpeditionReport {
+    pub id: u32,
+    pub target_id: String,
+    pub assigned_crew: u16,
+    pub duration_seconds: f64,
+    pub risk: ExpeditionRiskState,
+    pub stone_gained: f64,
+    pub water_gained: f64,
+    pub vibes_gained: f64,
+    pub wounds: u16,
+    pub clues: u16,
+    pub dungeon_leads: u16,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum ExpeditionRiskState {
+    Low,
+    Medium,
+    High,
 }
 
 impl ProcessingState {

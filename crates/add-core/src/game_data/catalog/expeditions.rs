@@ -1,0 +1,75 @@
+use crate::game_data::{
+    ExpeditionRewardDef, ExpeditionRiskDef, ExpeditionSupportDef, ExpeditionTargetDef,
+};
+
+pub(crate) const EXPEDITION_TARGETS: &[ExpeditionTargetDef] = &[
+    ExpeditionTargetDef {
+        id: "expedition.local_scavenge_sweep",
+        schema_id: "schema.expedition.local_scavenge_sweep",
+        label: "Local Scavenge Sweep",
+        duration_seconds: 120.0,
+        required_crew: 1,
+        required_bubble_reach: 0,
+        support: ExpeditionSupportDef {
+            requires_studio_restored: false,
+            requires_fire_pit: false,
+        },
+        risk: ExpeditionRiskDef::Low,
+        expected_loot: ExpeditionRewardDef {
+            stone: 120.0,
+            water: 1.0,
+            vibes: 0.0,
+            wounds: 0,
+            clues: 0,
+            dungeon_leads: 0,
+        },
+        ui_order: 10,
+        player_hint: "Send one free crew member to sweep the near edge of the safe route for useful material.",
+    },
+    ExpeditionTargetDef {
+        id: "expedition.survivor_cave_watch",
+        schema_id: "schema.expedition.survivor_cave_watch",
+        label: "Survivor Cave Watch",
+        duration_seconds: 240.0,
+        required_crew: 1,
+        required_bubble_reach: 3,
+        support: ExpeditionSupportDef {
+            requires_studio_restored: true,
+            requires_fire_pit: true,
+        },
+        risk: ExpeditionRiskDef::Medium,
+        expected_loot: ExpeditionRewardDef {
+            stone: 60.0,
+            water: 0.0,
+            vibes: 10.0,
+            wounds: 0,
+            clues: 1,
+            dungeon_leads: 1,
+        },
+        ui_order: 20,
+        player_hint: "Post a small team by the cave route to trade news, read movement, and bring back leads.",
+    },
+    ExpeditionTargetDef {
+        id: "expedition.far_ruins_probe",
+        schema_id: "schema.expedition.far_ruins_probe",
+        label: "Far Ruins Probe",
+        duration_seconds: 600.0,
+        required_crew: 2,
+        required_bubble_reach: 4,
+        support: ExpeditionSupportDef {
+            requires_studio_restored: true,
+            requires_fire_pit: true,
+        },
+        risk: ExpeditionRiskDef::High,
+        expected_loot: ExpeditionRewardDef {
+            stone: 320.0,
+            water: 2.0,
+            vibes: 0.0,
+            wounds: 1,
+            clues: 2,
+            dungeon_leads: 1,
+        },
+        ui_order: 30,
+        player_hint: "Push a larger team past the close bubble lanes for stronger material returns and dangerous clues.",
+    },
+];

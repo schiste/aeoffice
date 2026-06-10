@@ -67,6 +67,14 @@ export class SimulationClient {
     this.post({ type: 'startProcessing', recipeId })
   }
 
+  startExpedition(targetId: string, assignedCrew: number) {
+    this.post({ type: 'startExpedition', targetId, assignedCrew })
+  }
+
+  clearExpeditionReports() {
+    this.post({ type: 'clearExpeditionReports' })
+  }
+
   recruitFromSurvivorCave() {
     this.post({ type: 'recruitFromSurvivorCave' })
   }

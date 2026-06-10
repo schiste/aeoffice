@@ -558,6 +558,155 @@
         }
       ],
       "uiOrder": 100
+    },
+    {
+      "id": "project.expand_bunks",
+      "schemaId": "project.expand_bunks",
+      "label": "Expand Bunks",
+      "group": "base_project",
+      "cost": {
+        "kind": "upfront_bundle",
+        "costs": [
+          {
+            "itemId": "resource.stone",
+            "amount": 180.0
+          },
+          {
+            "itemId": "resource.water",
+            "amount": 1.0
+          }
+        ]
+      },
+      "duration": {
+        "kind": "fixed",
+        "seconds": 8.0
+      },
+      "requirements": [
+        {
+          "flag_set": "base.studio_restored"
+        }
+      ],
+      "effects": [
+        {
+          "kind": "add_bunks",
+          "amount": 5
+        }
+      ],
+      "uiOrder": 110
+    },
+    {
+      "id": "project.safe_water_systems",
+      "schemaId": "project.safe_water_systems",
+      "label": "Safer Water Systems",
+      "group": "base_project",
+      "cost": {
+        "kind": "upfront_bundle",
+        "costs": [
+          {
+            "itemId": "resource.stone",
+            "amount": 160.0
+          },
+          {
+            "itemId": "resource.water",
+            "amount": 3.0
+          }
+        ]
+      },
+      "duration": {
+        "kind": "fixed",
+        "seconds": 10.0
+      },
+      "requirements": [
+        {
+          "flag_set": "base.water_collection_unlocked"
+        },
+        {
+          "flag_set": "base.workshop_built"
+        }
+      ],
+      "effects": [
+        {
+          "kind": "increment_processing_track",
+          "track": "workshop_water_condensers",
+          "amount": 1
+        }
+      ],
+      "uiOrder": 120
+    },
+    {
+      "id": "project.expedition_staging",
+      "schemaId": "project.expedition_staging",
+      "label": "Expedition Prep Structures",
+      "group": "base_project",
+      "cost": {
+        "kind": "upfront_bundle",
+        "costs": [
+          {
+            "itemId": "resource.stone",
+            "amount": 220.0
+          },
+          {
+            "itemId": "resource.water",
+            "amount": 2.0
+          }
+        ]
+      },
+      "duration": {
+        "kind": "fixed",
+        "seconds": 12.0
+      },
+      "requirements": [
+        {
+          "flag_set": "base.resonance_chamber_built"
+        },
+        {
+          "flag_set": "base.workshop_built"
+        }
+      ],
+      "effects": [
+        {
+          "kind": "increment_crystal_track",
+          "track": "field_polish",
+          "amount": 1
+        }
+      ],
+      "uiOrder": 130
+    },
+    {
+      "id": "project.prepare_loudspeakers",
+      "schemaId": "project.prepare_loudspeakers",
+      "label": "Relay and Loudspeaker Prep",
+      "group": "base_project",
+      "cost": {
+        "kind": "upfront_bundle",
+        "costs": [
+          {
+            "itemId": "resource.stone",
+            "amount": 240.0
+          },
+          {
+            "itemId": "resource.water",
+            "amount": 1.0
+          }
+        ]
+      },
+      "duration": {
+        "kind": "fixed",
+        "seconds": 12.0
+      },
+      "requirements": [
+        {
+          "flag_set": "base.research_booth_built"
+        }
+      ],
+      "effects": [
+        {
+          "kind": "increment_processing_track",
+          "track": "research_chorus_routing",
+          "amount": 1
+        }
+      ],
+      "uiOrder": 140
     }
   ],
   "processingRecipes": [
@@ -854,6 +1003,77 @@
         }
       ],
       "uiOrder": 20
+    }
+  ],
+  "expeditionTargets": [
+    {
+      "id": "expedition.local_scavenge_sweep",
+      "schemaId": "schema.expedition.local_scavenge_sweep",
+      "label": "Local Scavenge Sweep",
+      "durationSeconds": 120.0,
+      "requiredCrew": 1,
+      "requiredBubbleReach": 0,
+      "support": {
+        "requiresStudioRestored": false,
+        "requiresFirePit": false
+      },
+      "risk": "low",
+      "expectedLoot": {
+        "stone": 120.0,
+        "water": 1.0,
+        "vibes": 0.0,
+        "wounds": 0,
+        "clues": 0,
+        "dungeonLeads": 0
+      },
+      "uiOrder": 10,
+      "playerHint": "Send one free crew member to sweep the near edge of the safe route for useful material."
+    },
+    {
+      "id": "expedition.survivor_cave_watch",
+      "schemaId": "schema.expedition.survivor_cave_watch",
+      "label": "Survivor Cave Watch",
+      "durationSeconds": 240.0,
+      "requiredCrew": 1,
+      "requiredBubbleReach": 3,
+      "support": {
+        "requiresStudioRestored": true,
+        "requiresFirePit": true
+      },
+      "risk": "medium",
+      "expectedLoot": {
+        "stone": 60.0,
+        "water": 0.0,
+        "vibes": 10.0,
+        "wounds": 0,
+        "clues": 1,
+        "dungeonLeads": 1
+      },
+      "uiOrder": 20,
+      "playerHint": "Post a small team by the cave route to trade news, read movement, and bring back leads."
+    },
+    {
+      "id": "expedition.far_ruins_probe",
+      "schemaId": "schema.expedition.far_ruins_probe",
+      "label": "Far Ruins Probe",
+      "durationSeconds": 600.0,
+      "requiredCrew": 2,
+      "requiredBubbleReach": 4,
+      "support": {
+        "requiresStudioRestored": true,
+        "requiresFirePit": true
+      },
+      "risk": "high",
+      "expectedLoot": {
+        "stone": 320.0,
+        "water": 2.0,
+        "vibes": 0.0,
+        "wounds": 1,
+        "clues": 2,
+        "dungeonLeads": 1
+      },
+      "uiOrder": 30,
+      "playerHint": "Push a larger team past the close bubble lanes for stronger material returns and dangerous clues."
     }
   ],
   "storyBeats": [
@@ -3919,6 +4139,314 @@
           {
             "kind": "flag_set",
             "flag_id": "base.resonance_chamber_built"
+          }
+        ]
+      }
+    },
+    {
+      "id": "project.expand_bunks",
+      "entityKind": "construction_option",
+      "persistence": null,
+      "unlocks": [
+        {
+          "kind": "construction",
+          "label": "Adds bunk capacity for safer recruitment.",
+          "relatedIds": [
+            "base.studio_restored"
+          ]
+        }
+      ],
+      "blockers": [
+        {
+          "kind": "missing_requirement",
+          "label": "Restore the Studio first.",
+          "relatedIds": [
+            "base.studio_restored"
+          ]
+        },
+        {
+          "kind": "missing_resource",
+          "label": "Requires Stone and Water upfront.",
+          "relatedIds": [
+            "resource.stone",
+            "resource.water"
+          ]
+        }
+      ],
+      "accessRules": [
+        {
+          "kind": "base_only",
+          "label": "Base housing project.",
+          "relatedIds": [
+            "structure.base"
+          ]
+        }
+      ],
+      "power": null,
+      "flows": [
+        {
+          "itemId": "base.bunks_capacity",
+          "label": "Adds five bunks when complete.",
+          "direction": "capacity",
+          "cadence": "on_complete",
+          "relatedIds": [
+            "ui.action.recruit"
+          ]
+        }
+      ],
+      "modelRefs": [],
+      "notes": [],
+      "presentation": {
+        "shortLabel": "Expand Bunks",
+        "playerHint": "Add bunk capacity before recruitment turns into overcrowding pressure.",
+        "ctaCopy": "Expand Bunks",
+        "primaryRiskCopy": "Recruiting without bunks creates Bad Vibes and slows the whole base.",
+        "displayPriority": 655,
+        "reveal": "advanced"
+      },
+      "visibility": {
+        "allOf": [],
+        "anyOf": [
+          {
+            "kind": "flag_set",
+            "flag_id": "base.studio_restored"
+          }
+        ]
+      }
+    },
+    {
+      "id": "project.safe_water_systems",
+      "entityKind": "construction_option",
+      "persistence": null,
+      "unlocks": [
+        {
+          "kind": "construction",
+          "label": "Improves Water handling through Workshop condenser practice.",
+          "relatedIds": [
+            "base.workshop_built",
+            "base.water_collection_unlocked"
+          ]
+        }
+      ],
+      "blockers": [
+        {
+          "kind": "missing_requirement",
+          "label": "Requires the Workshop and Water collection.",
+          "relatedIds": [
+            "base.workshop_built",
+            "base.water_collection_unlocked"
+          ]
+        },
+        {
+          "kind": "missing_resource",
+          "label": "Requires Stone and Water upfront.",
+          "relatedIds": [
+            "resource.stone",
+            "resource.water"
+          ]
+        }
+      ],
+      "accessRules": [
+        {
+          "kind": "base_only",
+          "label": "Base support project.",
+          "relatedIds": [
+            "structure.base"
+          ]
+        }
+      ],
+      "power": null,
+      "flows": [
+        {
+          "itemId": "resource.water",
+          "label": "Improves safe Water capacity and regeneration through condenser level.",
+          "direction": "capacity",
+          "cadence": "on_complete",
+          "relatedIds": [
+            "recipe.workshop_water_condensers"
+          ]
+        }
+      ],
+      "modelRefs": [],
+      "notes": [],
+      "presentation": {
+        "shortLabel": "Safer Water Systems",
+        "playerHint": "Improve Water handling so advanced upgrades stop bottlenecking on scarcity.",
+        "ctaCopy": "Improve Water",
+        "primaryRiskCopy": "Weak Water systems make several upgrades look ready but stay blocked.",
+        "displayPriority": 654,
+        "reveal": "advanced"
+      },
+      "visibility": {
+        "allOf": [
+          {
+            "kind": "flag_set",
+            "flag_id": "base.water_collection_unlocked"
+          },
+          {
+            "kind": "flag_set",
+            "flag_id": "base.workshop_built"
+          }
+        ],
+        "anyOf": [
+          {
+            "kind": "always"
+          }
+        ]
+      }
+    },
+    {
+      "id": "project.expedition_staging",
+      "entityKind": "construction_option",
+      "persistence": null,
+      "unlocks": [
+        {
+          "kind": "construction",
+          "label": "Prepares field staging for safer expedition reach.",
+          "relatedIds": [
+            "base.resonance_chamber_built",
+            "base.workshop_built"
+          ]
+        }
+      ],
+      "blockers": [
+        {
+          "kind": "missing_requirement",
+          "label": "Requires Resonance Chamber and Workshop.",
+          "relatedIds": [
+            "base.resonance_chamber_built",
+            "base.workshop_built"
+          ]
+        },
+        {
+          "kind": "missing_resource",
+          "label": "Requires Stone and Water upfront.",
+          "relatedIds": [
+            "resource.stone",
+            "resource.water"
+          ]
+        }
+      ],
+      "accessRules": [
+        {
+          "kind": "base_only",
+          "label": "Base expedition project.",
+          "relatedIds": [
+            "structure.base"
+          ]
+        }
+      ],
+      "power": null,
+      "flows": [
+        {
+          "itemId": "construction.polish_field",
+          "label": "Improves field polish when complete.",
+          "direction": "unlock",
+          "cadence": "on_complete",
+          "relatedIds": [
+            "resource.bassline"
+          ]
+        }
+      ],
+      "modelRefs": [],
+      "notes": [],
+      "presentation": {
+        "shortLabel": "Expedition Prep",
+        "playerHint": "Prepare field staging for longer crew expeditions and better route support.",
+        "ctaCopy": "Prepare Expeditions",
+        "primaryRiskCopy": "Sending teams farther without staging makes expedition choices riskier later.",
+        "displayPriority": 653,
+        "reveal": "advanced"
+      },
+      "visibility": {
+        "allOf": [
+          {
+            "kind": "flag_set",
+            "flag_id": "base.resonance_chamber_built"
+          },
+          {
+            "kind": "flag_set",
+            "flag_id": "base.workshop_built"
+          }
+        ],
+        "anyOf": [
+          {
+            "kind": "always"
+          }
+        ]
+      }
+    },
+    {
+      "id": "project.prepare_loudspeakers",
+      "entityKind": "construction_option",
+      "persistence": null,
+      "unlocks": [
+        {
+          "kind": "construction",
+          "label": "Prepares Chorus relay routing for larger base operations.",
+          "relatedIds": [
+            "base.research_booth_built"
+          ]
+        }
+      ],
+      "blockers": [
+        {
+          "kind": "missing_requirement",
+          "label": "Requires the Research Booth.",
+          "relatedIds": [
+            "base.research_booth_built"
+          ]
+        },
+        {
+          "kind": "missing_resource",
+          "label": "Requires Stone and Water upfront.",
+          "relatedIds": [
+            "resource.stone",
+            "resource.water"
+          ]
+        }
+      ],
+      "accessRules": [
+        {
+          "kind": "base_only",
+          "label": "Base relay project.",
+          "relatedIds": [
+            "structure.base"
+          ]
+        }
+      ],
+      "power": null,
+      "flows": [
+        {
+          "itemId": "recipe.research_chorus_routing",
+          "label": "Improves Chorus routing when complete.",
+          "direction": "unlock",
+          "cadence": "on_complete",
+          "relatedIds": [
+            "station.research_booth"
+          ]
+        }
+      ],
+      "modelRefs": [],
+      "notes": [],
+      "presentation": {
+        "shortLabel": "Relay Prep",
+        "playerHint": "Prepare loudspeaker relays to make Chorus routing scale with the growing base.",
+        "ctaCopy": "Prepare Relays",
+        "primaryRiskCopy": "Poor relay prep leaves larger field operations harder to sustain.",
+        "displayPriority": 652,
+        "reveal": "advanced"
+      },
+      "visibility": {
+        "allOf": [
+          {
+            "kind": "flag_set",
+            "flag_id": "base.research_booth_built"
+          }
+        ],
+        "anyOf": [
+          {
+            "kind": "always"
           }
         ]
       }

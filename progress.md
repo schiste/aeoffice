@@ -134,6 +134,16 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   checks Social tab copy for Vibes/Bunks/Recruitment/support forecast, and
   captures `tmp/add-rpg-social-pressure-smoke.png`; the screenshot was inspected
   after the focused two-column layout pass.
+- Phase 8 idle expeditions are implemented end to end. The Rust/WASM runtime now
+  owns expedition targets, active jobs, completion reports, free-crew validation,
+  saved state, offline progression, and deterministic material/wound/clue/lead
+  returns. The Base panel has an Expeditions tab with target cards, active jobs,
+  returned reports, and report clearing.
+- `render_game_to_text` exposes expedition targets/jobs/reports/totals, the
+  offline return summary treats expedition returns as completed jobs, and
+  `npm run smoke:add-rpg` verifies starting and completing the Local Scavenge
+  Sweep through the real browser. The `tmp/add-rpg-expeditions-smoke.png`
+  screenshot was inspected and shows the returned report in the first viewport.
 - ADD Phaser fog rendering now uses a visual-only graphics layer above terrain
   and below landmarks. Hidden cells draw as dark silhouettes, discovered/stale
   cells get a muted overlay, visible cells render normally, and hidden-to-known

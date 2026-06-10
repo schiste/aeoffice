@@ -1070,7 +1070,7 @@ function baseManagementPanel(): unknown {
   const state = baseManagementState()
   if (!state) return null
   const section = activeBaseManagementSection(state)
-  const focusedSystemTab = () => ["build", "power", "social", "processing"].includes(baseManagementTab())
+  const focusedSystemTab = () => ["build", "power", "social", "expeditions", "processing"].includes(baseManagementTab())
   return html`
     <section
       id="base-management-panel"
@@ -1129,6 +1129,7 @@ function baseManagementLeadPanel(state: AddBaseManagementState): unknown {
     case "processing":
       return baseStationMachineSummary(state)
     case "social":
+    case "expeditions":
       return null
     default:
       return baseEconomyOverview(state)
@@ -1261,6 +1262,8 @@ function baseManagementTabContent(state: AddBaseManagementState): unknown {
       return baseCrewPanel(state)
     case "social":
       return baseSocialPanel(state)
+    case "expeditions":
+      return baseExpeditionsPanel(state)
     case "processing":
       return baseProcessingPanel(state)
   }
@@ -1398,6 +1401,135 @@ function socialPendingArrivalRows(state: AddBaseManagementState): readonly unkno
       </article>
     `,
   )
+}
+
+function baseExpeditionsPanel(state: AddBaseManagementState): unknown {
+  const expeditions = state.expeditions
+  return html`
+    <div class="base-card-list expedition-list">
+      <article class="base-social-overview" data-status=${expeditions.availableCrew > 0 ? "ready" : "waiting_vibes"}>
+        <span>Expedition board</span>
+        <strong>${expeditions.summary}</strong>
+        <small>
+          ${expeditions.availableCrew} free crew · ${expeditions.assignedCrew} away ·
+          ${expeditions.totalClues} clues · ${expeditions.totalDungeonLeads} leads
+        </small>
+      </article>
+      ${() => expeditionActiveJobRows(state)}
+      ${() => expeditionReportRows(state)}
+      ${() => expeditionTargetRows(state)}
+    </div>
+  `
+}
+
+function expeditionActiveJobRows(state: AddBaseManagementState): readonly unknown[] {
+  const jobs = state.expeditions.activeJobs
+  if (jobs.length === 0) {
+    return [
+      html`
+        <article class="base-management-card">
+          <span>In the field</span>
+          <strong>No active expedition</strong>
+          <small>Send free crew from the target list below to keep the base acting in parallel.</small>
+        </article>
+      `,
+    ]
+  }
+  return jobs.map(
+    (job) => html`
+      <article class="base-management-card active" data-pressure=${job.risk}>
+        <span>In the field</span>
+        <strong>${job.label}</strong>
+        <small>${job.returnCopy}</small>
+        <div class="base-progress-track" aria-label=${`${job.label} expedition progress`}>
+          <i style=${{ width: `${Math.round(job.progressPercent)}%` }} aria-hidden="true" />
+        </div>
+        <div class="base-economy-line">
+          <span>${job.assignedCrew} crew</span>
+          <span>${job.riskLabel}</span>
+          <strong>${formatEconomyDuration(job.remainingSeconds)}</strong>
+        </div>
+      </article>
+    `,
+  )
+}
+
+function expeditionTargetRows(state: AddBaseManagementState): readonly unknown[] {
+  return state.expeditions.targets.map(
+    (target) => html`
+      <article class="base-management-card" data-pressure=${target.enabled ? "room" : "locked"}>
+        <span>Target</span>
+        <strong>${target.label}</strong>
+        <small>${target.playerHint}</small>
+        <div class="base-economy-line">
+          <span>${target.durationLabel}</span>
+          <span>${target.requiredCrew} crew</span>
+          <strong>${target.riskLabel}</strong>
+        </div>
+        <div class="base-economy-line">
+          <span>${target.requiredSupportCopy}</span>
+        </div>
+        <small class="base-card-note">${target.expectedLootCopy}</small>
+        ${target.disabledReason
+          ? html`<small class="base-card-note warning">${target.disabledReason}</small>`
+          : null}
+        <button
+          id=${`base-start-expedition-${target.id.replaceAll(".", "-")}`}
+          type="button"
+          onClick=${() => void startExpedition(target.id, target.requiredCrew)}
+          disabled=${() => !ready() || !target.enabled}
+        >
+          Send crew
+        </button>
+      </article>
+    `,
+  )
+}
+
+function expeditionReportRows(state: AddBaseManagementState): readonly unknown[] {
+  const reports = state.expeditions.reports.slice(0, 4)
+  if (reports.length === 0) {
+    return [
+      html`
+        <article class="base-management-card">
+          <span>Returned reports</span>
+          <strong>None yet</strong>
+          <small>Completed expeditions will summarize materials, wounds, clues, and dungeon leads here.</small>
+        </article>
+      `,
+    ]
+  }
+  return [
+    ...reports.map(
+      (report) => html`
+        <article class="base-management-card" data-pressure=${report.risk}>
+          <span>Returned report</span>
+          <strong>${report.label}</strong>
+          <small>${report.rewardCopy}</small>
+          <div class="base-economy-line">
+            <span>${report.assignedCrew} crew</span>
+            <span>${report.woundCopy}</span>
+            <strong>${report.clueCopy}</strong>
+          </div>
+        </article>
+      `,
+    ),
+    html`
+      <article class="base-management-card">
+        <span>Report log</span>
+        <strong>${state.expeditions.completedReportCount} saved</strong>
+        <small>Clearing reports keeps the saved log focused; totals stay in telemetry.</small>
+        <button
+          id="base-clear-expedition-reports"
+          type="button"
+          onClick=${() => void clearExpeditionReports()}
+          disabled=${() => !ready()}
+        >
+          Clear reports
+        </button>
+      </article>
+    `,
+  ]
 }
 
 function baseProcessingPanel(state: AddBaseManagementState): unknown {
@@ -2888,10 +3020,21 @@ function offlineReturnJobRows(summary: AddOfflineReturnSummary): readonly unknow
     (job) => html`
       <li>
         <strong>${job.label}</strong>
-        <small>${job.kind === "construction" ? "Construction finished" : "Processing finished"}</small>
+        <small>${offlineReturnJobKindLabel(job.kind)}</small>
       </li>
     `,
   )
+}
+
+function offlineReturnJobKindLabel(kind: AddOfflineReturnSummary["jobsCompleted"][number]["kind"]): string {
+  switch (kind) {
+    case "construction":
+      return "Construction finished"
+    case "processing":
+      return "Processing finished"
+    case "expedition":
+      return "Expedition returned"
+  }
 }
 
 function offlineReturnPausedRows(summary: AddOfflineReturnSummary): readonly unknown[] {
@@ -3576,6 +3719,20 @@ async function startProcessing(recipeId: string): Promise<void> {
   })
 }
 
+async function startExpedition(targetId: string, assignedCrew: number): Promise<void> {
+  await sendAndWaitForSnapshot(() => {
+    setLastCommand(`expedition:${targetId}:${assignedCrew}`)
+    client.startExpedition(targetId, assignedCrew)
+  })
+}
+
+async function clearExpeditionReports(): Promise<void> {
+  await sendAndWaitForSnapshot(() => {
+    setLastCommand("expedition_reports:clear")
+    client.clearExpeditionReports()
+  })
+}
+
 async function recruitFromSurvivorCave(): Promise<void> {
   await sendAndWaitForSnapshot(() => {
     setLastCommand("recruit_from_survivor_cave")
@@ -3609,6 +3766,11 @@ async function runBaseRecommendedAction(state: AddBaseManagementState): Promise<
     case "start_processing":
       await startProcessing(action.targetId)
       return
+    case "start_expedition": {
+      const target = state.expeditions.targets.find((candidate) => candidate.id === action.targetId)
+      if (target) await startExpedition(target.id, target.requiredCrew)
+      return
+    }
     case "recruit_survivor":
       await recruitFromSurvivorCave()
       return

@@ -2,8 +2,9 @@ use serde::Serialize;
 
 mod catalog;
 use catalog::{
-    BALANCE, CONSTRUCTION_OPTIONS, ENTITY_SCHEMAS, FLAGS, FLORA, ITEMS, PERKS, PROCESSING_RECIPES,
-    RESOURCES, ROLES, STATIONS, STORY_BEATS, STRUCTURES, TILES, UI_ELEMENTS, WORLD_ACTIONS,
+    BALANCE, CONSTRUCTION_OPTIONS, ENTITY_SCHEMAS, EXPEDITION_TARGETS, FLAGS, FLORA, ITEMS, PERKS,
+    PROCESSING_RECIPES, RESOURCES, ROLES, STATIONS, STORY_BEATS, STRUCTURES, TILES, UI_ELEMENTS,
+    WORLD_ACTIONS,
 };
 
 pub const RESOURCE_BASSLINE: &str = "resource.bassline";
@@ -53,6 +54,9 @@ pub const PROJECT_EXPAND_BUNKS: &str = "project.expand_bunks";
 pub const PROJECT_SAFE_WATER_SYSTEMS: &str = "project.safe_water_systems";
 pub const PROJECT_EXPEDITION_STAGING: &str = "project.expedition_staging";
 pub const PROJECT_PREPARE_LOUDSPEAKERS: &str = "project.prepare_loudspeakers";
+pub const EXPEDITION_LOCAL_SCAVENGE_SWEEP: &str = "expedition.local_scavenge_sweep";
+pub const EXPEDITION_SURVIVOR_CAVE_WATCH: &str = "expedition.survivor_cave_watch";
+pub const EXPEDITION_FAR_RUINS_PROBE: &str = "expedition.far_ruins_probe";
 pub const RECIPE_RESONANCE_FIELD_CALIBRATION: &str = "recipe.resonance_field_calibration";
 pub const RECIPE_MIX_SIGNAL_BALANCING: &str = "recipe.mix_signal_balancing";
 pub const RECIPE_WORKSHOP_BUILDER_TOOLS: &str = "recipe.workshop_builder_tools";
@@ -733,6 +737,48 @@ pub struct WorldActionDef {
 
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
+pub enum ExpeditionRiskDef {
+    Low,
+    Medium,
+    High,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ExpeditionSupportDef {
+    pub requires_studio_restored: bool,
+    pub requires_fire_pit: bool,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ExpeditionRewardDef {
+    pub stone: f64,
+    pub water: f64,
+    pub vibes: f64,
+    pub wounds: u16,
+    pub clues: u16,
+    pub dungeon_leads: u16,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ExpeditionTargetDef {
+    pub id: &'static str,
+    pub schema_id: &'static str,
+    pub label: &'static str,
+    pub duration_seconds: f64,
+    pub required_crew: u16,
+    pub required_bubble_reach: u8,
+    pub support: ExpeditionSupportDef,
+    pub risk: ExpeditionRiskDef,
+    pub expected_loot: ExpeditionRewardDef,
+    pub ui_order: u8,
+    pub player_hint: &'static str,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
 pub enum HeroExposureDef {
     Studio,
     Bubble,
@@ -786,6 +832,7 @@ pub struct CatalogSnapshot {
     pub construction_options: Vec<ConstructionOptionDef>,
     pub processing_recipes: Vec<ProcessingRecipeDef>,
     pub world_actions: Vec<WorldActionDef>,
+    pub expedition_targets: Vec<ExpeditionTargetDef>,
     pub story_beats: Vec<StoryBeatDef>,
     pub flags: Vec<FlagDef>,
     pub models: Vec<ModelDef>,
@@ -1287,6 +1334,44 @@ const ENTITY_VISIBILITY: &[EntityVisibilityDef] = &[
         }],
     },
     EntityVisibilityDef {
+        id: PROJECT_EXPAND_BUNKS,
+        all_of: &[],
+        any_of: &[VisibilityConditionDef::FlagSet {
+            flag_id: FLAG_BASE_STUDIO_RESTORED,
+        }],
+    },
+    EntityVisibilityDef {
+        id: PROJECT_SAFE_WATER_SYSTEMS,
+        all_of: &[
+            VisibilityConditionDef::FlagSet {
+                flag_id: FLAG_BASE_WATER_COLLECTION_UNLOCKED,
+            },
+            VisibilityConditionDef::FlagSet {
+                flag_id: FLAG_BASE_WORKSHOP_BUILT,
+            },
+        ],
+        any_of: &[VisibilityConditionDef::Always],
+    },
+    EntityVisibilityDef {
+        id: PROJECT_EXPEDITION_STAGING,
+        all_of: &[
+            VisibilityConditionDef::FlagSet {
+                flag_id: FLAG_BASE_RESONANCE_CHAMBER_BUILT,
+            },
+            VisibilityConditionDef::FlagSet {
+                flag_id: FLAG_BASE_WORKSHOP_BUILT,
+            },
+        ],
+        any_of: &[VisibilityConditionDef::Always],
+    },
+    EntityVisibilityDef {
+        id: PROJECT_PREPARE_LOUDSPEAKERS,
+        all_of: &[VisibilityConditionDef::FlagSet {
+            flag_id: FLAG_BASE_RESEARCH_BOOTH_BUILT,
+        }],
+        any_of: &[VisibilityConditionDef::Always],
+    },
+    EntityVisibilityDef {
         id: STATION_CRYSTAL_CIRCLE,
         all_of: &[],
         any_of: &[VisibilityConditionDef::Always],
@@ -1457,7 +1542,6 @@ const ENTITY_VISIBILITY: &[EntityVisibilityDef] = &[
         any_of: &[VisibilityConditionDef::Always],
     },
 ];
-
 
 const ENTITY_PRESENTATIONS: &[EntityPresentationDef] = &[
     EntityPresentationDef {
@@ -1773,6 +1857,50 @@ const ENTITY_PRESENTATIONS: &[EntityPresentationDef] = &[
         reveal: PresentationReveal::Advanced,
     },
     EntityPresentationDef {
+        id: PROJECT_EXPAND_BUNKS,
+        short_label: "Expand Bunks",
+        player_hint: "Add bunk capacity before recruitment turns into overcrowding pressure.",
+        cta_copy: Some("Expand Bunks"),
+        primary_risk_copy: Some(
+            "Recruiting without bunks creates Bad Vibes and slows the whole base.",
+        ),
+        display_priority: 655,
+        reveal: PresentationReveal::Advanced,
+    },
+    EntityPresentationDef {
+        id: PROJECT_SAFE_WATER_SYSTEMS,
+        short_label: "Safer Water Systems",
+        player_hint: "Improve Water handling so advanced upgrades stop bottlenecking on scarcity.",
+        cta_copy: Some("Improve Water"),
+        primary_risk_copy: Some(
+            "Weak Water systems make several upgrades look ready but stay blocked.",
+        ),
+        display_priority: 654,
+        reveal: PresentationReveal::Advanced,
+    },
+    EntityPresentationDef {
+        id: PROJECT_EXPEDITION_STAGING,
+        short_label: "Expedition Prep",
+        player_hint: "Prepare field staging for longer crew expeditions and better route support.",
+        cta_copy: Some("Prepare Expeditions"),
+        primary_risk_copy: Some(
+            "Sending teams farther without staging makes expedition choices riskier later.",
+        ),
+        display_priority: 653,
+        reveal: PresentationReveal::Advanced,
+    },
+    EntityPresentationDef {
+        id: PROJECT_PREPARE_LOUDSPEAKERS,
+        short_label: "Relay Prep",
+        player_hint: "Prepare loudspeaker relays to make Chorus routing scale with the growing base.",
+        cta_copy: Some("Prepare Relays"),
+        primary_risk_copy: Some(
+            "Poor relay prep leaves larger field operations harder to sustain.",
+        ),
+        display_priority: 652,
+        reveal: PresentationReveal::Advanced,
+    },
+    EntityPresentationDef {
         id: RECIPE_RESONANCE_FIELD_CALIBRATION,
         short_label: "Field Calibration",
         player_hint: "Calibration makes the current Bassline budget cover more ground.",
@@ -1961,7 +2089,6 @@ const ENTITY_PRESENTATIONS: &[EntityPresentationDef] = &[
     },
 ];
 
-
 pub fn catalog_snapshot() -> CatalogSnapshot {
     CatalogSnapshot {
         resources: RESOURCES.to_vec(),
@@ -1970,6 +2097,7 @@ pub fn catalog_snapshot() -> CatalogSnapshot {
         construction_options: CONSTRUCTION_OPTIONS.to_vec(),
         processing_recipes: PROCESSING_RECIPES.to_vec(),
         world_actions: WORLD_ACTIONS.to_vec(),
+        expedition_targets: EXPEDITION_TARGETS.to_vec(),
         story_beats: STORY_BEATS.to_vec(),
         flags: FLAGS.to_vec(),
         models: model_snapshot(),
@@ -2000,6 +2128,14 @@ pub fn construction_options() -> &'static [ConstructionOptionDef] {
 
 pub fn world_actions() -> &'static [WorldActionDef] {
     WORLD_ACTIONS
+}
+
+pub fn expedition_targets() -> &'static [ExpeditionTargetDef] {
+    EXPEDITION_TARGETS
+}
+
+pub fn expedition_target_def(id: &str) -> Option<&'static ExpeditionTargetDef> {
+    EXPEDITION_TARGETS.iter().find(|target| target.id == id)
 }
 
 pub fn story_beats() -> &'static [StoryBeatDef] {

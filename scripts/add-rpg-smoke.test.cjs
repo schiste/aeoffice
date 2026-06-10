@@ -345,6 +345,7 @@ async function exerciseBaseManagementSurface(page, consoleErrors) {
       state.baseManagement?.tabIds?.includes("power") &&
       state.baseManagement?.tabIds?.includes("crew") &&
       state.baseManagement?.tabIds?.includes("social") &&
+      state.baseManagement?.tabIds?.includes("expeditions") &&
       state.baseManagement?.tabIds?.includes("processing") &&
       state.baseManagement?.resourcePressure?.some((resource) => resource.id === "resource.bassline") &&
       state.baseManagement?.resourcePressure?.every(
@@ -376,6 +377,10 @@ async function exerciseBaseManagementSurface(page, consoleErrors) {
       typeof state.baseManagement?.socialPressure?.housing?.warning === "string" &&
       typeof state.baseManagement?.socialPressure?.recruitment?.costProjection === "string" &&
       typeof state.baseManagement?.socialPressure?.supportForecast?.copy === "string" &&
+      state.baseManagement?.expeditions?.targets?.some(
+        (target) => target.id === "expedition.local_scavenge_sweep",
+      ) &&
+      typeof state.baseManagement?.expeditions?.summary === "string" &&
       typeof state.baseManagement?.recommendedAction?.label === "string" &&
       typeof state.baseManagement?.nextBottleneck?.label === "string",
     consoleErrors,
@@ -492,6 +497,7 @@ async function exerciseBaseManagementSurface(page, consoleErrors) {
     "Power",
     "Crew",
     "Social",
+    "Expeditions",
     "Processing",
   ].forEach((expectedText) => {
     assert.match(
@@ -669,7 +675,74 @@ async function exerciseBaseManagementSurface(page, consoleErrors) {
     "ADD RPG social pressure surface screenshot",
   )
 
-  for (const tab of ["build", "power", "crew", "social", "processing", "crystal"]) {
+  await page.locator("#base-tab-expeditions").click()
+  const expeditions = await waitForTextState(
+    page,
+    (state) =>
+      state.baseManagement?.active === true &&
+      state.baseManagement?.selectedTab === "expeditions" &&
+      state.baseManagement?.expeditions?.targets?.some(
+        (target) => target.id === "expedition.local_scavenge_sweep" && target.enabled,
+      ),
+    consoleErrors,
+  )
+  assert.equal(expeditions.baseManagement.expeditions.activeCount, 0)
+  assert.ok(expeditions.baseManagement.expeditions.availableCrew >= 1)
+  const expeditionPanelText = await page.locator("#base-management-panel").innerText()
+  ;[
+    "Expedition board",
+    "Target",
+    "Local Scavenge Sweep",
+    "Low risk",
+    "Stone",
+    "Returned reports",
+  ].forEach((expectedText) => {
+    assert.match(
+      expeditionPanelText,
+      new RegExp(expectedText, "i"),
+      `Expeditions panel should include ${expectedText}.`,
+    )
+  })
+  await page.locator("#base-start-expedition-expedition-local_scavenge_sweep").click()
+  const activeExpedition = await waitForTextState(
+    page,
+    (state) =>
+      state.baseManagement?.selectedTab === "expeditions" &&
+      state.baseManagement?.expeditions?.activeCount === 1 &&
+      state.baseManagement?.expeditions?.activeJobs?.some(
+        (job) => job.targetId === "expedition.local_scavenge_sweep",
+      ),
+    consoleErrors,
+  )
+  assert.equal(
+    activeExpedition.baseManagement.expeditions.availableCrew,
+    expeditions.baseManagement.expeditions.availableCrew - 1,
+  )
+  await page.evaluate(() => window.advanceTime?.(120000))
+  const returnedExpedition = await waitForTextState(
+    page,
+    (state) =>
+      state.baseManagement?.selectedTab === "expeditions" &&
+      state.baseManagement?.expeditions?.activeCount === 0 &&
+      state.baseManagement?.expeditions?.completedReportCount >= 1 &&
+      state.baseManagement?.expeditions?.reports?.some(
+        (report) => report.targetId === "expedition.local_scavenge_sweep",
+      ),
+    consoleErrors,
+  )
+  assert.ok(
+    returnedExpedition.baseManagement.expeditions.reports.some((report) =>
+      /Stone/i.test(report.rewardCopy),
+    ),
+    "Returned expedition report should describe material rewards.",
+  )
+  await assertNonBlankNamedAppScreenshot(
+    page,
+    "add-rpg-expeditions-smoke.png",
+    "ADD RPG expeditions surface screenshot",
+  )
+
+  for (const tab of ["build", "power", "crew", "social", "expeditions", "processing", "crystal"]) {
     await page.locator(`#base-tab-${tab}`).click()
     await waitForTextState(
       page,

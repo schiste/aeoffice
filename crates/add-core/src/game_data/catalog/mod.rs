@@ -1,6 +1,7 @@
 mod actions;
 mod balance;
 mod entity_schemas;
+mod expeditions;
 mod flags;
 mod items;
 mod perks;
@@ -14,6 +15,7 @@ mod ui_elements;
 pub(super) use actions::{CONSTRUCTION_OPTIONS, PROCESSING_RECIPES, WORLD_ACTIONS};
 pub(super) use balance::BALANCE;
 pub(super) use entity_schemas::ENTITY_SCHEMAS;
+pub(super) use expeditions::EXPEDITION_TARGETS;
 pub(super) use flags::FLAGS;
 pub(super) use items::ITEMS;
 pub(super) use perks::PERKS;

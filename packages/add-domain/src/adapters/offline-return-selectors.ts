@@ -11,7 +11,7 @@ export interface AddOfflineReturnResourceDelta {
 export interface AddOfflineReturnCompletedJob {
   readonly id: string
   readonly label: string
-  readonly kind: "construction" | "processing"
+  readonly kind: "construction" | "processing" | "expedition"
 }
 
 export interface AddOfflineReturnPausedRule {
@@ -56,6 +56,7 @@ export function selectAddOfflineReturnSummary(
   const jobsCompleted = [
     ...completedConstructionJobs(before, after, catalog),
     ...completedProcessingJobs(before, after, catalog),
+    ...completedExpeditionJobs(before, after, catalog),
   ]
   const recruitsArrived = Math.max(
     0,
@@ -132,6 +133,23 @@ function completedProcessingJobs(
       id: job.recipeId,
       label: recipe?.label ?? job.recipeId,
       kind: "processing" as const,
+    }]
+  })
+}
+
+function completedExpeditionJobs(
+  before: SimulationSnapshot,
+  after: SimulationSnapshot,
+  catalog: CatalogSnapshot,
+): readonly AddOfflineReturnCompletedJob[] {
+  const afterActiveIds = new Set(after.expeditions.activeJobs.map((job) => job.id))
+  return before.expeditions.activeJobs.flatMap((job) => {
+    if (afterActiveIds.has(job.id)) return []
+    const target = catalog.expeditionTargets.find((candidate) => candidate.id === job.targetId)
+    return [{
+      id: `expedition:${job.id}`,
+      label: target?.label ?? job.targetId,
+      kind: "expedition" as const,
     }]
   })
 }

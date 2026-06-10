@@ -1,28 +1,25 @@
 use crate::command::GameCommand;
 use crate::game_data::{
-    balance_snapshot, construction_option_def, item_def, perk_def, processing_recipe_def,
-    recruit_cost_for_index, role_def, station_def, stations, story_beat_def, tile_def,
-    world_action_def, BalanceSnapshot,
-    ConstructionOptionDef, CostDef, CostItemDef, CrystalTrack, EffectDef, ItemEffectKind, PerkStat,
-    ProcessingTrack, RequirementDef, RoleSlotPool, TileFeature, HeroExposureDef,
-    COST_ITEM_SKIN,
-    FLAG_BASE_FIRE_PIT_BUILT, FLAG_BASE_MIX_CONSOLE_BUILT,
-    FLAG_BASE_RESEARCH_BOOTH_BUILT, FLAG_BASE_RESONANCE_CHAMBER_BUILT,
-    FLAG_BASE_STUDIO_RESTORE_UNLOCKED, FLAG_BASE_WORKSHOP_BUILT,
-    FLAG_BASE_STUDIO_RESTORED, FLAG_BASE_TUTORIAL_EXPLORED,
-    FLAG_BASE_TUTORIAL_INVESTIGATED, FLAG_BASE_WATER_COLLECTION_UNLOCKED,
+    BalanceSnapshot, COST_ITEM_SKIN, ConstructionOptionDef, CostDef, CostItemDef, CrystalTrack,
+    EffectDef, ExpeditionRiskDef, ExpeditionTargetDef, FLAG_BASE_FIRE_PIT_BUILT,
+    FLAG_BASE_MIX_CONSOLE_BUILT, FLAG_BASE_RESEARCH_BOOTH_BUILT, FLAG_BASE_RESONANCE_CHAMBER_BUILT,
+    FLAG_BASE_STUDIO_RESTORE_UNLOCKED, FLAG_BASE_STUDIO_RESTORED, FLAG_BASE_TUTORIAL_EXPLORED,
+    FLAG_BASE_TUTORIAL_INVESTIGATED, FLAG_BASE_WATER_COLLECTION_UNLOCKED, FLAG_BASE_WORKSHOP_BUILT,
     FLAG_CRYSTAL_REMOVING_MOSS_COMPLETED, FLAG_CRYSTAL_REMOVING_MOSS_UNLOCKED,
     FLAG_HERO_FORCED_RETURN_ACTIVE, FLAG_HERO_OUTSIDE_BUBBLE, FLAG_HERO_RECOVERING_AT_STUDIO,
-    INTRO_STORY_BEAT_IDS, RESOURCE_BASSLINE, RESOURCE_CHORUS, RESOURCE_HARMONICS, RESOURCE_STONE,
-    RESOURCE_WATER,
-    ROLE_CONSTRUCTION, ROLE_CRYSTAL_BASSLINE, ROLE_CRYSTAL_CHORUS,
-    ROLE_CRYSTAL_HARMONICS, ROLE_FIRE_PIT, ROLE_SCAVENGE, ROLE_WATER,
-    STATION_MIX_CONSOLE, STATION_RESEARCH_BOOTH, STATION_RESONANCE_CHAMBER,
-    STATION_WORKSHOP,
+    HeroExposureDef, INTRO_STORY_BEAT_IDS, ItemEffectKind, PerkStat, ProcessingTrack,
+    RESOURCE_BASSLINE, RESOURCE_CHORUS, RESOURCE_HARMONICS, RESOURCE_STONE, RESOURCE_VIBES,
+    RESOURCE_WATER, ROLE_CONSTRUCTION, ROLE_CRYSTAL_BASSLINE, ROLE_CRYSTAL_CHORUS,
+    ROLE_CRYSTAL_HARMONICS, ROLE_FIRE_PIT, ROLE_SCAVENGE, ROLE_WATER, RequirementDef, RoleSlotPool,
+    STATION_MIX_CONSOLE, STATION_RESEARCH_BOOTH, STATION_RESONANCE_CHAMBER, STATION_WORKSHOP,
+    TileFeature, balance_snapshot, construction_option_def, expedition_target_def, item_def,
+    perk_def, processing_recipe_def, recruit_cost_for_index, role_def, station_def, stations,
+    story_beat_def, tile_def, world_action_def,
 };
 use crate::state::{
-    initial_discovered_cells, ConstructionJob, ForcedReturnPhase, ForcedReturnState, GameState,
-    HeroLocationState, HexCoordState, HexState, HexVisualState, WorldAction, GRID_RADIUS,
+    ConstructionJob, ExpeditionJob, ExpeditionReport, ExpeditionRiskState, ForcedReturnPhase,
+    ForcedReturnState, GRID_RADIUS, GameState, HeroLocationState, HexCoordState, HexState,
+    HexVisualState, WorldAction, initial_discovered_cells,
 };
 
 /// Scrap-metal items yielded per second of scavenging effort (a unit of effort
@@ -59,8 +56,8 @@ impl Simulation {
 
     pub fn from_state(mut state: GameState) -> Self {
         let balance = balance_snapshot();
-        if state.schema_version < 13 {
-            state.schema_version = 13;
+        if state.schema_version < 14 {
+            state.schema_version = 14;
         }
         state.resources.bassline_cap = state
             .resources
@@ -77,14 +74,14 @@ impl Simulation {
         state.resources.stone_cap = state.resources.stone_cap.max(1000.0);
         state.resources.water_cap = state.resources.water_cap.max(balance.water.water_cap);
         state.resources.vibes_cap = state.resources.vibes_cap.max(100.0);
-        state.resources.base_stone_stock =
-            state.resources
-                .base_stone_stock
-                .clamp(0.0, balance.scavenge.base_stock_max);
-        state.resources.base_water_stock =
-            state.resources
-                .base_water_stock
-                .clamp(0.0, balance.water.base_stock_max);
+        state.resources.base_stone_stock = state
+            .resources
+            .base_stone_stock
+            .clamp(0.0, balance.scavenge.base_stock_max);
+        state.resources.base_water_stock = state
+            .resources
+            .base_water_stock
+            .clamp(0.0, balance.water.base_stock_max);
         for station in stations() {
             state
                 .stations
@@ -126,12 +123,18 @@ impl Simulation {
             GameCommand::SetHeroAssigned { assigned } => self.set_hero_assigned(assigned),
             GameCommand::SetHeroRole { role_id } => self.set_hero_role(&role_id),
             GameCommand::SetRoleCrew { role_id, crew } => self.set_role_crew(&role_id, crew),
-            GameCommand::SetStationEnabled { station_id, enabled } => {
-                self.set_station_enabled(&station_id, enabled)
-            }
+            GameCommand::SetStationEnabled {
+                station_id,
+                enabled,
+            } => self.set_station_enabled(&station_id, enabled),
             GameCommand::StartWorldAction { action_id } => self.start_world_action(&action_id),
             GameCommand::StartConstruction { option_id } => self.start_construction(&option_id),
             GameCommand::StartProcessing { recipe_id } => self.start_processing(&recipe_id),
+            GameCommand::StartExpedition {
+                target_id,
+                assigned_crew,
+            } => self.start_expedition(&target_id, assigned_crew),
+            GameCommand::ClearExpeditionReports => self.clear_expedition_reports(),
             GameCommand::RecruitFromSurvivorCave => self.recruit_from_survivor_cave(),
             GameCommand::MoveHeroTo { q, r } => self.move_hero_to(q, r),
             GameCommand::OpenDoor { key } => {
@@ -158,6 +161,7 @@ impl Simulation {
                 self.refresh_power_state();
                 self.refresh_bubble_state();
                 self.normalize_discovery_state();
+                self.normalize_assignment();
                 self.refresh_objectives();
                 self.refresh_narrative_state();
             }
@@ -172,7 +176,9 @@ impl Simulation {
             .find(|hex| hex.q == q && hex.r == r)
             .cloned()
         else {
-            self.push_note(format!("Hero movement ignored: hex {q},{r} is outside the map."));
+            self.push_note(format!(
+                "Hero movement ignored: hex {q},{r} is outside the map."
+            ));
             return;
         };
 
@@ -274,15 +280,13 @@ impl Simulation {
             .unwrap_or(0)
             .saturating_add(1);
 
-        let station = self
-            .state
-            .stations
-            .entry(station_id.to_string())
-            .or_insert(crate::state::StationState {
+        let station = self.state.stations.entry(station_id.to_string()).or_insert(
+            crate::state::StationState {
                 requested_enabled: def.starts_requested,
                 is_powered: def.chorus_upkeep_per_second <= 0.0,
                 power_order: next_order,
-            });
+            },
+        );
 
         station.requested_enabled = enabled;
         if enabled {
@@ -298,7 +302,11 @@ impl Simulation {
         self.push_note(format!(
             "{} {}.",
             def.label,
-            if enabled { "requested on" } else { "set to standby" }
+            if enabled {
+                "requested on"
+            } else {
+                "set to standby"
+            }
         ));
     }
 
@@ -420,15 +428,20 @@ impl Simulation {
                     (Some(resource_id.to_string()), amount, amount, 0.0)
                 }
                 CostDef::UpfrontBundle { costs } => {
-                    if let Some((label, amount)) = costs
-                        .iter()
-                        .find_map(|item| (!self.can_afford_cost_item(item)).then_some((self.cost_item_label(item.item_id), item.amount)))
-                    {
+                    if let Some((label, amount)) = costs.iter().find_map(|item| {
+                        (!self.can_afford_cost_item(item))
+                            .then_some((self.cost_item_label(item.item_id), item.amount))
+                    }) {
                         self.push_note(format!("Not enough {}: need {:.0}.", label, amount));
                         return;
                     }
                     self.commit_cost_items(costs);
-                    (None, costs.iter().map(|item| item.amount).sum(), costs.iter().map(|item| item.amount).sum(), 0.0)
+                    (
+                        None,
+                        costs.iter().map(|item| item.amount).sum(),
+                        costs.iter().map(|item| item.amount).sum(),
+                        0.0,
+                    )
                 }
                 CostDef::TimeOnly => (None, 0.0, 0.0, 0.0),
             };
@@ -447,7 +460,9 @@ impl Simulation {
 
     fn recruit_from_survivor_cave(&mut self) {
         if !self.state.objectives.recruitment_enabled {
-            self.push_note("Recruitment is locked until the bubble reaches the Survivor Cave window.");
+            self.push_note(
+                "Recruitment is locked until the bubble reaches the Survivor Cave window.",
+            );
             return;
         }
         if !self.state.base.studio_restored {
@@ -469,22 +484,31 @@ impl Simulation {
         }
 
         self.state.resources.vibes -= cost;
-        self.state.recruitment.total_recruited_this_run =
-            self.state.recruitment.total_recruited_this_run.saturating_add(1);
+        self.state.recruitment.total_recruited_this_run = self
+            .state
+            .recruitment
+            .total_recruited_this_run
+            .saturating_add(1);
 
         let current_instant_available = self.instant_recruits_available();
         let travel_seconds = if current_instant_available > 0 {
-            self.state.recruitment.instant_recruits_used =
-                self.state.recruitment.instant_recruits_used.saturating_add(1);
+            self.state.recruitment.instant_recruits_used = self
+                .state
+                .recruitment
+                .instant_recruits_used
+                .saturating_add(1);
             self.balance().recruitment.instant_recruit_delay_seconds
         } else {
             self.balance().recruitment.recruit_travel_seconds
         };
 
-        self.state.recruitment.pending_recruits.push(crate::state::RecruitTravel {
-            total_seconds: travel_seconds,
-            remaining_seconds: travel_seconds,
-        });
+        self.state
+            .recruitment
+            .pending_recruits
+            .push(crate::state::RecruitTravel {
+                total_seconds: travel_seconds,
+                remaining_seconds: travel_seconds,
+            });
         self.state.recruitment.next_recruit_cost = self.next_recruit_cost();
 
         self.push_note(format!(
@@ -527,7 +551,10 @@ impl Simulation {
         }
 
         match recipe_def.cost {
-            CostDef::Upfront { resource_id, amount } => {
+            CostDef::Upfront {
+                resource_id,
+                amount,
+            } => {
                 if !self.can_afford(resource_id, amount) {
                     self.push_note(format!(
                         "Not enough {}: need {:.0}.",
@@ -539,10 +566,10 @@ impl Simulation {
                 self.spend_resource(resource_id, amount);
             }
             CostDef::UpfrontBundle { costs } => {
-                if let Some((label, amount)) = costs
-                    .iter()
-                    .find_map(|item| (!self.can_afford_cost_item(item)).then_some((self.cost_item_label(item.item_id), item.amount)))
-                {
+                if let Some((label, amount)) = costs.iter().find_map(|item| {
+                    (!self.can_afford_cost_item(item))
+                        .then_some((self.cost_item_label(item.item_id), item.amount))
+                }) {
                     self.push_note(format!("Not enough {}: need {:.0}.", label, amount));
                     return;
                 }
@@ -574,6 +601,71 @@ impl Simulation {
             },
         );
         self.push_note(format!("{} started.", recipe_def.label));
+    }
+
+    fn start_expedition(&mut self, target_id: &str, assigned_crew: u16) {
+        let Some(target_def) = expedition_target_def(target_id) else {
+            self.push_note(format!("Unknown expedition target: {target_id}."));
+            return;
+        };
+
+        if target_def.support.requires_studio_restored && !self.state.base.studio_restored {
+            self.push_note(format!(
+                "{} requires the Studio to be restored.",
+                target_def.label
+            ));
+            return;
+        }
+        if target_def.support.requires_fire_pit && !self.state.base.fire_pit_built {
+            self.push_note(format!("{} requires a built Fire Pit.", target_def.label));
+            return;
+        }
+        if self.state.bubble.reach_from_base < target_def.required_bubble_reach {
+            self.push_note(format!(
+                "{} requires bubble reach {}; current reach is {}.",
+                target_def.label,
+                target_def.required_bubble_reach,
+                self.state.bubble.reach_from_base
+            ));
+            return;
+        }
+        if assigned_crew < target_def.required_crew {
+            self.push_note(format!(
+                "{} requires {} crew.",
+                target_def.label, target_def.required_crew
+            ));
+            return;
+        }
+
+        self.normalize_assignment();
+        let available = self.available_expedition_crew();
+        if assigned_crew > available {
+            self.push_note(format!(
+                "{} needs {} free crew; only {} free.",
+                target_def.label, assigned_crew, available
+            ));
+            return;
+        }
+
+        let id = self.state.expeditions.next_job_id;
+        self.state.expeditions.next_job_id = self.state.expeditions.next_job_id.saturating_add(1);
+        self.state.expeditions.active_jobs.push(ExpeditionJob {
+            id,
+            target_id: target_def.id.to_string(),
+            assigned_crew,
+            duration_seconds: target_def.duration_seconds,
+            remaining_seconds: target_def.duration_seconds,
+            risk: expedition_risk_state(target_def.risk),
+        });
+        self.push_note(format!(
+            "{} departed with {} crew.",
+            target_def.label, assigned_crew
+        ));
+    }
+
+    fn clear_expedition_reports(&mut self) {
+        self.state.expeditions.completed_reports.clear();
+        self.push_note("Expedition reports cleared.");
     }
 
     fn spend_bassline(&mut self, amount: f64) {
@@ -617,9 +709,8 @@ impl Simulation {
             return 0.0;
         }
 
-        (1.0
-            - self.state.power.brownout_severity
-                * self.balance().survival.recovery_brownout_penalty_weight)
+        (1.0 - self.state.power.brownout_severity
+            * self.balance().survival.recovery_brownout_penalty_weight)
             .clamp(0.0, 1.0)
     }
 
@@ -666,7 +757,11 @@ impl Simulation {
     fn update_point_of_no_return_metrics(&mut self) {
         if self.state.hero_survival.location != HeroLocationState::OutsideBubble
             || self.state.hero_survival.forced_return.is_some()
-            || self.state.hero_survival.required_time_to_reenter_bubble_seconds <= 0.0
+            || self
+                .state
+                .hero_survival
+                .required_time_to_reenter_bubble_seconds
+                <= 0.0
         {
             self.state.hero_survival.point_of_no_return_ratio = 1.0;
             self.state.hero_survival.seconds_until_forced_return = 999_999.0;
@@ -675,31 +770,39 @@ impl Simulation {
 
         let outside_time = self.hero_outside_time_seconds_0_to_1();
         let threshold = (1.0
-            - (self.state.hero_survival.required_time_to_reenter_bubble_seconds / outside_time))
+            - (self
+                .state
+                .hero_survival
+                .required_time_to_reenter_bubble_seconds
+                / outside_time))
             .clamp(0.0, 1.0);
         self.state.hero_survival.point_of_no_return_ratio = threshold;
-        self.state.hero_survival.seconds_until_forced_return = ((threshold
-            - self.state.hero_survival.viral_load_ratio)
-            .max(0.0)
-            * outside_time)
-            .max(0.0);
+        self.state.hero_survival.seconds_until_forced_return =
+            ((threshold - self.state.hero_survival.viral_load_ratio).max(0.0) * outside_time)
+                .max(0.0);
     }
 
     fn apply_world_action_exposure(&mut self, action_def: &crate::game_data::WorldActionDef) {
         match action_def.hero_exposure {
             HeroExposureDef::Studio => {
                 self.state.hero_survival.location = HeroLocationState::Studio;
-                self.state.hero_survival.required_time_to_reenter_bubble_seconds = 0.0;
+                self.state
+                    .hero_survival
+                    .required_time_to_reenter_bubble_seconds = 0.0;
                 self.state.hero_survival.return_to_studio_seconds = 0.0;
             }
             HeroExposureDef::Bubble => {
                 self.state.hero_survival.location = HeroLocationState::Bubble;
-                self.state.hero_survival.required_time_to_reenter_bubble_seconds = 0.0;
+                self.state
+                    .hero_survival
+                    .required_time_to_reenter_bubble_seconds = 0.0;
                 self.state.hero_survival.return_to_studio_seconds = 0.0;
             }
             HeroExposureDef::OutsideBubble => {
                 self.state.hero_survival.location = HeroLocationState::OutsideBubble;
-                self.state.hero_survival.required_time_to_reenter_bubble_seconds =
+                self.state
+                    .hero_survival
+                    .required_time_to_reenter_bubble_seconds =
                     action_def.return_to_bubble_seconds.max(0.0);
                 self.state.hero_survival.return_to_studio_seconds =
                     action_def.return_to_studio_seconds.max(0.0);
@@ -726,12 +829,14 @@ impl Simulation {
             }
         }
 
-        let return_to_bubble =
-            self.state.hero_survival.required_time_to_reenter_bubble_seconds.max(0.1);
+        let return_to_bubble = self
+            .state
+            .hero_survival
+            .required_time_to_reenter_bubble_seconds
+            .max(0.1);
         self.state.roster.hero_assigned = false;
         self.normalize_assignment();
-        self.state.hero_survival.echo_scars =
-            self.state.hero_survival.echo_scars.saturating_add(1);
+        self.state.hero_survival.echo_scars = self.state.hero_survival.echo_scars.saturating_add(1);
         self.state.hero_survival.forced_return = Some(ForcedReturnState {
             phase: ForcedReturnPhase::ReturnToBubbleEdge,
             total_seconds: return_to_bubble,
@@ -748,9 +853,11 @@ impl Simulation {
     fn begin_forced_return_recovery(&mut self) {
         let recovery_seconds = (self.state.hero_survival.viral_load_ratio
             * self.hero_recovery_time_seconds_1_to_0())
-            .max(0.1);
+        .max(0.1);
         self.state.hero_survival.location = HeroLocationState::Studio;
-        self.state.hero_survival.required_time_to_reenter_bubble_seconds = 0.0;
+        self.state
+            .hero_survival
+            .required_time_to_reenter_bubble_seconds = 0.0;
         self.state.hero_survival.return_to_studio_seconds = 0.0;
         self.state.hero_survival.forced_return = Some(ForcedReturnState {
             phase: ForcedReturnPhase::RecoverAtStudio,
@@ -779,12 +886,17 @@ impl Simulation {
                         break;
                     }
 
-                    let return_to_studio = if self.state.hero_survival.return_to_studio_seconds > 0.0 {
-                        self.state.hero_survival.return_to_studio_seconds
-                    } else {
-                        (self.state.hero_survival.required_time_to_reenter_bubble_seconds * 2.0)
-                            .max(0.1)
-                    };
+                    let return_to_studio =
+                        if self.state.hero_survival.return_to_studio_seconds > 0.0 {
+                            self.state.hero_survival.return_to_studio_seconds
+                        } else {
+                            (self
+                                .state
+                                .hero_survival
+                                .required_time_to_reenter_bubble_seconds
+                                * 2.0)
+                                .max(0.1)
+                        };
                     self.state.hero_survival.location = HeroLocationState::Bubble;
                     self.state.hero_survival.forced_return = Some(ForcedReturnState {
                         phase: ForcedReturnPhase::ReturnToStudio,
@@ -793,7 +905,8 @@ impl Simulation {
                         viral_load_ratio_on_trigger: current.viral_load_ratio_on_trigger,
                     });
                     self.push_note(
-                        "Hero re-entered the bubble and is stumbling back to the Studio.".to_string(),
+                        "Hero re-entered the bubble and is stumbling back to the Studio."
+                            .to_string(),
                     );
                 }
                 ForcedReturnPhase::ReturnToStudio => {
@@ -832,7 +945,9 @@ impl Simulation {
 
                     self.state.hero_survival.forced_return = None;
                     self.state.hero_survival.location = HeroLocationState::Studio;
-                    self.state.hero_survival.required_time_to_reenter_bubble_seconds = 0.0;
+                    self.state
+                        .hero_survival
+                        .required_time_to_reenter_bubble_seconds = 0.0;
                     self.state.hero_survival.return_to_studio_seconds = 0.0;
                     self.push_note(
                         "Hero recovered from forced return and can be assigned again.".to_string(),
@@ -863,11 +978,11 @@ impl Simulation {
             HeroLocationState::Studio | HeroLocationState::Bubble => {
                 let recovery_multiplier = self.hero_recovery_rate_multiplier();
                 if recovery_multiplier > 0.0 {
-                    self.state.hero_survival.viral_load_ratio = (self.state.hero_survival
-                        .viral_load_ratio
-                        - (seconds / self.hero_recovery_time_seconds_1_to_0())
-                            * recovery_multiplier)
-                        .max(0.0);
+                    self.state.hero_survival.viral_load_ratio =
+                        (self.state.hero_survival.viral_load_ratio
+                            - (seconds / self.hero_recovery_time_seconds_1_to_0())
+                                * recovery_multiplier)
+                            .max(0.0);
                 }
                 self.refresh_hero_survival_state();
             }
@@ -896,7 +1011,11 @@ impl Simulation {
         let chorus_output_multiplier = self.state.power.chorus_output_multiplier;
         let harmonics_output_multiplier = self.state.power.harmonics_output_multiplier;
         let passive_trickle = if self.state.crystal_circle.removing_moss_completed {
-            safe_seconds * self.balance().crystal.removing_moss_passive_bassline_per_second
+            safe_seconds
+                * self
+                    .balance()
+                    .crystal
+                    .removing_moss_passive_bassline_per_second
         } else {
             0.0
         };
@@ -962,7 +1081,12 @@ impl Simulation {
         self.state.resources.lifetime_generated += bassline_gain;
         self.award_hero_band_xp(
             ROLE_CRYSTAL_BASSLINE,
-            self.hero_stored_share(stored_gain, passive_trickle, bassline_hero_gain, bassline_crew_gain),
+            self.hero_stored_share(
+                stored_gain,
+                passive_trickle,
+                bassline_hero_gain,
+                bassline_crew_gain,
+            ),
         );
         self.award_hero_band_xp(
             ROLE_CRYSTAL_CHORUS,
@@ -991,6 +1115,7 @@ impl Simulation {
 
         self.progress_construction(safe_seconds, crew_efficiency);
         self.progress_processing(safe_seconds);
+        self.progress_expeditions(safe_seconds);
         self.progress_vibes(safe_seconds, crew_efficiency);
         self.resolve_station_power(safe_seconds);
         self.refresh_power_state();
@@ -1318,18 +1443,15 @@ impl Simulation {
 
         let missing_bunks = f64::from(self.state.base.missing_bunks);
         if missing_bunks <= 0.0 {
-            self.state.base.overcrowded_seconds =
-                (self.state.base.overcrowded_seconds
-                    - seconds * (180.0 / self.balance().vibes.decay_reset_seconds))
-                    .max(0.0);
+            self.state.base.overcrowded_seconds = (self.state.base.overcrowded_seconds
+                - seconds * (180.0 / self.balance().vibes.decay_reset_seconds))
+                .max(0.0);
         } else {
             self.state.base.overcrowded_seconds += seconds;
         }
 
-        self.state.base.bad_vibes_multiplier =
-            2f64.powf(
-                self.state.base.overcrowded_seconds / self.balance().vibes.doubling_time_seconds,
-            );
+        self.state.base.bad_vibes_multiplier = 2f64
+            .powf(self.state.base.overcrowded_seconds / self.balance().vibes.doubling_time_seconds);
 
         let base_rate = if missing_bunks <= 0.0 {
             0.0
@@ -1361,10 +1483,7 @@ impl Simulation {
         let free_bunks = i32::from(bunks_capacity) - i32::from(occupant_count);
         self.state.base.occupant_count = occupant_count;
         self.state.base.free_bunks = free_bunks as i16;
-        self.state.base.missing_bunks = free_bunks
-            .checked_neg()
-            .unwrap_or(0)
-            .max(0) as u16;
+        self.state.base.missing_bunks = free_bunks.checked_neg().unwrap_or(0).max(0) as u16;
         self.state.base.crew_efficiency_multiplier = self.crew_efficiency_multiplier();
     }
 
@@ -1374,7 +1493,8 @@ impl Simulation {
         let current_frontier_progress = self.state.bubble.frontier_progress;
 
         if target_ring > current_ring
-            || (target_ring == current_ring && target_frontier_progress >= current_frontier_progress)
+            || (target_ring == current_ring
+                && target_frontier_progress >= current_frontier_progress)
         {
             self.state.bubble.stabilized_ring = target_ring;
             self.state.bubble.frontier_progress = target_frontier_progress;
@@ -1578,7 +1698,88 @@ impl Simulation {
             self.state.roster.total_crew = self.state.roster.total_crew.saturating_add(arrivals);
             self.normalize_assignment();
             self.refresh_base_pressure_state();
-            self.push_note(format!("{arrivals} recruit(s) arrived from the Survivor Cave."));
+            self.push_note(format!(
+                "{arrivals} recruit(s) arrived from the Survivor Cave."
+            ));
+        }
+    }
+
+    fn progress_expeditions(&mut self, seconds: f64) {
+        if self.state.expeditions.active_jobs.is_empty() {
+            return;
+        }
+
+        let mut completed_ids = Vec::new();
+        for job in &mut self.state.expeditions.active_jobs {
+            job.remaining_seconds = (job.remaining_seconds - seconds).max(0.0);
+            if job.remaining_seconds <= 0.0 {
+                completed_ids.push(job.id);
+            }
+        }
+        if completed_ids.is_empty() {
+            return;
+        }
+
+        let mut completed_jobs = Vec::new();
+        self.state.expeditions.active_jobs.retain(|job| {
+            if completed_ids.contains(&job.id) {
+                completed_jobs.push(job.clone());
+                false
+            } else {
+                true
+            }
+        });
+
+        for job in completed_jobs {
+            let Some(target_def) = expedition_target_def(&job.target_id) else {
+                continue;
+            };
+            let report = self.complete_expedition_job(&job, target_def);
+            self.state.expeditions.total_wounds = self
+                .state
+                .expeditions
+                .total_wounds
+                .saturating_add(report.wounds);
+            self.state.expeditions.total_clues = self
+                .state
+                .expeditions
+                .total_clues
+                .saturating_add(report.clues);
+            self.state.expeditions.total_dungeon_leads = self
+                .state
+                .expeditions
+                .total_dungeon_leads
+                .saturating_add(report.dungeon_leads);
+            self.state.expeditions.completed_reports.push(report);
+            if self.state.expeditions.completed_reports.len() > 8 {
+                self.state.expeditions.completed_reports.remove(0);
+            }
+            self.push_note(format!("{} returned from expedition.", target_def.label));
+        }
+        self.normalize_assignment();
+    }
+
+    fn complete_expedition_job(
+        &mut self,
+        job: &ExpeditionJob,
+        target_def: &ExpeditionTargetDef,
+    ) -> ExpeditionReport {
+        let stone_gained = self.add_capped_resource(RESOURCE_STONE, target_def.expected_loot.stone);
+        let water_gained = self.add_capped_resource(RESOURCE_WATER, target_def.expected_loot.water);
+        let vibes_gained = self.add_capped_resource(RESOURCE_VIBES, target_def.expected_loot.vibes);
+
+        ExpeditionReport {
+            id: job.id,
+            target_id: target_def.id.to_string(),
+            assigned_crew: job.assigned_crew,
+            duration_seconds: job.duration_seconds,
+            risk: job.risk,
+            stone_gained,
+            water_gained,
+            vibes_gained,
+            wounds: target_def.expected_loot.wounds,
+            clues: target_def.expected_loot.clues,
+            dungeon_leads: target_def.expected_loot.dungeon_leads,
         }
     }
 
@@ -1615,7 +1816,9 @@ impl Simulation {
             self.state.roster.hero_role_id = completed.hero_role_id_before;
         }
         self.state.hero_survival.location = HeroLocationState::Studio;
-        self.state.hero_survival.required_time_to_reenter_bubble_seconds = 0.0;
+        self.state
+            .hero_survival
+            .required_time_to_reenter_bubble_seconds = 0.0;
         self.state.hero_survival.return_to_studio_seconds = 0.0;
 
         if let Some(action_def) = world_action_def(&completed.action_id) {
@@ -1663,14 +1866,17 @@ impl Simulation {
         let stabilized_cost: f64 = (1..=self.state.bubble.stabilized_ring)
             .map(|ring| self.ring_cost(ring))
             .sum();
-        stabilized_cost + (self.ring_cost(self.next_frontier_ring()) * self.state.bubble.frontier_progress)
+        stabilized_cost
+            + (self.ring_cost(self.next_frontier_ring()) * self.state.bubble.frontier_progress)
     }
 
     fn stabilized_hexes(&self) -> u16 {
         self.state
             .hexes
             .iter()
-            .filter(|hex| self.hex_is_open(hex) && hex.distance <= self.state.bubble.stabilized_ring)
+            .filter(|hex| {
+                self.hex_is_open(hex) && hex.distance <= self.state.bubble.stabilized_ring
+            })
             .count() as u16
     }
 
@@ -1678,7 +1884,9 @@ impl Simulation {
         self.state
             .hexes
             .iter()
-            .filter(|hex| self.hex_is_open(hex) && hex.distance <= self.state.bubble.stabilized_ring)
+            .filter(|hex| {
+                self.hex_is_open(hex) && hex.distance <= self.state.bubble.stabilized_ring
+            })
             .map(|hex| hex.distance)
             .max()
             .unwrap_or(0)
@@ -1723,7 +1931,9 @@ impl Simulation {
         let frontier_progress = self.state.bubble.frontier_progress;
 
         for hex in &mut self.state.hexes {
-            let is_blocked = tile_def(&hex.tile_id).map(|tile| tile.is_blocker).unwrap_or(false);
+            let is_blocked = tile_def(&hex.tile_id)
+                .map(|tile| tile.is_blocker)
+                .unwrap_or(false);
             if is_blocked {
                 hex.state = HexVisualState::Blocked;
                 hex.progress = 0.0;
@@ -1892,7 +2102,11 @@ impl Simulation {
         match active_beat.world_action_id {
             Some(required_action_id) if required_action_id == action_id => {
                 if !active_beat.choices.is_empty()
-                    && !self.state.narrative.choice_by_beat.contains_key(active_beat_id)
+                    && !self
+                        .state
+                        .narrative
+                        .choice_by_beat
+                        .contains_key(active_beat_id)
                 {
                     self.push_note(format!(
                         "Choose how to approach {} before starting it.",
@@ -1975,9 +2189,7 @@ impl Simulation {
     }
 
     fn class_level_multiplier(&self, level: u16) -> f64 {
-        1.0
-            + self.balance().progression.level_multiplier_a
-                * (1.0 + f64::from(level)).log2()
+        1.0 + self.balance().progression.level_multiplier_a * (1.0 + f64::from(level)).log2()
     }
 
     fn hero_band_multiplier(&self) -> f64 {
@@ -2082,7 +2294,9 @@ impl Simulation {
 
     fn raw_bassline_generation_per_second(&self, crew_efficiency: f64) -> f64 {
         let passive_trickle = if self.state.crystal_circle.removing_moss_completed {
-            self.balance().crystal.removing_moss_passive_bassline_per_second
+            self.balance()
+                .crystal
+                .removing_moss_passive_bassline_per_second
         } else {
             0.0
         };
@@ -2138,7 +2352,12 @@ impl Simulation {
         }
     }
 
-    fn brownout_severity(&self, requested_upkeep: f64, active_upkeep: f64, harmonics_tier: u8) -> f64 {
+    fn brownout_severity(
+        &self,
+        requested_upkeep: f64,
+        active_upkeep: f64,
+        harmonics_tier: u8,
+    ) -> f64 {
         if requested_upkeep <= 0.0 || active_upkeep + 0.0001 >= requested_upkeep {
             return 0.0;
         }
@@ -2161,7 +2380,8 @@ impl Simulation {
     fn normalize_assignment(&mut self) {
         let total_crew = self.state.roster.total_crew;
 
-        let mut remaining_crew = total_crew;
+        let expedition_crew = self.expedition_assigned_crew_u8();
+        let mut remaining_crew = total_crew.saturating_sub(expedition_crew);
         let mut remaining_crystal_slots = self.max_assignable();
         let mut remaining_fire_pit_slots = self.fire_pit_capacity();
 
@@ -2186,7 +2406,9 @@ impl Simulation {
             }
             let current = self.crew_count(role_id);
             let capped = match role.slot_pool {
-                RoleSlotPool::CrystalCircle => current.min(remaining_crystal_slots).min(remaining_crew),
+                RoleSlotPool::CrystalCircle => {
+                    current.min(remaining_crystal_slots).min(remaining_crew)
+                }
                 RoleSlotPool::FirePit => current.min(remaining_fire_pit_slots).min(remaining_crew),
                 RoleSlotPool::Base => current.min(remaining_crew),
             };
@@ -2230,8 +2452,13 @@ impl Simulation {
             .filter(|(current_role_id, _)| current_role_id.as_str() != role_id)
             .map(|(_, crew)| *crew)
             .sum();
-        let remaining_crew_including_current =
-            self.state.roster.total_crew.saturating_sub(assigned_elsewhere);
+        let expedition_crew = self.expedition_assigned_crew_u8();
+        let remaining_crew_including_current = self
+            .state
+            .roster
+            .total_crew
+            .saturating_sub(assigned_elsewhere)
+            .saturating_sub(expedition_crew);
 
         match role.slot_pool {
             RoleSlotPool::CrystalCircle => {
@@ -2258,15 +2485,13 @@ impl Simulation {
     fn normalize_station_state(&mut self) {
         for def in stations() {
             let is_available = self.requirements_met(def.requirements);
-            let station = self
-                .state
-                .stations
-                .entry(def.id.to_string())
-                .or_insert(crate::state::StationState {
+            let station = self.state.stations.entry(def.id.to_string()).or_insert(
+                crate::state::StationState {
                     requested_enabled: def.starts_requested,
                     is_powered: def.chorus_upkeep_per_second <= 0.0,
                     power_order: u32::from(def.ui_order),
-                });
+                },
+            );
             if !is_available {
                 station.is_powered = false;
                 station.requested_enabled = def.starts_requested;
@@ -2284,7 +2509,12 @@ impl Simulation {
     }
 
     fn next_recruit_cost(&self) -> f64 {
-        recruit_cost_for_index(self.state.recruitment.total_recruited_this_run.saturating_add(1))
+        recruit_cost_for_index(
+            self.state
+                .recruitment
+                .total_recruited_this_run
+                .saturating_add(1),
+        )
     }
 
     fn balance(&self) -> BalanceSnapshot {
@@ -2325,8 +2555,40 @@ impl Simulation {
     }
 
     fn active_staff_count(&self) -> u8 {
-        let assigned_crew: u16 = self.state.roster.crew_by_role.values().map(|crew| u16::from(*crew)).sum();
+        let assigned_crew: u16 = self
+            .state
+            .roster
+            .crew_by_role
+            .values()
+            .map(|crew| u16::from(*crew))
+            .sum();
         (assigned_crew + u16::from(self.state.roster.hero_assigned)).min(u16::from(u8::MAX)) as u8
+    }
+
+    fn expedition_assigned_crew(&self) -> u16 {
+        self.state
+            .expeditions
+            .active_jobs
+            .iter()
+            .map(|job| job.assigned_crew)
+            .sum()
+    }
+
+    fn expedition_assigned_crew_u8(&self) -> u8 {
+        self.expedition_assigned_crew().min(u16::from(u8::MAX)) as u8
+    }
+
+    fn available_expedition_crew(&self) -> u16 {
+        let assigned_roles: u16 = self
+            .state
+            .roster
+            .crew_by_role
+            .values()
+            .map(|crew| u16::from(*crew))
+            .sum();
+        u16::from(self.state.roster.total_crew)
+            .saturating_sub(assigned_roles)
+            .saturating_sub(self.expedition_assigned_crew())
     }
 
     fn life_support_upkeep_per_second(&self) -> f64 {
@@ -2335,18 +2597,19 @@ impl Simulation {
         }
 
         let active_staff = self.active_staff_count();
-        let free_staff = self
-            .balance()
-            .power
-            .life_support_free_staff
-            .saturating_add(
-                self.state.processing.research_chorus_routing_level.saturating_mul(
-                    self.balance().power.research_chorus_free_staff_per_level,
-                ),
-            );
+        let free_staff = self.balance().power.life_support_free_staff.saturating_add(
+            self.state
+                .processing
+                .research_chorus_routing_level
+                .saturating_mul(self.balance().power.research_chorus_free_staff_per_level),
+        );
         let staffed_overage = active_staff.saturating_sub(free_staff);
 
-        f64::from(staffed_overage) * self.balance().power.life_support_upkeep_per_staff_per_second
+        f64::from(staffed_overage)
+            * self
+                .balance()
+                .power
+                .life_support_upkeep_per_staff_per_second
     }
 
     fn refresh_power_state(&mut self) {
@@ -2370,13 +2633,19 @@ impl Simulation {
             self.brownout_severity(requested_upkeep, active_upkeep, harmonics_tier);
         let mix_processing_harmonics_bonus = if self.station_powered(STATION_MIX_CONSOLE) {
             f64::from(self.state.processing.mix_calibration_level)
-                * self.balance().power.mix_processing_harmonics_bonus_per_level
+                * self
+                    .balance()
+                    .power
+                    .mix_processing_harmonics_bonus_per_level
         } else {
             0.0
         };
         let mix_processing_brownout_tolerance = if self.station_powered(STATION_MIX_CONSOLE) {
             f64::from(self.state.processing.mix_calibration_level)
-                * self.balance().power.mix_processing_brownout_tolerance_per_level
+                * self
+                    .balance()
+                    .power
+                    .mix_processing_brownout_tolerance_per_level
         } else {
             0.0
         };
@@ -2384,7 +2653,7 @@ impl Simulation {
             base_harmonics_efficiency_multiplier + mix_processing_harmonics_bonus;
         let brownout_severity = (base_brownout_severity
             * (1.0 - mix_processing_brownout_tolerance.clamp(0.0, 0.75)))
-            .clamp(0.0, 1.0);
+        .clamp(0.0, 1.0);
         let bassline_output_multiplier = (1.0
             + (harmonics_efficiency_multiplier - 1.0)
                 * self.balance().power.bassline_generation_bonus_weight)
@@ -2393,18 +2662,19 @@ impl Simulation {
             + (harmonics_efficiency_multiplier - 1.0)
                 * self.balance().power.chorus_generation_bonus_weight)
             * (1.0 - brownout_severity * self.balance().power.brownout_chorus_penalty_weight);
-        let harmonics_output_multiplier =
-            (1.0 + (harmonics_efficiency_multiplier - 1.0)
+        let harmonics_output_multiplier = (1.0
+            + (harmonics_efficiency_multiplier - 1.0)
                 * self.balance().power.harmonics_generation_bonus_weight)
-                * (1.0
-                    - brownout_severity
-                        * self.balance().power.brownout_harmonics_penalty_weight);
+            * (1.0 - brownout_severity * self.balance().power.brownout_harmonics_penalty_weight);
         let mut field_multiplier = harmonics_efficiency_multiplier;
         if self.station_powered(STATION_RESONANCE_CHAMBER) {
             field_multiplier *= (1.0 + self.balance().power.resonance_chamber_field_bonus)
                 * (1.0
                     + f64::from(self.state.processing.resonance_calibration_level)
-                        * self.balance().power.resonance_processing_field_bonus_per_level);
+                        * self
+                            .balance()
+                            .power
+                            .resonance_processing_field_bonus_per_level);
         }
         field_multiplier *=
             1.0 - brownout_severity * self.balance().power.brownout_field_penalty_weight;
@@ -2439,14 +2709,16 @@ impl Simulation {
                     station.id,
                     station.label,
                     station.chorus_upkeep_per_second
-                        * self.manual_station_upkeep_multiplier_for(self.state.power.harmonics_tier),
+                        * self
+                            .manual_station_upkeep_multiplier_for(self.state.power.harmonics_tier),
                     runtime.power_order,
                 ))
             })
             .collect::<Vec<_>>();
         candidates.sort_by_key(|(_, _, _, order)| *order);
 
-        let available_after_life_support = (self.state.resources.chorus - mandatory_upkeep).max(0.0);
+        let available_after_life_support =
+            (self.state.resources.chorus - mandatory_upkeep).max(0.0);
         let mut active_ids = candidates
             .iter()
             .map(|(id, _, upkeep, _)| (*id, *upkeep))
@@ -2533,7 +2805,9 @@ impl Simulation {
     }
 
     fn hex_is_open(&self, hex: &HexState) -> bool {
-        self.tile_for_hex(hex).map(|tile| !tile.is_blocker).unwrap_or(false)
+        self.tile_for_hex(hex)
+            .map(|tile| !tile.is_blocker)
+            .unwrap_or(false)
     }
 
     fn hex_exists(&self, q: i8, r: i8) -> bool {
@@ -2577,7 +2851,9 @@ impl Simulation {
 
     fn processing_track_level(&self, track: ProcessingTrack) -> u8 {
         match track {
-            ProcessingTrack::ResonanceCalibration => self.state.processing.resonance_calibration_level,
+            ProcessingTrack::ResonanceCalibration => {
+                self.state.processing.resonance_calibration_level
+            }
             ProcessingTrack::MixCalibration => self.state.processing.mix_calibration_level,
             ProcessingTrack::WorkshopTooling => self.state.processing.workshop_tooling_level,
             ProcessingTrack::WorkshopWaterCondensers => {
@@ -2637,11 +2913,19 @@ impl Simulation {
             FLAG_BASE_TUTORIAL_EXPLORED => self.state.base.tutorial_explored,
             FLAG_BASE_WATER_COLLECTION_UNLOCKED => self.state.base.water_collection_unlocked,
             FLAG_CRYSTAL_REMOVING_MOSS_UNLOCKED => self.state.crystal_circle.removing_moss_unlocked,
-            FLAG_CRYSTAL_REMOVING_MOSS_COMPLETED => self.state.crystal_circle.removing_moss_completed,
-            FLAG_HERO_OUTSIDE_BUBBLE => self.state.hero_survival.location == HeroLocationState::OutsideBubble,
+            FLAG_CRYSTAL_REMOVING_MOSS_COMPLETED => {
+                self.state.crystal_circle.removing_moss_completed
+            }
+            FLAG_HERO_OUTSIDE_BUBBLE => {
+                self.state.hero_survival.location == HeroLocationState::OutsideBubble
+            }
             FLAG_HERO_FORCED_RETURN_ACTIVE => self.state.hero_survival.forced_return.is_some(),
             FLAG_HERO_RECOVERING_AT_STUDIO => matches!(
-                self.state.hero_survival.forced_return.as_ref().map(|state| state.phase),
+                self.state
+                    .hero_survival
+                    .forced_return
+                    .as_ref()
+                    .map(|state| state.phase),
                 Some(ForcedReturnPhase::RecoverAtStudio)
             ),
             _ => false,
@@ -2679,7 +2963,9 @@ impl Simulation {
             }
             FLAG_BASE_TUTORIAL_INVESTIGATED => self.state.base.tutorial_investigated = value,
             FLAG_BASE_TUTORIAL_EXPLORED => self.state.base.tutorial_explored = value,
-            FLAG_BASE_WATER_COLLECTION_UNLOCKED => self.state.base.water_collection_unlocked = value,
+            FLAG_BASE_WATER_COLLECTION_UNLOCKED => {
+                self.state.base.water_collection_unlocked = value
+            }
             FLAG_CRYSTAL_REMOVING_MOSS_UNLOCKED => {
                 self.state.crystal_circle.removing_moss_unlocked = value
             }
@@ -2793,6 +3079,7 @@ impl Simulation {
             RESOURCE_HARMONICS => "Harmonics".to_string(),
             RESOURCE_STONE => "Stone".to_string(),
             RESOURCE_WATER => "Water".to_string(),
+            RESOURCE_VIBES => "Vibes".to_string(),
             _ => resource_id.to_string(),
         }
     }
@@ -2860,16 +3147,55 @@ impl Simulation {
         }
     }
 
+    fn add_capped_resource(&mut self, resource_id: &str, amount: f64) -> f64 {
+        let amount = amount.max(0.0);
+        match resource_id {
+            RESOURCE_BASSLINE => {
+                let before = self.state.resources.bassline;
+                self.state.resources.bassline =
+                    (before + amount).min(self.state.resources.bassline_cap);
+                self.state.resources.bassline - before
+            }
+            RESOURCE_CHORUS => {
+                let before = self.state.resources.chorus;
+                self.state.resources.chorus =
+                    (before + amount).min(self.state.resources.chorus_cap);
+                self.state.resources.chorus - before
+            }
+            RESOURCE_HARMONICS => {
+                let before = self.state.resources.harmonics;
+                self.state.resources.harmonics =
+                    (before + amount).min(self.state.resources.harmonics_cap);
+                self.state.resources.harmonics - before
+            }
+            RESOURCE_STONE => {
+                let before = self.state.resources.stone;
+                self.state.resources.stone = (before + amount).min(self.state.resources.stone_cap);
+                self.state.resources.stone - before
+            }
+            RESOURCE_WATER => {
+                let before = self.state.resources.water;
+                self.state.resources.water = (before + amount).min(self.state.resources.water_cap);
+                self.state.resources.water - before
+            }
+            RESOURCE_VIBES => {
+                let before = self.state.resources.vibes;
+                self.state.resources.vibes = (before + amount).min(self.state.resources.vibes_cap);
+                self.state.resources.vibes - before
+            }
+            _ => 0.0,
+        }
+    }
+
     fn ensure_station_present(&mut self, station_id: &str) {
         if let Some(def) = station_def(station_id) {
-            self.state
-                .stations
-                .entry(station_id.to_string())
-                .or_insert(crate::state::StationState {
+            self.state.stations.entry(station_id.to_string()).or_insert(
+                crate::state::StationState {
                     requested_enabled: def.starts_requested,
                     is_powered: def.chorus_upkeep_per_second <= 0.0,
                     power_order: u32::from(def.ui_order),
-                });
+                },
+            );
         }
     }
 
@@ -2890,4 +3216,12 @@ fn hex_distance(q1: i8, r1: i8, q2: i8, r2: i8) -> u8 {
     let dq = q1 - q2;
     let dr = r1 - r2;
     dq.abs().max(dr.abs()).max((-(q1 + r1) + (q2 + r2)).abs()) as u8
+}
+
+fn expedition_risk_state(risk: ExpeditionRiskDef) -> ExpeditionRiskState {
+    match risk {
+        ExpeditionRiskDef::Low => ExpeditionRiskState::Low,
+        ExpeditionRiskDef::Medium => ExpeditionRiskState::Medium,
+        ExpeditionRiskDef::High => ExpeditionRiskState::High,
+    }
 }

@@ -96,6 +96,40 @@ export interface ProcessingSnapshot {
   activeJobs: Record<string, ProcessingJobSnapshot>
 }
 
+export type ExpeditionRisk = 'low' | 'medium' | 'high'
+
+export interface ExpeditionJobSnapshot {
+  id: number
+  targetId: string
+  assignedCrew: number
+  durationSeconds: number
+  remainingSeconds: number
+  risk: ExpeditionRisk
+}
+
+export interface ExpeditionReportSnapshot {
+  id: number
+  targetId: string
+  assignedCrew: number
+  durationSeconds: number
+  risk: ExpeditionRisk
+  stoneGained: number
+  waterGained: number
+  vibesGained: number
+  wounds: number
+  clues: number
+  dungeonLeads: number
+}
+
+export interface ExpeditionSnapshot {
+  activeJobs: ExpeditionJobSnapshot[]
+  completedReports: ExpeditionReportSnapshot[]
+  nextJobId: number
+  totalWounds: number
+  totalClues: number
+  totalDungeonLeads: number
+}
+
 export interface BaseSnapshot {
   studioRestored: boolean
   studioRestoreUnlocked: boolean
@@ -217,6 +251,7 @@ export interface SimulationSnapshot {
   narrative: NarrativeSnapshot
   crystalCircle: CrystalCircleSnapshot
   processing: ProcessingSnapshot
+  expeditions: ExpeditionSnapshot
   base: BaseSnapshot
   power: PowerSnapshot
   stations: Record<string, StationSnapshot>
@@ -406,6 +441,34 @@ export interface WorldActionDef {
   uiOrder: number
 }
 
+export interface ExpeditionSupportDef {
+  requiresStudioRestored: boolean
+  requiresFirePit: boolean
+}
+
+export interface ExpeditionRewardDef {
+  stone: number
+  water: number
+  vibes: number
+  wounds: number
+  clues: number
+  dungeonLeads: number
+}
+
+export interface ExpeditionTargetDef {
+  id: string
+  schemaId: string
+  label: string
+  durationSeconds: number
+  requiredCrew: number
+  requiredBubbleReach: number
+  support: ExpeditionSupportDef
+  risk: ExpeditionRisk
+  expectedLoot: ExpeditionRewardDef
+  uiOrder: number
+  playerHint: string
+}
+
 export interface StoryBeatDef {
   id: string
   schemaId: string
@@ -581,6 +644,7 @@ export interface CatalogSnapshot {
   constructionOptions: ConstructionOptionDef[]
   processingRecipes: ProcessingRecipeDef[]
   worldActions: WorldActionDef[]
+  expeditionTargets: ExpeditionTargetDef[]
   storyBeats: StoryBeatDef[]
   flags: FlagDef[]
   models: ModelDef[]
@@ -744,6 +808,8 @@ export type WorkerRequest =
   | { type: 'startWorldAction'; actionId: string }
   | { type: 'startConstruction'; optionId: string }
   | { type: 'startProcessing'; recipeId: string }
+  | { type: 'startExpedition'; targetId: string; assignedCrew: number }
+  | { type: 'clearExpeditionReports' }
   | { type: 'recruitFromSurvivorCave' }
   | { type: 'moveHeroTo'; q: number; r: number }
   | { type: 'openDoor'; key: string }

@@ -1896,6 +1896,226 @@ export const ENTITY_SCHEMAS: readonly Omit<EntitySchemaDef, "presentation" | "vi
     "notes": []
   },
   {
+    "id": "project.expand_bunks",
+    "entityKind": "construction_option",
+    "persistence": null,
+    "unlocks": [
+      {
+        "kind": "construction",
+        "label": "Adds bunk capacity for safer recruitment.",
+        "relatedIds": [
+          "base.studio_restored"
+        ]
+      }
+    ],
+    "blockers": [
+      {
+        "kind": "missing_requirement",
+        "label": "Restore the Studio first.",
+        "relatedIds": [
+          "base.studio_restored"
+        ]
+      },
+      {
+        "kind": "missing_resource",
+        "label": "Requires Stone and Water upfront.",
+        "relatedIds": [
+          "resource.stone",
+          "resource.water"
+        ]
+      }
+    ],
+    "accessRules": [
+      {
+        "kind": "base_only",
+        "label": "Base housing project.",
+        "relatedIds": [
+          "structure.base"
+        ]
+      }
+    ],
+    "power": null,
+    "flows": [
+      {
+        "itemId": "base.bunks_capacity",
+        "label": "Adds five bunks when complete.",
+        "direction": "capacity",
+        "cadence": "on_complete",
+        "relatedIds": [
+          "ui.action.recruit"
+        ]
+      }
+    ],
+    "modelRefs": [],
+    "notes": []
+  },
+  {
+    "id": "project.safe_water_systems",
+    "entityKind": "construction_option",
+    "persistence": null,
+    "unlocks": [
+      {
+        "kind": "construction",
+        "label": "Improves Water handling through Workshop condenser practice.",
+        "relatedIds": [
+          "base.workshop_built",
+          "base.water_collection_unlocked"
+        ]
+      }
+    ],
+    "blockers": [
+      {
+        "kind": "missing_requirement",
+        "label": "Requires the Workshop and Water collection.",
+        "relatedIds": [
+          "base.workshop_built",
+          "base.water_collection_unlocked"
+        ]
+      },
+      {
+        "kind": "missing_resource",
+        "label": "Requires Stone and Water upfront.",
+        "relatedIds": [
+          "resource.stone",
+          "resource.water"
+        ]
+      }
+    ],
+    "accessRules": [
+      {
+        "kind": "base_only",
+        "label": "Base support project.",
+        "relatedIds": [
+          "structure.base"
+        ]
+      }
+    ],
+    "power": null,
+    "flows": [
+      {
+        "itemId": "resource.water",
+        "label": "Improves safe Water capacity and regeneration through condenser level.",
+        "direction": "capacity",
+        "cadence": "on_complete",
+        "relatedIds": [
+          "recipe.workshop_water_condensers"
+        ]
+      }
+    ],
+    "modelRefs": [],
+    "notes": []
+  },
+  {
+    "id": "project.expedition_staging",
+    "entityKind": "construction_option",
+    "persistence": null,
+    "unlocks": [
+      {
+        "kind": "construction",
+        "label": "Prepares field staging for safer expedition reach.",
+        "relatedIds": [
+          "base.resonance_chamber_built",
+          "base.workshop_built"
+        ]
+      }
+    ],
+    "blockers": [
+      {
+        "kind": "missing_requirement",
+        "label": "Requires Resonance Chamber and Workshop.",
+        "relatedIds": [
+          "base.resonance_chamber_built",
+          "base.workshop_built"
+        ]
+      },
+      {
+        "kind": "missing_resource",
+        "label": "Requires Stone and Water upfront.",
+        "relatedIds": [
+          "resource.stone",
+          "resource.water"
+        ]
+      }
+    ],
+    "accessRules": [
+      {
+        "kind": "base_only",
+        "label": "Base expedition project.",
+        "relatedIds": [
+          "structure.base"
+        ]
+      }
+    ],
+    "power": null,
+    "flows": [
+      {
+        "itemId": "construction.polish_field",
+        "label": "Improves field polish when complete.",
+        "direction": "unlock",
+        "cadence": "on_complete",
+        "relatedIds": [
+          "resource.bassline"
+        ]
+      }
+    ],
+    "modelRefs": [],
+    "notes": []
+  },
+  {
+    "id": "project.prepare_loudspeakers",
+    "entityKind": "construction_option",
+    "persistence": null,
+    "unlocks": [
+      {
+        "kind": "construction",
+        "label": "Prepares Chorus relay routing for larger base operations.",
+        "relatedIds": [
+          "base.research_booth_built"
+        ]
+      }
+    ],
+    "blockers": [
+      {
+        "kind": "missing_requirement",
+        "label": "Requires the Research Booth.",
+        "relatedIds": [
+          "base.research_booth_built"
+        ]
+      },
+      {
+        "kind": "missing_resource",
+        "label": "Requires Stone and Water upfront.",
+        "relatedIds": [
+          "resource.stone",
+          "resource.water"
+        ]
+      }
+    ],
+    "accessRules": [
+      {
+        "kind": "base_only",
+        "label": "Base relay project.",
+        "relatedIds": [
+          "structure.base"
+        ]
+      }
+    ],
+    "power": null,
+    "flows": [
+      {
+        "itemId": "recipe.research_chorus_routing",
+        "label": "Improves Chorus routing when complete.",
+        "direction": "unlock",
+        "cadence": "on_complete",
+        "relatedIds": [
+          "station.research_booth"
+        ]
+      }
+    ],
+    "modelRefs": [],
+    "notes": []
+  },
+  {
     "id": "recipe.resonance_field_calibration",
     "entityKind": "processing_recipe",
     "persistence": null,

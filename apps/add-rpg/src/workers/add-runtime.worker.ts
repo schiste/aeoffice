@@ -63,6 +63,14 @@ async function handleMessage(message: WorkerRequest) {
         runtime?.startProcessing(message.recipeId)
         postWorkerEvent({ type: 'snapshot', snapshot: snapshot() })
         break
+      case 'startExpedition':
+        runtime?.startExpedition(message.targetId, message.assignedCrew)
+        postWorkerEvent({ type: 'snapshot', snapshot: snapshot() })
+        break
+      case 'clearExpeditionReports':
+        runtime?.clearExpeditionReports()
+        postWorkerEvent({ type: 'snapshot', snapshot: snapshot() })
+        break
       case 'recruitFromSurvivorCave':
         runtime?.recruitFromSurvivorCave()
         postWorkerEvent({ type: 'snapshot', snapshot: snapshot() })

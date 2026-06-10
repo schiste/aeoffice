@@ -96,6 +96,19 @@ impl WebRuntime {
         });
     }
 
+    #[wasm_bindgen(js_name = startExpedition)]
+    pub fn start_expedition(&mut self, target_id: &str, assigned_crew: u16) {
+        self.simulation.apply(GameCommand::StartExpedition {
+            target_id: target_id.to_string(),
+            assigned_crew,
+        });
+    }
+
+    #[wasm_bindgen(js_name = clearExpeditionReports)]
+    pub fn clear_expedition_reports(&mut self) {
+        self.simulation.apply(GameCommand::ClearExpeditionReports);
+    }
+
     #[wasm_bindgen(js_name = recruitFromSurvivorCave)]
     pub fn recruit_from_survivor_cave(&mut self) {
         self.simulation.apply(GameCommand::RecruitFromSurvivorCave);

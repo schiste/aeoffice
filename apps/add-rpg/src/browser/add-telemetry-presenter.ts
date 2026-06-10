@@ -318,7 +318,7 @@ export interface RuntimeTextState {
     readonly jobsCompleted: readonly {
       readonly id: string
       readonly label: string
-      readonly kind: "construction" | "processing"
+      readonly kind: "construction" | "processing" | "expedition"
     }[]
     readonly recruitsArrived: number
     readonly bubble: {
@@ -561,6 +561,43 @@ export interface RuntimeTextState {
         readonly riskSummary: string
         readonly bottleneckSummary: string
       }
+    }
+    readonly expeditions: {
+      readonly summary: string
+      readonly availableCrew: number
+      readonly assignedCrew: number
+      readonly activeCount: number
+      readonly completedReportCount: number
+      readonly totalWounds: number
+      readonly totalClues: number
+      readonly totalDungeonLeads: number
+      readonly recommendedTargetId: string | null
+      readonly targets: readonly {
+        readonly id: string
+        readonly enabled: boolean
+        readonly disabledReason: string | null
+        readonly durationSeconds: number
+        readonly requiredCrew: number
+        readonly requiredBubbleReach: number
+        readonly risk: string
+        readonly expectedLootCopy: string
+      }[]
+      readonly activeJobs: readonly {
+        readonly id: number
+        readonly targetId: string
+        readonly label: string
+        readonly assignedCrew: number
+        readonly remainingSeconds: number
+        readonly progressPercent: number
+        readonly risk: string
+      }[]
+      readonly reports: readonly {
+        readonly id: number
+        readonly targetId: string
+        readonly rewardCopy: string
+        readonly woundCopy: string
+        readonly clueCopy: string
+      }[]
     }
     readonly activeConstructionId: string | null
     readonly enabledConstructionIds: readonly string[]
@@ -1215,6 +1252,43 @@ function baseManagementTelemetry(
         riskSummary: state.staffing.visibleImpact.riskSummary,
         bottleneckSummary: state.staffing.visibleImpact.bottleneckSummary,
       },
+    },
+    expeditions: {
+      summary: state.expeditions.summary,
+      availableCrew: state.expeditions.availableCrew,
+      assignedCrew: state.expeditions.assignedCrew,
+      activeCount: state.expeditions.activeCount,
+      completedReportCount: state.expeditions.completedReportCount,
+      totalWounds: state.expeditions.totalWounds,
+      totalClues: state.expeditions.totalClues,
+      totalDungeonLeads: state.expeditions.totalDungeonLeads,
+      recommendedTargetId: state.expeditions.recommendedTargetId,
+      targets: state.expeditions.targets.map((target) => ({
+        id: target.id,
+        enabled: target.enabled,
+        disabledReason: target.disabledReason,
+        durationSeconds: round2(target.durationSeconds),
+        requiredCrew: target.requiredCrew,
+        requiredBubbleReach: target.requiredBubbleReach,
+        risk: target.risk,
+        expectedLootCopy: target.expectedLootCopy,
+      })),
+      activeJobs: state.expeditions.activeJobs.map((job) => ({
+        id: job.id,
+        targetId: job.targetId,
+        label: job.label,
+        assignedCrew: job.assignedCrew,
+        remainingSeconds: round2(job.remainingSeconds),
+        progressPercent: round2(job.progressPercent),
+        risk: job.risk,
+      })),
+      reports: state.expeditions.reports.map((report) => ({
+        id: report.id,
+        targetId: report.targetId,
+        rewardCopy: report.rewardCopy,
+        woundCopy: report.woundCopy,
+        clueCopy: report.clueCopy,
+      })),
     },
     activeConstructionId: state.activeConstruction?.id ?? null,
     enabledConstructionIds: state.construction

@@ -6,32 +6,34 @@ pub mod state;
 
 pub use command::GameCommand;
 pub use game_data::{
-    balance_snapshot, catalog_snapshot, construction_option_def, construction_options,
-    entity_schema_def, entity_schemas, flora, flora_def, presentation_def, processing_recipe_def,
-    processing_recipes, recruit_cost_for_index, resource_def, resources, role_def, roles,
-    station_def, stations, story_beat_def, story_beats, structure_def, structures, terrain_profile_for, tile_def, tile_id_for,
-    world_action_def, world_actions, AccessRuleDef, AccessRuleKind, BalanceSnapshot, BlockerDef,
-    BlockerKind, BubbleBalance, CapBehavior, CatalogSnapshot, ConstructionGroup,
-    ConstructionOptionDef, CostDef, CrystalBalance, CrystalTrack, EffectDef, EntityKind,
-    EntityPresentationDef, EntitySchemaDef, EntitySchemaSnapshot, EntityVisibilityDef,
-    FirePitBalance, FloraDef, FloraKind, FlowCadence, FlowDef, FlowDirection, HeroExposureDef,
-    ModelKind,
-    ModelRefDef, PersistenceDef, PersistenceScope, PowerBalance, PowerFallbackMode,
-    PowerProfileDef, PresentationDef, PresentationReveal, ProcessingRecipeDef, ProcessingTrack,
-    ProgressionBalance, RecruitmentBalance, RequirementDef, ResourceCategory, ResourceDef,
-    RoleDef, RoleSlotPool, ScavengeBalance, StationCategory, StationDef, StoryBeatDef, StoryChoiceDef, StructureDef,
+    AccessRuleDef, AccessRuleKind, BalanceSnapshot, BlockerDef, BlockerKind, BubbleBalance,
+    CapBehavior, CatalogSnapshot, ConstructionGroup, ConstructionOptionDef, CostDef,
+    CrystalBalance, CrystalTrack, EffectDef, EntityKind, EntityPresentationDef, EntitySchemaDef,
+    EntitySchemaSnapshot, EntityVisibilityDef, ExpeditionRewardDef, ExpeditionRiskDef,
+    ExpeditionSupportDef, ExpeditionTargetDef, FirePitBalance, FloraDef, FloraKind, FlowCadence,
+    FlowDef, FlowDirection, HeroExposureDef, ModelKind, ModelRefDef, PersistenceDef,
+    PersistenceScope, PowerBalance, PowerFallbackMode, PowerProfileDef, PresentationDef,
+    PresentationReveal, ProcessingRecipeDef, ProcessingTrack, ProgressionBalance,
+    RecruitmentBalance, RequirementDef, ResourceCategory, ResourceDef, RoleDef, RoleSlotPool,
+    ScavengeBalance, StationCategory, StationDef, StoryBeatDef, StoryChoiceDef, StructureDef,
     StructureKind, SurvivalBalance, TerrainProfile, TerrainSnapshot, TileDef, TileFeature, TileTag,
-    TuningAffinity, UiElementDef, VibesBalance, VisibilityConditionDef, VisibilityDef,
-    UnlockDef, UnlockKind, WaterBalance, WorldActionDef,
+    TuningAffinity, UiElementDef, UnlockDef, UnlockKind, VibesBalance, VisibilityConditionDef,
+    VisibilityDef, WaterBalance, WorldActionDef, balance_snapshot, catalog_snapshot,
+    construction_option_def, construction_options, entity_schema_def, entity_schemas,
+    expedition_target_def, expedition_targets, flora, flora_def, presentation_def,
+    processing_recipe_def, processing_recipes, recruit_cost_for_index, resource_def, resources,
+    role_def, roles, station_def, stations, story_beat_def, story_beats, structure_def, structures,
+    terrain_profile_for, tile_def, tile_id_for, world_action_def, world_actions,
 };
 pub use save::{export_save, import_save};
 pub use simulation::Simulation;
 pub use state::{
-    BaseState, BubbleState, ConstructionJob, CrystalCircleState, ForcedReturnPhase,
-    ForcedReturnState, GameState, HeroLocationState, HeroProgressState, HeroSurvivalState,
-    HexCoordState, HexState, HexVisualState, NarrativeState, ObjectiveState, PowerState, ProcessingJob, ProcessingState,
-    RecruitTravel, RecruitmentState, ResourcePools, RosterState, StationState, WorldAction, WoundTrackState,
-    DEFAULT_BASE_SLOTS, DEFAULT_TOTAL_CREW, GRID_RADIUS,
+    BaseState, BubbleState, ConstructionJob, CrystalCircleState, DEFAULT_BASE_SLOTS,
+    DEFAULT_TOTAL_CREW, ExpeditionJob, ExpeditionReport, ExpeditionRiskState, ExpeditionState,
+    ForcedReturnPhase, ForcedReturnState, GRID_RADIUS, GameState, HeroLocationState,
+    HeroProgressState, HeroSurvivalState, HexCoordState, HexState, HexVisualState, NarrativeState,
+    ObjectiveState, PowerState, ProcessingJob, ProcessingState, RecruitTravel, RecruitmentState,
+    ResourcePools, RosterState, StationState, WorldAction, WoundTrackState,
 };
 
 #[cfg(test)]
@@ -39,29 +41,30 @@ mod tests {
     use std::collections::HashSet;
 
     use super::{
-        export_save, import_save,
+        DEFAULT_TOTAL_CREW, ForcedReturnPhase, ForcedReturnState, GameCommand, GameState,
+        HeroLocationState, HexCoordState, RecruitTravel, Simulation, export_save,
         game_data::{
-            CONSTRUCTION_OUTPUT, CONSTRUCTION_REMOVING_MOSS, CONSTRUCTION_STORAGE, PROJECT_BUILD_FIRE_PIT,
-            PROJECT_BUILD_MIX_CONSOLE, PROJECT_BUILD_RESEARCH_BOOTH, PROJECT_BUILD_RESONANCE_CHAMBER,
-            PROJECT_BUILD_WORKSHOP, PROJECT_RESTORE_STUDIO, RECIPE_MIX_SIGNAL_BALANCING,
+            CONSTRUCTION_OUTPUT, CONSTRUCTION_REMOVING_MOSS, CONSTRUCTION_STORAGE,
+            EXPEDITION_LOCAL_SCAVENGE_SWEEP, PROJECT_BUILD_FIRE_PIT, PROJECT_BUILD_MIX_CONSOLE,
+            PROJECT_BUILD_RESEARCH_BOOTH, PROJECT_BUILD_RESONANCE_CHAMBER, PROJECT_BUILD_WORKSHOP,
+            PROJECT_EXPAND_BUNKS, PROJECT_EXPEDITION_STAGING, PROJECT_PREPARE_LOUDSPEAKERS,
+            PROJECT_RESTORE_STUDIO, PROJECT_SAFE_WATER_SYSTEMS, RECIPE_MIX_SIGNAL_BALANCING,
             RECIPE_RESEARCH_CHORUS_ROUTING, RECIPE_RESEARCH_HARMONIC_STUDY,
             RECIPE_RESONANCE_FIELD_CALIBRATION, RECIPE_WORKSHOP_BUILDER_TOOLS,
             RECIPE_WORKSHOP_WATER_CONDENSERS, RESOURCE_BASSLINE, RESOURCE_CHORUS,
-            RESOURCE_HARMONICS, RESOURCE_STONE, RESOURCE_VIBES, RESOURCE_WATER,
-            ROLE_CONSTRUCTION, ROLE_CRYSTAL_BASSLINE, ROLE_CRYSTAL_CHORUS,
-            ROLE_CRYSTAL_HARMONICS, ROLE_FIRE_PIT, ROLE_SCAVENGE, ROLE_WATER,
-            STATION_CRYSTAL_CIRCLE, STATION_FIRE_PIT, STATION_MIX_CONSOLE,
-            STATION_RESEARCH_BOOTH, STATION_RESONANCE_CHAMBER, STATION_WORKSHOP,
-            STORY_BEAT_AWAIT_SURVIVOR_ARRIVAL, STORY_BEAT_BUILD_FIRE_PIT,
+            RESOURCE_HARMONICS, RESOURCE_STONE, RESOURCE_VIBES, RESOURCE_WATER, ROLE_CONSTRUCTION,
+            ROLE_CRYSTAL_BASSLINE, ROLE_CRYSTAL_CHORUS, ROLE_CRYSTAL_HARMONICS, ROLE_FIRE_PIT,
+            ROLE_SCAVENGE, ROLE_WATER, STATION_CRYSTAL_CIRCLE, STATION_FIRE_PIT,
+            STATION_MIX_CONSOLE, STATION_RESEARCH_BOOTH, STATION_RESONANCE_CHAMBER,
+            STATION_WORKSHOP, STORY_BEAT_AWAIT_SURVIVOR_ARRIVAL, STORY_BEAT_BUILD_FIRE_PIT,
             STORY_BEAT_ENTER_THE_BUBBLE, STORY_BEAT_EXPLORE_BASE, STORY_BEAT_FIRST_GLIMPSE,
             STORY_BEAT_FIRST_RECRUIT, STORY_BEAT_INVESTIGATE_BASE, STORY_BEAT_REACH_SURVIVOR_CAVE,
             STORY_BEAT_RESTORE_STUDIO, STORY_BEAT_ROAD_TO_BASE, STORY_BEAT_STABILIZE_BASE,
             STRUCTURE_BASE, STRUCTURE_CAVE, STRUCTURE_CRYSTAL_CIRCLE, TILE_BASE_CORE,
-            TILE_MOUNTAIN_WALL, TILE_SURVIVOR_CAVE,
-            WORLD_ACTION_EXPLORE_BASE, WORLD_ACTION_INVESTIGATE_BASE,
+            TILE_MOUNTAIN_WALL, TILE_SURVIVOR_CAVE, WORLD_ACTION_EXPLORE_BASE,
+            WORLD_ACTION_INVESTIGATE_BASE,
         },
-        ForcedReturnPhase, ForcedReturnState, GameCommand, GameState, HeroLocationState,
-        HexCoordState, RecruitTravel, Simulation, DEFAULT_TOTAL_CREW,
+        import_save,
     };
 
     fn advance_intro_to_investigate(simulation: &mut Simulation) {
@@ -115,16 +118,32 @@ mod tests {
     #[test]
     fn every_catalog_definition_has_a_schema_entry() {
         let catalog = super::catalog_snapshot();
-        let schema_ids: HashSet<&str> = catalog.entity_schemas.iter().map(|schema| schema.id).collect();
+        let schema_ids: HashSet<&str> = catalog
+            .entity_schemas
+            .iter()
+            .map(|schema| schema.id)
+            .collect();
 
         for resource in &catalog.resources {
-            assert!(schema_ids.contains(resource.schema_id), "missing schema for resource {}", resource.id);
+            assert!(
+                schema_ids.contains(resource.schema_id),
+                "missing schema for resource {}",
+                resource.id
+            );
         }
         for role in &catalog.roles {
-            assert!(schema_ids.contains(role.schema_id), "missing schema for role {}", role.id);
+            assert!(
+                schema_ids.contains(role.schema_id),
+                "missing schema for role {}",
+                role.id
+            );
         }
         for station in &catalog.stations {
-            assert!(schema_ids.contains(station.schema_id), "missing schema for station {}", station.id);
+            assert!(
+                schema_ids.contains(station.schema_id),
+                "missing schema for station {}",
+                station.id
+            );
         }
         for option in &catalog.construction_options {
             assert!(
@@ -155,10 +174,18 @@ mod tests {
             );
         }
         for tile in &catalog.tiles {
-            assert!(schema_ids.contains(tile.schema_id), "missing schema for tile {}", tile.id);
+            assert!(
+                schema_ids.contains(tile.schema_id),
+                "missing schema for tile {}",
+                tile.id
+            );
         }
         for flora in &catalog.flora {
-            assert!(schema_ids.contains(flora.schema_id), "missing schema for flora {}", flora.id);
+            assert!(
+                schema_ids.contains(flora.schema_id),
+                "missing schema for flora {}",
+                flora.id
+            );
         }
         for structure in &catalog.structures {
             assert!(
@@ -350,14 +377,18 @@ mod tests {
     fn discovery_initializes_with_studio_and_survivor_cave() {
         let simulation = Simulation::new();
 
-        assert!(simulation
-            .state()
-            .discovered_cells
-            .contains(&HexCoordState::base()));
-        assert!(simulation
-            .state()
-            .discovered_cells
-            .contains(&HexCoordState::survivor_cave()));
+        assert!(
+            simulation
+                .state()
+                .discovered_cells
+                .contains(&HexCoordState::base())
+        );
+        assert!(
+            simulation
+                .state()
+                .discovered_cells
+                .contains(&HexCoordState::survivor_cave())
+        );
         assert_eq!(simulation.state().hero_map, HexCoordState::survivor_cave());
     }
 
@@ -394,10 +425,12 @@ mod tests {
         let serialized = export_save(simulation.state()).expect("save should serialize");
         let restored = import_save(&serialized).expect("save should deserialize");
         let restored_simulation = Simulation::from_state(restored);
-        assert!(restored_simulation
-            .state()
-            .open_doors
-            .contains("dungeon.studio:6:7"));
+        assert!(
+            restored_simulation
+                .state()
+                .open_doors
+                .contains("dungeon.studio:6:7")
+        );
     }
 
     #[test]
@@ -489,7 +522,10 @@ mod tests {
             .get("item.scrap_metal")
             .copied()
             .unwrap_or(0);
-        assert!(scrap > 0, "expected scrap from scavenging effort, got {scrap}");
+        assert!(
+            scrap > 0,
+            "expected scrap from scavenging effort, got {scrap}"
+        );
     }
 
     #[test]
@@ -504,7 +540,10 @@ mod tests {
             loot_qty: 4,
         });
         assert!(simulation.state().cleared_locations.contains(&key));
-        assert_eq!(simulation.state().inventory.get("item.scrap_metal"), Some(&4));
+        assert_eq!(
+            simulation.state().inventory.get("item.scrap_metal"),
+            Some(&4)
+        );
 
         // Re-clearing the same location is a no-op (no double loot).
         simulation.apply(GameCommand::ClearLocation {
@@ -512,7 +551,10 @@ mod tests {
             loot_item: Some("item.scrap_metal".to_string()),
             loot_qty: 4,
         });
-        assert_eq!(simulation.state().inventory.get("item.scrap_metal"), Some(&4));
+        assert_eq!(
+            simulation.state().inventory.get("item.scrap_metal"),
+            Some(&4)
+        );
 
         // Cleared locations survive a save round-trip.
         let serialized = export_save(simulation.state()).expect("save serializes");
@@ -532,7 +574,10 @@ mod tests {
             item_id: "item.scrap_metal".to_string(),
             qty: 99,
         });
-        assert_eq!(simulation.state().inventory.get("item.scrap_metal"), Some(&5));
+        assert_eq!(
+            simulation.state().inventory.get("item.scrap_metal"),
+            Some(&5)
+        );
         assert!(simulation.state().dropped_items.is_empty());
 
         // Drop 2 -> inventory 3, pile 2.
@@ -541,9 +586,16 @@ mod tests {
             item_id: "item.scrap_metal".to_string(),
             qty: 2,
         });
-        assert_eq!(simulation.state().inventory.get("item.scrap_metal"), Some(&3));
         assert_eq!(
-            simulation.state().dropped_items.get(&key).and_then(|p| p.get("item.scrap_metal")),
+            simulation.state().inventory.get("item.scrap_metal"),
+            Some(&3)
+        );
+        assert_eq!(
+            simulation
+                .state()
+                .dropped_items
+                .get(&key)
+                .and_then(|p| p.get("item.scrap_metal")),
             Some(&2)
         );
 
@@ -552,7 +604,11 @@ mod tests {
         let mut restored =
             Simulation::from_state(import_save(&serialized).expect("save deserializes"));
         assert_eq!(
-            restored.state().dropped_items.get(&key).and_then(|p| p.get("item.scrap_metal")),
+            restored
+                .state()
+                .dropped_items
+                .get(&key)
+                .and_then(|p| p.get("item.scrap_metal")),
             Some(&2)
         );
 
@@ -581,7 +637,10 @@ mod tests {
         simulation.apply(GameCommand::UseItem {
             item_id: "item.scrap_metal".to_string(),
         });
-        assert_eq!(simulation.state().inventory.get("item.scrap_metal"), Some(&3));
+        assert_eq!(
+            simulation.state().inventory.get("item.scrap_metal"),
+            Some(&3)
+        );
 
         // Using with none held is a no-op (and doesn't change survival).
         simulation.apply(GameCommand::UseItem {
@@ -596,9 +655,9 @@ mod tests {
     // structured. Regenerate intentionally with UPDATE_GOLDEN=1.
     #[test]
     fn catalog_snapshot_matches_golden() {
-        let json =
-            serde_json::to_string_pretty(&super::catalog_snapshot()).expect("catalog serializes")
-                + "\n";
+        let json = serde_json::to_string_pretty(&super::catalog_snapshot())
+            .expect("catalog serializes")
+            + "\n";
         let path = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/golden/catalog.json");
         if std::env::var("UPDATE_GOLDEN").is_ok() {
             std::fs::create_dir_all(std::path::Path::new(path).parent().unwrap()).unwrap();
@@ -619,14 +678,18 @@ mod tests {
 
         simulation.apply(GameCommand::ResetRun);
 
-        assert!(simulation
-            .state()
-            .discovered_cells
-            .contains(&HexCoordState::base()));
-        assert!(simulation
-            .state()
-            .discovered_cells
-            .contains(&HexCoordState::survivor_cave()));
+        assert!(
+            simulation
+                .state()
+                .discovered_cells
+                .contains(&HexCoordState::base())
+        );
+        assert!(
+            simulation
+                .state()
+                .discovered_cells
+                .contains(&HexCoordState::survivor_cave())
+        );
         assert_eq!(simulation.state().discovered_cells.len(), 2);
         assert_eq!(simulation.state().hero_map, HexCoordState::survivor_cave());
     }
@@ -747,7 +810,10 @@ mod tests {
         });
         simulation.apply(GameCommand::Tick { seconds: 3.0 });
 
-        assert_eq!(simulation.state().hero_survival.location, HeroLocationState::Studio);
+        assert_eq!(
+            simulation.state().hero_survival.location,
+            HeroLocationState::Studio
+        );
         assert_eq!(simulation.state().hero_survival.viral_load_ratio, 0.0);
         assert!(simulation.state().active_world_action.is_some());
     }
@@ -816,14 +882,27 @@ mod tests {
         simulation.apply(GameCommand::Tick { seconds: 5.0 });
         assert_eq!(simulation.state().hero_survival.viral_load_ratio, 0.5);
         assert_eq!(
-            simulation.state().hero_survival.forced_return.as_ref().map(|state| state.phase),
+            simulation
+                .state()
+                .hero_survival
+                .forced_return
+                .as_ref()
+                .map(|state| state.phase),
             Some(ForcedReturnPhase::ReturnToStudio)
         );
 
         simulation.apply(GameCommand::Tick { seconds: 5.0 });
-        assert_eq!(simulation.state().hero_survival.location, HeroLocationState::Studio);
         assert_eq!(
-            simulation.state().hero_survival.forced_return.as_ref().map(|state| state.phase),
+            simulation.state().hero_survival.location,
+            HeroLocationState::Studio
+        );
+        assert_eq!(
+            simulation
+                .state()
+                .hero_survival
+                .forced_return
+                .as_ref()
+                .map(|state| state.phase),
             Some(ForcedReturnPhase::RecoverAtStudio)
         );
 
@@ -840,7 +919,9 @@ mod tests {
         state.hero_survival.return_to_studio_seconds = 4.0;
         let mut simulation = Simulation::from_state(state);
 
-        simulation.apply(GameCommand::RunOfflineCatchup { elapsed_seconds: 6.0 });
+        simulation.apply(GameCommand::RunOfflineCatchup {
+            elapsed_seconds: 6.0,
+        });
 
         assert!(simulation.state().hero_survival.viral_load_ratio > 0.2);
     }
@@ -1015,6 +1096,62 @@ mod tests {
     }
 
     #[test]
+    fn expedition_starts_with_free_crew_and_returns_rewards() {
+        let mut simulation = Simulation::new();
+        let before_stone = simulation.state().resources.stone;
+
+        simulation.apply(GameCommand::StartExpedition {
+            target_id: EXPEDITION_LOCAL_SCAVENGE_SWEEP.to_string(),
+            assigned_crew: 1,
+        });
+
+        assert_eq!(simulation.state().expeditions.active_jobs.len(), 1);
+        assert_eq!(
+            simulation.state().expeditions.active_jobs[0].assigned_crew,
+            1
+        );
+
+        simulation.apply(GameCommand::Tick { seconds: 120.0 });
+
+        assert!(simulation.state().expeditions.active_jobs.is_empty());
+        assert_eq!(simulation.state().expeditions.completed_reports.len(), 1);
+        assert!(simulation.state().resources.stone > before_stone);
+    }
+
+    #[test]
+    fn expedition_refuses_crew_already_assigned_to_roles() {
+        let mut simulation = Simulation::new();
+        simulation.apply(GameCommand::SetRoleCrew {
+            role_id: ROLE_CRYSTAL_BASSLINE.to_string(),
+            crew: DEFAULT_TOTAL_CREW,
+        });
+
+        simulation.apply(GameCommand::StartExpedition {
+            target_id: EXPEDITION_LOCAL_SCAVENGE_SWEEP.to_string(),
+            assigned_crew: 1,
+        });
+
+        assert!(simulation.state().expeditions.active_jobs.is_empty());
+    }
+
+    #[test]
+    fn offline_catchup_progresses_expeditions() {
+        let mut simulation = Simulation::new();
+        simulation.apply(GameCommand::StartExpedition {
+            target_id: EXPEDITION_LOCAL_SCAVENGE_SWEEP.to_string(),
+            assigned_crew: 1,
+        });
+
+        simulation.apply(GameCommand::RunOfflineCatchup {
+            elapsed_seconds: 120.0,
+        });
+
+        assert!(simulation.state().expeditions.active_jobs.is_empty());
+        assert_eq!(simulation.state().expeditions.completed_reports.len(), 1);
+        assert!(simulation.state().expeditions.completed_reports[0].stone_gained > 0.0);
+    }
+
+    #[test]
     fn investigate_explore_unlocks_studio_and_removing_moss() {
         let mut simulation = Simulation::new();
         complete_intro_explore(&mut simulation);
@@ -1162,7 +1299,13 @@ mod tests {
         });
         simulation.apply(GameCommand::Tick { seconds: 12.0 });
 
-        assert_eq!(simulation.state().processing.workshop_water_condensers_level, 1);
+        assert_eq!(
+            simulation
+                .state()
+                .processing
+                .workshop_water_condensers_level,
+            1
+        );
         assert!(simulation.state().resources.water_cap > before);
     }
 
@@ -1192,7 +1335,10 @@ mod tests {
         });
         simulation.apply(GameCommand::Tick { seconds: 16.0 });
 
-        assert_eq!(simulation.state().processing.research_chorus_routing_level, 1);
+        assert_eq!(
+            simulation.state().processing.research_chorus_routing_level,
+            1
+        );
         assert!(simulation.state().power.life_support_upkeep_per_second < before);
     }
 
@@ -1231,7 +1377,8 @@ mod tests {
             }
         }
 
-        let affordable_at = affordable_at.expect("studio restore should become affordable after Explore");
+        let affordable_at =
+            affordable_at.expect("studio restore should become affordable after Explore");
         assert!(
             affordable_at <= 12,
             "expected Studio restore to become affordable quickly after Explore, got {affordable_at}s",
@@ -1269,13 +1416,18 @@ mod tests {
         state.objectives.recruitment_enabled = true;
         state.objectives.reach_objective_met = true;
         state.objectives.survivor_cave_in_bubble = true;
-        state.roster.crew_by_role.insert(ROLE_FIRE_PIT.to_string(), 1);
+        state
+            .roster
+            .crew_by_role
+            .insert(ROLE_FIRE_PIT.to_string(), 1);
         let mut simulation = Simulation::from_state(state);
 
         let mut reached_at = None;
         for second in 1..=300 {
             simulation.apply(GameCommand::Tick { seconds: 1.0 });
-            if simulation.state().resources.vibes >= simulation.state().recruitment.next_recruit_cost {
+            if simulation.state().resources.vibes
+                >= simulation.state().recruitment.next_recruit_cost
+            {
                 reached_at = Some(second);
                 break;
             }
@@ -1359,85 +1511,116 @@ mod tests {
     fn phase_zero_catalog_contains_current_playable_systems() {
         let catalog = super::catalog_snapshot();
 
-        assert_catalog_ids("resources", catalog.resources.iter().map(|item| item.id), &[
-            RESOURCE_BASSLINE,
-            RESOURCE_CHORUS,
-            RESOURCE_HARMONICS,
-            RESOURCE_STONE,
-            RESOURCE_WATER,
-            RESOURCE_VIBES,
-        ]);
-        assert_catalog_ids("roles", catalog.roles.iter().map(|item| item.id), &[
-            ROLE_CRYSTAL_BASSLINE,
-            ROLE_CRYSTAL_CHORUS,
-            ROLE_CRYSTAL_HARMONICS,
-            ROLE_CONSTRUCTION,
-            ROLE_FIRE_PIT,
-            ROLE_SCAVENGE,
-            ROLE_WATER,
-        ]);
-        assert_catalog_ids("stations", catalog.stations.iter().map(|item| item.id), &[
-            STATION_CRYSTAL_CIRCLE,
-            STATION_FIRE_PIT,
-            STATION_RESONANCE_CHAMBER,
-            STATION_MIX_CONSOLE,
-            STATION_WORKSHOP,
-            STATION_RESEARCH_BOOTH,
-        ]);
-        assert_catalog_ids("construction options", catalog.construction_options.iter().map(|item| item.id), &[
-            CONSTRUCTION_STORAGE,
-            CONSTRUCTION_OUTPUT,
-            CONSTRUCTION_REMOVING_MOSS,
-            PROJECT_RESTORE_STUDIO,
-            PROJECT_BUILD_FIRE_PIT,
-            PROJECT_BUILD_RESONANCE_CHAMBER,
-            PROJECT_BUILD_MIX_CONSOLE,
-            PROJECT_BUILD_WORKSHOP,
-            PROJECT_BUILD_RESEARCH_BOOTH,
-            PROJECT_EXPAND_BUNKS,
-            PROJECT_SAFE_WATER_SYSTEMS,
-            PROJECT_EXPEDITION_STAGING,
-            PROJECT_PREPARE_LOUDSPEAKERS,
-        ]);
-        assert_catalog_ids("processing recipes", catalog.processing_recipes.iter().map(|item| item.id), &[
-            RECIPE_RESONANCE_FIELD_CALIBRATION,
-            RECIPE_MIX_SIGNAL_BALANCING,
-            RECIPE_WORKSHOP_BUILDER_TOOLS,
-            RECIPE_WORKSHOP_WATER_CONDENSERS,
-            RECIPE_RESEARCH_CHORUS_ROUTING,
-            RECIPE_RESEARCH_HARMONIC_STUDY,
-        ]);
-        assert_catalog_ids("world actions", catalog.world_actions.iter().map(|item| item.id), &[
-            WORLD_ACTION_INVESTIGATE_BASE,
-            WORLD_ACTION_EXPLORE_BASE,
-        ]);
-        assert_catalog_ids("story beats", catalog.story_beats.iter().map(|item| item.id), &[
-            STORY_BEAT_ROAD_TO_BASE,
-            STORY_BEAT_FIRST_GLIMPSE,
-            STORY_BEAT_ENTER_THE_BUBBLE,
-            STORY_BEAT_INVESTIGATE_BASE,
-            STORY_BEAT_EXPLORE_BASE,
-            STORY_BEAT_RESTORE_STUDIO,
-            STORY_BEAT_BUILD_FIRE_PIT,
-            STORY_BEAT_REACH_SURVIVOR_CAVE,
-            STORY_BEAT_FIRST_RECRUIT,
-            STORY_BEAT_AWAIT_SURVIVOR_ARRIVAL,
-            STORY_BEAT_STABILIZE_BASE,
-        ]);
-        assert_catalog_ids("tiles", catalog.tiles.iter().map(|item| item.id), &[
-            TILE_BASE_CORE,
-            TILE_SURVIVOR_CAVE,
-            TILE_MOUNTAIN_WALL,
-        ]);
-        assert_catalog_ids("structures", catalog.structures.iter().map(|item| item.id), &[
-            STRUCTURE_CRYSTAL_CIRCLE,
-            STRUCTURE_BASE,
-            STRUCTURE_CAVE,
-        ]);
+        assert_catalog_ids(
+            "resources",
+            catalog.resources.iter().map(|item| item.id),
+            &[
+                RESOURCE_BASSLINE,
+                RESOURCE_CHORUS,
+                RESOURCE_HARMONICS,
+                RESOURCE_STONE,
+                RESOURCE_WATER,
+                RESOURCE_VIBES,
+            ],
+        );
+        assert_catalog_ids(
+            "roles",
+            catalog.roles.iter().map(|item| item.id),
+            &[
+                ROLE_CRYSTAL_BASSLINE,
+                ROLE_CRYSTAL_CHORUS,
+                ROLE_CRYSTAL_HARMONICS,
+                ROLE_CONSTRUCTION,
+                ROLE_FIRE_PIT,
+                ROLE_SCAVENGE,
+                ROLE_WATER,
+            ],
+        );
+        assert_catalog_ids(
+            "stations",
+            catalog.stations.iter().map(|item| item.id),
+            &[
+                STATION_CRYSTAL_CIRCLE,
+                STATION_FIRE_PIT,
+                STATION_RESONANCE_CHAMBER,
+                STATION_MIX_CONSOLE,
+                STATION_WORKSHOP,
+                STATION_RESEARCH_BOOTH,
+            ],
+        );
+        assert_catalog_ids(
+            "construction options",
+            catalog.construction_options.iter().map(|item| item.id),
+            &[
+                CONSTRUCTION_STORAGE,
+                CONSTRUCTION_OUTPUT,
+                CONSTRUCTION_REMOVING_MOSS,
+                PROJECT_RESTORE_STUDIO,
+                PROJECT_BUILD_FIRE_PIT,
+                PROJECT_BUILD_RESONANCE_CHAMBER,
+                PROJECT_BUILD_MIX_CONSOLE,
+                PROJECT_BUILD_WORKSHOP,
+                PROJECT_BUILD_RESEARCH_BOOTH,
+                PROJECT_EXPAND_BUNKS,
+                PROJECT_SAFE_WATER_SYSTEMS,
+                PROJECT_EXPEDITION_STAGING,
+                PROJECT_PREPARE_LOUDSPEAKERS,
+            ],
+        );
+        assert_catalog_ids(
+            "processing recipes",
+            catalog.processing_recipes.iter().map(|item| item.id),
+            &[
+                RECIPE_RESONANCE_FIELD_CALIBRATION,
+                RECIPE_MIX_SIGNAL_BALANCING,
+                RECIPE_WORKSHOP_BUILDER_TOOLS,
+                RECIPE_WORKSHOP_WATER_CONDENSERS,
+                RECIPE_RESEARCH_CHORUS_ROUTING,
+                RECIPE_RESEARCH_HARMONIC_STUDY,
+            ],
+        );
+        assert_catalog_ids(
+            "world actions",
+            catalog.world_actions.iter().map(|item| item.id),
+            &[WORLD_ACTION_INVESTIGATE_BASE, WORLD_ACTION_EXPLORE_BASE],
+        );
+        assert_catalog_ids(
+            "story beats",
+            catalog.story_beats.iter().map(|item| item.id),
+            &[
+                STORY_BEAT_ROAD_TO_BASE,
+                STORY_BEAT_FIRST_GLIMPSE,
+                STORY_BEAT_ENTER_THE_BUBBLE,
+                STORY_BEAT_INVESTIGATE_BASE,
+                STORY_BEAT_EXPLORE_BASE,
+                STORY_BEAT_RESTORE_STUDIO,
+                STORY_BEAT_BUILD_FIRE_PIT,
+                STORY_BEAT_REACH_SURVIVOR_CAVE,
+                STORY_BEAT_FIRST_RECRUIT,
+                STORY_BEAT_AWAIT_SURVIVOR_ARRIVAL,
+                STORY_BEAT_STABILIZE_BASE,
+            ],
+        );
+        assert_catalog_ids(
+            "tiles",
+            catalog.tiles.iter().map(|item| item.id),
+            &[TILE_BASE_CORE, TILE_SURVIVOR_CAVE, TILE_MOUNTAIN_WALL],
+        );
+        assert_catalog_ids(
+            "structures",
+            catalog.structures.iter().map(|item| item.id),
+            &[STRUCTURE_CRYSTAL_CIRCLE, STRUCTURE_BASE, STRUCTURE_CAVE],
+        );
 
         assert!(catalog.balance.bubble.field_k_base > 0.0);
         assert!(catalog.balance.crystal.output_per_worker_base > 0.0);
-        assert!(catalog.balance.power.life_support_upkeep_per_staff_per_second > 0.0);
+        assert!(
+            catalog
+                .balance
+                .power
+                .life_support_upkeep_per_staff_per_second
+                > 0.0
+        );
         assert!(catalog.balance.recruitment.t1_minutes > 0.0);
         assert!(super::recruit_cost_for_index(1) > 0.0);
         assert!(catalog.balance.survival.hero_time_seconds_0_to_1 > 0.0);
@@ -1456,7 +1639,9 @@ mod tests {
         });
         let mut simulation = Simulation::from_state(state);
 
-        simulation.apply(GameCommand::RunOfflineCatchup { elapsed_seconds: 10.0 });
+        simulation.apply(GameCommand::RunOfflineCatchup {
+            elapsed_seconds: 10.0,
+        });
 
         assert!(simulation.state().resources.bassline > 0.0);
         assert_eq!(simulation.state().recruitment.pending_recruits.len(), 0);
@@ -1478,7 +1663,9 @@ mod tests {
             .expect("world action should be active")
             .remaining_seconds;
 
-        online_only.apply(GameCommand::RunOfflineCatchup { elapsed_seconds: 10.0 });
+        online_only.apply(GameCommand::RunOfflineCatchup {
+            elapsed_seconds: 10.0,
+        });
 
         assert_eq!(
             online_only
@@ -1492,15 +1679,13 @@ mod tests {
 
         let mut discovery_only = Simulation::new();
         let before_discovery = discovery_only.state().discovered_cells.clone();
-        discovery_only.apply(GameCommand::RunOfflineCatchup { elapsed_seconds: 10.0 });
+        discovery_only.apply(GameCommand::RunOfflineCatchup {
+            elapsed_seconds: 10.0,
+        });
         assert_eq!(discovery_only.state().discovered_cells, before_discovery);
     }
 
-    fn assert_catalog_ids<'a>(
-        label: &str,
-        ids: impl Iterator<Item = &'a str>,
-        expected: &[&str],
-    ) {
+    fn assert_catalog_ids<'a>(label: &str, ids: impl Iterator<Item = &'a str>, expected: &[&str]) {
         let actual = ids.collect::<HashSet<_>>();
         for expected_id in expected {
             assert!(

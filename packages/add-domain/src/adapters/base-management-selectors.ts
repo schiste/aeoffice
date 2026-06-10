@@ -4,6 +4,8 @@ import type {
   CostDef,
   DurationDef,
   EffectDef,
+  ExpeditionRisk,
+  ExpeditionTargetDef,
   ProcessingRecipeDef,
   RequirementDef,
   RoleDef,
@@ -43,6 +45,7 @@ export type AddBaseManagementTabId =
   | "power"
   | "crew"
   | "social"
+  | "expeditions"
   | "processing"
 
 export interface AddBaseManagementMetric {
@@ -241,6 +244,62 @@ export interface AddBaseSocialPressureProjection {
   }
 }
 
+export interface AddBaseExpeditionTarget {
+  readonly id: string
+  readonly label: string
+  readonly durationSeconds: number
+  readonly durationLabel: string
+  readonly requiredCrew: number
+  readonly requiredBubbleReach: number
+  readonly risk: ExpeditionRisk
+  readonly riskLabel: string
+  readonly requiredSupportCopy: string
+  readonly expectedLootCopy: string
+  readonly playerHint: string
+  readonly enabled: boolean
+  readonly disabledReason: string | null
+}
+
+export interface AddBaseExpeditionJob {
+  readonly id: number
+  readonly targetId: string
+  readonly label: string
+  readonly assignedCrew: number
+  readonly durationSeconds: number
+  readonly remainingSeconds: number
+  readonly progressPercent: number
+  readonly risk: ExpeditionRisk
+  readonly riskLabel: string
+  readonly returnCopy: string
+}
+
+export interface AddBaseExpeditionReport {
+  readonly id: number
+  readonly targetId: string
+  readonly label: string
+  readonly assignedCrew: number
+  readonly durationSeconds: number
+  readonly risk: ExpeditionRisk
+  readonly rewardCopy: string
+  readonly woundCopy: string
+  readonly clueCopy: string
+}
+
+export interface AddBaseExpeditionProjection {
+  readonly summary: string
+  readonly availableCrew: number
+  readonly assignedCrew: number
+  readonly activeCount: number
+  readonly completedReportCount: number
+  readonly totalWounds: number
+  readonly totalClues: number
+  readonly totalDungeonLeads: number
+  readonly targets: readonly AddBaseExpeditionTarget[]
+  readonly activeJobs: readonly AddBaseExpeditionJob[]
+  readonly reports: readonly AddBaseExpeditionReport[]
+  readonly recommendedTargetId: string | null
+}
+
 export type AddBaseConstructionCategory =
   | "repair"
   | "crystal"
@@ -399,6 +458,7 @@ export interface AddBaseManagementState {
   readonly stationMachine: AddBaseStationMachineProjection
   readonly economy: AddBaseEconomyProjection
   readonly socialPressure: AddBaseSocialPressureProjection
+  readonly expeditions: AddBaseExpeditionProjection
   readonly sections: readonly AddBaseManagementSection[]
   readonly activeConstruction: AddConstructionSummary | null
   readonly vibes: {
@@ -443,6 +503,7 @@ export interface AddBaseManagementState {
       | "power_station"
       | "start_processing"
       | "recruit_survivor"
+      | "start_expedition"
       | "wait"
     readonly targetId: string | null
     readonly enabled: boolean
@@ -483,13 +544,6 @@ export function selectAddBaseManagementState(
   const activeConstruction =
     construction.find((option) => option.inProgress) ?? null
   const nextBottleneck = selectNextBottleneck(snapshot, resources, roles, construction, stations)
-  const recommendedAction = selectRecommendedBaseAction(
-    snapshot,
-    roles,
-    construction,
-    stations,
-    processing,
-  )
   const economy = selectBaseEconomyProjection(
     snapshot,
     resources,
@@ -511,6 +565,15 @@ export function selectAddBaseManagementState(
     construction,
   )
   const socialPressure = selectBaseSocialPressureProjection(snapshot)
+  const expeditions = selectBaseExpeditionProjection(snapshot, catalog)
+  const recommendedAction = selectRecommendedBaseAction(
+    snapshot,
+    roles,
+    construction,
+    stations,
+    processing,
+    expeditions,
+  )
 
   return {
     title: "The Studio",
@@ -527,6 +590,7 @@ export function selectAddBaseManagementState(
     stationMachine,
     economy,
     socialPressure,
+    expeditions,
     sections: baseSections({
       snapshot,
       resources,
@@ -537,6 +601,7 @@ export function selectAddBaseManagementState(
       activeConstruction,
       nextBottleneck,
       recommendedAction,
+      expeditions,
     }),
     activeConstruction,
     vibes: {
@@ -1320,6 +1385,7 @@ function baseSections(input: {
   readonly activeConstruction: AddConstructionSummary | null
   readonly nextBottleneck: AddBaseManagementState["nextBottleneck"]
   readonly recommendedAction: AddBaseManagementState["recommendedAction"]
+  readonly expeditions: AddBaseExpeditionProjection
 }): readonly AddBaseManagementSection[] {
   const bassline = resourceById(input.resources, RESOURCE_BASSLINE)
   const chorus = resourceById(input.resources, RESOURCE_CHORUS)
@@ -1421,6 +1487,36 @@ function baseSections(input: {
       ],
     },
     {
+      id: "expeditions",
+      label: "Expeditions",
+      headline: input.expeditions.summary,
+      detail:
+        input.expeditions.recommendedTargetId
+          ? "Send free crew on a long-duration job while the Hero explores manually."
+          : "Expeditions need free crew and enough bubble support.",
+      primaryActionId: input.expeditions.recommendedTargetId,
+      blockedReason:
+        input.expeditions.recommendedTargetId === null
+          ? input.expeditions.targets.find((target) => target.disabledReason)?.disabledReason ?? null
+          : null,
+      metrics: [
+        {
+          id: "expedition-free-crew",
+          label: "Free crew",
+          value: `${input.expeditions.availableCrew}`,
+          detail: `${input.expeditions.assignedCrew} already away`,
+          severity: input.expeditions.availableCrew > 0 ? "good" : "warning",
+        },
+        {
+          id: "expedition-reports",
+          label: "Reports",
+          value: `${input.expeditions.completedReportCount}`,
+          detail: `${input.expeditions.totalClues} clues, ${input.expeditions.totalDungeonLeads} leads`,
+          severity: input.expeditions.completedReportCount > 0 ? "good" : "neutral",
+        },
+      ],
+    },
+    {
       id: "processing",
       label: "Processing",
       headline: enabledProcessing ? enabledProcessing.label : "No recipe ready",
@@ -1506,6 +1602,7 @@ function selectRecommendedBaseAction(
   construction: readonly AddConstructionSummary[],
   stations: readonly AddBaseStationManagementSummary[],
   processing: readonly AddBaseProcessingManagementSummary[],
+  expeditions: AddBaseExpeditionProjection,
 ): AddBaseManagementState["recommendedAction"] {
   if (!snapshot.roster.heroAssigned) {
     return {
@@ -1572,6 +1669,17 @@ function selectRecommendedBaseAction(
       detail: `${recipe.stationLabel} · ${recipe.costLabel}`,
       kind: "start_processing",
       targetId: recipe.id,
+      enabled: true,
+    }
+  }
+  const expedition = expeditions.targets.find((target) => target.id === expeditions.recommendedTargetId)
+  if (expedition) {
+    return {
+      id: `expedition:${expedition.id}`,
+      label: `Send ${expedition.label}`,
+      detail: `${expedition.durationLabel}, ${expedition.requiredCrew} crew, ${expedition.riskLabel}`,
+      kind: "start_expedition",
+      targetId: expedition.id,
       enabled: true,
     }
   }
@@ -2014,6 +2122,189 @@ function selectBaseEconomyProjection(
         : "Offline preview will use current resource flow to estimate what changes while away.",
       caveat: "Preview uses current rates; the Rust/WASM runtime remains authoritative on reload.",
     },
+  }
+}
+
+function selectBaseExpeditionProjection(
+  snapshot: SimulationSnapshot,
+  catalog: CatalogSnapshot,
+): AddBaseExpeditionProjection {
+  const targetById = new Map(catalog.expeditionTargets.map((target) => [target.id, target]))
+  const assignedCrew = snapshot.expeditions.activeJobs.reduce(
+    (total, job) => total + job.assignedCrew,
+    0,
+  )
+  const availableCrew = availableExpeditionCrew(snapshot)
+  const targets = catalog.expeditionTargets
+    .slice()
+    .sort((left, right) => left.uiOrder - right.uiOrder)
+    .map((target) => expeditionTargetProjection(snapshot, target, availableCrew))
+  const activeJobs = snapshot.expeditions.activeJobs
+    .slice()
+    .sort((left, right) => left.remainingSeconds - right.remainingSeconds)
+    .map((job) => {
+      const target = targetById.get(job.targetId)
+      const totalSeconds = Math.max(1, job.durationSeconds)
+      const remainingSeconds = Math.max(0, job.remainingSeconds)
+      return {
+        id: job.id,
+        targetId: job.targetId,
+        label: target?.label ?? job.targetId,
+        assignedCrew: job.assignedCrew,
+        durationSeconds: job.durationSeconds,
+        remainingSeconds,
+        progressPercent: Math.max(0, Math.min(100, ((totalSeconds - remainingSeconds) / totalSeconds) * 100)),
+        risk: job.risk,
+        riskLabel: riskLabel(job.risk),
+        returnCopy:
+          remainingSeconds <= 0
+            ? "Returning now"
+            : `Returns in ${formatDuration(remainingSeconds)}.`,
+      }
+    })
+  const reports = snapshot.expeditions.completedReports
+    .slice()
+    .reverse()
+    .map((report) => {
+      const target = targetById.get(report.targetId)
+      return {
+        id: report.id,
+        targetId: report.targetId,
+        label: target?.label ?? report.targetId,
+        assignedCrew: report.assignedCrew,
+        durationSeconds: report.durationSeconds,
+        risk: report.risk,
+        rewardCopy: expeditionRewardCopy({
+          stone: report.stoneGained,
+          water: report.waterGained,
+          vibes: report.vibesGained,
+          wounds: report.wounds,
+          clues: report.clues,
+          dungeonLeads: report.dungeonLeads,
+        }),
+        woundCopy:
+          report.wounds > 0
+            ? `${report.wounds} wound ${report.wounds === 1 ? "reported" : "reported"}`
+            : "No wounds reported",
+        clueCopy:
+          report.clues > 0 || report.dungeonLeads > 0
+            ? `${report.clues} clue(s), ${report.dungeonLeads} dungeon lead(s)`
+            : "No new leads",
+      }
+    })
+  const recommendedTargetId = targets.find((target) => target.enabled)?.id ?? null
+  return {
+    summary:
+      activeJobs.length > 0
+        ? `${activeJobs.length} expedition ${activeJobs.length === 1 ? "is" : "are"} in the field.`
+        : recommendedTargetId
+          ? "Free crew can take a parallel field job."
+          : "No expedition is ready right now.",
+    availableCrew,
+    assignedCrew,
+    activeCount: activeJobs.length,
+    completedReportCount: reports.length,
+    totalWounds: snapshot.expeditions.totalWounds,
+    totalClues: snapshot.expeditions.totalClues,
+    totalDungeonLeads: snapshot.expeditions.totalDungeonLeads,
+    targets,
+    activeJobs,
+    reports,
+    recommendedTargetId,
+  }
+}
+
+function expeditionTargetProjection(
+  snapshot: SimulationSnapshot,
+  target: ExpeditionTargetDef,
+  availableCrew: number,
+): AddBaseExpeditionTarget {
+  const disabledReason = expeditionTargetBlocker(snapshot, target, availableCrew)
+  return {
+    id: target.id,
+    label: target.label,
+    durationSeconds: target.durationSeconds,
+    durationLabel: formatDuration(target.durationSeconds),
+    requiredCrew: target.requiredCrew,
+    requiredBubbleReach: target.requiredBubbleReach,
+    risk: target.risk,
+    riskLabel: riskLabel(target.risk),
+    requiredSupportCopy: expeditionSupportCopy(target),
+    expectedLootCopy: expeditionRewardCopy(target.expectedLoot),
+    playerHint: target.playerHint,
+    enabled: disabledReason === null,
+    disabledReason,
+  }
+}
+
+function expeditionTargetBlocker(
+  snapshot: SimulationSnapshot,
+  target: ExpeditionTargetDef,
+  availableCrew: number,
+): string | null {
+  if (target.support.requiresStudioRestored && !snapshot.base.studioRestored) {
+    return "Restore the Studio first."
+  }
+  if (target.support.requiresFirePit && !snapshot.base.firePitBuilt) {
+    return "Build the Fire Pit for field support."
+  }
+  if (snapshot.bubble.reachFromBase < target.requiredBubbleReach) {
+    return `Needs bubble reach ${target.requiredBubbleReach}; current reach is ${snapshot.bubble.reachFromBase}.`
+  }
+  if (availableCrew < target.requiredCrew) {
+    return `Needs ${target.requiredCrew} free crew; ${availableCrew} available.`
+  }
+  return null
+}
+
+function availableExpeditionCrew(snapshot: SimulationSnapshot): number {
+  const roleCrewTotal = Object.values(snapshot.roster.crewByRole).reduce(
+    (total, crew) => total + crew,
+    0,
+  )
+  const expeditionCrewTotal = snapshot.expeditions.activeJobs.reduce(
+    (total, job) => total + job.assignedCrew,
+    0,
+  )
+  return Math.max(0, snapshot.roster.totalCrew - roleCrewTotal - expeditionCrewTotal)
+}
+
+function expeditionSupportCopy(target: ExpeditionTargetDef): string {
+  const requirements = [
+    target.requiredBubbleReach > 0 ? `Reach ${target.requiredBubbleReach}` : "Local route",
+    target.support.requiresStudioRestored ? "Restored Studio" : null,
+    target.support.requiresFirePit ? "Fire Pit support" : null,
+  ].filter((item): item is string => item !== null)
+  return requirements.join(" · ")
+}
+
+function expeditionRewardCopy(reward: {
+  readonly stone: number
+  readonly water: number
+  readonly vibes: number
+  readonly wounds: number
+  readonly clues: number
+  readonly dungeonLeads: number
+}): string {
+  const parts = [
+    reward.stone > 0 ? `${formatAmount(reward.stone)} Stone` : null,
+    reward.water > 0 ? `${formatAmount(reward.water)} Water` : null,
+    reward.vibes > 0 ? `${formatAmount(reward.vibes)} Vibes` : null,
+    reward.clues > 0 ? `${reward.clues} clue(s)` : null,
+    reward.dungeonLeads > 0 ? `${reward.dungeonLeads} dungeon lead(s)` : null,
+    reward.wounds > 0 ? `${reward.wounds} wound risk` : null,
+  ].filter((item): item is string => item !== null)
+  return parts.length > 0 ? parts.join(" · ") : "Scout report only"
+}
+
+function riskLabel(risk: ExpeditionRisk): string {
+  switch (risk) {
+    case "low":
+      return "Low risk"
+    case "medium":
+      return "Medium risk"
+    case "high":
+      return "High risk"
   }
 }
 
