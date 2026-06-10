@@ -437,7 +437,8 @@ async function exerciseBaseManagementSurface(page, consoleErrors) {
       typeof state.baseManagement?.playerLoop?.rateWatch?.summary === "string" &&
       typeof state.baseManagement?.playerLoop?.returnPlan?.summary === "string" &&
       typeof state.baseManagement?.recommendedAction?.label === "string" &&
-      typeof state.baseManagement?.nextBottleneck?.label === "string",
+      typeof state.baseManagement?.nextBottleneck?.label === "string" &&
+      state.baseManagement?.rateChange === null,
     consoleErrors,
   )
   assert.equal(base.shell.adminOpen, false)
@@ -570,6 +571,8 @@ async function exerciseBaseManagementSurface(page, consoleErrors) {
     "Player loop",
     "Health",
     "Bottleneck",
+    "Recommended",
+    "Do it",
     "Action",
     "Return",
     "Rates",
@@ -657,7 +660,10 @@ async function exerciseBaseManagementSurface(page, consoleErrors) {
         state.baseManagement?.active === true &&
         role?.crewAssigned === beforeBassline.crewAssigned + 1 &&
         resource?.gainPerSecond > beforeBasslineResource.gainPerSecond &&
-        state.baseManagement?.staffing?.freeCrew === base.baseManagement.staffing.freeCrew - 1
+        state.baseManagement?.staffing?.freeCrew === base.baseManagement.staffing.freeCrew - 1 &&
+        state.baseManagement?.rateChange?.changes.some(
+          (change) => change.id === "resource.bassline" && change.deltaPerSecond > 0,
+        )
       )
     },
     consoleErrors,
@@ -666,6 +672,17 @@ async function exerciseBaseManagementSurface(page, consoleErrors) {
     staffedBassline.baseManagement.staffing.visibleImpact.rateSummary,
     /Bassline|resource/i,
     "Staffing impact should describe the changed economy.",
+  )
+  assert.ok(
+    staffedBassline.baseManagement.rateChange?.changes.some(
+      (change) => change.id === "resource.bassline" && change.deltaPerSecond > 0,
+    ),
+    "Crew movement should expose a visible Bassline rate delta.",
+  )
+  assert.match(
+    await page.locator("#base-rate-change").innerText(),
+    /Rate change|Bassline/i,
+    "Staffing panel should show the rate change after moving crew.",
   )
   await clickVisibleElementByDomId(page, "base-role-bassline-minus")
   await waitForTextState(
@@ -1573,7 +1590,13 @@ async function exerciseStudioTileDetailLinks(page, consoleErrors) {
     )
     assert.ok(selectedStudio.discovery.tileDetail.linkCount >= 2)
     await openDetailsSection(page, "#selected-tile-section")
-    const studioTileText = await page.locator("#selected-tile-decision").innerText()
+    await page.waitForFunction(() => {
+      const element = document.querySelector("#selected-tile-decision")
+      return element?.textContent?.includes("The Studio")
+    })
+    const studioTileText = await page
+      .locator("#selected-tile-decision")
+      .evaluate((element) => element.textContent ?? "")
     ;[
       "The Studio",
       "Studio Grounds",
@@ -1582,7 +1605,7 @@ async function exerciseStudioTileDetailLinks(page, consoleErrors) {
     ].forEach((expectedText) => {
       assert.ok(
         studioTileText.includes(expectedText),
-        `Studio tile detail should include ${expectedText}.`,
+        `Studio tile detail should include ${expectedText}. Actual text: ${studioTileText}`,
       )
     })
     assert.ok(
@@ -2089,10 +2112,16 @@ async function interactWithMap(page, consoleErrors) {
     /Review selected|Compare route|Review entrance|Assess scout|Use selected route/i,
     "Nearby tile choices should expose a player-facing action label.",
   )
-  await page.locator(".discovery-tile-choice").first().click()
+  await page.evaluate(() => {
+    const element = document.querySelector(".discovery-tile-choice")
+    if (!(element instanceof HTMLElement)) {
+      throw new Error("Expected a discovery tile choice to be available.")
+    }
+    element.click()
+  })
   await openDetailsSection(page, "#selected-tile-section")
   assert.match(
-    await page.locator("#selected-tile-decision").innerText(),
+    await page.locator("#selected-tile-decision").evaluate((element) => element.textContent ?? ""),
     /Travel|Toxicity|Known|Unknown|Links|Usefulness|Why it matters/,
     "Selected tile card should explain travel, risk, facts, usefulness, and optional submap links.",
   )

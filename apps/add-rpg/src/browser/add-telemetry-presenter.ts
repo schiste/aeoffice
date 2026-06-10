@@ -125,6 +125,17 @@ export interface AddRuntimeTelemetryPresenterInput {
   readonly discovery: AddDiscoverySummary | null
   readonly baseManagement: AddBaseManagementState | null
   readonly baseManagementTab: AddBaseManagementTabId
+  readonly baseRateChange: {
+    readonly reason: string
+    readonly summary: string
+    readonly changes: readonly {
+      readonly id: string
+      readonly label: string
+      readonly beforeNetPerSecond: number
+      readonly afterNetPerSecond: number
+      readonly deltaPerSecond: number
+    }[]
+  } | null
   readonly dungeonObjective: AddDungeonObjectiveSummary | null
   readonly mapMode: AddMapMode
   readonly dungeonTarget: string | null
@@ -496,6 +507,17 @@ export interface RuntimeTextState {
       readonly targetId: string | null
       readonly enabled: boolean
     }
+    readonly rateChange: {
+      readonly reason: string
+      readonly summary: string
+      readonly changes: readonly {
+        readonly id: string
+        readonly label: string
+        readonly beforeNetPerSecond: number
+        readonly afterNetPerSecond: number
+        readonly deltaPerSecond: number
+      }[]
+    } | null
     readonly playerLoop: {
       readonly summary: string
       readonly currentStepId: string
@@ -1257,6 +1279,19 @@ function baseManagementTelemetry(
       targetId: state.recommendedAction.targetId,
       enabled: state.recommendedAction.enabled,
     },
+    rateChange: input.baseRateChange
+      ? {
+          reason: input.baseRateChange.reason,
+          summary: input.baseRateChange.summary,
+          changes: input.baseRateChange.changes.map((change) => ({
+            id: change.id,
+            label: change.label,
+            beforeNetPerSecond: round3(change.beforeNetPerSecond),
+            afterNetPerSecond: round3(change.afterNetPerSecond),
+            deltaPerSecond: round3(change.deltaPerSecond),
+          })),
+        }
+      : null,
     playerLoop: {
       summary: state.playerLoop.summary,
       currentStepId: state.playerLoop.currentStepId,

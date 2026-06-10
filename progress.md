@@ -2777,3 +2777,13 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   `npm --workspace @aedventure/add-rpg exec vite -- build --config
   vite.config.mjs`, `npm run agent:verify:add-ui`, and
   `npm run smoke:add-rpg:built`.
+- Interface Phase 7 base management UX refinement is implemented. Base
+  management now has product-like tabs for Crystal, Build, Power, Crew, Social,
+  Expeditions, Resonance, and Processing; the panel leads with a clear
+  bottleneck/recommended-action strip; and crew changes produce an explicit
+  rate-change card after the runtime's resource-flow snapshot catches up.
+  Construction/build cards are lighter, with future-economy detail moved behind
+  compact disclosure rows, and Admin remains unnecessary for the first-playable
+  base loop. Verification passed with `npm --workspace @aedventure/add-rpg run
+  build:types`, direct Vite browser build for ADD,
+  `npm run agent:verify:add-ui`, and `npm run smoke:add-rpg:built`.
