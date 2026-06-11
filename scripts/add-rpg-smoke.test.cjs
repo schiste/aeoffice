@@ -723,8 +723,8 @@ async function exerciseBaseManagementSurface(page, consoleErrors) {
     "Player loop",
     "Health",
     "Bottleneck",
-    "Recommended",
-    "Do it",
+    "Why now",
+    "Use the highlighted action",
     "Action",
     "Return",
     "Rates",
@@ -1259,7 +1259,7 @@ async function assertLayoutHierarchy(
     )
   }, expectedContextPanelId)
 
-  const hierarchy = await page.evaluate(() => {
+  const hierarchy = await page.evaluate((expectedPanelId) => {
     const contextSelectors = [
       "#discovery-panel",
       "#base-management-panel",
@@ -1380,10 +1380,20 @@ async function assertLayoutHierarchy(
         }))
       : []
     const primaryText = visibleTextFor(document.querySelector("#add-world"))
+    const activeContextPanel = document.getElementById(expectedPanelId)
+    const visiblePrimaryActions = activeContextPanel instanceof HTMLElement
+      ? Array.from(activeContextPanel.querySelectorAll(".primary-action"))
+          .filter(isVisible)
+          .map((element) => ({
+            id: element instanceof HTMLElement ? element.id : "",
+            text: element.textContent?.trim() ?? "",
+          }))
+      : []
 
     return {
       visibleContextPanelIds,
       contextPanels,
+      visiblePrimaryActions,
       adminViewVisible: isVisible(document.querySelector("#admin-view")),
       shellMenuVisible: isVisible(document.querySelector("#open-shell-menu")),
       adminMenuActionVisible: isVisible(document.querySelector("#open-admin")),
@@ -1401,7 +1411,7 @@ async function assertLayoutHierarchy(
         height: window.innerHeight,
       },
     }
-  })
+  }, expectedContextPanelId)
 
   assert.equal(
     hierarchy.visibleContextPanelIds.length,
@@ -1417,6 +1427,26 @@ async function assertLayoutHierarchy(
       hierarchy.visibleContextPanelIds,
     )}.`,
   )
+  assert.ok(
+    hierarchy.visiblePrimaryActions.length <= 1,
+    `Context panel ${expectedContextPanelId} should expose at most one primary CTA, saw ${JSON.stringify(
+      hierarchy.visiblePrimaryActions,
+    )}.`,
+  )
+  if (hierarchy.visiblePrimaryActions.length === 1) {
+    const expectedPrimaryIds = {
+      "discovery-panel": ["current-action-primary"],
+      "base-management-panel": ["current-action-primary"],
+      "dungeon-context-panel": ["return-overworld"],
+      "offline-return-panel": ["dismiss-offline-return-primary"],
+    }
+    assert.ok(
+      expectedPrimaryIds[expectedContextPanelId]?.includes(hierarchy.visiblePrimaryActions[0].id),
+      `Context panel ${expectedContextPanelId} primary CTA should be the mode owner, saw ${JSON.stringify(
+        hierarchy.visiblePrimaryActions,
+      )}.`,
+    )
+  }
   assert.equal(hierarchy.mapStageSurface, "map-stage")
   assert.equal(hierarchy.topbarSurface, "status")
   assert.equal(hierarchy.objectiveSurface, "objective")

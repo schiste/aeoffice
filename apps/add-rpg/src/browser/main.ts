@@ -1517,22 +1517,14 @@ function baseManagementCommandStrip(state: AddBaseManagementState): unknown {
         <small>${state.nextBottleneck.detail}</small>
       </div>
       <div class="base-bottleneck-action">
-        <span>Recommended</span>
+        <span>Why now</span>
         <strong>${state.recommendedAction.label}</strong>
         <small>${state.recommendedAction.detail}</small>
       </div>
       <div class="base-bottleneck-rates" aria-label="Current base rates">
         ${() => baseRateWatchChips(state)}
       </div>
-      <button
-        id="base-command-strip-action"
-        type="button"
-        class="base-command-action"
-        onClick=${() => void runBaseRecommendedAction(state)}
-        disabled=${() => !ready() || !state.recommendedAction.enabled || !state.recommendedAction.targetId}
-      >
-        Do it
-      </button>
+      <span class="base-command-note">Use the highlighted action above when you are ready.</span>
     </article>
   `
 }
@@ -1569,7 +1561,7 @@ function dungeonContextPanel(): unknown {
         <button
           id="return-overworld"
           type="button"
-          class="enter-dungeon-button return-overworld-button contextual-action-button"
+          class="primary-action mode-primary-action return-overworld-button"
           onClick=${() => returnToOverworldFromDungeon()}
           aria-label=${() => dungeonReturnLabel()}
         >
@@ -1759,9 +1751,9 @@ function storyMoment(): AddStoryMoment | null {
   return selectAddStoryMoment(currentSnapshot, currentCatalog)
 }
 
-// The narrative moment: the authoritative active beat (Rust salience engine) with
-// ALL of its choices surfaced as buttons — real, consequential agency, not a
-// single hardcoded option. Rendered atop the unified decision surface.
+// The narrative moment stays inside the unified decision surface. The primary
+// CTA below owns the recommended action; alternate choices are secondary so the
+// player does not see several competing "next actions" at once.
 function storyMomentBlock(): unknown {
   const moment = storyMoment()
   if (!moment || !moment.awaitingChoice) return null
@@ -1773,20 +1765,23 @@ function storyMomentBlock(): unknown {
     >
       <div class="story-moment-kicker">${moment.label}</div>
       <p class="story-moment-body">${moment.body}</p>
-      <div class="story-moment-choices">
-        ${moment.choices.map(
-          (choice) => html`
-            <button
-              type="button"
-              class="story-moment-choice"
-              data-choice-id=${choice.id}
-              onClick=${() => void chooseStoryOption(moment.beatId, choice.id)}
-            >
-              ${choice.label}
-            </button>
-          `,
-        )}
-      </div>
+      <details class="story-moment-options">
+        <summary>Other story choices</summary>
+        <div class="story-moment-choices">
+          ${moment.choices.map(
+            (choice) => html`
+              <button
+                type="button"
+                class="story-moment-choice"
+                data-choice-id=${choice.id}
+                onClick=${() => void chooseStoryOption(moment.beatId, choice.id)}
+              >
+                ${choice.label}
+              </button>
+            `,
+          )}
+        </div>
+      </details>
     </div>
   `
 }
@@ -3452,7 +3447,7 @@ function selectedTileActionRows(detail: AddTileDetailSummary): readonly unknown[
           data-target-map-mode=${targetLink?.targetMapMode ?? ""}
           data-target-map-id=${targetLink?.targetMapId ?? ""}
           type="button"
-          class="primary-action"
+          class="secondary-action selected-tile-link-action"
           onClick=${(event: Event) => runCurrentTileDetailAction(event)}
           disabled=${() => !action.enabled}
           aria-label=${action.label}
@@ -3645,7 +3640,7 @@ function discoveryActionButtons(): readonly unknown[] {
       <button
         id=${`discovery-action-${safeElementId(link.id)}`}
         type="button"
-        class=${link.kind === "dungeon_entry" ? "primary-action" : ""}
+        class="secondary-action context-link-action"
         onClick=${() => void runDiscoveryAction(link)}
         disabled=${() => !link.enabled}
         title=${link.reason ?? link.label}
@@ -4253,11 +4248,11 @@ function offlineReturnPanel(): unknown {
         <button
           id="dismiss-offline-return"
           type="button"
-          class="enter-dungeon-button contextual-action-button"
+          class="ghost-button offline-return-dismiss"
           onClick=${dismissOfflineReturnSummary}
           aria-label="Dismiss offline return summary"
         >
-          Continue
+          Close
         </button>
       </div>
       <article class="offline-return-hero">

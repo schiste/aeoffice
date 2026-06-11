@@ -465,13 +465,37 @@ h1 {
 
 .contextual-action-button {
   min-height: 1.66rem;
+  border-color: rgb(255 244 201 / 20%);
   padding: 0 0.56rem;
+  background: rgb(255 244 201 / 9%);
+  color: rgb(247 238 210 / 82%);
   font-size: 0.66rem;
+  box-shadow: none;
+}
+
+.enter-dungeon-button.contextual-action-button:hover:not(:disabled) {
+  border-color: rgb(255 244 201 / 34%);
+  background: rgb(255 244 201 / 15%);
+  color: #fff2bd;
 }
 
 .enter-dungeon-button:hover:not(:disabled) {
   background: linear-gradient(180deg, rgb(240 185 93 / 46%), rgb(197 129 53 / 40%));
   border-color: rgb(240 185 93 / 76%);
+}
+
+.mode-primary-action {
+  display: inline-flex;
+  align-items: center;
+  width: auto;
+  min-height: 1.9rem;
+  border: 1px solid rgb(240 185 93 / 52%);
+  border-radius: 999px;
+  padding: 0 0.82rem;
+  font-size: 0.76rem;
+  font-weight: 850;
+  white-space: nowrap;
+  cursor: pointer;
 }
 
 .return-overworld-button {
@@ -806,13 +830,25 @@ h1 {
   gap: 0.4rem;
 }
 
+.story-moment-options {
+  display: grid;
+  gap: 0.42rem;
+}
+
+.story-moment-options summary {
+  cursor: pointer;
+  color: rgb(247 238 210 / 68%);
+  font-size: 0.68rem;
+  font-weight: 850;
+}
+
 .story-moment-choice {
   text-align: left;
   padding: 0.5rem 0.65rem;
-  border: 1px solid rgb(95 209 216 / 30%);
+  border: 1px solid rgb(255 244 201 / 16%);
   border-radius: 6px;
-  background: rgb(15 29 26 / 70%);
-  color: var(--paper);
+  background: rgb(255 244 201 / 8%);
+  color: rgb(247 238 210 / 82%);
   font-size: 0.82rem;
   font-weight: 650;
   cursor: pointer;
@@ -822,8 +858,8 @@ h1 {
 }
 
 .story-moment-choice:hover {
-  border-color: #5fd1d8;
-  background: rgb(95 209 216 / 14%);
+  border-color: rgb(255 244 201 / 32%);
+  background: rgb(255 244 201 / 13%);
 }
 
 .current-action-kicker {
@@ -1190,7 +1226,8 @@ h1 {
 }
 
 .selected-tile-travel-action,
-.secondary-action {
+.secondary-action,
+.context-link-action {
   width: 100%;
   min-height: 2.4rem;
   border-color: rgb(95 209 216 / 34%);
@@ -1198,7 +1235,8 @@ h1 {
   color: #c9fff9;
 }
 
-.secondary-action:hover:not(:disabled) {
+.secondary-action:hover:not(:disabled),
+.context-link-action:hover:not(:disabled) {
   background: rgb(95 209 216 / 22%);
 }
 
@@ -1586,12 +1624,15 @@ h1 {
   color: #ffd3a5;
 }
 
-.base-command-action {
+.base-command-note {
   grid-column: 1 / -1;
-  min-height: 2.1rem;
-  background: rgb(240 185 93 / 18%);
-  color: #fff2bd;
-  box-shadow: none;
+  border-radius: 999px;
+  padding: 0.32rem 0.52rem;
+  background: rgb(240 185 93 / 10%);
+  color: rgb(255 242 189 / 78%);
+  font-size: 0.62rem;
+  font-weight: 850;
+  line-height: 1.2;
 }
 
 .base-player-loop {
@@ -2896,6 +2937,13 @@ h1 {
   line-height: 1.12;
 }
 
+.offline-return-dismiss {
+  flex: 0 0 auto;
+  min-height: 1.85rem;
+  padding: 0 0.72rem;
+  font-size: 0.7rem;
+}
+
 .offline-return-headline,
 .offline-return-summary {
   margin: 0;
@@ -3485,6 +3533,21 @@ h1 {
 
 .primary-action:hover:not(:disabled) {
   background: linear-gradient(180deg, #ffd37f, #d8913f);
+}
+
+.primary-action.mode-primary-action {
+  width: auto;
+  min-height: 1.9rem;
+  padding: 0 0.82rem;
+}
+
+.primary-action.return-overworld-button {
+  background: linear-gradient(180deg, rgb(95 209 216 / 24%), rgb(32 74 67 / 32%));
+  color: #c9fff9;
+}
+
+.primary-action.return-overworld-button:hover:not(:disabled) {
+  background: linear-gradient(180deg, rgb(95 209 216 / 34%), rgb(32 74 67 / 42%));
 }
 
 .first-playable-list {
