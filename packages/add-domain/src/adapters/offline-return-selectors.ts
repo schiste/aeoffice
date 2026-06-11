@@ -213,7 +213,7 @@ function offlineBrownoutSummary(
       ? affectedStationIds.length > 0
         ? `Brownout pressure affected ${affectedStationIds.join(", ")}.`
         : "Brownout pressure was present during the offline window."
-      : "No brownout was present in the return snapshot.",
+      : "No brownout was present when you returned.",
   }
 }
 

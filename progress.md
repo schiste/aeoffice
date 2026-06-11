@@ -2857,3 +2857,13 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   `npm run smoke:add-rpg:built`, and `npm run agent:verify:add-ui`; visually
   inspected `tmp/add-rpg-smoke.png`, `tmp/add-rpg-base-management-smoke.png`,
   and `tmp/add-rpg-mobile-narrow-smoke.png`.
+- Layout hierarchy smoke coverage now captures dedicated screenshots for
+  desktop Discovery, desktop Base, Dungeon, Offline Return, and mobile
+  bottom-sheet states. The ADD smoke asserts exactly one contextual panel is
+  visible, Admin stays behind Menu, the bottom-left HUD is camera-only, and
+  debug/runtime controls stay out of the primary UI. During verification, the
+  new visible-text guard caught the player-facing phrase "return snapshot" in
+  the offline review; that copy now says "when you returned." Verification
+  passed with `npm --workspace @aedventure/add-rpg run build`,
+  `npm run smoke:add-rpg:built`, and `npm run agent:verify:add-ui`; visually
+  inspected the five new hierarchy screenshots in `tmp/`.

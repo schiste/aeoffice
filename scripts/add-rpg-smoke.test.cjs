@@ -277,6 +277,15 @@ async function assertBootAndRenderTextContract(page, consoleErrors) {
   assert.equal(await page.locator("#discovery-next-action").count(), 0)
   assert.equal(await page.locator("#base-management-recommendation").count(), 0)
   assert.equal(await page.locator("#first-playable-action").count(), 0)
+  await assertLayoutHierarchy(page, {
+    expectedContextPanelId: "discovery-panel",
+    expectedMapMode: "overworld_hex",
+  })
+  await assertNonBlankNamedAppScreenshot(
+    page,
+    "add-rpg-desktop-discovery-hierarchy-smoke.png",
+    "ADD RPG desktop Discovery layout hierarchy screenshot",
+  )
   assert.equal(initial.snapshot.heroMap, initial.map.landmarks.survivorCave)
   assert.equal(initial.mapMode.scale.topology, "hex")
   assert.equal(initial.mapMode.scale.travelScale, "strategic")
@@ -722,6 +731,10 @@ async function exerciseBaseManagementSurface(page, consoleErrors) {
     )
   })
   assert.doesNotMatch(panelText, /Runtime|Snapshot|Debug/i)
+  await assertLayoutHierarchy(page, {
+    expectedContextPanelId: "base-management-panel",
+    expectedMapMode: "base_square",
+  })
 
   await clickVisibleElementByDomId(page, "base-tab-build")
   await waitForTextState(
@@ -1049,6 +1062,11 @@ async function exerciseBaseManagementSurface(page, consoleErrors) {
     "add-rpg-base-management-smoke.png",
     "ADD RPG base management surface screenshot",
   )
+  await assertNonBlankNamedAppScreenshot(
+    page,
+    "add-rpg-desktop-base-hierarchy-smoke.png",
+    "ADD RPG desktop Base layout hierarchy screenshot",
+  )
   return returnToOverworld(page, consoleErrors)
 }
 
@@ -1082,11 +1100,23 @@ async function assertMobilePresentation(browser, url) {
         consoleErrors,
       )
       await assertMobileLayoutComposition(page, viewport)
+      await assertLayoutHierarchy(page, {
+        expectedContextPanelId: "discovery-panel",
+        expectedMapMode: "overworld_hex",
+        mobile: true,
+      })
       await assertNonBlankNamedAppScreenshot(
         page,
         `add-rpg-${viewport.name}-smoke.png`,
         `ADD RPG ${viewport.name} app screenshot`,
       )
+      if (viewport.name === "mobile") {
+        await assertNonBlankNamedAppScreenshot(
+          page,
+          "add-rpg-mobile-bottom-sheet-hierarchy-smoke.png",
+          "ADD RPG mobile bottom-sheet layout hierarchy screenshot",
+        )
+      }
       assert.deepEqual(consoleErrors, [])
     } finally {
       await page.close()
@@ -1166,6 +1196,225 @@ async function assertMobileLayoutComposition(page, viewport) {
   )
 }
 
+async function assertLayoutHierarchy(
+  page,
+  { expectedContextPanelId, expectedMapMode = null, mobile = false },
+) {
+  const state = await renderGameToText(page)
+  if (expectedMapMode) {
+    assert.equal(
+      state.mapMode?.active,
+      expectedMapMode,
+      `Expected map mode ${expectedMapMode} while checking layout hierarchy.`,
+    )
+  }
+  assert.equal(state.shell?.adminOpen, false, "Admin should stay hidden behind Menu.")
+  assert.equal(state.shell?.devToolsOpen, false, "Developer tools should not be open in primary UI.")
+  assert.equal(
+    state.shell?.visualPolish?.surfaceSystem,
+    "map_objective_context_status",
+    "Visual polish contract should describe the current layout hierarchy.",
+  )
+
+  await page.waitForFunction((panelId) => {
+    const panel = document.getElementById(panelId)
+    if (!(panel instanceof HTMLElement)) return false
+    const style = window.getComputedStyle(panel)
+    const rect = panel.getBoundingClientRect()
+    return (
+      style.display !== "none" &&
+      style.visibility !== "hidden" &&
+      Number(style.opacity) > 0.9 &&
+      rect.width > 0 &&
+      rect.height > 0
+    )
+  }, expectedContextPanelId)
+
+  const hierarchy = await page.evaluate(() => {
+    const contextSelectors = [
+      "#discovery-panel",
+      "#base-management-panel",
+      "#dungeon-context-panel",
+      "#offline-return-panel",
+    ]
+    const debugSelectors = [
+      "#toggle-developer-tools",
+      "#save-payload",
+      "#offline-catchup",
+      "#reset-run",
+      "#import-save",
+      "#export-save",
+    ]
+
+    function isVisible(element) {
+      if (!(element instanceof HTMLElement)) return false
+      const style = window.getComputedStyle(element)
+      const rect = element.getBoundingClientRect()
+      return (
+        style.display !== "none" &&
+        style.visibility !== "hidden" &&
+        Number(style.opacity) > 0 &&
+        rect.width > 0 &&
+        rect.height > 0
+      )
+    }
+
+    function rectFor(element) {
+      if (!(element instanceof HTMLElement)) return null
+      const rect = element.getBoundingClientRect()
+      return {
+        top: rect.top,
+        right: rect.right,
+        bottom: rect.bottom,
+        left: rect.left,
+        width: rect.width,
+        height: rect.height,
+      }
+    }
+
+    function nodeHasVisibleAncestors(node) {
+      let element = node.parentElement
+      while (element instanceof HTMLElement) {
+        const style = window.getComputedStyle(element)
+        if (
+          element.hidden ||
+          element.getAttribute("aria-hidden") === "true" ||
+          style.display === "none" ||
+          style.visibility === "hidden" ||
+          Number(style.opacity) === 0
+        ) {
+          return false
+        }
+        element = element.parentElement
+      }
+      return true
+    }
+
+    function visibleTextFor(root) {
+      if (!(root instanceof HTMLElement)) return ""
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)
+      const parts = []
+      let node = walker.nextNode()
+      while (node) {
+        const text = node.textContent?.trim()
+        if (text && nodeHasVisibleAncestors(node)) {
+          parts.push(text)
+        }
+        node = walker.nextNode()
+      }
+      return parts.join(" ")
+    }
+
+    const contextPanels = contextSelectors
+      .map((selector) => document.querySelector(selector))
+      .filter((element) => element instanceof HTMLElement)
+      .map((element) => {
+        const style = window.getComputedStyle(element)
+        const rect = element.getBoundingClientRect()
+        return {
+          id: element.id,
+          visible: isVisible(element),
+          surface: element.getAttribute("data-visual-surface"),
+          display: style.display,
+          visibility: style.visibility,
+          opacity: style.opacity,
+          rect: {
+            top: rect.top,
+            right: rect.right,
+            bottom: rect.bottom,
+            left: rect.left,
+            width: rect.width,
+            height: rect.height,
+          },
+        }
+      })
+    const visibleContextPanelIds = contextPanels
+      .filter((panel) => panel.visible)
+      .map((panel) => panel.id)
+    const mapHud = document.querySelector(".map-hud")
+    const mapHudChildren = mapHud instanceof HTMLElement
+      ? Array.from(mapHud.children).map((element) => ({
+          className: element instanceof HTMLElement ? element.className : "",
+          id: element instanceof HTMLElement ? element.id : "",
+        }))
+      : []
+    const primaryText = visibleTextFor(document.querySelector("#add-world"))
+
+    return {
+      visibleContextPanelIds,
+      contextPanels,
+      adminViewVisible: isVisible(document.querySelector("#admin-view")),
+      shellMenuVisible: isVisible(document.querySelector("#open-shell-menu")),
+      adminMenuActionVisible: isVisible(document.querySelector("#open-admin")),
+      mapStageSurface: document.querySelector("#add-world")?.getAttribute("data-visual-surface"),
+      topbarSurface: document.querySelector(".map-topbar")?.getAttribute("data-visual-surface"),
+      objectiveSurface: document.querySelector("#first-playable-panel")?.getAttribute("data-visual-surface"),
+      mapHudSurface: document.querySelector(".map-hud")?.getAttribute("data-visual-surface"),
+      mapHud: rectFor(mapHud),
+      mapHudChildren,
+      cameraControls: rectFor(document.querySelector(".map-camera-controls")),
+      visibleDebugSelectors: debugSelectors.filter((selector) => isVisible(document.querySelector(selector))),
+      primaryText,
+      viewport: {
+        width: window.innerWidth,
+        height: window.innerHeight,
+      },
+    }
+  })
+
+  assert.equal(
+    hierarchy.visibleContextPanelIds.length,
+    1,
+    `Exactly one contextual panel should be visible, saw ${JSON.stringify(
+      hierarchy.visibleContextPanelIds,
+    )}. Panels: ${JSON.stringify(hierarchy.contextPanels)}.`,
+  )
+  assert.equal(
+    hierarchy.visibleContextPanelIds[0],
+    expectedContextPanelId,
+    `Expected contextual panel ${expectedContextPanelId}, saw ${JSON.stringify(
+      hierarchy.visibleContextPanelIds,
+    )}.`,
+  )
+  assert.equal(hierarchy.mapStageSurface, "map-stage")
+  assert.equal(hierarchy.topbarSurface, "status")
+  assert.equal(hierarchy.objectiveSurface, "objective")
+  assert.equal(hierarchy.mapHudSurface, "map-controls")
+  assert.equal(hierarchy.adminViewVisible, false, "Admin drawer should be hidden.")
+  assert.equal(hierarchy.shellMenuVisible, true, "Menu button should expose Admin access.")
+  assert.equal(hierarchy.adminMenuActionVisible, false, "Admin action should stay hidden until Menu opens.")
+  assert.deepEqual(
+    hierarchy.visibleDebugSelectors,
+    [],
+    "Debug/runtime controls should not be visible in the primary UI.",
+  )
+  assert.doesNotMatch(
+    hierarchy.primaryText,
+    /Developer tools|Runtime internals|Save payload|Import text|Advance 5s|Snapshot|Debug/i,
+    `Primary game world should not expose debug wording. Visible text: ${hierarchy.primaryText}`,
+  )
+  assert.equal(hierarchy.mapHudChildren.length, 1, "Map HUD should only contain camera controls.")
+  assert.ok(
+    String(hierarchy.mapHudChildren[0]?.className ?? "").includes("map-camera-controls"),
+    "Bottom-left HUD should be camera-only.",
+  )
+  assert.ok(hierarchy.mapHud, "Map HUD should be visible.")
+  assert.ok(hierarchy.cameraControls, "Camera controls should be visible.")
+  assert.ok(hierarchy.mapHud.left <= 16, "Camera HUD should stay anchored to the left edge.")
+  if (!mobile) {
+    assert.ok(
+      hierarchy.mapHud.top >= hierarchy.viewport.height * 0.82,
+      "Desktop camera HUD should stay in the bottom-left region.",
+    )
+  }
+  assert.ok(
+    hierarchy.contextPanels.every(
+      (panel) => !panel.visible || panel.surface === "context",
+    ),
+    "Visible contextual panel should use the context visual surface.",
+  )
+}
+
 function assertInitialDiscoveryAnchors(state) {
   assert.equal(state.snapshot.discoveredCellCount, 2)
   assert.deepEqual(
@@ -1213,8 +1462,8 @@ async function completeFirstPlayableArc(page, consoleErrors) {
         state.shell?.currentAction,
       )}`,
     )
-    const actionButton = page.locator("#current-action-primary")
-    if (await actionButton.isDisabled()) {
+    const actionDisabled = await isElementDisabledByDomId(page, "current-action-primary")
+    if (actionDisabled) {
       const completedState = await renderGameToText(page)
       if (
         completedState.ui?.firstPlayable?.complete === true &&
@@ -1228,7 +1477,7 @@ async function completeFirstPlayableArc(page, consoleErrors) {
         )}`,
       )
     }
-    await actionButton.click()
+    await clickVisibleElementByDomId(page, "current-action-primary")
     await waitForTextState(
       page,
       (nextState) =>
@@ -1390,6 +1639,9 @@ async function exerciseSaveReloadOfflineAndReset(page, advanced, consoleErrors) 
   )
   await closeAdmin(page, consoleErrors)
   await page.locator("#offline-return-panel").waitFor({ state: "visible" })
+  await assertLayoutHierarchy(page, {
+    expectedContextPanelId: "offline-return-panel",
+  })
   await assertVisibleText(page, "#offline-return-panel", [
     "While you were away",
     "Manual catch-up",
@@ -1409,6 +1661,11 @@ async function exerciseSaveReloadOfflineAndReset(page, advanced, consoleErrors) 
     page,
     "add-rpg-offline-return-smoke.png",
     "ADD RPG offline return summary screenshot",
+  )
+  await assertNonBlankNamedAppScreenshot(
+    page,
+    "add-rpg-offline-return-hierarchy-smoke.png",
+    "ADD RPG offline return layout hierarchy screenshot",
   )
   await page.locator("#dismiss-offline-return-primary").click()
   await page.locator("#offline-return-panel").waitFor({ state: "hidden" })
@@ -1976,10 +2233,19 @@ async function exerciseSurvivorCaveDungeonEntry(page, consoleErrors) {
     /Road to Base|Follow the low signal|Keep moving through the ash/i,
     "Dungeon context panel should stay local to dungeon mode, not global story choices.",
   )
+  await assertLayoutHierarchy(page, {
+    expectedContextPanelId: "dungeon-context-panel",
+    expectedMapMode: "dungeon_square",
+  })
   await assertNonBlankNamedAppScreenshot(
     page,
     "add-rpg-survivor-cave-entry-smoke.png",
     "ADD RPG Survivor Cave entry screenshot",
+  )
+  await assertNonBlankNamedAppScreenshot(
+    page,
+    "add-rpg-dungeon-hierarchy-smoke.png",
+    "ADD RPG dungeon layout hierarchy screenshot",
   )
 
   await clickVisibleElementByDomId(page, "return-overworld")
@@ -2145,6 +2411,13 @@ async function exerciseMainCharacterMovement(page, consoleErrors) {
     "automatic_return_thresholds_later",
   )
   await openDetailsSection(page, "#movement-consequences-section")
+  await page.waitForFunction(
+    () => /Movement consequences|Viral load|Time|Safety/i.test(
+      document.querySelector("#movement-consequences")?.textContent ?? "",
+    ),
+    null,
+    { timeout: 5000 },
+  )
   assert.match(
     await page.locator("#movement-consequences").innerText(),
     /Movement consequences|Viral load|Time|Safety/i,
@@ -2647,7 +2920,19 @@ async function clickUntilTextState(
 }
 
 async function clickVisibleElementByDomId(page, id) {
-  await page.waitForFunction((targetId) => document.getElementById(targetId) !== null, id)
+  await page.waitForFunction((targetId) => {
+    const element = document.getElementById(targetId)
+    if (!(element instanceof HTMLElement)) return false
+    const style = window.getComputedStyle(element)
+    const rect = element.getBoundingClientRect()
+    return (
+      style.display !== "none" &&
+      style.visibility !== "hidden" &&
+      Number(style.opacity) > 0 &&
+      rect.width > 0 &&
+      rect.height > 0
+    )
+  }, id)
   await page.evaluate((targetId) => {
     const element = document.getElementById(targetId)
     if (!(element instanceof HTMLElement)) {
@@ -2655,6 +2940,14 @@ async function clickVisibleElementByDomId(page, id) {
     }
     element.scrollIntoView({ block: "center", inline: "nearest" })
     element.click()
+  }, id)
+}
+
+async function isElementDisabledByDomId(page, id) {
+  await page.waitForFunction((targetId) => document.getElementById(targetId) !== null, id)
+  return page.evaluate((targetId) => {
+    const element = document.getElementById(targetId)
+    return element instanceof HTMLButtonElement ? element.disabled : false
   }, id)
 }
 
