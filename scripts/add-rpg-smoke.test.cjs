@@ -14,6 +14,19 @@ const MOBILE_PRESENTATION_VIEWPORTS = [
   { name: "mobile", width: 390, height: 760 },
   { name: "mobile-narrow", width: 360, height: 740 },
 ]
+const V1_INTERFACE_CONTEXTS = ["discovery", "base", "dungeon", "return"]
+const V1_INTERFACE_DESKTOP_PANELS = [
+  "discovery-panel",
+  "base-management-panel",
+  "dungeon-context-panel",
+  "offline-return-panel",
+]
+
+const v1InterfaceGate = {
+  contexts: new Set(),
+  desktopPanels: new Set(),
+  mobileBottomSheet: false,
+}
 
 async function main() {
   const { server, url } = await startStaticAppServer({
@@ -104,6 +117,7 @@ async function main() {
       await assertNonBlankAppScreenshot(page)
       await assertNonBlankMapScreenshot(page)
     })
+    await runScenario("V1 interface gate", () => assertV1InterfaceGateComplete())
     await runScenario("console cleanliness", () => assert.deepEqual(consoleErrors, []))
   } finally {
     if (browser) await browser.close()
@@ -249,6 +263,9 @@ async function assertBootAndRenderTextContract(page, consoleErrors) {
   )
   assert.equal(initial.shell.currentAction.primaryEnabled, true)
   assert.match(initial.shell.interfaceHierarchy.tertiary.waitForecast, /60m|Clock/)
+  assertV1InterfaceContext(initial, "discovery", {
+    source: ["first_playable", "discovery"],
+  })
   assert.equal(await page.locator(".skip-link").count(), 1)
   assert.equal(await page.locator("#current-action-surface[aria-live='polite']").count(), 1)
   assert.equal(await page.locator("#discovery-panel[role='region'][aria-labelledby]").count(), 1)
@@ -572,6 +589,7 @@ async function exerciseBaseManagementSurface(page, consoleErrors) {
   assert.equal(base.shell.adminOpen, false)
   assert.equal(base.shell.currentAction.source, "base_loop")
   assert.equal(base.shell.currentAction.label, base.baseManagement.recommendedAction.label)
+  assertV1InterfaceContext(base, "base", { source: "base_loop" })
   assert.ok(base.baseManagement.recommendedAction.kind.length > 0)
   assert.deepEqual(
     base.baseManagement.playerLoop.steps.map((step) => step.id),
@@ -1413,6 +1431,125 @@ async function assertLayoutHierarchy(
     ),
     "Visible contextual panel should use the context visual surface.",
   )
+  if (mobile) {
+    v1InterfaceGate.mobileBottomSheet = true
+  } else {
+    v1InterfaceGate.desktopPanels.add(expectedContextPanelId)
+  }
+  return { state, hierarchy }
+}
+
+function assertV1InterfaceContext(state, context, options = {}) {
+  const expectedSources = Array.isArray(options.source)
+    ? options.source
+    : options.source
+      ? [options.source]
+      : []
+  const hierarchy = state.shell?.interfaceHierarchy
+  const questions = hierarchy?.questions ?? {}
+  const currentAction = state.shell?.currentAction
+
+  assert.ok(
+    V1_INTERFACE_CONTEXTS.includes(context),
+    `Unknown V1 interface context ${context}.`,
+  )
+  assert.equal(
+    state.shell?.adminOpen,
+    false,
+    `V1 ${context} state must be playable without opening Admin.`,
+  )
+  assert.equal(
+    state.shell?.devToolsOpen,
+    false,
+    `V1 ${context} state must keep developer tools out of the primary UI.`,
+  )
+  assert.equal(
+    hierarchy?.primary?.label,
+    "Map",
+    `V1 ${context} state must identify the primary map tier.`,
+  )
+  assert.equal(
+    hierarchy?.secondary?.label,
+    "Decision",
+    `V1 ${context} state must identify the current decision tier.`,
+  )
+  assert.equal(
+    hierarchy?.tertiary?.label,
+    "Status",
+    `V1 ${context} state must identify the status tier.`,
+  )
+  assert.equal(
+    hierarchy?.advanced?.hiddenByDefault,
+    true,
+    `V1 ${context} state must hide advanced/admin surfaces by default.`,
+  )
+  ;[
+    ["whereAmI", "where they are"],
+    ["whatChanged", "what changed"],
+    ["whatShouldIDoNow", "what to do next"],
+    ["whatHappensIfIWait", "what happens if they wait"],
+  ].forEach(([key, label]) => {
+    assert.equal(
+      typeof questions[key],
+      "string",
+      `V1 ${context} state should explain ${label}.`,
+    )
+    assert.ok(
+      questions[key].trim().length > 0,
+      `V1 ${context} state should not leave "${label}" blank.`,
+    )
+  })
+  assert.equal(
+    typeof currentAction?.label,
+    "string",
+    `V1 ${context} state must expose a current action label.`,
+  )
+  assert.ok(
+    currentAction.label.trim().length > 0,
+    `V1 ${context} state must expose a non-empty current action label.`,
+  )
+  assert.equal(
+    typeof currentAction.detail,
+    "string",
+    `V1 ${context} state must expose current action detail.`,
+  )
+  assert.ok(
+    currentAction.detail.trim().length > 0,
+    `V1 ${context} state must expose non-empty current action detail.`,
+  )
+  if (expectedSources.length > 0) {
+    assert.ok(
+      expectedSources.includes(currentAction.source),
+      `V1 ${context} state expected action source ${expectedSources.join(
+        " or ",
+      )}, saw ${currentAction.source}.`,
+    )
+  }
+  v1InterfaceGate.contexts.add(context)
+}
+
+function assertV1InterfaceGateComplete() {
+  const missingContexts = V1_INTERFACE_CONTEXTS.filter(
+    (context) => !v1InterfaceGate.contexts.has(context),
+  )
+  const missingDesktopPanels = V1_INTERFACE_DESKTOP_PANELS.filter(
+    (panelId) => !v1InterfaceGate.desktopPanels.has(panelId),
+  )
+  assert.deepEqual(
+    missingContexts,
+    [],
+    "V1 Interface Gate requires Discovery, Base, Dungeon, and Return states to be playable without Admin.",
+  )
+  assert.deepEqual(
+    missingDesktopPanels,
+    [],
+    "V1 Interface Gate requires stable desktop layouts for Discovery, Base, Dungeon, and Return panels.",
+  )
+  assert.equal(
+    v1InterfaceGate.mobileBottomSheet,
+    true,
+    "V1 Interface Gate requires a stable mobile bottom-sheet layout.",
+  )
 }
 
 function assertInitialDiscoveryAnchors(state) {
@@ -1607,6 +1744,10 @@ async function exerciseSaveReloadOfflineAndReset(page, advanced, consoleErrors) 
   assert.ok(offlineTicked.snapshot.clockSeconds > imported.snapshot.clockSeconds)
   assert.equal(offlineTicked.ui.firstPlayable.persistenceReady, true)
   assert.equal(offlineTicked.offlineReturn.source, "manual")
+  await closeAdmin(page, consoleErrors)
+  await page.locator("#offline-return-panel").waitFor({ state: "visible" })
+  const offlineReview = await renderGameToText(page)
+  assertV1InterfaceContext(offlineReview, "return", { source: "offline_return" })
   assert.ok(
     Array.isArray(offlineTicked.offlineReturn.resourceDeltas),
     "Offline return should expose resource gains as an array.",
@@ -1637,8 +1778,6 @@ async function exerciseSaveReloadOfflineAndReset(page, advanced, consoleErrors) 
     /Automated|manual|online/i,
     "Offline return review should clarify manual-vs-offline progression rules.",
   )
-  await closeAdmin(page, consoleErrors)
-  await page.locator("#offline-return-panel").waitFor({ state: "visible" })
   await assertLayoutHierarchy(page, {
     expectedContextPanelId: "offline-return-panel",
   })
@@ -2197,6 +2336,7 @@ async function exerciseSurvivorCaveDungeonEntry(page, consoleErrors) {
     consoleErrors,
   )
   assert.equal(dungeon.ui.firstPlayable.currentStepId, before.ui.firstPlayable.currentStepId)
+  assertV1InterfaceContext(dungeon, "dungeon", { source: "dungeon_objective" })
   assert.ok(
     dungeon.dungeonObjective.stepStatuses.some(
       (step) => step.id === "return-overworld" && step.status === "next",

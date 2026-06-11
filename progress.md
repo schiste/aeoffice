@@ -2867,3 +2867,12 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   passed with `npm --workspace @aedventure/add-rpg run build`,
   `npm run smoke:add-rpg:built`, and `npm run agent:verify:add-ui`; visually
   inspected the five new hierarchy screenshots in `tmp/`.
+- Interface Phase 15 V1 gate is now explicit in the ADD smoke. The gate records
+  that Discovery, Base, Dungeon, and Return states each answer where the player
+  is, what changed, what to do next, and what happens if they wait, while also
+  proving each state is playable without Admin or developer tools. The same
+  gate requires desktop hierarchy screenshots for the four contextual panels and
+  a stable mobile bottom-sheet layout before the smoke can finish. Verification
+  passed with `npm run smoke:add-rpg:built` and full `npm run check`; visually
+  inspected the regenerated Discovery, Base, Dungeon, Offline Return, and mobile
+  bottom-sheet hierarchy screenshots.
