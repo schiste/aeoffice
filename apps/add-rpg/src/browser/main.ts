@@ -592,11 +592,21 @@ function AddRpgApp() {
           id="add-world"
           class="add-world"
           data-interface-tier="primary"
+          data-visual-surface="map-stage"
           ref=${(node: HTMLDivElement) => (mapElement = node)}
         >
-          <div class=${() => (mapInfo().ready ? "map-loading hidden" : "map-loading")}>
-            Initializing map
+          <div
+            id="map-loading-state"
+            class=${() => (mapInfo().ready ? "shell-state-layer loading hidden" : "shell-state-layer loading")}
+            data-visual-state="loading"
+            role="status"
+            aria-live="polite"
+          >
+            <span>Preparing world</span>
+            <strong>${() => (ready() ? "Drawing the map" : "Starting the runtime")}</strong>
+            <small>Loading the simulation, visibility, and Phaser layers.</small>
           </div>
+          ${() => worldErrorState()}
           <div
             class="day-night-overlay"
             data-phase=${() => displayedWorldTime()?.daylightPhase ?? "day"}
@@ -613,6 +623,7 @@ function AddRpgApp() {
           <div
             class="map-topbar"
             data-interface-tier="tertiary"
+            data-visual-surface="status"
             aria-label="ADD map navigation and status"
           >
             <div class="map-mode-switcher" role="tablist" aria-label="ADD map mode">
@@ -700,6 +711,7 @@ function AddRpgApp() {
             style=${() => questPanelStyle()}
             data-dragging=${() => questPanelDragging()}
             data-last-action=${() => lastQuestPanelAction()}
+            data-visual-surface="objective"
             aria-labelledby="first-playable-title"
             aria-describedby="first-playable-keyboard-help"
           >
@@ -748,6 +760,7 @@ function AddRpgApp() {
           <div
             class="map-hud"
             data-interface-tier="tertiary"
+            data-visual-surface="map-controls"
             aria-label="ADD map controls"
           >
             <div class="map-camera-controls">
@@ -1318,6 +1331,33 @@ function contextualPanel(): unknown {
   return discoveryPanel()
 }
 
+function worldErrorState(): unknown {
+  if (!lastError()) return null
+  return html`
+    <div
+      id="map-error-state"
+      class="shell-state-layer error"
+      data-visual-state="error"
+      role="alert"
+      aria-live="assertive"
+    >
+      <span>World state paused</span>
+      <strong>Something needs attention before the run can continue.</strong>
+      <small>Open Admin recovery to inspect save and runtime controls.</small>
+      <button
+        type="button"
+        class="ghost-button"
+        onClick=${() => {
+          setShellMenuOpen(false)
+          setAdminOpen(true)
+        }}
+      >
+        Open recovery
+      </button>
+    </div>
+  `
+}
+
 function discoveryPanel(): unknown {
   const link = () => heroDungeonLink()
   return html`
@@ -1329,6 +1369,7 @@ function discoveryPanel(): unknown {
         discoveryPanelCollapsed()
           ? "panel discovery-panel collapsed"
           : "panel discovery-panel"}
+      data-visual-surface="context"
       role="region"
       aria-labelledby="discovery-panel-title"
     >
@@ -1381,6 +1422,7 @@ function baseManagementPanel(): unknown {
       data-interface-tier="secondary"
       data-interface-answer="current-decision-action"
       class="panel base-management-panel"
+      data-visual-surface="context"
       role="region"
       aria-labelledby="base-management-panel-title"
       data-tab=${() => baseManagementTab()}
@@ -1493,6 +1535,7 @@ function dungeonContextPanel(): unknown {
       data-interface-tier="secondary"
       data-interface-answer="current-decision-action"
       class="panel dungeon-context-panel"
+      data-visual-surface="context"
       role="region"
       aria-labelledby="dungeon-context-panel-title"
     >
@@ -4156,6 +4199,7 @@ function offlineReturnPanel(): unknown {
       id="offline-return-panel"
       class="offline-return-panel"
       data-source=${summary.source}
+      data-visual-surface="context"
       role="region"
       aria-labelledby="offline-return-title"
       aria-live="polite"

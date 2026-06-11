@@ -257,6 +257,17 @@ export interface RuntimeTextState {
       readonly mobileBottomSheetAvoidsScrollTrap: true
       readonly shortcuts: readonly string[]
     }
+    readonly visualPolish: {
+      readonly surfaceSystem: "map_objective_context_status"
+      readonly mapSurface: "full_bleed_phaser_stage"
+      readonly objectiveSurface: "warm_progress_overlay"
+      readonly contextSurface: "cool_decision_inspector"
+      readonly statusSurface: "thin_resource_time_bar"
+      readonly stateLayer: "native_loading_error_empty"
+      readonly panelRhythm: "shared_spacing_border_shadow_tokens"
+      readonly transitions: "cohesive_motion_with_reduced_motion_guard"
+      readonly worldUiIntegration: "glass_surfaces_over_living_map"
+    }
     readonly discoveryPanel: {
       readonly collapsed: boolean
     }
@@ -1035,6 +1046,17 @@ export function createAddRuntimeTextState(
           "Arrow keys move the focused objective tracker handle",
           "Enter or Space toggles the focused objective tracker",
         ],
+      },
+      visualPolish: {
+        surfaceSystem: "map_objective_context_status",
+        mapSurface: "full_bleed_phaser_stage",
+        objectiveSurface: "warm_progress_overlay",
+        contextSurface: "cool_decision_inspector",
+        statusSurface: "thin_resource_time_bar",
+        stateLayer: "native_loading_error_empty",
+        panelRhythm: "shared_spacing_border_shadow_tokens",
+        transitions: "cohesive_motion_with_reduced_motion_guard",
+        worldUiIntegration: "glass_surfaces_over_living_map",
       },
       discoveryPanel: {
         collapsed: input.discoveryPanelCollapsed,

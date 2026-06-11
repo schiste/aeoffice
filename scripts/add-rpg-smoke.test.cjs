@@ -171,6 +171,15 @@ async function assertBootAndRenderTextContract(page, consoleErrors) {
       state.shell?.accessibility?.mobileBottomSheetAvoidsScrollTrap === true &&
       Array.isArray(state.shell?.accessibility?.shortcuts) &&
       state.shell.accessibility.shortcuts.length >= 4 &&
+      state.shell?.visualPolish?.surfaceSystem === "map_objective_context_status" &&
+      state.shell?.visualPolish?.mapSurface === "full_bleed_phaser_stage" &&
+      state.shell?.visualPolish?.objectiveSurface === "warm_progress_overlay" &&
+      state.shell?.visualPolish?.contextSurface === "cool_decision_inspector" &&
+      state.shell?.visualPolish?.statusSurface === "thin_resource_time_bar" &&
+      state.shell?.visualPolish?.stateLayer === "native_loading_error_empty" &&
+      state.shell?.visualPolish?.panelRhythm === "shared_spacing_border_shadow_tokens" &&
+      state.shell?.visualPolish?.transitions === "cohesive_motion_with_reduced_motion_guard" &&
+      state.shell?.visualPolish?.worldUiIntegration === "glass_surfaces_over_living_map" &&
       Number.isFinite(state.shell?.questPanel?.x) &&
       Number.isFinite(state.shell?.questPanel?.y) &&
       state.mapMode?.active === "overworld_hex" &&
@@ -245,6 +254,12 @@ async function assertBootAndRenderTextContract(page, consoleErrors) {
   assert.equal(await page.locator("#discovery-panel[role='region'][aria-labelledby]").count(), 1)
   assert.equal(await page.locator("#first-playable-panel[aria-describedby]").count(), 1)
   assert.equal(await page.locator(".first-playable-drag-handle[tabindex='0']").count(), 1)
+  assert.equal(await page.locator("#add-world[data-visual-surface='map-stage']").count(), 1)
+  assert.equal(await page.locator(".map-topbar[data-visual-surface='status']").count(), 1)
+  assert.equal(await page.locator("#first-playable-panel[data-visual-surface='objective']").count(), 1)
+  assert.equal(await page.locator("#discovery-panel[data-visual-surface='context']").count(), 1)
+  assert.equal(await page.locator("#map-loading-state[data-visual-state='loading']").count(), 1)
+  assert.equal(await page.locator(".shell-state-layer.error").count(), 0)
   assert.equal(await page.locator("#current-action-surface").count(), 1)
   assert.equal(await page.locator("#interface-hierarchy-brief").count(), 0)
   for (const question of [
@@ -2132,7 +2147,7 @@ async function exerciseMainCharacterMovement(page, consoleErrors) {
   await openDetailsSection(page, "#movement-consequences-section")
   assert.match(
     await page.locator("#movement-consequences").innerText(),
-    /Movement consequences|Viral load|Time|Safety/,
+    /Movement consequences|Viral load|Time|Safety/i,
     "Movement consequence card should explain viral load, time, and safety pressure.",
   )
   await assertNonBlankNamedAppScreenshot(

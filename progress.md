@@ -2845,3 +2845,15 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   `npm run agent:verify:add-ui`; visually inspected `tmp/add-rpg-smoke.png`,
   `tmp/add-rpg-mobile-narrow-smoke.png`, and
   `tmp/add-rpg-selected-tile-decision-smoke.png`.
+- Interface Phase 13 visual polish is implemented. The ADD shell now has a
+  visible surface system for map stage, status bar, warm objective overlay,
+  cool context inspector, map controls, and native loading/error/empty states.
+  Shared CSS tokens drive spacing, borders, shadows, motion, and panel rhythm;
+  contextual panels are more opaque over detailed square/hex maps; the map
+  stage has a softer world-to-UI integration layer; and smoke now asserts the
+  visual surface contract through `render_game_to_text` plus DOM markers.
+  Verification passed with `npm --workspace @aedventure/add-rpg run
+  build:types`, direct Vite browser build for ADD,
+  `npm run smoke:add-rpg:built`, and `npm run agent:verify:add-ui`; visually
+  inspected `tmp/add-rpg-smoke.png`, `tmp/add-rpg-base-management-smoke.png`,
+  and `tmp/add-rpg-mobile-narrow-smoke.png`.
