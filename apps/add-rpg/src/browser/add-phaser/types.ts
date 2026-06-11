@@ -61,6 +61,14 @@ export interface PhaserMapPresentationState {
   readonly landmarkSprites: "procedural_sprite_stack"
   readonly labelRendering: "high_resolution_phaser_text"
   readonly ambience: "subtle_motes_and_topographic_scan"
+  readonly mapPrimaryAffordances: {
+    readonly layer: "reachable_path_frontier_landmark"
+    readonly reachableCellCount: number
+    readonly frontierHintCount: number
+    readonly pathTimePreviewVisible: boolean
+    readonly actionMarkerCount: number
+    readonly landmarkBeaconCount: number
+  }
   readonly visibilityPolish: {
     readonly fogEdge: "soft_feathered_visibility_boundary"
     readonly revealEffect: "expanding_ripple"

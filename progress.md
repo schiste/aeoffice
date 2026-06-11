@@ -5,6 +5,17 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
 - Started demo-critical path: browser app, fixture-map rendering, local dev host,
   server-authoritative movement, chat, and media-token flow.
 - RBAC/admin/SaaS control-plane work remains deliberately deferred.
+- ADD map-primary interface pass: Phaser now renders reachable-cell decision
+  affordances, 1h crossing chips, path/time preview, unknown frontier hints,
+  stronger landmark/action markers, and camera framing based on known cells while
+  preserving full-map pan bounds. `render_game_to_text` exposes the
+  `mapPrimaryAffordances` contract so smoke tests can detect if the map becomes
+  passive again.
+- Verification: `npm --workspace @aedventure/add-rpg run build`, `npm run
+  smoke:add-rpg`, local web-game client against `http://127.0.0.1:5177/app/`,
+  and full `npm run check` passed. The in-app Browser plugin was unavailable in
+  this session, so visual checks used smoke screenshots plus the bundled
+  Playwright client copied into `tmp/` to resolve the repo Playwright dependency.
 
 ## Current Slice
 

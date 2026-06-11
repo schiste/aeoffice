@@ -231,6 +231,12 @@ async function assertBootAndRenderTextContract(page, consoleErrors) {
       state.map?.presentation?.landmarkSprites === "procedural_sprite_stack" &&
       state.map?.presentation?.labelRendering === "high_resolution_phaser_text" &&
       state.map?.presentation?.ambience === "subtle_motes_and_topographic_scan" &&
+      state.map?.presentation?.mapPrimaryAffordances?.layer ===
+        "reachable_path_frontier_landmark" &&
+      state.map?.presentation?.mapPrimaryAffordances?.reachableCellCount > 0 &&
+      state.map?.presentation?.mapPrimaryAffordances?.frontierHintCount > 0 &&
+      state.map?.presentation?.mapPrimaryAffordances?.actionMarkerCount > 0 &&
+      state.map?.presentation?.mapPrimaryAffordances?.landmarkBeaconCount >= 2 &&
       state.discovery?.phase === "enter_dungeon" &&
       typeof state.discovery?.nextAction?.label === "string" &&
       state.discovery.nextAction.label.length > 0 &&
@@ -1282,6 +1288,18 @@ async function assertLayoutHierarchy(
       )
     }
 
+    function isContextPanelPresent(element) {
+      if (!(element instanceof HTMLElement)) return false
+      const style = window.getComputedStyle(element)
+      const rect = element.getBoundingClientRect()
+      return (
+        style.display !== "none" &&
+        style.visibility !== "hidden" &&
+        rect.width > 0 &&
+        rect.height > 0
+      )
+    }
+
     function rectFor(element) {
       if (!(element instanceof HTMLElement)) return null
       const rect = element.getBoundingClientRect()
@@ -1336,7 +1354,7 @@ async function assertLayoutHierarchy(
         const rect = element.getBoundingClientRect()
         return {
           id: element.id,
-          visible: isVisible(element),
+          visible: isContextPanelPresent(element),
           surface: element.getAttribute("data-visual-surface"),
           display: style.display,
           visibility: style.visibility,
@@ -3108,8 +3126,13 @@ async function openDetailsSection(page, selector) {
   if (!isOpen) {
     await details.evaluate((node) => {
       node.open = true
+      node.dispatchEvent(new Event("toggle"))
     })
   }
+  await page.waitForFunction((targetSelector) => {
+    const node = document.querySelector(targetSelector)
+    return node instanceof HTMLDetailsElement && node.open === true
+  }, selector)
 }
 
 async function renderGameToText(page) {

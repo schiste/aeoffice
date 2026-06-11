@@ -7,6 +7,7 @@ import {
   WorldCellInteractionRenderer,
   WorldEntityRenderer,
   WorldFogRenderer,
+  drawHexPath,
   type WorldCellInteractionAffordance,
   type WorldCellInteractionSelection,
   type WorldCellInteractionZone,
@@ -72,12 +73,25 @@ import {
   type CharacterMoveStatus,
   type CharacterTravelState,
   type PhaserMapRendererState,
+  type PhaserMapPresentationState,
   type RenderContext,
   type TravelRevealPreview,
 } from "./types"
 
 // How long a door takes to swing open/closed (presentation only).
 const DOOR_SWING_MS = 300
+const MAP_DECISION_DIRECTIONS: readonly AddCharacterMoveDirection[] = [
+  "up",
+  "north_east",
+  "right",
+  "south_east",
+  "down",
+  "south_west",
+  "left",
+  "north_west",
+]
+
+type MapPrimaryAffordanceInfo = PhaserMapPresentationState["mapPrimaryAffordances"]
 
 interface DoorVisual {
   panel: Phaser.GameObjects.Rectangle
@@ -97,8 +111,13 @@ export class AddRpgHexScene extends Phaser.Scene {
   private characterRenderer?: WorldEntityRenderer
   private fogRenderer?: WorldFogRenderer
   private ambienceGraphics?: Phaser.GameObjects.Graphics
+  private mapCommunicationGraphics?: Phaser.GameObjects.Graphics
   private transitionGraphics?: Phaser.GameObjects.Graphics
   private landmarkObjects: Phaser.GameObjects.GameObject[] = []
+  private mapCommunicationObjects: Phaser.GameObjects.GameObject[] = []
+  private mapPrimaryAffordanceInfo: MapPrimaryAffordanceInfo = emptyMapPrimaryAffordanceInfo()
+  private actionMarkerCount = 0
+  private landmarkBeaconCount = 0
   private readonly doorVisuals = new Map<string, DoorVisual>()
   private readonly transitions = new TransitionRegistry()
   private pendingWorld?: GameWorld
@@ -151,8 +170,10 @@ export class AddRpgHexScene extends Phaser.Scene {
     this.characterRenderer = new WorldEntityRenderer(this)
     this.fogRenderer = new WorldFogRenderer(this)
     this.ambienceGraphics = this.add.graphics()
+    this.mapCommunicationGraphics = this.add.graphics()
     this.transitionGraphics = this.add.graphics()
     this.ambienceGraphics.setDepth(10)
+    this.mapCommunicationGraphics.setDepth(29)
     this.transitionGraphics.setDepth(80)
     this.transitionGraphics.setScrollFactor(0)
     // Reused on-map tile tooltip (world-space, follows the hovered/selected cell).
@@ -477,6 +498,7 @@ export class AddRpgHexScene extends Phaser.Scene {
       this.cellInteractionRenderer?.clear()
       this.characterRenderer?.clear()
       this.fogRenderer?.clear()
+      this.clearMapCommunicationOverlay()
       this.doorVisuals.forEach((visual) => visual.panel.destroy())
       this.doorVisuals.clear()
       this.transitions.clear()
@@ -516,6 +538,8 @@ export class AddRpgHexScene extends Phaser.Scene {
   private drawLandmarks(context: RenderContext): void {
     this.landmarkObjects.forEach((object) => object.destroy())
     this.landmarkObjects = []
+    this.actionMarkerCount = 0
+    this.landmarkBeaconCount = 0
 
     for (const entity of context.map.entities) {
       if (!entity.coord || entity.coord.kind !== context.topologyKind) continue
@@ -547,25 +571,39 @@ export class AddRpgHexScene extends Phaser.Scene {
   }
 
   private drawCellMarkers(center: Vector2, markers: readonly AddMapMarker[]): void {
-    const glyphs: Record<AddMapMarker["kind"], { glyph: string; color: string }> = {
-      harvestable: { glyph: "❀", color: "#2f8f4a" },
-      water: { glyph: "≈", color: "#3a78c0" },
-      entrance: { glyph: "▽", color: "#a05f2d" },
+    const glyphs: Record<AddMapMarker["kind"], { glyph: string; label: string; color: number; text: string }> = {
+      harvestable: { glyph: "❀", label: "Gather", color: 0x2f8f4a, text: "#173528" },
+      water: { glyph: "≈", label: "Water", color: 0x3a78c0, text: "#17304f" },
+      entrance: { glyph: "▽", label: "Entry", color: 0xa05f2d, text: "#482715" },
     }
     markers.forEach((marker, index) => {
       const style = glyphs[marker.kind]
-      const text = this.add.text(center.x + 14, center.y - 16 + index * 13, style.glyph, {
-        color: style.color,
+      const container = this.add.container(center.x + 20, center.y - 19 + index * 16)
+      const shadow = this.add.ellipse(0, 8, 42, 10, 0x17140f, 0.18)
+      const badge = this.add.ellipse(0, 0, 44, 18, 0xfffae2, 0.92)
+      badge.setStrokeStyle(1.2, style.color, 0.58)
+      const glyph = this.add.text(-11, -1, style.glyph, {
+        color: `#${style.color.toString(16).padStart(6, "0")}`,
         fontFamily: "Aptos, Segoe UI, sans-serif",
-        fontSize: "13px",
+        fontSize: "12px",
         fontStyle: "800",
-        stroke: "rgba(255, 250, 226, 0.9)",
-        strokeThickness: 3,
+        stroke: "rgba(255, 255, 255, 0.42)",
+        strokeThickness: 1,
       })
-      text.setOrigin(0.5, 0.5)
-      text.setDepth(27)
-      setCrispText(text)
-      this.landmarkObjects.push(text)
+      const label = this.add.text(4, -1, style.label, {
+        color: style.text,
+        fontFamily: "Aptos, Segoe UI, sans-serif",
+        fontSize: "8px",
+        fontStyle: "800",
+      })
+      glyph.setOrigin(0.5, 0.5)
+      label.setOrigin(0, 0.5)
+      setCrispText(glyph)
+      setCrispText(label)
+      container.add([shadow, badge, glyph, label])
+      container.setDepth(31)
+      this.actionMarkerCount += 1
+      this.landmarkObjects.push(container)
     })
   }
 
@@ -813,6 +851,9 @@ export class AddRpgHexScene extends Phaser.Scene {
     const radius = isCave ? 13 : isBase ? 15 : 11
     const fill = isCave ? 0x8a4c2f : isBase ? 0x2f7d68 : 0xa05f2d
     const stroke = isCave ? 0x432315 : isBase ? 0x114538 : 0x5f371d
+    if (isCave || isBase || isInteriorFeature || isDoor || isCrystal) {
+      this.drawLandmarkBeacon(center, isCave ? 0xe1a46a : isBase || isCrystal ? 0x7de5cb : 0xf0b95d, radius)
+    }
     const shadow = this.add.ellipse(center.x, center.y + 14, radius * 1.6, 7, 0x1f1b14, 0.18)
     shadow.setDepth(24)
     const markerPoints = isCave
@@ -864,6 +905,31 @@ export class AddRpgHexScene extends Phaser.Scene {
     label.setOrigin(0.5, 0.5)
     label.setDepth(26)
     this.landmarkObjects.push(label)
+  }
+
+  private drawLandmarkBeacon(center: Vector2, color: number, radius: number): void {
+    const pulse = (Math.sin(this.frameCount / 22 + center.x * 0.01) + 1) / 2
+    const outer = this.add.ellipse(
+      center.x,
+      center.y + 2,
+      radius * (3.0 + pulse * 0.35),
+      radius * (2.05 + pulse * 0.24),
+      color,
+      0.10 + pulse * 0.04,
+    )
+    const ring = this.add.ellipse(
+      center.x,
+      center.y + 2,
+      radius * (2.25 + pulse * 0.18),
+      radius * (1.54 + pulse * 0.12),
+      color,
+      0.0,
+    )
+    ring.setStrokeStyle(1.8, color, 0.42 + pulse * 0.14)
+    outer.setDepth(22)
+    ring.setDepth(22.2)
+    this.landmarkBeaconCount += 1
+    this.landmarkObjects.push(outer, ring)
   }
 
   private drawCaveMouthSilhouette(center: Vector2, radius: number): void {
@@ -983,6 +1049,7 @@ export class AddRpgHexScene extends Phaser.Scene {
   private drawOverlay(): void {
     const context = this.context
     if (!context) return
+    this.drawMapCommunicationOverlay(context)
     this.cellInteractionRenderer?.render(context.map, {
       origin: context.origin,
       depth: 30,
@@ -995,6 +1062,179 @@ export class AddRpgHexScene extends Phaser.Scene {
     this.drawTransitionOverlay()
     this.drawTileTooltip()
     this.drawMinimap()
+  }
+
+  private drawMapCommunicationOverlay(context: RenderContext): void {
+    const graphics = this.mapCommunicationGraphics
+    if (!graphics) return
+    this.clearMapCommunicationOverlay()
+
+    const reachableCells = this.reachableCellsForContext(context)
+    const frontierCells = this.frontierHintCellsForContext(context)
+    for (const cell of frontierCells) {
+      this.drawFrontierHint(graphics, centerFor(cell.coord, context), context)
+    }
+
+    for (const cell of reachableCells) {
+      if (!this.cellPresentationPolicy.cellVisible(cell)) continue
+      this.drawReachableTimeChip(centerFor(cell.coord, context), context)
+    }
+
+    const previewCoord = this.activeAdjacentPreviewCoord(context, reachableCells)
+    const pathTimePreviewVisible = Boolean(previewCoord)
+    if (previewCoord && this.characterPosition) {
+      this.drawPathTimePreview(graphics, this.characterPosition, centerFor(previewCoord, context))
+    }
+
+    this.mapPrimaryAffordanceInfo = {
+      layer: "reachable_path_frontier_landmark",
+      reachableCellCount: reachableCells.length,
+      frontierHintCount: frontierCells.length,
+      pathTimePreviewVisible,
+      actionMarkerCount: this.actionMarkerCount,
+      landmarkBeaconCount: this.landmarkBeaconCount,
+    }
+  }
+
+  private clearMapCommunicationOverlay(): void {
+    this.mapCommunicationGraphics?.clear()
+    this.mapCommunicationObjects.forEach((object) => object.destroy())
+    this.mapCommunicationObjects = []
+    this.mapPrimaryAffordanceInfo = {
+      ...this.mapPrimaryAffordanceInfo,
+      reachableCellCount: 0,
+      frontierHintCount: 0,
+      pathTimePreviewVisible: false,
+    }
+  }
+
+  private reachableCellsForContext(context: RenderContext): readonly GameCellPlacement[] {
+    if (!this.characterCoord || this.characterCoord.kind !== context.topologyKind) return []
+    const cells: GameCellPlacement[] = []
+    const seen = new Set<string>()
+    for (const direction of MAP_DECISION_DIRECTIONS) {
+      const coord = this.navigationPolicy.nextCoord(
+        this.characterCoord,
+        { direction },
+        context.map.topology,
+      )
+      if (!coord) continue
+      const key = addMapCoordKey(coord)
+      if (seen.has(key)) continue
+      seen.add(key)
+      const cell = context.terrainByCoord.get(key)
+      if (!cell || !this.navigationPolicy.canEnterCell(cell)) continue
+      cells.push(cell)
+    }
+    return cells
+  }
+
+  private frontierHintCellsForContext(context: RenderContext): readonly GameCellPlacement[] {
+    const frontier = new Map<string, GameCellPlacement>()
+    const addHiddenNeighbors = (coord: CellCoord) => {
+      if (coord.kind !== context.topologyKind) return
+      for (const direction of MAP_DECISION_DIRECTIONS) {
+        const next = this.navigationPolicy.nextCoord(coord, { direction }, context.map.topology)
+        if (!next) continue
+        const cell = context.terrainByCoord.get(addMapCoordKey(next))
+        if (!cell || presentationVisibilityStateForCell(cell) !== "hidden") continue
+        frontier.set(addMapCoordKey(cell.coord), cell)
+      }
+    }
+
+    if (this.characterCoord) addHiddenNeighbors(this.characterCoord)
+    for (const cell of context.terrainCells) {
+      if (!this.cellPresentationPolicy.cellVisible(cell)) continue
+      addHiddenNeighbors(cell.coord)
+    }
+
+    return [...frontier.values()].slice(0, 48)
+  }
+
+  private activeAdjacentPreviewCoord(
+    context: RenderContext,
+    reachableCells: readonly GameCellPlacement[],
+  ): CellCoord | null {
+    const activeCoord = this.hoveredCoord ?? this.selectedCoord
+    if (!activeCoord) return null
+    const activeKey = addMapCoordKey(activeCoord)
+    const activeCell = reachableCells.find((cell) => addMapCoordKey(cell.coord) === activeKey)
+    return activeCell ? activeCell.coord : null
+  }
+
+  private drawFrontierHint(
+    graphics: Phaser.GameObjects.Graphics,
+    center: Vector2,
+    context: RenderContext,
+  ): void {
+    const pulse = (Math.sin(this.frameCount / 24 + center.x * 0.017 + center.y * 0.011) + 1) / 2
+    if (context.topologyKind === "hex" && context.map.topology.kind === "hex") {
+      drawHexPath(graphics, center, context.map.topology.radius * (0.82 + pulse * 0.04))
+      graphics.fillStyle(0x111817, 0.09 + pulse * 0.035)
+      graphics.fillPath()
+      drawHexPath(graphics, center, context.map.topology.radius * (0.88 + pulse * 0.05))
+      graphics.lineStyle(1.1, 0xd9e5bf, 0.12 + pulse * 0.10)
+      graphics.strokePath()
+      return
+    }
+
+    const size = squareCellSize(context)
+    graphics.fillStyle(0x111817, 0.10 + pulse * 0.03)
+    graphics.fillRoundedRect(center.x - size * 0.38, center.y - size * 0.38, size * 0.76, size * 0.76, 6)
+    graphics.lineStyle(1.1, 0xd9e5bf, 0.12 + pulse * 0.10)
+    graphics.strokeRoundedRect(center.x - size * 0.40, center.y - size * 0.40, size * 0.80, size * 0.80, 6)
+  }
+
+  private drawReachableTimeChip(center: Vector2, context: RenderContext): void {
+    const radius = visualCellRadius(context)
+    const text = this.add.text(center.x, center.y + radius * 0.70, "1h", {
+      color: "#244137",
+      fontFamily: "Aptos, Segoe UI, sans-serif",
+      fontSize: "10px",
+      fontStyle: "900",
+      backgroundColor: "rgba(255, 250, 226, 0.86)",
+      stroke: "rgba(255, 255, 255, 0.5)",
+      strokeThickness: 2,
+      padding: { x: 6, y: 2 },
+    })
+    text.setOrigin(0.5, 0.5)
+    text.setDepth(33)
+    setCrispText(text)
+    this.mapCommunicationObjects.push(text)
+  }
+
+  private drawPathTimePreview(
+    graphics: Phaser.GameObjects.Graphics,
+    from: Vector2,
+    to: Vector2,
+  ): void {
+    const mid = {
+      x: (from.x + to.x) / 2,
+      y: (from.y + to.y) / 2,
+    }
+    graphics.lineStyle(5, 0x1a1e18, 0.20)
+    graphics.lineBetween(from.x, from.y, to.x, to.y)
+    graphics.lineStyle(2.4, 0xf0b95d, 0.86)
+    graphics.lineBetween(from.x, from.y, to.x, to.y)
+    graphics.fillStyle(0xfff1c6, 0.92)
+    graphics.fillCircle(to.x, to.y, 4.4)
+    graphics.lineStyle(1.4, 0x9b5637, 0.72)
+    graphics.strokeCircle(to.x, to.y, 6.8)
+
+    const label = this.add.text(mid.x, mid.y - 15, "Crossing: 1h", {
+      color: "#3c2916",
+      fontFamily: "Aptos, Segoe UI, sans-serif",
+      fontSize: "11px",
+      fontStyle: "900",
+      backgroundColor: "rgba(255, 250, 226, 0.94)",
+      stroke: "rgba(255, 255, 255, 0.55)",
+      strokeThickness: 2,
+      padding: { x: 7, y: 3 },
+    })
+    label.setOrigin(0.5, 0.5)
+    label.setDepth(58)
+    setCrispText(label)
+    this.mapCommunicationObjects.push(label)
   }
 
   /** Compute the cartographic scale bar: a "nice" 1/2/5 distance and its on-screen
@@ -1137,7 +1377,7 @@ export class AddRpgHexScene extends Phaser.Scene {
   private interactionZoneRenderStates(
     context: RenderContext,
   ): readonly WorldCellInteractionZone[] {
-    return [...context.bubbleEdgeCoords]
+    const zones: WorldCellInteractionZone[] = [...context.bubbleEdgeCoords]
       .map((key) => context.terrainByCoord.get(key))
       .filter((cell): cell is GameCellPlacement => Boolean(cell))
       .map((cell) => ({
@@ -1147,6 +1387,18 @@ export class AddRpgHexScene extends Phaser.Scene {
         color: 0x63dcff,
         alpha: 0.20,
       }))
+    const reachable = this.reachableCellsForContext(context)
+    const activePreviewCoord = this.activeAdjacentPreviewCoord(context, reachable)
+    for (const cell of reachable) {
+      zones.push({
+        id: `reachable:${addMapCoordKey(cell.coord)}`,
+        coord: cell.coord,
+        kind: "area",
+        color: activePreviewCoord && sameCoord(activePreviewCoord, cell.coord) ? 0xf0b95d : 0x78d99b,
+        alpha: activePreviewCoord && sameCoord(activePreviewCoord, cell.coord) ? 0.34 : 0.18,
+      })
+    }
+    return zones
   }
 
   private interactionAffordanceRenderStates(
@@ -1192,36 +1444,48 @@ export class AddRpgHexScene extends Phaser.Scene {
 
   private fitCameraToContext(context: RenderContext): void {
     const camera = this.cameras.main
-    const centers = context.terrainCells.map((cell) => centerFor(cell.coord, context))
-    if (centers.length === 0) return
+    const allCenters = context.terrainCells.map((cell) => centerFor(cell.coord, context))
+    if (allCenters.length === 0) return
+    const framingCells = context.terrainCells.filter((cell) =>
+      this.cellPresentationPolicy.cellVisible(cell),
+    )
+    const framingCenters =
+      framingCells.length >= 2 ? framingCells.map((cell) => centerFor(cell.coord, context)) : allCenters
 
     const padding =
       context.topologyKind === "hex"
         ? (context.map.topology.kind === "hex" ? context.map.topology.radius : DEFAULT_RADIUS) * 2
         : squareCellSize(context) * 1.5
-    const minX = Math.min(...centers.map((point) => point.x)) - padding
-    const maxX = Math.max(...centers.map((point) => point.x)) + padding
-    const minY = Math.min(...centers.map((point) => point.y)) - padding
-    const maxY = Math.max(...centers.map((point) => point.y)) + padding
-    const width = Math.max(1, maxX - minX)
-    const height = Math.max(1, maxY - minY)
+    const boundsMinX = Math.min(...allCenters.map((point) => point.x)) - padding
+    const boundsMaxX = Math.max(...allCenters.map((point) => point.x)) + padding
+    const boundsMinY = Math.min(...allCenters.map((point) => point.y)) - padding
+    const boundsMaxY = Math.max(...allCenters.map((point) => point.y)) + padding
+    const frameMinX = Math.min(...framingCenters.map((point) => point.x)) - padding
+    const frameMaxX = Math.max(...framingCenters.map((point) => point.x)) + padding
+    const frameMinY = Math.min(...framingCenters.map((point) => point.y)) - padding
+    const frameMaxY = Math.max(...framingCenters.map((point) => point.y)) + padding
+    const boundsWidth = Math.max(1, boundsMaxX - boundsMinX)
+    const boundsHeight = Math.max(1, boundsMaxY - boundsMinY)
+    const frameWidth = Math.max(1, frameMaxX - frameMinX)
+    const frameHeight = Math.max(1, frameMaxY - frameMinY)
+    const maxFitZoom = context.topologyKind === "square" ? 1.92 : 1.68
     const zoom = Math.min(
-      1.45,
-      Math.max(0.64, Math.min(this.scale.width / width, this.scale.height / height) * 0.9),
+      maxFitZoom,
+      Math.max(0.64, Math.min(this.scale.width / frameWidth, this.scale.height / frameHeight) * 0.9),
     )
     const focusCoord = initialCharacterCoord(context) ?? context.baseCoord
     const focus = focusCoord ? centerFor(focusCoord, context) : {
-      x: minX + width / 2,
-      y: minY + height / 2,
+      x: frameMinX + frameWidth / 2,
+      y: frameMinY + frameHeight / 2,
     }
     camera.setZoom(zoom)
     const visibleWidth = this.scale.width / zoom
     const visibleHeight = this.scale.height / zoom
     camera.setBounds(
-      minX - visibleWidth / 2,
-      minY - visibleHeight / 2,
-      width + visibleWidth,
-      height + visibleHeight,
+      boundsMinX - visibleWidth / 2,
+      boundsMinY - visibleHeight / 2,
+      boundsWidth + visibleWidth,
+      boundsHeight + visibleHeight,
     )
     camera.centerOn(focus.x, focus.y)
   }
@@ -1522,6 +1786,7 @@ export class AddRpgHexScene extends Phaser.Scene {
         landmarkSprites: "procedural_sprite_stack",
         labelRendering: "high_resolution_phaser_text",
         ambience: "subtle_motes_and_topographic_scan",
+        mapPrimaryAffordances: this.mapPrimaryAffordanceInfo,
         visibilityPolish: VISIBILITY_POLISH,
         transitionState: this.transitionState,
         transitionProgress: round(this.transitionProgress),
@@ -1570,4 +1835,15 @@ function formatScaleDistance(meters: number): string {
     return `${Number.isInteger(km) ? km : km.toFixed(1)} km`
   }
   return `${meters} m`
+}
+
+function emptyMapPrimaryAffordanceInfo(): MapPrimaryAffordanceInfo {
+  return {
+    layer: "reachable_path_frontier_landmark",
+    reachableCellCount: 0,
+    frontierHintCount: 0,
+    pathTimePreviewVisible: false,
+    actionMarkerCount: 0,
+    landmarkBeaconCount: 0,
+  }
 }

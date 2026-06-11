@@ -5980,6 +5980,14 @@ function emptyMapInfo(): AddPhaserMapInfo {
       landmarkSprites: "procedural_sprite_stack",
       labelRendering: "high_resolution_phaser_text",
       ambience: "subtle_motes_and_topographic_scan",
+      mapPrimaryAffordances: {
+        layer: "reachable_path_frontier_landmark",
+        reachableCellCount: 0,
+        frontierHintCount: 0,
+        pathTimePreviewVisible: false,
+        actionMarkerCount: 0,
+        landmarkBeaconCount: 0,
+      },
       visibilityPolish: {
         fogEdge: "soft_feathered_visibility_boundary",
         revealEffect: "expanding_ripple",
