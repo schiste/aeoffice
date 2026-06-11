@@ -2876,3 +2876,13 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   passed with `npm run smoke:add-rpg:built` and full `npm run check`; visually
   inspected the regenerated Discovery, Base, Dungeon, Offline Return, and mobile
   bottom-sheet hierarchy screenshots.
+- Fixed the first critical interface review finding: Base mode no longer leads
+  with the overworld Discovery story card. `currentActionSurface` now allows
+  callers to opt out of story moment injection, and `baseManagementPanel` starts
+  with the base player-loop health/bottleneck/action/rates surface before the
+  current decision. The ADD smoke now asserts that Base mode does not leak "Road
+  to Base" / "Follow the low signal" copy. Verification passed with
+  `npm --workspace @aedventure/add-rpg run build:types`,
+  `npm --workspace @aedventure/add-rpg run build:browser`, and
+  `npm run smoke:add-rpg:built`; visually inspected the regenerated Base
+  hierarchy screenshot.

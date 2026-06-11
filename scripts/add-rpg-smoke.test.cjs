@@ -749,6 +749,11 @@ async function exerciseBaseManagementSurface(page, consoleErrors) {
     )
   })
   assert.doesNotMatch(panelText, /Runtime|Snapshot|Debug/i)
+  assert.doesNotMatch(
+    panelText,
+    /Road to Base|Follow the low signal|Keep moving through the ash/i,
+    "Base mode should lead with base management, not overworld Discovery story copy.",
+  )
   await assertLayoutHierarchy(page, {
     expectedContextPanelId: "base-management-panel",
     expectedMapMode: "base_square",

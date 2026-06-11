@@ -1448,10 +1448,10 @@ function baseManagementPanel(): unknown {
           <span class="small-chip">${() => titleCase(baseManagementTab())}</span>
         </div>
       </div>
-      ${() => currentActionSurface()}
+      ${() => basePlayerLoopPanel(state)}
+      ${() => currentActionSurface({ includeStoryMoment: false })}
       ${() => baseManagementCommandStrip(state)}
       ${() => baseRateChangePanel()}
-      ${() => basePlayerLoopPanel(state)}
       <div class="base-management-tabs" role="tablist" aria-label="Base management sections">
         ${() => baseManagementTabButtons(state)}
       </div>
@@ -1766,7 +1766,10 @@ function storyMomentBlock(): unknown {
   `
 }
 
-function currentActionSurface(): unknown {
+function currentActionSurface(
+  options: { readonly includeStoryMoment?: boolean } = {},
+): unknown {
+  const includeStoryMoment = options.includeStoryMoment ?? true
   return html`
     <article
       id="current-action-surface"
@@ -1778,7 +1781,7 @@ function currentActionSurface(): unknown {
       aria-live="polite"
       aria-label="Current action"
     >
-      ${() => storyMomentBlock()}
+      ${() => includeStoryMoment ? storyMomentBlock() : null}
       <div class="current-action-kicker">
         <span>Current decision</span>
         <small>${() => currentActionKickerMeta()}</small>
