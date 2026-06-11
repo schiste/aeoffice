@@ -11,6 +11,10 @@ Original prompt: continue do the whole plan end to end, granular commits as you 
   preserving full-map pan bounds. `render_game_to_text` exposes the
   `mapPrimaryAffordances` contract so smoke tests can detect if the map becomes
   passive again.
+- ADD completed-objective hierarchy pass: once the first-playable arc completes,
+  the objective tracker auto-collapses once into an "Arc complete" journal chip
+  instead of competing with Return/Base/Dungeon panels. Smoke now asserts the
+  completed tracker is compact during the offline return review.
 - Verification: `npm --workspace @aedventure/add-rpg run build`, `npm run
   smoke:add-rpg`, local web-game client against `http://127.0.0.1:5177/app/`,
   and full `npm run check` passed. The in-app Browser plugin was unavailable in

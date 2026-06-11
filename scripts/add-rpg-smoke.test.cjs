@@ -1604,7 +1604,7 @@ async function completeFirstPlayableArc(page, consoleErrors) {
       state.snapshot?.base?.firePitBuilt === true &&
       state.snapshot?.recruitment?.totalRecruitedThisRun >= 1
     ) {
-      return state
+      return waitForCompletedObjectiveChip(page, consoleErrors)
     }
 
     const action = state.ui?.firstPlayable?.currentAction
@@ -1629,7 +1629,7 @@ async function completeFirstPlayableArc(page, consoleErrors) {
         completedState.ui?.firstPlayable?.complete === true &&
         completedState.snapshot?.recruitment?.totalRecruitedThisRun >= 1
       ) {
-        return completedState
+        return waitForCompletedObjectiveChip(page, consoleErrors)
       }
       throw new Error(
         `First playable action disabled before completion: ${JSON.stringify(
@@ -1652,6 +1652,17 @@ async function completeFirstPlayableArc(page, consoleErrors) {
     `ADD first playable did not complete. Last state: ${JSON.stringify(
       await renderGameToText(page),
     )}`,
+  )
+}
+
+async function waitForCompletedObjectiveChip(page, consoleErrors) {
+  return waitForTextState(
+    page,
+    (state) =>
+      state.ui?.firstPlayable?.complete === true &&
+      state.shell?.questPanel?.collapsed === true &&
+      state.shell?.questPanel?.collapseControlLabel === "Open first arc journal",
+    consoleErrors,
   )
 }
 
@@ -1771,6 +1782,29 @@ async function exerciseSaveReloadOfflineAndReset(page, advanced, consoleErrors) 
   await page.locator("#offline-return-panel").waitFor({ state: "visible" })
   const offlineReview = await renderGameToText(page)
   assertV1InterfaceContext(offlineReview, "return", { source: "offline_return" })
+  assert.equal(
+    offlineReview.shell?.questPanel?.collapsed,
+    true,
+    "Completed first-playable tracker should stay collapsed during offline return.",
+  )
+  assert.equal(
+    offlineReview.shell?.questPanel?.collapseControlLabel,
+    "Open first arc journal",
+    "Completed tracker should become an optional first-arc journal.",
+  )
+  assert.equal(
+    await page.locator("#first-playable-body").isHidden(),
+    true,
+    "Completed first-playable journal body should not compete with the return review.",
+  )
+  const completedObjectiveRect = await page.locator("#first-playable-panel").boundingBox()
+  assert.ok(
+    completedObjectiveRect && completedObjectiveRect.height <= 72,
+    `Completed objective chip should stay compact during return review, saw ${JSON.stringify(
+      completedObjectiveRect,
+    )}.`,
+  )
+  await assertVisibleText(page, "#first-playable-panel", ["Arc complete", "10/10", "Journal"])
   assert.ok(
     Array.isArray(offlineTicked.offlineReturn.resourceDeltas),
     "Offline return should expose resource gains as an array.",
@@ -3124,14 +3158,21 @@ async function openDetailsSection(page, selector) {
     return node.open
   })
   if (!isOpen) {
-    await details.evaluate((node) => {
-      node.open = true
-      node.dispatchEvent(new Event("toggle"))
-    })
+    const summary = details.locator("summary").first()
+    if ((await summary.count()) > 0) {
+      await summary.click()
+    } else {
+      await details.evaluate((node) => {
+        node.open = true
+        node.dispatchEvent(new Event("toggle"))
+      })
+    }
   }
   await page.waitForFunction((targetSelector) => {
     const node = document.querySelector(targetSelector)
-    return node instanceof HTMLDetailsElement && node.open === true
+    if (!(node instanceof HTMLDetailsElement)) return false
+    if (!node.open) node.open = true
+    return node.open === true
   }, selector)
 }
 

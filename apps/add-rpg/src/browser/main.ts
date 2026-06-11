@@ -381,6 +381,26 @@ const dungeonObjectiveState = createMemo(() =>
     heroCell: mapInfo().character.cell,
   }),
 )
+let firstPlayableCompletionCollapseApplied = false
+createEffect(() => {
+  const complete = uiState()?.firstPlayable.complete === true
+  const objectiveOwnedByDungeon = dungeonObjectiveState() !== null
+  if (!complete || objectiveOwnedByDungeon) {
+    firstPlayableCompletionCollapseApplied = false
+    return
+  }
+
+  if (firstPlayableCompletionCollapseApplied) return
+  firstPlayableCompletionCollapseApplied = true
+  if (!firstPlayableCollapsed()) {
+    setFirstPlayableCollapsed(true)
+    setLastQuestPanelAction("collapsed")
+    window.requestAnimationFrame(() => {
+      const current = questPanelPosition()
+      setQuestPanelPosition(clampQuestPanelPosition(current.x, current.y))
+    })
+  }
+})
 const displayedWorldTime = createMemo<AddWorldTimeSummary | null>(() => {
   const currentSnapshot = snapshot()
   const clockSeconds = displayClockSeconds() ?? currentSnapshot?.clockSeconds
@@ -705,12 +725,17 @@ function AddRpgApp() {
             data-interface-tier="secondary"
             data-interface-answer="objective-progress"
             class=${() =>
-              firstPlayableCollapsed()
-                ? "panel first-playable-panel first-playable-overlay collapsed"
-                : "panel first-playable-panel first-playable-overlay"}
+              [
+                "panel first-playable-panel first-playable-overlay",
+                firstPlayableCollapsed() ? "collapsed" : "",
+                firstPlayableArcComplete() ? "complete" : "",
+              ]
+                .filter(Boolean)
+                .join(" ")}
             style=${() => questPanelStyle()}
             data-dragging=${() => questPanelDragging()}
             data-last-action=${() => lastQuestPanelAction()}
+            data-complete=${() => firstPlayableArcComplete()}
             data-visual-surface="objective"
             aria-labelledby="first-playable-title"
             aria-describedby="first-playable-keyboard-help"
@@ -741,7 +766,7 @@ function AddRpgApp() {
                   aria-controls="first-playable-body"
                   aria-label=${() => objectivePanelToggleLabel()}
                 >
-                  ${() => (firstPlayableCollapsed() ? "Show" : "Hide")}
+                  ${() => objectivePanelToggleText()}
                 </button>
               </div>
             </div>
@@ -3650,7 +3675,8 @@ function discoveryActionsSection(): unknown {
 }
 
 function objectivePanelTitle(): string {
-  return dungeonObjectiveState() ? "Dungeon objective" : "First playable"
+  if (dungeonObjectiveState()) return "Dungeon objective"
+  return firstPlayableArcComplete() ? "Arc complete" : "First playable"
 }
 
 function objectivePanelChip(): string {
@@ -3666,8 +3692,16 @@ function objectivePanelChip(): string {
 }
 
 function objectivePanelToggleLabel(): string {
+  if (firstPlayableArcComplete()) {
+    return firstPlayableCollapsed() ? "Open first arc journal" : "Close first arc journal"
+  }
   const action = firstPlayableCollapsed() ? "Expand" : "Collapse"
   return `${action} objective tracker`
+}
+
+function objectivePanelToggleText(): string {
+  if (firstPlayableArcComplete()) return firstPlayableCollapsed() ? "Journal" : "Close"
+  return firstPlayableCollapsed() ? "Show" : "Hide"
 }
 
 function objectivePanelBody(): unknown {
@@ -3725,6 +3759,10 @@ function dungeonObjectiveStepRows(): readonly unknown[] {
 
 function currentFirstPlayableStep() {
   return uiState()?.firstPlayable.steps.find((step) => step.active) ?? null
+}
+
+function firstPlayableArcComplete(): boolean {
+  return !dungeonObjectiveState() && uiState()?.firstPlayable.complete === true
 }
 
 function firstPlayableProgressWidth(): string {

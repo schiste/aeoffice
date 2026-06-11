@@ -3373,6 +3373,34 @@ h1 {
     inset 4px 0 0 rgb(240 185 93 / 28%);
 }
 
+.first-playable-overlay.complete.collapsed {
+  width: min(216px, calc(100vw - 28px));
+  border-color: rgb(95 209 216 / 28%);
+  background:
+    linear-gradient(180deg, rgb(95 209 216 / 12%), rgb(240 185 93 / 7%)),
+    rgb(26 33 26 / 86%);
+  box-shadow:
+    var(--shadow-hud),
+    inset 4px 0 0 rgb(95 209 216 / 32%);
+}
+
+.first-playable-overlay.complete.collapsed .first-playable-drag-handle {
+  gap: 0.5rem;
+}
+
+.first-playable-overlay.complete.collapsed .panel-heading-actions {
+  gap: 4px;
+}
+
+.first-playable-overlay.complete.collapsed .small-chip {
+  background: rgb(95 209 216 / 16%);
+  color: rgb(232 255 248 / 88%);
+}
+
+.first-playable-overlay.complete.collapsed .panel-icon-button {
+  padding-inline: 0.52rem;
+}
+
 .first-playable-overlay[data-dragging="true"] {
   border-color: rgb(95 209 216 / 42%);
   box-shadow:
